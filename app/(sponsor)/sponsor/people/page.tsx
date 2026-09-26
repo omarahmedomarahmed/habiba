@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 
+import { SponsorHeading } from "@/components/sponsor/heading";
 import { RosterList } from "@/components/sponsor/roster-list";
 import { roster } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
+import { countKey } from "@/lib/i18n/count-form";
 
 /** W3: the tab title in the reader's language. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -35,14 +37,12 @@ export default async function SponsorPeoplePage() {
   const people = await roster(actor.sponsorId);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("sponsor.roster")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("sponsor.rosterBody")}</p>
-        <p className="mt-1 text-xs text-slate-500">
-          {t("sponsor.rosterCount", { count: people.length })}
-        </p>
-      </div>
+    <div className="space-y-5">
+      <SponsorHeading
+        title={t("sponsor.roster")}
+        subtitle={t("sponsor.rosterBody")}
+        note={t(countKey("sponsor.rosterCount", people.length), { count: people.length })}
+      />
 
       <RosterList
         canRemove={actor.role === "admin"}
@@ -68,7 +68,7 @@ export default async function SponsorPeoplePage() {
       />
 
       {/* 🔴 53.19b / C247 — the cycle, and that a pause touches nothing else. */}
-      <p className="text-xs leading-relaxed text-slate-500">
+      <p className="text-xs leading-relaxed text-navy-400">
         {t("sponsor.verifyCycle", { months: settings.sponsor.verifyCycleMonths })}
       </p>
     </div>

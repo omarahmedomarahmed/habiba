@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { signInSponsor } from "@/app/(sponsor)/sponsor/sign-in/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
@@ -70,7 +70,7 @@ export function SponsorSignInForm({ passwordSet = false }: { passwordSet?: boole
       {/* W2-S05: there was no way back in but a call to us. */}
       <Link
         href="/sponsor/forgot-password"
-        className="mt-3 inline-block text-xs font-semibold text-slate-600 underline"
+        className="mt-3 inline-block text-xs font-semibold text-navy-400 underline"
       >
         {t("sponsor.forgotLink")}
       </Link>

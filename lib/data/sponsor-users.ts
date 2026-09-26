@@ -163,6 +163,19 @@ export async function requestSponsorReset(
 }
 
 /**
+ * 🔴 Board 357: whether a reset or invite link can still set a password, so the
+ * page says a spent link is spent on arrival (as the clinic's does) rather than
+ * after somebody has typed a new password twice. The same two checks
+ * `setSponsorPassword` makes, which stays the authority.
+ */
+export async function sponsorPasswordLinkLive(token: string): Promise<boolean> {
+  const link = readPasswordLink(token);
+  if (!link) return false;
+  const row = await loginRow(link.sponsorUserId);
+  return Boolean(row && passwordLinkMatches(token, row.passwordHash));
+}
+
+/**
  * Set a password from a reset or invite link. Every session the login had is
  * ended, because a reset exists for the case where somebody else got in.
  */

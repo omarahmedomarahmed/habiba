@@ -154,7 +154,8 @@ async function main() {
 
   /* ------------------------------------------ B5 / B9: the link button -- */
   const { buttonSuffix, renderTemplate, templateFor } = await import("../lib/notify/templates");
-  const needsDoor = ["claim.invite", "payment.confirmed", "payment.rejected"];
+  /* 🔴 Board 300: and the session invitation and "they are in the room", whose link is the way in. */
+  const needsDoor = ["claim.invite", "payment.confirmed", "payment.rejected", "session.invite", "session.started"];
   const doorless = needsDoor.filter((kind) => {
     const button = templateFor(kind)?.button;
     return !button || !button.en || !/[؀-ۿ]/.test(button.ar);

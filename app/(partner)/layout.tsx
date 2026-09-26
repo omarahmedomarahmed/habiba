@@ -47,7 +47,13 @@ export default async function PartnerLayout({ children }: { children: React.Reac
   );
 
   return (
-    <PartnerChrome bare={door} nav={actor !== null} partnerName={actor?.partnerName ?? null}>
+    <PartnerChrome
+      bare={door}
+      nav={actor !== null}
+      partnerName={actor?.partnerName ?? null}
+      email={actor?.email ?? null}
+      role={actor?.role ?? null}
+    >
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
       {door ? null : <LanguageCorner />}
       {children}

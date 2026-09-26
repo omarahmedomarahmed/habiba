@@ -2,17 +2,20 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { controlDb } from "@/lib/db";
 import {
+  organizations,
   partnerApiKeys,
   partnerUsers,
   partners,
+  users,
   type PartnerRole,
   type PartnerState,
 } from "@/lib/db/schema";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { log, ref } from "@/lib/logger";
 
 /**
@@ -364,4 +367,132 @@ export async function withdrawApproval(partnerId: string): Promise<{ ok: true }>
 
   log.warn("partner production approval withdrawn", { partner: ref(partnerId) });
   return { ok: true };
+}
+
+/**
+ * 🔴 Board 611: ATTACH AN EXISTING PRACTICE TO A PARTNER, AS PARTNER-BILLED.
+ *
+ * Write-back, launch and note delivery all find a clinician through
+ * `organizations.partner_id` with `billing_mode = 'partner_billed'` (42.6), and
+ * nothing in the product ever set it, so an approved partner could never reach a
+ * single clinician. This is the operator's control for it, and only the
+ * operator's: it lives in the console behind `requireRole`, and no partner route
+ * imports it, so a partner can never attach a practice to itself (a test holds
+ * that).
+ *
+ * The practice is named by its slug or by a clinician's email in it. A practice
+ * already on ANOTHER partner is refused: moving it is a detach and an attach,
+ * two acts on the record, never one silent overwrite.
+ */
+export type PartnerPractice = { id: string; name: string; slug: string };
+
+async function findPracticeFor(
+  needle: string,
+): Promise<{ practice?: PartnerPractice & { partnerId: string | null }; error?: MessageKey }> {
+  const value = needle.trim().toLowerCase();
+  if (!value) return { error: "apartner.practiceNotFound" };
+
+  const columns = {
+    id: organizations.id,
+    name: organizations.name,
+    slug: organizations.slug,
+    partnerId: organizations.partnerId,
+  };
+
+  const rows = value.includes("@")
+    ? await controlDb
+        .selectDistinct(columns)
+        .from(users)
+        .innerJoin(organizations, eq(organizations.id, users.organizationId))
+        .where(and(eq(users.email, value), isNull(users.deletedAt), isNull(organizations.deletedAt)))
+        .limit(2)
+    : await controlDb
+        .select(columns)
+        .from(organizations)
+        .where(and(eq(organizations.slug, value), isNull(organizations.deletedAt)))
+        .limit(2);
+
+  if (rows.length === 0) return { error: "apartner.practiceNotFound" };
+  /* One email in two practices: the slug says which, a guess would not. */
+  if (rows.length > 1) return { error: "apartner.practiceAmbiguous" };
+  return { practice: rows[0]! };
+}
+
+export async function attachPracticeToPartner(input: {
+  partnerId: string;
+  needle: string;
+}): Promise<{ practice?: PartnerPractice; error?: MessageKey }> {
+  const [partner] = await controlDb
+    .select({ id: partners.id })
+    .from(partners)
+    .where(eq(partners.id, input.partnerId))
+    .limit(1);
+  if (!partner) return { error: "apartner.errGone" };
+
+  const found = await findPracticeFor(input.needle);
+  if (!found.practice) return { error: found.error };
+  const { partnerId: current, ...practice } = found.practice;
+
+  if (current && current !== input.partnerId) return { error: "apartner.practiceOtherPartner" };
+
+  /* The WHERE repeats the refusal, so a race with another attach cannot overwrite. */
+  const updated = await controlDb
+    .update(organizations)
+    .set({ partnerId: input.partnerId, billingMode: "partner_billed", updatedAt: new Date() })
+    .where(
+      and(
+        eq(organizations.id, practice.id),
+        or(isNull(organizations.partnerId), eq(organizations.partnerId, input.partnerId)),
+      ),
+    )
+    .returning({ id: organizations.id });
+  if (updated.length === 0) return { error: "apartner.practiceOtherPartner" };
+
+  log.info("practice attached to partner", {
+    partner: ref(input.partnerId),
+    organization: ref(practice.id),
+  });
+  return { practice };
+}
+
+/**
+ * And detach, which puts the practice back on its own bill. Only a practice on
+ * THIS partner, so a stale screen cannot detach one somebody moved meanwhile.
+ */
+export async function detachPracticeFromPartner(input: {
+  partnerId: string;
+  organizationId: string;
+}): Promise<{ ok?: true; error?: MessageKey }> {
+  const updated = await controlDb
+    .update(organizations)
+    .set({ partnerId: null, billingMode: "self", updatedAt: new Date() })
+    .where(
+      and(
+        eq(organizations.id, input.organizationId),
+        eq(organizations.partnerId, input.partnerId),
+      ),
+    )
+    .returning({ id: organizations.id });
+  if (updated.length === 0) return { error: "apartner.practiceNotAttached" };
+
+  log.info("practice detached from partner", {
+    partner: ref(input.partnerId),
+    organization: ref(input.organizationId),
+  });
+  return { ok: true };
+}
+
+/** The practices a partner is billed for, for the console row. Names only. */
+export async function practicesFor(partnerId: string): Promise<PartnerPractice[]> {
+  return controlDb
+    .select({ id: organizations.id, name: organizations.name, slug: organizations.slug })
+    .from(organizations)
+    .where(
+      and(
+        eq(organizations.partnerId, partnerId),
+        eq(organizations.billingMode, "partner_billed"),
+        isNull(organizations.deletedAt),
+      ),
+    )
+    .orderBy(organizations.name);
 }

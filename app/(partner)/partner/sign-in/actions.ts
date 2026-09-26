@@ -62,7 +62,8 @@ export async function choosePassword(_prev: ResetState, formData: FormData): Pro
     String(formData.get("password") ?? ""),
   );
   if (result.error) return { error: result.error };
-  redirect("/partner/sign-in");
+  /* 🔴 Board 641: the door says the password is set, as `/welcome`'s landing does. */
+  redirect("/partner/sign-in?set=1");
 }
 
 export async function signOutPartner(): Promise<void> {

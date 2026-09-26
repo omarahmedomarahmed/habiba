@@ -10,7 +10,7 @@ import { ClinicianAssessments } from "@/components/assessments/clinician-assessm
 import { ClinicianHomework } from "@/components/homework/clinician-homework";
 import { StandingProfile } from "@/components/memory/standing-profile";
 import { DocumentPanel } from "@/components/documents/document-panel";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { explain } from "@/lib/access/state";
 import { requireUser } from "@/lib/auth/guard";
 import {
@@ -182,16 +182,16 @@ export default async function PatientDocumentsPage({
       <div className="flex items-center gap-1 px-4 pt-4 sm:px-6">
         <Link
           href={`/patients/${id}`}
-          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
+          className="tap-target -ms-2 flex items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-navy-400 hover:bg-white hover:text-navy-700"
         >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
+          <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
           {fullName(patient.firstName, patient.lastName)}
         </Link>
       </div>
 
       <div className="px-4 pt-3 pb-4 sm:px-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("portal.docs.profile")}</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-navy-700">{t("portal.docs.profile")}</h1>
+        <p className="mt-1 text-sm text-navy-400">
           {t("portal.docs.blurb")}
         </p>
       </div>
@@ -232,18 +232,18 @@ export default async function PatientDocumentsPage({
 
         {journals.length > 0 ? (
           <Card className="p-4">
-            <p className="text-sm font-semibold text-slate-900">{t("portal.docs.journals")}</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+            <p className="text-sm font-semibold text-navy-700">{t("portal.docs.journals")}</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
               {t("portal.docs.journalsBlurb")}
             </p>
             <ul className="mt-3 space-y-3">
               {journals.map((entry) => (
-                <li key={entry.id} className="border-s-2 border-slate-200 ps-3">
-                  <p className="text-xs text-slate-500">
+                <li key={entry.id} className="border-s-2 border-navy-100 ps-3">
+                  <p className="text-xs text-navy-400">
                     {formatDate(entry.createdAt, actor.timezone, locale)}
                     {entry.source === "dictated" ? ` · ${t("portal.docs.spoken")}` : ""}
                   </p>
-                  <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                  <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-navy-600">
                     {entry.body}
                   </p>
                 </li>
@@ -265,7 +265,7 @@ export default async function PatientDocumentsPage({
           />
         ) : (
           <Card className="px-4 py-6">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-navy-400">
               {t("portal.docs.noRecord")}
             </p>
           </Card>
@@ -286,6 +286,7 @@ export default async function PatientDocumentsPage({
           }))}
           trend={trend}
           drafted={drafted}
+          draftSessionId={lastSession?.id ?? null}
           canAssign={access.state !== "revoked"}
         />
 

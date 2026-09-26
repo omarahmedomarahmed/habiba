@@ -413,6 +413,15 @@ export function uncalledExports(s: Surfaces, fns: ActionRef[]): ActionRef[] {
 
   return fns.filter((fn) => {
     const pattern = new RegExp(`\\b${fn.name}\\b`);
+    /*
+     * 🔴 A CALL IN ITS OWN FILE IS A CALL. The declaration is one mention; a
+     * second one (comments are already stripped) is the module using it, as
+     * when a rule is split into a small exported function so a test can pin it
+     * and the module's own write path calls it. Counting that as "no caller"
+     * made every such seam read as dead safety code, which it is not.
+     */
+    const own = code.get(fn.file) ?? "";
+    if ((own.match(new RegExp(`\\b${fn.name}\\b`, "g")) ?? []).length >= 2) return false;
     return !s.files.some(
       (f) =>
         f !== fn.file &&

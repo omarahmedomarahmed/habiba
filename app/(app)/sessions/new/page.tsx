@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { listConnections } from "@/lib/data/meeting-connections";
 import { PROVIDERS } from "@/lib/meetings/providers";
 import { NewSessionForm } from "@/components/session/new-session-form";
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { getConnectAccount } from "@/lib/billing/connect";
 import { currentTier } from "@/lib/billing/credits";
@@ -31,7 +31,7 @@ export default async function NewSessionPage({
    * W2-T05 (words): `?welcome=1` was read here and nothing ever sent it
    * (signup lands on /onboarding), so its banner never rendered.
    */
-  const [, patients, connect, settings, connections, onTransferRail, tier] =
+  const [, patients, connect, settings, connections, onTransferRail, tier, egypt] =
     await Promise.all([
       searchParams,
       listPatients(actor),
@@ -40,6 +40,8 @@ export default async function NewSessionPage({
       listConnections(actor),
       organizationNeedsTransfer(actor.organizationId),
       currentTier(actor.organizationId),
+      /* Board 464: read alongside, not after, and used only on the transfer rail. */
+      getCountrySettings("eg"),
     ]);
 
   /*
@@ -72,7 +74,7 @@ export default async function NewSessionPage({
    * how a clinician is shown one patient total and the patient is asked another.
    */
   const egyptVatBps = onTransferRail
-    ? sessionVatBpsFor((await getSettings()).rules, (await getCountrySettings("eg"))?.vatBps ?? 0)
+    ? sessionVatBpsFor(settings.rules, egypt?.vatBps ?? 0)
     : 0;
 
   return (

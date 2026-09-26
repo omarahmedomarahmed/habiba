@@ -5,7 +5,8 @@ import { AlertTriangle, Check, Mail, Star } from "lucide-react";
 
 import { rateSession, reportSession } from "@/app/feedback/[token]/actions";
 import { PatientBriefCard } from "@/components/clinical/patient-brief-card";
-import { Button, Card, Input, Textarea } from "@/components/ui";
+import { Button, Input, Textarea } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { RTL_LANGUAGE_CODES, SERVICE_TAGS, TAG_LABEL_KEYS, THERAPIST_TAGS, ratingReady } from "@/lib/feedback-options";
 import { formatCalendarDate, resolveZone } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
@@ -144,16 +145,16 @@ export function RatingForm({
   const rtl = RTL_LANGUAGE_CODES.has(briefLanguage);
   const summary = brief ? (
     <Card className="p-5">
-      <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
+      <p className="text-xs font-bold tracking-wider text-navy-400 uppercase">
         {t("prating.yourSummary")}
       </p>
-      <p className="mt-0.5 text-xs text-slate-500">{t("prating.from", { name: signer })}</p>
+      <p className="mt-0.5 text-xs text-navy-400">{t("prating.from", { name: signer })}</p>
       {/* Same component the clinician approved this on, so what they
           saw and what you are reading cannot drift apart. */}
       <PatientBriefCard className="mt-2" brief={brief} steps={briefSteps} next={briefNext} rtl={rtl} />
       {briefAddenda.map((line, index) => (
-        <div key={index} className="mt-3 rounded-xl bg-slate-50 p-3">
-          <p className="text-xs text-slate-500">
+        <div key={index} className="mt-3 rounded-xl bg-navy-50 p-3">
+          <p className="text-xs text-navy-400">
             {t("psessions.addedLater", { name: line.by })} ·{" "}
             {formatCalendarDate(
               new Date(line.at),
@@ -161,12 +162,12 @@ export function RatingForm({
               dateTag(locale),
             )}
           </p>
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-navy-600">
             {line.body}
           </p>
         </div>
       ))}
-      <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
+      <p className="mt-4 border-t border-navy-100 pt-3 text-xs leading-relaxed text-navy-400">
         {t("prating.writtenForYou")}
       </p>
     </Card>
@@ -183,8 +184,8 @@ export function RatingForm({
           <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
             <Check className="h-5 w-5" aria-hidden />
           </span>
-          <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">{t("room.thanks")}</p>
-          <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
+          <p className="mt-3 text-lg font-bold tracking-tight text-navy-700">{t("room.thanks")}</p>
+          <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-navy-400">
             {sent || emailed
               ? t("prating.summaryOnWay")
               : notePending
@@ -218,9 +219,9 @@ export function RatingForm({
       {summary}
 
       <Card className="space-y-5 p-5">
-        <p className="text-xs text-slate-500">{t("prating.oneMinute")}</p>
+        <p className="text-xs text-navy-400">{t("prating.oneMinute")}</p>
         <div>
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-navy-700">
             {t("prating.howWas", { name: therapistFirstName })}
           </p>
           <Stars value={therapistStars} onChange={setTherapistStars} label={t("prating.rateTherapist")} />
@@ -231,9 +232,9 @@ export function RatingForm({
           />
         </div>
 
-        <div className="border-t border-slate-100 pt-4">
-          <p className="text-sm font-semibold text-slate-900">{t("prating.andSession")}</p>
-          <p className="text-xs text-slate-500">
+        <div className="border-t border-navy-100 pt-4">
+          <p className="text-sm font-semibold text-navy-700">{t("prating.andSession")}</p>
+          <p className="text-xs text-navy-400">
             {t("prating.sessionUse", { name: therapistFirstName })}
           </p>
           <Stars value={sessionStars} onChange={setSessionStars} label={t("prating.rateSession")} />
@@ -248,9 +249,9 @@ export function RatingForm({
           under the same name.
         */}
         {!ratedApp ? (
-          <div className="border-t border-slate-100 pt-4">
-            <p className="text-sm font-semibold text-slate-900">{t("prating.andApp")}</p>
-            <p className="text-xs text-slate-500">{t("prating.andAppBody")}</p>
+          <div className="border-t border-navy-100 pt-4">
+            <p className="text-sm font-semibold text-navy-700">{t("prating.andApp")}</p>
+            <p className="text-xs text-navy-400">{t("prating.andAppBody")}</p>
             <Stars value={serviceStars} onChange={setServiceStars} label={t("prating.rateService")} />
             <TagRow
               options={SERVICE_TAGS}
@@ -260,15 +261,15 @@ export function RatingForm({
           </div>
         ) : null}
 
-        <div className="border-t border-slate-100 pt-4">
+        <div className="border-t border-navy-100 pt-4">
           <label
             htmlFor="feedback-comment"
-            className="text-sm font-semibold text-slate-900"
+            className="text-sm font-semibold text-navy-700"
           >
             {t("prating.anythingElse")}{" "}
-            <span className="font-normal text-slate-500">{t("prating.optional")}</span>
+            <span className="font-normal text-navy-400">{t("prating.optional")}</span>
           </label>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-navy-400">
             {t("prating.noName")}
           </p>
           <Textarea
@@ -281,11 +282,11 @@ export function RatingForm({
           />
         </div>
 
-        <div className="border-t border-slate-100 pt-4">
-          <label htmlFor="feedback-email" className="text-sm font-semibold text-slate-900">
+        <div className="border-t border-navy-100 pt-4">
+          <label htmlFor="feedback-email" className="text-sm font-semibold text-navy-700">
             {t("prating.whereSummary")}
           </label>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+          <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
             {t("prating.summaryBody")}
           </p>
           <Input
@@ -312,7 +313,7 @@ export function RatingForm({
           {pending ? t("common.sending") : t("prating.send")}
         </Button>
         {!ready ? (
-          <p className="text-center text-xs text-slate-500">
+          <p className="text-center text-xs text-navy-400">
             {t("prating.ratingsAndEmail")}
           </p>
         ) : null}
@@ -337,8 +338,8 @@ function Heading({ date, title, blurb }: { date: string; title: string; blurb?: 
   return (
     <div>
       <p className="text-xs font-bold tracking-wider text-brand-700 uppercase">{date}</p>
-      <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
-      {blurb ? <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{blurb}</p> : null}
+      <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-navy-700">{title}</h1>
+      {blurb ? <p className="mt-1.5 text-sm leading-relaxed text-navy-400">{blurb}</p> : null}
     </div>
   );
 }
@@ -368,7 +369,7 @@ function Stars({
           <Star
             className={cn(
               "h-8 w-8 transition-colors",
-              star <= value ? "fill-amber-400 text-amber-400" : "text-slate-200",
+              star <= value ? "fill-amber-400 text-amber-400" : "text-navy-100",
             )}
             aria-hidden
           />
@@ -400,7 +401,7 @@ function TagRow({
             "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
             selected.includes(option)
               ? "border-brand-600 bg-brand-50 text-brand-800"
-              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+              : "border-navy-100 bg-white text-navy-400 hover:border-navy-200",
           )}
         >
           {option in TAG_LABEL_KEYS ? t(TAG_LABEL_KEYS[option as keyof typeof TAG_LABEL_KEYS]) : option}
@@ -446,8 +447,8 @@ function ReportBox({
   if (reported) {
     return (
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{t("prating.reported")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{reported}</p>
+        <p className="text-sm font-semibold text-navy-700">{t("prating.reported")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">{reported}</p>
       </Card>
     );
   }
@@ -459,7 +460,7 @@ function ReportBox({
           <button
             type="button"
             onClick={() => setReporting("no_show")}
-            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-start text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="w-full rounded-2xl border border-navy-100 bg-white px-4 py-3 text-start text-sm font-medium text-navy-600 hover:bg-navy-50"
           >
             {t("prating.neverJoined")}
           </button>
@@ -467,7 +468,7 @@ function ReportBox({
         <button
           type="button"
           onClick={() => setReporting("abuse")}
-          className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-start text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="flex w-full items-center gap-2 rounded-2xl border border-navy-100 bg-white px-4 py-3 text-start text-sm font-medium text-navy-600 hover:bg-navy-50"
         >
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
           {t("prating.reportSomething")}
@@ -501,10 +502,10 @@ function ReportBox({
 
   return (
     <Card className="space-y-3 p-4">
-      <p className="text-sm font-semibold text-slate-900">
+      <p className="text-sm font-semibold text-navy-700">
         {reporting === "no_show" ? t("prating.noShowTitle") : t("prating.reportTitle")}
       </p>
-      <p className="text-xs leading-relaxed text-slate-500">
+      <p className="text-xs leading-relaxed text-navy-400">
         {reporting === "no_show"
           ? t("prating.noShowIntro")
           : t("prating.reportIntro")}

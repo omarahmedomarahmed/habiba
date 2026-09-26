@@ -51,22 +51,22 @@ export default async function PatientLoginPage({
       <div className="space-y-4">
         {/* 🔴 K24: the one thing said after an account is closed. */}
         {params.closed === "1" ? (
-          <p role="status" className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <p role="status" className="rounded-xl bg-navy-50 px-3 py-2 text-sm text-navy-600">
             {t("pclose.done")}
           </p>
         ) : null}
         <PatientAuthForm mode="signin" next={next} />
-        <p className="text-sm text-slate-600">
-          <Link href="/patient/forgot-password" className="hover:text-navy-500">
+        <p className="text-sm">
+          <Link href="/patient/forgot-password" className="font-semibold text-brand-700 hover:underline">
             {t("pauth.forgot")}
           </Link>
         </p>
       </div>
 
       <div className="my-6 flex items-center gap-3" aria-hidden>
-        <span className="h-px flex-1 bg-slate-200" />
-        <span className="text-xs font-medium text-slate-500">{t("common.or")}</span>
-        <span className="h-px flex-1 bg-slate-200" />
+        <span className="h-px flex-1 bg-navy-100" />
+        <span className="text-xs font-medium text-navy-400">{t("common.or")}</span>
+        <span className="h-px flex-1 bg-navy-100" />
       </div>
 
       {/*

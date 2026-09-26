@@ -52,6 +52,8 @@ export type TicketRow = {
   ownerName: string | null;
   ageHours: number;
   overdue: boolean;
+  /** 🔴 Board 590: hours past the promise, so "late" is said in words, not only in rose. */
+  lateHours: number;
   waiting: boolean;
   extended: boolean;
   movedToWhatsapp: boolean;
@@ -66,6 +68,8 @@ const TOPIC_LABELS: Record<string, string> = {
   a_session: "A session",
   a_therapist: "A therapist",
   joining_as_a_therapist: "Joining",
+  a_partnership: "Partnership",
+  a_company: "A company",
   something_else: "Other",
 };
 
@@ -128,7 +132,7 @@ export function SupportQueue({
           Patients · {patient.length}
         </Tab>
         <Tab active={tab === "therapist"} onClick={() => setTab("therapist")}>
-          Therapists · {therapist.length}
+          Clinicians and partners · {therapist.length}
         </Tab>
       </div>
 
@@ -211,7 +215,11 @@ function TicketCard({ row }: { row: TicketRow }) {
           >
             {row.overdue ? <AlertTriangle className="h-3 w-3" aria-hidden /> : null}
             {row.waiting ? <PauseCircle className="h-3 w-3" aria-hidden /> : null}
-            {row.waiting ? "waiting on them" : `${row.ageHours}h old`}
+            {row.waiting
+              ? "waiting on them"
+              : row.overdue
+                ? `Overdue ${row.lateHours}h · ${row.ageHours}h old`
+                : `${row.ageHours}h old`}
           </span>
 
           <span className="font-mono text-xs text-slate-500">{row.reference}</span>

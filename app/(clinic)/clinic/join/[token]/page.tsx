@@ -45,7 +45,7 @@ export default async function ClinicJoinPage({
   if (!invitation) {
     return (
       <QuietAuthShell>
-        <p className="text-sm leading-relaxed text-slate-600">{t("clinic.join.expired")}</p>
+        <p className="text-sm leading-relaxed text-navy-500">{t("clinic.join.expired")}</p>
       </QuietAuthShell>
     );
   }
@@ -61,7 +61,7 @@ export default async function ClinicJoinPage({
         />
 
         {/* 🔴 C267 — they verify themselves, and the practice cannot do it for them. */}
-        <p className="text-xs leading-relaxed text-slate-500">{t("clinic.cannotVerify")}</p>
+        <p className="text-xs leading-relaxed text-navy-400">{t("clinic.cannotVerify")}</p>
       </div>
     </QuietAuthShell>
   );

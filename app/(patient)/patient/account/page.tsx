@@ -10,7 +10,7 @@ import { LanguageSetting } from "@/components/settings/language-setting";
 import { CloseAccount } from "@/components/patient/close-account";
 import { EmailEditor } from "@/components/patient/email-editor";
 import { IdentityEditor } from "@/components/patient/identity-editor";
-import { Card } from "@/components/ui";
+import { Card, Hero } from "@/components/patient/kit";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, people } from "@/lib/db/schema";
@@ -140,53 +140,58 @@ export default async function PatientAccountPage({
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-4 px-5 pb-10">
       {/* 🔴 Ruling 8b: who they are, and their employer benefit or the way to add one. */}
-      <div className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white"
-        >
-          {(actor.firstName?.[0] ?? "").toUpperCase()}
-          {(actor.lastName?.[0] ?? "").toUpperCase()}
-        </span>
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-bold tracking-tight text-slate-900">
-            {actor.firstName} {actor.lastName ?? ""}
-          </h1>
-          {benefit ? (
-            <Link
-              href="/patient/benefit"
-              className={cn(
-                "mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                benefit.pausedAt || benefit.state === "paused"
-                  ? "bg-amber-50 text-amber-800"
-                  : "bg-emerald-50 text-emerald-800",
-              )}
-            >
-              <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
-              {benefit.pausedAt || benefit.state === "paused"
-                ? t("pyou.benefitPaused", { name: benefit.sponsorName })
-                : t("pyou.benefitBadge", { name: benefit.sponsorName })}
-            </Link>
-          ) : (
-            <Link href="/patient/benefit" className="mt-1 inline-block text-xs font-semibold text-slate-900 underline">
-              {t("pyou.enrol")}
-            </Link>
-          )}
+      <Hero>
+        <div className="flex items-center gap-4">
+          <span
+            aria-hidden
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-500 text-xl font-bold text-navy-700 ring-4 ring-white/10"
+          >
+            {(actor.firstName?.[0] ?? "").toUpperCase()}
+            {(actor.lastName?.[0] ?? "").toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate text-[24px] font-bold tracking-tight">
+              {actor.firstName} {actor.lastName ?? ""}
+            </h1>
+            {benefit ? (
+              <Link
+                href="/patient/benefit"
+                className={cn(
+                  "mt-1.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-semibold",
+                  benefit.pausedAt || benefit.state === "paused"
+                    ? "bg-amber-400 text-navy-700"
+                    : "bg-white/10 text-white ring-1 ring-white/15",
+                )}
+              >
+                <BadgeCheck className="h-4 w-4" aria-hidden />
+                {benefit.pausedAt || benefit.state === "paused"
+                  ? t("pyou.benefitPaused", { name: benefit.sponsorName })
+                  : t("pyou.benefitBadge", { name: benefit.sponsorName })}
+              </Link>
+            ) : (
+              <Link
+                href="/patient/benefit"
+                className="mt-1.5 inline-flex h-9 items-center rounded-full bg-brand-500 px-3.5 text-[13px] font-semibold text-navy-700"
+              >
+                {t("pyou.enrol")}
+              </Link>
+            )}
+          </div>
         </div>
-      </div>
+      </Hero>
 
       <nav aria-label={t("pyou.tabSettings")}>
-        <ul className="flex gap-1 rounded-2xl bg-slate-100 p-1">
+        <ul className="flex gap-1 rounded-full bg-white p-1 ring-1 ring-navy-100">
           {TABS.map((entry) => (
             <li key={entry.key} className="flex-1">
               <Link
                 href={`/patient/account?tab=${entry.key}`}
                 aria-current={entry.key === active ? "page" : undefined}
                 className={cn(
-                  "block rounded-xl py-2 text-center text-xs font-semibold",
-                  entry.key === active ? "bg-white text-slate-900 shadow-sm" : "text-slate-600",
+                  "block rounded-full py-2 text-center text-xs font-semibold",
+                  entry.key === active ? "bg-navy-600 text-white shadow-sm" : "text-navy-500 hover:text-navy-700",
                 )}
               >
                 {t(entry.label)}
@@ -199,12 +204,12 @@ export default async function PatientAccountPage({
       {active === "overview" ? (
         <>
           {/* Live now, starting soon, and what is booked after. */}
-          <Card className="divide-y divide-slate-100 p-0">
-            <p className="px-4 pt-3.5 pb-2 text-sm font-semibold text-slate-900">{t("psessions.upcoming")}</p>
+          <Card className="divide-y divide-navy-100 p-0">
+            <p className="px-4 pt-3.5 pb-2 text-sm font-semibold text-navy-700">{t("psessions.upcoming")}</p>
             {next.length === 0 ? (
-              <div className="px-4 py-3.5 text-sm text-slate-600">
+              <div className="px-4 py-3.5 text-sm text-navy-400">
                 {t("pyou.nothingNext")}{" "}
-                <Link href="/patient/browse" className="font-semibold text-slate-900 underline">
+                <Link href="/patient/browse" className="font-semibold text-navy-700 underline">
                   {t("pyou.book")}
                 </Link>
               </div>
@@ -215,8 +220,8 @@ export default async function PatientAccountPage({
                 return (
                   <div key={session.id} className="flex items-center justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-900">{session.therapistName}</p>
-                      <p className={cn("text-xs", live ? "font-semibold text-rose-600" : "text-slate-500")}>
+                      <p className="truncate text-sm font-medium text-navy-700">{session.therapistName}</p>
+                      <p className={cn("text-xs", live ? "font-semibold text-rose-600" : "text-navy-400")}>
                         {live ? (
                           <span className="inline-flex items-center gap-1">
                             <Radio className="h-3.5 w-3.5" aria-hidden />
@@ -230,7 +235,7 @@ export default async function PatientAccountPage({
                     {door ? (
                       <Link
                         href={door.href}
-                        className="shrink-0 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
+                        className="shrink-0 rounded-xl bg-navy-900 px-3 py-1.5 text-xs font-semibold text-white"
                       >
                         {door.kind === "join" ? t("psessions.join") : t("pyou.open")}
                       </Link>
@@ -244,12 +249,12 @@ export default async function PatientAccountPage({
           {/* 🔴 Ruling 7: shown only when there is something in it, never as zero. */}
           {walletCents > 0 ? (
             <Card className="flex items-center gap-3 p-4">
-              <Wallet className="h-5 w-5 shrink-0 text-slate-500" aria-hidden />
+              <Wallet className="h-5 w-5 shrink-0 text-navy-400" aria-hidden />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-900">{t("pyou.wallet")}</p>
-                <p className="text-xs text-slate-500">{t("pyou.walletBody")}</p>
+                <p className="text-sm font-semibold text-navy-700">{t("pyou.wallet")}</p>
+                <p className="text-xs text-navy-400">{t("pyou.walletBody")}</p>
               </div>
-              <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
+              <p className="shrink-0 text-sm font-semibold tabular-nums text-navy-700">
                 <Money cents={walletCents} />
               </p>
             </Card>
@@ -257,12 +262,12 @@ export default async function PatientAccountPage({
 
           <Card className="p-4">
             <div className="flex items-baseline justify-between gap-3">
-              <p className="text-sm font-semibold text-slate-900">{t("pyou.summary")}</p>
-              <Link href="/patient/summary" className="text-xs font-semibold text-slate-900 underline">
+              <p className="text-sm font-semibold text-navy-700">{t("pyou.summary")}</p>
+              <Link href="/patient/summary" className="text-xs font-semibold text-navy-700 underline">
                 {t("pyou.readAll")}
               </Link>
             </div>
-            <p className="mt-2 line-clamp-4 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+            <p className="mt-2 line-clamp-4 text-sm leading-relaxed whitespace-pre-wrap text-navy-600">
               {latestSummary ? latestSummary.body : t("pyou.summaryNone")}
             </p>
           </Card>
@@ -271,7 +276,7 @@ export default async function PatientAccountPage({
 
       {active === "sessions" ? (
         past.length === 0 ? (
-          <Card className="p-4 text-sm text-slate-600">{t("pyou.noPast")}</Card>
+          <Card className="p-4 text-sm text-navy-400">{t("pyou.noPast")}</Card>
         ) : (
           <PatientSessionList sessions={past} zone={actor.timezone} doors={doorOf} />
         )
@@ -281,30 +286,42 @@ export default async function PatientAccountPage({
         <>
           {walletCents > 0 ? (
             <Card className="flex items-center justify-between gap-3 p-4">
-              <p className="text-sm font-semibold text-slate-900">{t("pyou.wallet")}</p>
-              <p className="text-sm font-semibold tabular-nums text-slate-900"><Money cents={walletCents} /></p>
+              <p className="text-sm font-semibold text-navy-700">{t("pyou.wallet")}</p>
+              <p className="text-sm font-semibold tabular-nums text-navy-700"><Money cents={walletCents} /></p>
             </Card>
           ) : null}
-          <Card className="divide-y divide-slate-100 p-0">
+          <Card className="divide-y divide-navy-100 p-0">
             {sessionsList
               .filter((s) => s.priceCents > 0 && !s.cancelled)
               .slice(0, 8)
               .map((session) => (
                 <div key={session.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-                  <span className="min-w-0 truncate text-slate-900">{session.therapistName}</span>
-                  <span className="shrink-0 text-xs text-slate-500">
-                    {session.paymentStatus === "paid" ? t("pyou.paid") : t("pyou.owed")}
+                  <span className="min-w-0 truncate text-navy-700">{session.therapistName}</span>
+                  {/* 🔴 Board 418: a session the benefit paid reads Covered, never "Paid" and its price. */}
+                  <span className="shrink-0 text-xs text-navy-400">
+                    {session.covered
+                      ? t("pbilling.covered")
+                      : session.paymentStatus === "paid"
+                        ? t("pyou.paid")
+                        : t("pyou.owed")}
                   </span>
-                  <span className="shrink-0 tabular-nums text-slate-900">
-                    <Money cents={session.priceCents} currency={session.priceCurrency} />
+                  <span className="shrink-0 tabular-nums text-navy-700">
+                    {session.covered ? (
+                      t("psessions.coveredByBenefit")
+                    ) : (
+                      <Money
+                        cents={session.owedCents ?? session.priceCents}
+                        currency={session.owedCents !== null ? "USD" : session.priceCurrency}
+                      />
+                    )}
                   </span>
                 </div>
               ))}
           </Card>
           <Link href="/patient/billing">
-            <Card className="flex items-center gap-3 p-4 active:bg-slate-50">
-              <Receipt className="h-5 w-5 shrink-0 text-slate-500" aria-hidden />
-              <span className="block text-sm font-semibold text-slate-900">{t("pyou.allBilling")}</span>
+            <Card className="flex items-center gap-3 p-4 active:bg-navy-50">
+              <Receipt className="h-5 w-5 shrink-0 text-navy-400" aria-hidden />
+              <span className="block text-sm font-semibold text-navy-700">{t("pyou.allBilling")}</span>
             </Card>
           </Link>
         </>
@@ -332,24 +349,24 @@ export default async function PatientAccountPage({
       <Card className="p-4">
         <dl className="space-y-2 text-sm">
           <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-slate-500">{t("paccount.phone")}</dt>
-            <dd className="font-mono text-slate-800">{actor.phone ?? "-"}</dd>
+            <dt className="text-navy-400">{t("paccount.phone")}</dt>
+            <dd className="font-mono text-navy-700">{actor.phone ?? "-"}</dd>
           </div>
           <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-slate-500">{t("paccount.email")}</dt>
+            <dt className="text-navy-400">{t("paccount.email")}</dt>
             {/*
               13R.6 — an account may legitimately have no address. Saying so is
               better than an empty line, and the sentence names what adding one
               buys rather than nagging.
             */}
-            <dd className="truncate text-slate-800">
+            <dd className="truncate text-navy-700">
               {actor.email ?? t("paccount.notAdded")}
               {actor.email && !actor.emailVerified ? ` · ${t("paccount.emailUnconfirmed")}` : ""}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-slate-500">{t("paccount.timezone")}</dt>
-            <dd className="text-slate-800">
+            <dt className="text-navy-400">{t("paccount.timezone")}</dt>
+            <dd className="text-navy-700">
               {actor.timezone ? zoneLabel(actor.timezone, locale) : t("paccount.notSet")}
             </dd>
           </div>
@@ -363,11 +380,11 @@ export default async function PatientAccountPage({
       </Card>
 
       <Link href="/patient/consent">
-        <Card className="flex items-center gap-3 p-4 active:bg-slate-50">
-          <ShieldCheck className="h-5 w-5 shrink-0 text-slate-500" aria-hidden />
+        <Card className="flex items-center gap-3 p-4 active:bg-navy-50">
+          <ShieldCheck className="h-5 w-5 shrink-0 text-navy-400" aria-hidden />
           <span className="min-w-0">
-            <span className="block text-sm font-semibold text-slate-900">{t("paccount.whoCanSee")}</span>
-            <span className="block text-xs text-slate-500">
+            <span className="block text-sm font-semibold text-navy-700">{t("paccount.whoCanSee")}</span>
+            <span className="block text-xs text-navy-400">
               {t("paccount.whoCanSeeBody")}
             </span>
           </span>
@@ -379,7 +396,7 @@ export default async function PatientAccountPage({
         named by its own page title, so the words are ones the patient meets
         again when they arrive.
       */}
-      <Card className="divide-y divide-slate-100 p-0">
+      <Card className="divide-y divide-navy-100 p-0">
         {(
           [
             ["/patient/notices", "pnotice.title"],
@@ -391,7 +408,7 @@ export default async function PatientAccountPage({
           <Link
             key={href}
             href={href}
-            className="block px-4 py-3.5 text-sm font-semibold text-slate-900 active:bg-slate-50"
+            className="block px-4 py-3.5 text-sm font-semibold text-navy-700 active:bg-navy-50"
           >
             {t(label)}
           </Link>
@@ -399,9 +416,9 @@ export default async function PatientAccountPage({
       </Card>
 
       <Link href="/patient/profile">
-        <Card className="p-4 active:bg-slate-50">
-          <span className="block text-sm font-semibold text-slate-900">{t("paccount.ownDocuments")}</span>
-          <span className="block text-xs text-slate-500">
+        <Card className="p-4 active:bg-navy-50">
+          <span className="block text-sm font-semibold text-navy-700">{t("paccount.ownDocuments")}</span>
+          <span className="block text-xs text-navy-400">
             {t("paccount.ownDocumentsBody")}
           </span>
         </Card>
@@ -431,7 +448,7 @@ export default async function PatientAccountPage({
       <form action={patientSignOut}>
         <button
           type="submit"
-          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-start text-sm font-semibold text-slate-900 active:bg-slate-50"
+          className="w-full rounded-2xl border border-navy-100 bg-white px-4 py-3.5 text-start text-sm font-semibold text-navy-700 active:bg-navy-50"
         >
           {t("paccount.signOut")}
         </button>

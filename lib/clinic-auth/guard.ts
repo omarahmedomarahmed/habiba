@@ -1,8 +1,9 @@
 import "server-only";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { CLINIC_SIGN_IN } from "@/lib/routing";
+import { CLINIC_COOKIE, orgBounce } from "@/lib/routing";
 import { can, NEVER_DELEGABLE, THERAPIST_SCOPED, type ClinicCapability } from "./capabilities";
 import { getClinicActor, type ClinicActor } from "./session";
 
@@ -35,7 +36,15 @@ import { getClinicActor, type ClinicActor } from "./session";
  */
 export async function requireClinic(): Promise<ClinicActor> {
   const actor = await getClinicActor();
-  if (!actor) redirect(CLINIC_SIGN_IN);
+  if (!actor) {
+    /*
+     * 🔴 Board 249 / 327 / 330: never straight to the door while a cookie is
+     * still held. Middleware sends a cookie holder at the sign-in page home
+     * again, which lands here again, forever. `orgBounce` says why.
+     */
+    const hasCookie = Boolean((await cookies()).get(CLINIC_COOKIE)?.value);
+    redirect(orgBounce("clinic", hasCookie));
+  }
   return actor;
 }
 

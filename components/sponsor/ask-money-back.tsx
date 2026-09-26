@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 
 import { askForMoneyBack, type ReturnAskState } from "@/app/(sponsor)/sponsor/pot/actions";
-import { Button, Card, Textarea } from "@/components/ui";
+import { Button, Card, Textarea } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -21,7 +21,7 @@ export function AskMoneyBack() {
         <p className="text-sm text-brand-700">{t("sponsor.returns.asked")}</p>
       ) : (
         <form action={action} className="space-y-2">
-          <label htmlFor="return-reason" className="text-sm font-semibold text-slate-900">
+          <label htmlFor="return-reason" className="text-sm font-semibold text-navy-700">
             {t("sponsor.returns.ask")}
           </label>
           <Textarea id="return-reason" name="reason" rows={2} placeholder={t("sponsor.returns.askHint")} />

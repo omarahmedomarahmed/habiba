@@ -2,7 +2,7 @@
 
 import { ArrowUpRight, Clock, CreditCard, Receipt, Undo2 } from "lucide-react";
 
-import { Card, EmptyState } from "@/components/ui";
+import { Card, EmptyState } from "@/components/clinician/kit";
 import { Money } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -77,18 +77,18 @@ export function PaymentHistory({
     <div className="space-y-4">
       {payments.length > 0 ? (
         <Card className="overflow-hidden">
-          <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
+          <p className="border-b border-navy-100/70 px-4 py-3 text-sm font-semibold text-navy-700">
             {t("tph.title")}
           </p>
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-navy-100/70">
             {payments.map((payment) => (
               <li key={payment.id} className="px-4 py-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-[15px] font-semibold text-slate-900">
+                    <p className="truncate text-[15px] font-semibold text-navy-700">
                       {payment.patientName || t("tph.aPatient")}
                     </p>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-navy-400">
                       {/*
                         46.15 — the card is gone from this line entirely.
                         What the therapist needs is when they were paid and how
@@ -100,10 +100,10 @@ export function PaymentHistory({
                     </p>
                   </div>
                   <div className="shrink-0 text-end">
-                    <p className="text-[15px] font-bold text-slate-900 tabular-nums">
+                    <p className="text-[15px] font-bold text-navy-700 tabular-nums">
                       <Money cents={payment.therapistNetCents} />
                     </p>
-                    <p className="text-xs text-slate-500 tabular-nums">
+                    <p className="text-xs text-navy-400 tabular-nums">
                       {rich(t("tph.ofGross", { amount: slot(0) }), [<Money key="gross" cents={payment.grossCents} />])}
                     </p>
                   </div>
@@ -128,7 +128,7 @@ export function PaymentHistory({
                       href={payment.receiptUrl}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                      className="inline-flex items-center gap-1 rounded-full bg-navy-50 px-2 py-0.5 text-xs font-medium text-navy-400 hover:bg-navy-100"
                     >
                       {t("tph.receipt")}
                       <ArrowUpRight className="h-3 w-3" aria-hidden />
@@ -143,14 +143,14 @@ export function PaymentHistory({
 
       {transfers.length > 0 ? (
         <Card className="overflow-hidden">
-          <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
+          <p className="border-b border-navy-100/70 px-4 py-3 text-sm font-semibold text-navy-700">
             {t("tph.released")}
           </p>
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-navy-100/70">
             {transfers.map((transfer) => (
               <li key={transfer.id} className="flex items-start justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="text-sm text-slate-800">{transfer.paidAt ?? transfer.createdAt}</p>
+                  <p className="text-sm text-navy-700">{transfer.paidAt ?? transfer.createdAt}</p>
                   {transfer.status === "failed" ? (
                     <p className="mt-0.5 text-xs leading-relaxed text-red-600">
                       {t("tph.failedTransfer")}
@@ -160,7 +160,7 @@ export function PaymentHistory({
                     <p className="mt-0.5 text-xs text-amber-600">{t("tph.inFlight")}</p>
                   ) : null}
                 </div>
-                <p className="shrink-0 text-sm font-bold text-slate-900 tabular-nums">
+                <p className="shrink-0 text-sm font-bold text-navy-700 tabular-nums">
                   <Money cents={transfer.amountCents} />
                 </p>
               </li>
@@ -196,10 +196,10 @@ function Chip({
   icon?: React.ReactNode;
 }) {
   const tones = {
-    green: "bg-emerald-50 text-emerald-700",
+    green: "bg-brand-50 text-brand-800",
     amber: "bg-amber-50 text-amber-700",
     red: "bg-red-50 text-red-700",
-    slate: "bg-slate-100 text-slate-600",
+    slate: "bg-navy-50 text-navy-400",
   };
   return (
     <span

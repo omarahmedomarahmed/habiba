@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ChevronRight, MessageSquare } from "lucide-react";
+import { ArrowLeft, ChevronRight, FolderOpen, Quote, Sparkles } from "lucide-react";
 
 import { PatientEditor } from "@/components/patient/patient-editor";
 import { AccessBanner } from "@/components/patient/access-banner";
@@ -10,7 +10,7 @@ import { InviteToSession } from "@/components/patient/invite-to-session";
 import { RecordAccess } from "@/components/patient/record-access";
 import { CopilotChat } from "@/components/copilot/chat";
 import { lockedOn } from "@/lib/data/challenge";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { PROMPT_TEMPLATES, promptTemplateKeys } from "@/lib/ai/case-copilot";
 import { requireUser } from "@/lib/auth/guard";
 import { explain } from "@/lib/access/state";
@@ -135,13 +135,13 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const lastSeen = history.find((session) => session.endedAt) ?? history[0];
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <div className="flex items-center gap-1 px-4 pt-4 sm:px-6">
         <Link
           href="/patients"
-          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
+          className="tap-target -ms-2 flex items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-navy-400 hover:bg-white hover:text-navy-700"
         >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
+          <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
           {t("portal.patients.title")}
         </Link>
       </div>
@@ -149,7 +149,13 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
       {/* ============================================================= */}
       {/*  1 · WHO                                                       */}
       {/* ============================================================= */}
-      <div className="flex items-start gap-4 px-4 pt-3 pb-4 sm:px-6">
+      <div className="px-4 pt-3 pb-5 sm:px-6">
+      <div className="relative flex items-start gap-4 overflow-hidden rounded-3xl bg-navy-900 p-5 text-white shadow-[0_20px_40px_-20px_rgba(46,196,182,0.6)] sm:p-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -end-20 -top-24 h-64 w-64 rounded-full opacity-60 blur-3xl"
+          style={{ background: "radial-gradient(circle, rgba(46,196,182,0.45), rgba(46,196,182,0) 70%)" }}
+        />
         {consent.capabilities.liveProfile && personId ? (
           /*
            * 🔴 PE80: the face is part of the live profile, so it follows the
@@ -177,27 +183,27 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             hasPhoto={photo}
             name={patient.firstName ?? ""}
             size={64}
-            className="h-16 w-16"
+            className="relative h-16 w-16 ring-4 ring-white/10"
           />
         ) : (
           <div
             aria-hidden
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-semibold text-slate-600"
+            className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-500 text-xl font-bold text-navy-700 ring-4 ring-white/10"
           >
             {initials}
           </div>
         )}
 
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{name}</h1>
-          <p className="mt-1 text-sm text-slate-500">
+        <div className="relative min-w-0 flex-1">
+          <h1 className="text-[26px] leading-tight font-bold tracking-tight text-white">{name}</h1>
+          <p className="mt-1 text-sm font-semibold text-brand-200">
             {history.length === 1
               ? t("portal.patient.sessionsOne")
               : t("portal.patient.sessionsMany", { count: history.length })}
             {patient.source === "join_link" ? ` · ${t("portal.patient.joinedByLink")}` : ""}
             {patient.source === "walk_in" ? ` · ${t("portal.patient.walkIn")}` : ""}
           </p>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-[13px] text-white/75">
             {lastSeen
               ? t("pprof.lastSeen", {
                   when: relativeDay(
@@ -216,7 +222,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             rest of it away again; unclaimed means what is here is what this
             clinician wrote down and nobody else has seen it.
           */}
-          <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+          <p className="mt-3 inline-flex rounded-2xl bg-white/8 px-3 py-2 text-xs leading-relaxed text-white/85 ring-1 ring-white/12">
             {claimed
               ? t("pprof.claimedNote", {
                   when: access?.claimedAt ? formatDate(access.claimedAt, actor.timezone, locale) : "",
@@ -225,8 +231,9 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           </p>
         </div>
       </div>
+      </div>
 
-      <div className="space-y-4 px-4 pb-10 sm:px-6">
+      <div className="space-y-4 px-4 sm:px-6">
         {consentMessage ? (
           <AccessBanner
             patientId={patient.id}
@@ -262,20 +269,22 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         {/*  3 · ASK ABOUT THEM                                            */}
         {/* ============================================================= */}
         {copilot ? (
-          <Card className="p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <Card className="p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-                  <MessageSquare className="h-4 w-4 text-slate-500" aria-hidden />
+                <p className="flex items-center gap-2 text-[17px] font-bold text-navy-700">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-navy-900 text-brand-300">
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                  </span>
                   {t("pprof.copilot")}
                 </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+                <p className="mt-1 text-sm leading-relaxed text-navy-400">
                   {t("pprof.copilotBlurb")}
                 </p>
               </div>
               <Link
                 href={`/copilot/${patient.id}`}
-                className="tap-target shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="tap-target inline-flex shrink-0 items-center rounded-3xl border border-navy-100/80 bg-white px-4 text-sm font-semibold text-navy-600 hover:bg-navy-50"
               >
                 {t("pprof.copilotOpen")}
               </Link>
@@ -312,7 +321,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         {/* ============================================================= */}
         {consent.state !== "revoked" ? (
           <div>
-            <p className="mb-2 px-1 text-sm font-semibold text-slate-900">
+            <p className="mb-2 px-1 text-[17px] font-bold text-navy-700">
               {t("pprof.addToHistory")}
             </p>
             <AddToHistory patientId={patient.id} />
@@ -320,40 +329,44 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         ) : null}
 
         {/* 8.x — the person's own record, one tap from their chart. */}
-        <Card>
+        <div className="grid gap-3 sm:grid-cols-2">
           <Link
             href={`/patients/${patient.id}/documents`}
-            className="flex items-center gap-3 px-4 py-3.5 active:bg-slate-50"
+            className="group flex items-start gap-3 rounded-3xl border border-navy-100/80 bg-white p-4 shadow-[0_1px_2px_rgba(10,35,66,0.04)] transition-shadow hover:shadow-[0_12px_32px_-12px_rgba(10,35,66,0.2)]"
           >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700 ring-1 ring-brand-100 ring-inset">
+              <FolderOpen className="h-5 w-5" aria-hidden />
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-slate-900">{t("portal.patient.profileDocs")}</p>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="text-[15px] font-bold text-navy-700">{t("portal.patient.profileDocs")}</p>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-navy-400">
                 {t("portal.patient.profileDocsBlurb")}
               </p>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+            <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-navy-300 rtl:rotate-180" aria-hidden />
           </Link>
-        </Card>
 
-        {/*
-          33.6 — why the system believes what it believes.
-          A separate screen rather than a panel on this one, because it is long
-          by design: every fact carries the sentence that produced it.
-        */}
-        <Card>
+          {/*
+            33.6 — why the system believes what it believes.
+            A separate screen rather than a panel on this one, because it is long
+            by design: every fact carries the sentence that produced it.
+          */}
           <Link
             href={`/patients/${patient.id}/evidence`}
-            className="flex items-center gap-3 px-4 py-3.5 active:bg-slate-50"
+            className="group flex items-start gap-3 rounded-3xl border border-navy-100/80 bg-white p-4 shadow-[0_1px_2px_rgba(10,35,66,0.04)] transition-shadow hover:shadow-[0_12px_32px_-12px_rgba(10,35,66,0.2)]"
           >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-navy-50 text-navy-500 ring-1 ring-navy-100 ring-inset">
+              <Quote className="h-5 w-5" aria-hidden />
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-slate-900">{t("portal.patient.beliefs")}</p>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="text-[15px] font-bold text-navy-700">{t("portal.patient.beliefs")}</p>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-navy-400">
                 {t("portal.patient.beliefsBlurb")}
               </p>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+            <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-navy-300 rtl:rotate-180" aria-hidden />
           </Link>
-        </Card>
+        </div>
 
         <RecordAccess
           locked={await lockedOn(id)}
@@ -367,22 +380,24 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         {/* ============================================================= */}
         {/*  5 · WHAT WE HAVE DONE                                         */}
         {/* ============================================================= */}
-        <Card>
-          <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
+        <Card className="p-2 sm:p-3">
+          <p className="px-3 pt-2 pb-2 text-[17px] font-bold text-navy-700">
             {t("portal.patient.history")}
           </p>
           {history.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-slate-500">{t("portal.patient.historyNone")}</p>
+            <p className="px-3 pt-1 pb-4 text-sm text-navy-400">{t("portal.patient.historyNone")}</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ol className="relative space-y-1 ps-6">
+              <span aria-hidden className="absolute start-[11px] top-5 bottom-5 w-0.5 rounded-full bg-navy-100" />
               {history.map((session) => (
-                <li key={session.id}>
+                <li key={session.id} className="relative">
+                  <span aria-hidden className="absolute -start-[19px] top-5 h-2.5 w-2.5 rounded-full bg-brand-500 ring-4 ring-white" />
                   <Link
                     href={`/sessions/${session.id}`}
-                    className="flex items-center gap-3 px-4 py-3 active:bg-slate-50"
+                    className="flex items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-navy-50"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-900">
+                      <p className="text-[15px] font-bold text-navy-700">
                         {relativeDay(session.endedAt ?? session.createdAt, actor.timezone, locale, t)}
                         {session.durationMinutes
                           ? ` · ${t("portal.minutes", { count: session.durationMinutes })}`
@@ -403,7 +418,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                         </span>
                       ) : null}
                       {session.noteSummary?.summary ? (
-                        <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                        <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-navy-400">
                           {session.noteSummary.summary}
                         </p>
                       ) : null}
@@ -418,20 +433,20 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                     {session.status !== "completed" ? (
                       <SessionBadge status={session.status} />
                     ) : null}
-                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-navy-300 rtl:rotate-180" aria-hidden />
                   </Link>
                   {allNotes.some((n) => n.sessionId === session.id) ? (
-                    <ul className="space-y-1 px-4 pb-3">
+                    <ul className="space-y-1 px-3 pb-3">
                       {allNotes
                         .filter((n) => n.sessionId === session.id)
                         .map((n) => (
                           <li key={n.id}>
                             <Link
                               href={`/sessions/${session.id}?note=${n.id}`}
-                              className="flex flex-wrap items-center gap-x-2 text-xs text-slate-600 hover:text-slate-900"
+                              className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-navy-50 px-3 py-1.5 text-xs text-navy-500 hover:bg-navy-100"
                             >
-                              <span className="font-semibold text-slate-800">{formatName(n.format)}</span>
-                              <span className={n.status === "approved" ? "text-emerald-700" : "text-amber-700"}>
+                              <span className="font-bold text-navy-700">{formatName(n.format)}</span>
+                              <span className={n.status === "approved" ? "rounded-full bg-brand-50 px-2 font-semibold text-brand-800" : "rounded-full bg-amber-50 px-2 font-semibold text-amber-800"}>
                                 {n.status === "approved" ? t("tnote.stateSigned") : t("tnote.stateDraft")}
                               </span>
                               <span>
@@ -445,7 +460,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                   ) : null}
                 </li>
               ))}
-            </ul>
+            </ol>
           )}
         </Card>
       </div>

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Check, Quote, Sparkles, X } from "lucide-react";
 
 import { decideDiagnosis, proposeFromDocuments } from "@/app/(app)/patients/[id]/documents/actions";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -55,10 +55,10 @@ export function DiagnosisList({
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+      <div className="flex items-start justify-between gap-3 border-b border-navy-100/70 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">{t("tdx.title")}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+          <p className="text-sm font-semibold text-navy-700">{t("tdx.title")}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
             {t("tdx.blurb")}
           </p>
         </div>
@@ -73,7 +73,7 @@ export function DiagnosisList({
                 if (result.error) setError(result.error);
               })
             }
-            className="tap-target flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+            className="tap-target flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-navy-50 px-3 text-xs font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
             {pending ? t("tdx.reading") : t("tdx.readDocuments")}
@@ -82,19 +82,19 @@ export function DiagnosisList({
       </div>
 
       {confirmed.length === 0 && proposed.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-slate-500">
+        <p className="px-4 py-5 text-sm text-navy-400">
           {t("tdx.none")}
         </p>
       ) : null}
 
       {confirmed.length > 0 ? (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-navy-100/70">
           {confirmed.map((diagnosis) => (
             <li key={diagnosis.id} className="px-4 py-3">
-              <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
+              <p className="flex items-center gap-2 text-sm font-medium text-navy-700">
                 {diagnosis.label}
                 {diagnosis.code ? (
-                  <span className="font-mono text-xs text-slate-500">{diagnosis.code}</span>
+                  <span className="font-mono text-xs text-navy-400">{diagnosis.code}</span>
                 ) : null}
                 <Badge tone="teal">{t("tdx.confirmed")}</Badge>
                 {diagnosis.flags.map((flag) => (
@@ -110,17 +110,17 @@ export function DiagnosisList({
       ) : null}
 
       {proposed.length > 0 ? (
-        <div className="border-t border-slate-100">
-          <p className="px-4 pt-3 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+        <div className="border-t border-navy-100/70">
+          <p className="px-4 pt-3 text-xs font-semibold tracking-wide text-navy-400 uppercase">
             {t("tdx.waiting")}
           </p>
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-navy-100/70">
             {proposed.map((diagnosis) => (
               <li key={diagnosis.id} className="px-4 py-3">
-                <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                <p className="flex items-center gap-2 text-sm font-medium text-navy-700">
                   {diagnosis.label}
                   {diagnosis.code ? (
-                    <span className="font-mono text-xs text-slate-500">{diagnosis.code}</span>
+                    <span className="font-mono text-xs text-navy-400">{diagnosis.code}</span>
                   ) : null}
                 </p>
                 <Source diagnosis={diagnosis} />
@@ -131,7 +131,7 @@ export function DiagnosisList({
                       type="button"
                       disabled={pending}
                       onClick={() => decide(diagnosis.id, "confirmed")}
-                      className="tap-target flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white disabled:opacity-50"
+                      className="tap-target flex h-9 items-center gap-1.5 rounded-lg bg-navy-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
                     >
                       <Check className="h-3.5 w-3.5" aria-hidden />
                       {t("tdx.thatIsWhatItSays")}
@@ -140,7 +140,7 @@ export function DiagnosisList({
                       type="button"
                       disabled={pending}
                       onClick={() => decide(diagnosis.id, "rejected")}
-                      className="tap-target flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-700 disabled:opacity-50"
+                      className="tap-target flex h-9 items-center gap-1.5 rounded-lg border border-navy-100 px-3 text-xs font-medium text-navy-600 disabled:opacity-50"
                     >
                       <X className="h-3.5 w-3.5" aria-hidden />
                       No
@@ -172,12 +172,12 @@ function Source({
   };
 }) {
   return (
-    <blockquote className="mt-1.5 flex gap-2 border-s-2 border-slate-200 ps-2.5 text-xs leading-relaxed text-slate-600">
-      <Quote className="mt-0.5 h-3 w-3 shrink-0 text-slate-300" aria-hidden />
+    <blockquote className="mt-1.5 flex gap-2 border-s-2 border-navy-100 ps-2.5 text-xs leading-relaxed text-navy-400">
+      <Quote className="mt-0.5 h-3 w-3 shrink-0 text-navy-200" aria-hidden />
       <span>
         “{diagnosis.sourceSentence}”
         {diagnosis.documentTitle ? (
-          <span className="mt-0.5 block text-slate-500">
+          <span className="mt-0.5 block text-navy-400">
             {diagnosis.documentOrdinal ? `D${diagnosis.documentOrdinal} · ` : ""}
             {diagnosis.documentTitle}
           </span>

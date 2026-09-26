@@ -578,9 +578,19 @@ async function main() {
     const onPractice = await pendingPaymentFor({ kind: "organization", organizationId: org.id }, translator("en"), "en");
     const onPayer = await pendingPaymentFor({ kind: "session", sessionId: session.id }, translator("en"), "en");
     check(
-      "B68 the clinician's bar names the patient",
-      Boolean(onPractice?.what.includes("Layla Fixture")) && !onPractice?.what.includes("Rone"),
-      `"${onPractice?.what}"; it said "Session with" the clinician on her own pages`,
+      "Board 548 a patient's session payment never rides on the practice's bar (B68 put the right name on it; it did not belong there at all)",
+      onPractice === null,
+      `"${onPractice?.what}" followed the clinician onto every page, over other patients' records`,
+    );
+    await db.execute(sql`
+      INSERT INTO manual_payments (purpose, ref_id, amount_cents, currency, settles_cents, payer_kind,
+                                   organization_id, state, submitted_at)
+      VALUES ('subscription', ${session.id}, 50000, 'EGP', 1000, 'organization', ${org.id}, 'submitted', now())`);
+    const ownBill = await pendingPaymentFor({ kind: "organization", organizationId: org.id }, translator("en"), "en");
+    check(
+      "Board 548 CONTROL the practice's own bill in flight still shows on its bar",
+      ownBill?.href === "/billing",
+      `"${ownBill?.what}" ${ownBill?.href}`,
     );
     check(
       "B68 CONTROL the patient's own bar still names the clinician",

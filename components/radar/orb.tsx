@@ -122,7 +122,7 @@ export function RadarOrb({
     booked: "live-dot bg-red-500",
     viewing: "bg-amber-400",
     live: "bg-teal-400",
-    off: "bg-slate-500",
+    off: "bg-navy-400",
   };
 
   const setOnline = (next: boolean) =>
@@ -158,15 +158,15 @@ export function RadarOrb({
           ref={panelRef}
           role="dialog"
           aria-label={t("portal.nav.crisisRadar")}
-          className="animate-fade-rise pointer-events-auto w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl bg-white shadow-2xl shadow-navy-500/20 ring-1 ring-slate-200"
+          className="animate-fade-rise pointer-events-auto w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl bg-white shadow-2xl shadow-navy-500/20 ring-1 ring-navy-100"
         >
-          <div className="flex items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
+          <div className="flex items-start justify-between gap-2 border-b border-navy-100/70 px-4 py-3">
             <div className="min-w-0">
-              <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <p className="flex items-center gap-2 text-sm font-semibold text-navy-700">
                 <span className={cn("h-2 w-2 shrink-0 rounded-full", DOT[tone])} />
                 {t(LABEL[tone]!)}
               </p>
-              <p className="mt-0.5 text-xs text-slate-600">
+              <p className="mt-0.5 text-xs text-navy-400">
                 {tone === "off"
                   ? t("torb.offBody")
                   : tone === "live"
@@ -184,7 +184,7 @@ export function RadarOrb({
               type="button"
               onClick={() => setOpen(false)}
               aria-label={t("common.close")}
-              className="tap-target -me-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
+              className="tap-target -me-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-navy-400 hover:bg-navy-50"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -206,7 +206,7 @@ export function RadarOrb({
                   "tap-target flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60",
                   tone === "off"
                     ? "bg-teal-500 text-navy-600 hover:bg-teal-400"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+                    : "bg-navy-50 text-navy-600 hover:bg-navy-100",
                 )}
               >
                 <Radio className="h-4 w-4" aria-hidden />
@@ -216,8 +216,8 @@ export function RadarOrb({
 
             <dl className="space-y-1.5 text-sm">
               <div className="flex items-center justify-between gap-3">
-                <dt className="text-slate-600">{t("torb.rate")}</dt>
-                <dd className="font-medium tabular-nums text-slate-900">
+                <dt className="text-navy-400">{t("torb.rate")}</dt>
+                <dd className="font-medium tabular-nums text-navy-700">
                   {sessionRateCents > 0 ? <Money cents={sessionRateCents} /> : t("trad.free")}
                 </dd>
               </div>
@@ -245,28 +245,28 @@ export function RadarOrb({
               ) : null}
             </dl>
 
-            <div className="border-t border-slate-100 pt-3">
+            <div className="border-t border-navy-100/70 pt-3">
               <label className="flex cursor-pointer items-start gap-2.5">
                 <input
                   type="checkbox"
                   checked={walkIns}
                   disabled={pending || !practiceConfirmed}
                   onChange={(e) => setVisits(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600 disabled:opacity-50"
+                  className="mt-0.5 h-4 w-4 rounded border-navy-200 text-brand-700 focus:ring-brand-600 disabled:opacity-50"
                 />
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium text-slate-800">
+                  <span className="block text-sm font-medium text-navy-700">
                     {t("torb.walkIns")}
                   </span>
-                  <span className="mt-0.5 block text-xs text-slate-600">
+                  <span className="mt-0.5 block text-xs text-navy-400">
                     {practiceConfirmed ? t("torb.walkInsOn") : t("torb.walkInsOff")}
                   </span>
                 </span>
               </label>
 
               {practiceAddress ? (
-                <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-600">
-                  <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-slate-600" aria-hidden />
+                <p className="mt-2 flex items-start gap-1.5 text-xs text-navy-400">
+                  <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-navy-400" aria-hidden />
                   <span className="min-w-0 break-words">{practiceAddress}</span>
                 </p>
               ) : null}
@@ -286,7 +286,7 @@ export function RadarOrb({
 
             <Link
               href="/on-call"
-              className="block pt-1 text-center text-xs font-medium text-slate-600 hover:text-slate-800"
+              className="block pt-1 text-center text-xs font-medium text-navy-400 hover:text-navy-700"
             >
               {t("torb.fullSettings")}
             </Link>
@@ -302,7 +302,7 @@ export function RadarOrb({
         className={cn(
           "tap-target pointer-events-auto relative flex h-12 w-12 items-center justify-center rounded-full shadow-lg ring-1 transition-colors",
           tone === "off"
-            ? "bg-white ring-slate-200 hover:bg-slate-50"
+            ? "bg-white ring-navy-100 hover:bg-navy-50"
             : "bg-navy-500 ring-navy-500/20 hover:bg-navy-600",
         )}
       >
@@ -318,7 +318,7 @@ export function RadarOrb({
           the same thing.
         */}
         <Radio
-          className={cn("h-5 w-5", tone === "off" ? "text-slate-600" : "text-white")}
+          className={cn("h-5 w-5", tone === "off" ? "text-navy-400" : "text-white")}
           aria-hidden
         />
         <span

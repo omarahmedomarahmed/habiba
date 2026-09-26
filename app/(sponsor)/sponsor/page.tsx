@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ShieldCheck, Wallet } from "lucide-react";
 
 import { ExpiryNotice, expiryState } from "@/components/sponsor/expiry-notice";
+import { SponsorHeading } from "@/components/sponsor/heading";
+import { PotRing } from "@/components/sponsor/ring";
 import { SpendHeatmap } from "@/components/sponsor/spend-heatmap";
-import { Card } from "@/components/ui";
+import { Badge, buttonClass, Card, Glow, Stat } from "@/components/clinician/kit";
 import { potTerms } from "@/lib/data/sponsor-admin";
 import { reportablePot, weeklySpend } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
 
 /** W3: the tab title in the reader's language. */
@@ -145,7 +149,9 @@ export default async function SponsorOverviewPage() {
   const expiry = expiryState(terms?.expiresAt ?? null);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <SponsorHeading title={actor.sponsorName} />
+
       {expiry && terms?.expiresAt ? (
         <ExpiryNotice
           text={
@@ -155,106 +161,116 @@ export default async function SponsorOverviewPage() {
           }
         />
       ) : null}
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Card className="p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {balanceCents === null ? t("sponsor.funded") : t("sponsor.balance")}
-            </p>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <Card className="relative overflow-hidden p-5 sm:p-6">
+          <Glow className="-end-20 -top-20 h-52 w-52 opacity-40" />
+          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
             {/*
-              🔴 37L.9 — THROUGH `formatDate`, BECAUSE AN ISO SLICE IS NOT A DATE
-              ANYBODY READS.
-
-              This printed `expiresAt.toISOString().slice(0, 10)`, which is the
-              exact thing the clinic page's own comment records being caught
-              doing, and the fault is worse in Arabic than it looks in English.
-              "2027-09-21" dropped into an RTL paragraph is reordered by the
-              bidi algorithm and renders "21-09-2027": the same three numbers in
-              the opposite order, with nothing on screen to say which. A reader
-              gets the right day here only because this one happens to be
-              palindromic in meaning; 2027-03-05 would read as the fifth of
-              March to one reader and the third of May to the next.
-
-              The helper takes the zone as an argument, so UTC stays explicit
-              (a pot expires on a date, not at an hour in somebody's city) and
-              the LANGUAGE still comes from the reader, which is the split the
-              rule exists to keep.
+              The ring only exists when the balance does. A ring drawn from a
+              suppressed figure is the suppression undone by a shape.
             */}
-            {terms?.expiresAt ? (
-              <p className="text-xs font-semibold text-brand-700">
-                {t("sponsor.expires", { date: formatDate(terms.expiresAt, "UTC", locale) })}
-              </p>
+            {usedPercent !== null ? (
+              <PotRing value={(100 - usedPercent) / 100}>
+                <span className="text-[22px] font-bold tabular-nums text-navy-700">
+                  {Math.min(100, Math.max(0, 100 - usedPercent))}%
+                </span>
+              </PotRing>
             ) : null}
-          </div>
 
-          {/*
-            🔴 B3 — with the balance held back, what the company paid in, under
-            its own label. That figure is its own acts and moves on no session,
-            so it passes both floors; nothing derived below (bar, percentage,
-            runway) is drawn from it.
-          */}
-          <p className="mt-1.5 text-3xl font-bold tracking-tight tabular-nums text-navy-500">
-            {balanceCents === null ? fmt(pot.fundedCents) : fmt(balanceCents)}
-          </p>
-          {balanceCents === null && underFloor ? (
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              {t("sponsor.fundedHeld", { floor })}
-            </p>
-          ) : null}
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <p className="text-[13px] font-semibold text-navy-400">
+                  {balanceCents === null ? t("sponsor.funded") : t("sponsor.balance")}
+                </p>
+                {/*
+                  🔴 37L.9 — THROUGH `formatDate`, BECAUSE AN ISO SLICE IS NOT A
+                  DATE ANYBODY READS. In an RTL paragraph "2027-09-21" renders
+                  "21-09-2027". UTC stays explicit (a pot expires on a date, not
+                  at an hour in somebody's city); the language is the reader's.
+                */}
+                {terms?.expiresAt ? (
+                  <Badge tone="teal">
+                    {t("sponsor.expires", { date: formatDate(terms.expiresAt, "UTC", locale) })}
+                  </Badge>
+                ) : null}
+              </div>
 
-          {/*
-            The bar only exists when the balance does. A bar drawn from a
-            suppressed figure is the suppression undone by a rectangle.
-          */}
-          {usedPercent !== null ? (
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-              <span
-                className="block h-full rounded-full bg-brand-500"
-                style={{ width: `${String(Math.min(100, Math.max(0, 100 - usedPercent)))}%` }}
-              />
+              {/*
+                🔴 B3 — with the balance held back, what the company paid in,
+                under its own label. That figure is its own acts and moves on no
+                session, so it passes both floors; nothing derived below (ring,
+                percentage, runway) is drawn from it.
+              */}
+              <p className="mt-1 text-[34px] leading-tight font-bold tracking-tight tabular-nums text-navy-700">
+                {balanceCents === null ? fmt(pot.fundedCents) : fmt(balanceCents)}
+              </p>
+              {balanceCents === null && underFloor ? (
+                <p className="mt-1 text-[13px] leading-relaxed text-navy-400">
+                  {t("sponsor.fundedHeld", { floor })}
+                </p>
+              ) : null}
+
+              <p className="mt-2 text-sm leading-relaxed text-navy-400">
+                <span className="font-semibold text-navy-600">
+                  {actor.kind === "university" ? t("sponsor.planTitle") : t("sponsor.budgetTitle")}
+                </span>
+                {". "}
+                {potLine}
+              </p>
+
+              {/* Only an admin can add money, so only an admin is offered the way to. */}
+              {actor.role === "admin" && terms ? (
+                <Link href="/sponsor/pot" className={cn(buttonClass("primary", "sm"), "mt-4")}>
+                  <Wallet className="h-4 w-4" aria-hidden />
+                  {t("sponsor.topUp")}
+                </Link>
+              ) : null}
             </div>
-          ) : null}
-
-          <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
-            {actor.kind === "university" ? t("sponsor.planTitle") : t("sponsor.budgetTitle")}
-            {". "}
-            {potLine}
-          </p>
+          </div>
         </Card>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <Card className="p-4">
-            <p className="text-xs font-medium text-slate-500">{t("sponsor.spentTotal")}</p>
-            <p className="mt-1 text-xl font-bold tracking-tight tabular-nums text-navy-500">
-              {totals === null ? t("sponsor.figureSuppressed") : fmt(totals.spentCents)}
-            </p>
-          </Card>
-
-          <Card className="p-4">
-            <p className="text-xs font-medium text-slate-500">{t("sponsor.sessionsTotal")}</p>
-            <p className="mt-1 text-xl font-bold tracking-tight tabular-nums text-navy-500">
-              {totals === null ? t("sponsor.figureSuppressed") : totals.sessions}
-            </p>
-          </Card>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+          <Stat tone="dark" label={t("sponsor.spentTotal")}>
+            {totals === null ? (
+              <span className="text-[18px]">{t("sponsor.figureSuppressed")}</span>
+            ) : (
+              fmt(totals.spentCents)
+            )}
+          </Stat>
+          <Stat label={t("sponsor.sessionsTotal")}>
+            {totals === null ? (
+              <span className="text-[18px]">{t("sponsor.figureSuppressed")}</span>
+            ) : (
+              totals.sessions
+            )}
+          </Stat>
         </div>
       </div>
 
       {!terms ? (
         <Card className="p-5">
-          <p className="text-sm leading-relaxed text-slate-600">{t("sponsor.noPot")}</p>
+          <p className="text-sm leading-relaxed text-navy-400">{t("sponsor.noPot")}</p>
         </Card>
       ) : null}
 
-      <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("sponsor.spendTitle")}</p>
+      <Card className="p-5 sm:p-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 className="text-[17px] font-bold text-navy-700">{t("sponsor.spendTitle")}</h2>
+          {/* 🔴 C228 — why weekly, on the screen, for the client who will ask. */}
+          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-navy-400">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-brand-700" aria-hidden />
+            {t("sponsor.whyWeekly")}
+          </p>
+        </div>
 
         {underFloor ? (
-          <>
-            <p className="mt-2 text-sm font-medium text-slate-700">{t("sponsor.suppressed")}</p>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          <div className="mt-4 rounded-2xl bg-navy-50 p-4">
+            <p className="text-sm font-semibold text-navy-600">{t("sponsor.suppressed")}</p>
+            <p className="mt-1 text-sm leading-relaxed text-navy-400">
               {t("sponsor.suppressedBody")}
             </p>
-          </>
+          </div>
         ) : (
           <SpendHeatmap
             weeks={weeks.map((week) => ({
@@ -275,11 +291,6 @@ export default async function SponsorOverviewPage() {
             }))}
           />
         )}
-
-        {/* 🔴 C228 — why weekly, on the screen, for the client who will ask. */}
-        <p className="mt-3 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
-          {t("sponsor.whyWeekly")}
-        </p>
       </Card>
     </div>
   );

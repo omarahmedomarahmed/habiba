@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { CalendarDays, Trash2, X } from "lucide-react";
 
 import { cancel, publish, withdraw } from "@/app/(app)/on-call/schedule-actions";
-import { Badge, Button, Card, Input } from "@/components/ui";
+import { Badge, Button, Card, Input } from "@/components/clinician/kit";
 import { byDayIn, dayKey, formatTime, formatWeekday, zoneLabel } from "@/lib/scheduling/tz";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { Locale } from "@/lib/i18n/config";
@@ -92,18 +92,18 @@ export function AvailabilityEditor({
 
   return (
     <Card>
-      <div className="border-b border-slate-100 px-4 py-3">
-        <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-          <CalendarDays className="h-4 w-4 text-slate-500" aria-hidden />
+      <div className="border-b border-navy-100/70 px-4 py-3">
+        <p className="flex items-center gap-2 text-sm font-semibold text-navy-700">
+          <CalendarDays className="h-4 w-4 text-navy-400" aria-hidden />
           {t("tav.title")}
         </p>
-        <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+        <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
           {t("tav.blurb")}
         </p>
       </div>
 
       {/* ------------------------------------------------------- publishing */}
-      <div className="space-y-3 border-b border-slate-100 px-4 py-3">
+      <div className="space-y-3 border-b border-navy-100/70 px-4 py-3">
         <div className="flex flex-wrap gap-1.5">
           {nextTwoWeeks.map((day) => {
             const on = days.includes(day.iso);
@@ -115,7 +115,7 @@ export function AvailabilityEditor({
                   setDays((d) => (on ? d.filter((x) => x !== day.iso) : [...d, day.iso]))
                 }
                 className={`tap-target h-9 rounded-lg px-2.5 text-xs font-medium ${
-                  on ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-600"
+                  on ? "bg-navy-600 text-white" : "border border-navy-100 text-navy-400"
                 }`}
               >
                 {day.label}
@@ -126,11 +126,11 @@ export function AvailabilityEditor({
 
         <div className="flex flex-wrap items-end gap-2">
           <label className="block">
-            <span className="block text-xs font-medium text-slate-600">{t("tav.from")}</span>
+            <span className="block text-xs font-medium text-navy-400">{t("tav.from")}</span>
             <select
               value={fromHour}
               onChange={(e) => setFromHour(Number(e.target.value))}
-              className="mt-1 h-10 rounded-xl border border-slate-200 px-2 text-sm"
+              className="mt-1 h-10 rounded-xl border border-navy-100 px-2 text-sm"
             >
               {Array.from({ length: 24 }, (_, h) => (
                 <option key={h} value={h}>
@@ -141,11 +141,11 @@ export function AvailabilityEditor({
           </label>
 
           <label className="block">
-            <span className="block text-xs font-medium text-slate-600">{t("tav.until")}</span>
+            <span className="block text-xs font-medium text-navy-400">{t("tav.until")}</span>
             <select
               value={toHour}
               onChange={(e) => setToHour(Number(e.target.value))}
-              className="mt-1 h-10 rounded-xl border border-slate-200 px-2 text-sm"
+              className="mt-1 h-10 rounded-xl border border-navy-100 px-2 text-sm"
             >
               {Array.from({ length: 24 }, (_, h) => h + 1).map((h) => (
                 <option key={h} value={h}>
@@ -182,7 +182,7 @@ export function AvailabilityEditor({
                 }
               })
             }
-            className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+            className="tap-target h-10 rounded-xl bg-navy-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
           >
             {pending ? t("tav.publishing") : t("tav.publish")}
           </button>
@@ -194,7 +194,7 @@ export function AvailabilityEditor({
           server is about to adopt this same value, so the sentence is true
           before and after the first publish.
         */}
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-navy-400">
           {(timezone
             ? t("tav.zoneNote", { zone: "\u0000" })
             : t("tav.zoneNoteBrowser", { zone: "\u0000" })
@@ -224,12 +224,12 @@ export function AvailabilityEditor({
 
       {/* ---------------------------------------------------- the calendar */}
       {grouped.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-slate-500">{t("tav.none")}</p>
+        <p className="px-4 py-5 text-sm text-navy-400">{t("tav.none")}</p>
       ) : (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-navy-100/70">
           {grouped.map((day) => (
             <div key={day.key} className="px-4 py-3">
-              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+              <p className="text-xs font-semibold tracking-wide text-navy-400 uppercase">
                 {day.label}
               </p>
               <ul className="mt-1.5 flex flex-wrap gap-1.5">
@@ -239,7 +239,7 @@ export function AvailabilityEditor({
                       className={`flex h-9 items-center rounded-lg px-2.5 text-sm font-medium ${
                         slot.status === "booked"
                           ? "bg-brand-50 text-brand-800"
-                          : "border border-slate-200 text-slate-700"
+                          : "border border-navy-100 text-navy-600"
                       }`}
                     >
                       {formatTime(slot.startsAt, zone)}
@@ -260,7 +260,7 @@ export function AvailabilityEditor({
                           setReason("");
                           setCancelling(slot.id);
                         }}
-                        className="tap-target rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                        className="tap-target rounded-lg p-1.5 text-navy-400 hover:bg-navy-50"
                       >
                         <X className="h-3.5 w-3.5" aria-hidden />
                       </button>
@@ -276,7 +276,7 @@ export function AvailabilityEditor({
                             if (result.error) setError(result.error);
                           })
                         }
-                        className="tap-target rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
+                        className="tap-target rounded-lg p-1.5 text-navy-200 hover:bg-navy-50 hover:text-navy-400"
                       >
                         <Trash2 className="h-3.5 w-3.5" aria-hidden />
                       </button>
@@ -311,7 +311,7 @@ export function AvailabilityEditor({
                   <button
                     type="button"
                     onClick={() => setCancelling(null)}
-                    className="text-sm font-semibold text-slate-500"
+                    className="text-sm font-semibold text-navy-400"
                   >
                     {t("common.back")}
                   </button>

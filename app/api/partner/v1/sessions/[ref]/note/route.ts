@@ -55,7 +55,14 @@ export async function GET(
    */
   const existing = await noteFor(allowed.session.id);
 
-  if (existing && !existing.draft && !existing.approvedText) {
+  /* 🔴 Board 606: nothing new is drafted after a withdrawal; what exists still reads. */
+  const { mayWriteNew } = await import("@/lib/partner/platform");
+  if (
+    existing &&
+    !existing.draft &&
+    !existing.approvedText &&
+    (await mayWriteNew({ partnerId: guard.key.partnerId, externalSessionRef: ref }))
+  ) {
     const { transcriptFor } = await import("@/lib/partner/media");
     const transcript = await transcriptFor(allowed.session.id);
 

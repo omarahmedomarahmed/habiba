@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Card, PageHeader } from "@/components/ui";
+import { Card, PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { recentNotifications } from "@/lib/data/notifications";
 import { getI18n } from "@/lib/i18n/server";
@@ -44,7 +44,7 @@ export default async function NotificationsPage() {
           <form action={readAll}>
             <button
               type="submit"
-              className="tap-target h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="tap-target h-9 rounded-xl border border-navy-100 bg-white px-3 text-xs font-semibold text-navy-600 hover:bg-navy-50"
             >
               {t("tw2.markAllRead")}
             </button>
@@ -53,11 +53,11 @@ export default async function NotificationsPage() {
 
         {rows.length === 0 ? (
           <Card className="p-5">
-            <p className="text-sm text-slate-600">{t("portal.dash.empty")}</p>
+            <p className="text-sm text-navy-400">{t("portal.dash.empty")}</p>
           </Card>
         ) : (
           <Card className="overflow-hidden">
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-navy-100/70">
               {rows.map((row) => (
                 <li key={row.id} className="flex items-start gap-3 px-4 py-3">
                   <span
@@ -70,14 +70,14 @@ export default async function NotificationsPage() {
                   <div className="min-w-0 flex-1">
                     <p
                       className={cn(
-                        "text-sm text-slate-900",
+                        "text-sm text-navy-700",
                         row.readAt ? "font-medium" : "font-semibold",
                       )}
                     >
                       {row.title}
                     </p>
-                    <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{row.body}</p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-0.5 text-sm leading-relaxed text-navy-400">{row.body}</p>
+                    <p className="mt-1 text-xs text-navy-400">
                       {formatDateTime(row.createdAt, actor.timezone, locale)}
                     </p>
                   </div>

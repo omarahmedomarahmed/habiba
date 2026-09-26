@@ -1,8 +1,9 @@
 import "server-only";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { PARTNER_SIGN_IN } from "@/lib/routing";
+import { PARTNER_COOKIE, orgBounce } from "@/lib/routing";
 import { getPartnerActor, type PartnerActor } from "./session";
 
 /**
@@ -25,7 +26,15 @@ import { getPartnerActor, type PartnerActor } from "./session";
  */
 export async function requirePartner(): Promise<PartnerActor> {
   const actor = await getPartnerActor();
-  if (!actor) redirect(PARTNER_SIGN_IN);
+  if (!actor) {
+    /*
+     * 🔴 Board 249 / 327 / 330: never straight to the door while a cookie is
+     * still held. Middleware sends a cookie holder at the sign-in page home
+     * again, which lands here again, forever. `orgBounce` says why.
+     */
+    const hasCookie = Boolean((await cookies()).get(PARTNER_COOKIE)?.value);
+    redirect(orgBounce("partner", hasCookie));
+  }
   return actor;
 }
 

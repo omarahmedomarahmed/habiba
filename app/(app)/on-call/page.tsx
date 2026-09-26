@@ -7,7 +7,7 @@ import { PracticeForm } from "@/components/radar/practice-form";
 import { AvailabilityEditor } from "@/components/scheduling/availability-editor";
 import { SessionHistory } from "@/components/radar/session-history";
 import { TherapistConsole } from "@/components/radar/therapist-console";
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { ensureRadarProfile, publicProfile, radarSessionHistory } from "@/lib/data/radar";
 import { myHours } from "@/lib/data/scheduling";
@@ -170,7 +170,7 @@ export default async function RadarConsolePage() {
           confirmed={Boolean(profile.practiceConfirmedAt)}
         />
 
-        <p className="text-xs leading-relaxed text-slate-500">
+        <p className="text-xs leading-relaxed text-navy-400">
           {/*
             37L.2 — the sentence is one dictionary row with a {link} slot, not
             two half-sentences either side of an anchor. Arabic does not put

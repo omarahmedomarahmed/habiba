@@ -7,7 +7,7 @@ import { Clock, Copy, Link2, Loader2, Mic, MicOff, Square, Video, X } from "luci
 import { RiskBanner } from "@/components/clinical/risk-banner";
 import { TranscriptPanel, type TranscriptLine } from "@/components/clinical/transcript-panel";
 import { VideoCall } from "@/components/session/video-call";
-import { Button } from "@/components/ui";
+import { Button } from "@/components/clinician/kit";
 import { SessionRecorder } from "@/lib/audio/recorder";
 import { CopilotToasts, mergeToasts, type Toast } from "@/components/session/copilot-toasts";
 import { SessionClockBar } from "@/components/session/session-clock-bar";
@@ -549,29 +549,42 @@ export function SessionRoom(props: RoomProps) {
   const clock = sessionClock({ startedAt, now: new Date(now), limits: props.clockLimits });
 
   return (
-    <div data-surface="room" className="flex min-h-dvh flex-col bg-navy-600">
-      <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+    <div data-surface="room" className="relative flex min-h-dvh flex-col overflow-hidden bg-navy-900">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -start-32 -top-32 h-96 w-96 rounded-full opacity-40 blur-3xl"
+        style={{ background: "radial-gradient(circle, rgba(46,196,182,0.45), rgba(46,196,182,0) 70%)" }}
+      />
+      {/* The end of the bar is left clear for the language corner, fixed there on every screen. */}
+      <header className="relative flex min-h-16 items-center gap-3 border-b border-white/10 py-3 ps-4 pe-[196px] sm:ps-6">
+        <span
+          aria-hidden
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-500 text-sm font-bold text-navy-700"
+        >
+          {[...props.patientLabel.trim()][0]?.toUpperCase() ?? ""}
+        </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">{props.patientLabel}</p>
-          <p className="text-xs text-slate-500">
-            {props.modality === "video" ? t("troom.videoSession") : t("troom.inPerson")}
-            {live ? ` · ${formatDuration(clock.elapsedSeconds)}` : ""}
-          </p>
+          <p className="truncate text-[15px] font-bold text-white">{props.patientLabel}</p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="text-xs text-white/70 tabular-nums">
+              {props.modality === "video" ? t("troom.videoSession") : t("troom.inPerson")}
+              {live ? ` · ${formatDuration(clock.elapsedSeconds)}` : ""}
+            </p>
+            {live ? (
+              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 ring-1 ring-white/15">
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    offRecord ? "bg-amber-400" : "live-dot bg-red-500",
+                  )}
+                />
+                <span className="text-[12px] font-semibold text-white">
+                  {offRecord ? t("troom.offRecord") : t("troom.live")}
+                </span>
+              </span>
+            ) : null}
+          </div>
         </div>
-
-        {live ? (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1">
-            <span
-              className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                offRecord ? "bg-amber-400" : "live-dot bg-red-500",
-              )}
-            />
-            <span className="text-[11px] font-medium text-white">
-              {offRecord ? t("troom.offRecord") : t("troom.live")}
-            </span>
-          </span>
-        ) : null}
       </header>
 
       {live ? (
@@ -588,7 +601,7 @@ export function SessionRoom(props: RoomProps) {
           judgement the product does not get to make.
           */}
           {nextBooking ? (
-            <p className="mx-auto w-full px-3 pt-1 text-center text-xs text-amber-700 lg:max-w-3xl">
+            <p className="relative mx-auto mt-2 w-fit rounded-full bg-amber-400/15 px-3 py-1 text-center text-xs font-semibold text-amber-200 ring-1 ring-amber-400/30">
               {nextBooking.minutes === 1
                 ? t("troom.nextInOne")
                 : t("troom.nextInMany", { count: nextBooking.minutes })}
@@ -613,7 +626,7 @@ export function SessionRoom(props: RoomProps) {
             that would otherwise end a session.
           */}
           {patientAway !== null ? (
-            <p className="mx-auto w-full px-3 pt-1 text-center text-xs text-amber-700 lg:max-w-3xl">
+            <p className="relative mx-auto mt-2 w-fit rounded-full bg-amber-400/15 px-3 py-1 text-center text-xs font-semibold text-amber-200 ring-1 ring-amber-400/30">
               {patientAway < 60
                 ? t("troom.minimised")
                 : Math.floor(patientAway / 60) === 1
@@ -634,20 +647,20 @@ export function SessionRoom(props: RoomProps) {
       */}
       {props.modality === "in_person" && consent === null ? (
         <div
-          className="border-b border-teal-400/25 bg-teal-400/10 px-4 py-3"
+          className="relative mx-4 mt-3 rounded-3xl border border-teal-400/30 bg-teal-400/10 p-4 sm:mx-6"
           data-consent-ask="in-person"
         >
-          <p className="flex items-start gap-2 text-sm font-semibold text-teal-50">
-            <MicOff className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p className="flex items-start gap-2.5 text-[15px] font-bold text-white">
+            <MicOff className="mt-0.5 h-5 w-5 shrink-0 text-teal-300" aria-hidden />
             {t("troom.consentAsk", { name: props.patientLabel })}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-teal-100/80">{t("troom.consentHand")}</p>
+          <p className="mt-1 ps-7.5 text-sm leading-relaxed text-white/75">{t("troom.consentHand")}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => answerInPerson("granted")}
               disabled={pending}
-              className="tap-target flex-1 rounded-xl bg-teal-400 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-60"
+              className="tap-target h-12 flex-1 rounded-2xl bg-teal-400 px-4 text-sm font-bold text-navy-700 disabled:opacity-60"
             >
               {t("troom.consentYes")}
             </button>
@@ -655,7 +668,7 @@ export function SessionRoom(props: RoomProps) {
               type="button"
               onClick={() => answerInPerson("declined")}
               disabled={pending}
-              className="tap-target flex-1 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              className="tap-target h-12 flex-1 rounded-2xl bg-white/10 px-4 text-sm font-bold text-white ring-1 ring-white/15 disabled:opacity-60"
             >
               {t("troom.consentNo")}
             </button>
@@ -664,15 +677,15 @@ export function SessionRoom(props: RoomProps) {
       ) : null}
 
       {props.modality === "video" && consent === null ? (
-        <p className="flex items-start gap-2 border-b border-white/10 bg-white/5 px-4 py-2.5 text-xs leading-relaxed text-slate-200">
-          <MicOff className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+        <p className="relative mx-4 mt-3 flex items-start gap-2.5 rounded-2xl bg-white/5 px-4 py-3 text-sm leading-relaxed text-white/85 ring-1 ring-white/10 sm:mx-6">
+          <MicOff className="mt-0.5 h-4 w-4 shrink-0 text-teal-300" aria-hidden />
           {t("troom.consentWaiting", { name: props.patientLabel })}
         </p>
       ) : null}
 
       {consent === "declined" ? (
-        <p className="flex items-start gap-2 border-b border-amber-500/25 bg-amber-500/15 px-4 py-2.5 text-xs leading-relaxed text-amber-100">
-          <MicOff className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+        <p className="relative mx-4 mt-3 flex items-start gap-2.5 rounded-2xl bg-amber-400/15 px-4 py-3 text-sm leading-relaxed text-amber-100 ring-1 ring-amber-400/30 sm:mx-6">
+          <MicOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden />
           <span>
             <strong className="font-semibold">
               {t("troom.declined", { name: props.patientLabel })}
@@ -698,10 +711,10 @@ export function SessionRoom(props: RoomProps) {
         about the narrow layout changes: on a phone this is still the same
         single column it was, because that one was never the problem.
       */}
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-h-0 shrink-0 flex-col lg:w-[38%] lg:max-w-xl lg:border-e lg:border-white/10">
+      <div className="relative flex min-h-0 flex-1 flex-col gap-3 pt-3 lg:flex-row lg:gap-4 lg:px-6 lg:pt-4">
+        <div className="flex min-h-0 shrink-0 flex-col lg:w-[38%] lg:max-w-xl">
           {props.modality === "video" ? (
-            <div className="shrink-0">
+            <div className="shrink-0 overflow-hidden lg:rounded-[28px] lg:ring-1 lg:ring-white/10">
               {props.videoRoomUrl ? (
                 <VideoCall
                   roomUrl={props.videoRoomUrl}
@@ -720,14 +733,14 @@ export function SessionRoom(props: RoomProps) {
                   onError={setError}
                 />
               ) : (
-                <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 bg-black px-6 text-center">
-                  <Video className="h-6 w-6 text-slate-500" aria-hidden />
-                  <p className="text-sm font-medium text-slate-300">
+                <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 bg-navy-800 px-6 text-center">
+                  <Video className="h-7 w-7 text-brand-300" aria-hidden />
+                  <p className="text-sm font-semibold text-white">
                     {props.videoConfigured
                       ? t("troom.settingUp")
                       : t("troom.videoNotConfigured")}
                   </p>
-                  <p className="max-w-xs text-xs text-slate-500">
+                  <p className="max-w-xs text-xs text-white/65">
                     {t("troom.videoNote")}
                   </p>
                 </div>
@@ -746,11 +759,11 @@ export function SessionRoom(props: RoomProps) {
         */}
           {props.joinUrl && patientJoined && !live ? (
             <p
-              className="flex items-center gap-2 border-b border-teal-400/25 bg-teal-400/15 px-4 py-2.5 text-xs font-medium text-teal-100"
+              className="mx-4 mt-3 flex items-center gap-2 rounded-2xl bg-teal-400/15 px-4 py-3 text-sm font-semibold text-teal-50 ring-1 ring-teal-400/30 lg:mx-0"
               data-patient-joined="true"
             >
               <span
-                className="live-dot h-1.5 w-1.5 shrink-0 rounded-full bg-teal-300"
+                className="live-dot h-2 w-2 shrink-0 rounded-full bg-teal-300"
                 aria-hidden
               />
               {t("troom.patientIn", { name: props.patientLabel })}
@@ -759,10 +772,10 @@ export function SessionRoom(props: RoomProps) {
 
           {props.joinUrl && !patientJoined ? (
             <div
-              className="border-b border-white/10 bg-white/5 px-4 py-3"
+              className="mx-4 mt-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10 lg:mx-0"
               data-join-url={props.joinUrl}
             >
-              <p className="text-xs font-medium text-slate-300">
+              <p className="text-sm font-semibold text-white/85">
                 {t("troom.waitingPatient")}
                 {props.priceCents > 0
                   ? props.paymentStatus === "paid"
@@ -774,7 +787,7 @@ export function SessionRoom(props: RoomProps) {
                 <button
                   type="button"
                   onClick={copyJoinLink}
-                  className="tap-target flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/10 px-3 text-sm font-medium text-white active:bg-white/20"
+                  className="tap-target flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-3 text-sm font-bold text-navy-700 active:bg-navy-50"
                 >
                   {copied ? (
                     <>
@@ -791,22 +804,22 @@ export function SessionRoom(props: RoomProps) {
           ) : null}
 
           {crisis ? (
-            <div className="px-4 pt-3">
+            <div className="px-4 pt-3 lg:px-0">
               <RiskBanner level="high" onDismiss={() => setCrisis(false)} />
             </div>
           ) : null}
 
           {micDenied ? (
-            <div className="mx-4 mt-3 rounded-xl bg-amber-500/10 px-3.5 py-2.5">
-              <p className="text-sm text-amber-200">
+            <div className="mx-4 mt-3 rounded-2xl bg-amber-400/15 px-4 py-3 ring-1 ring-amber-400/30 lg:mx-0">
+              <p className="text-sm text-amber-100">
                 {t("troom.noMic")}
               </p>
             </div>
           ) : null}
 
           {error ? (
-            <div className="mx-4 mt-3 rounded-xl bg-red-500/10 px-3.5 py-2.5">
-              <p className="text-sm text-red-200">{error}</p>
+            <div role="alert" className="mx-4 mt-3 rounded-2xl bg-red-500/15 px-4 py-3 ring-1 ring-red-400/30 lg:mx-0">
+              <p className="text-sm text-red-100">{error}</p>
             </div>
           ) : null}
         </div>
@@ -825,7 +838,7 @@ export function SessionRoom(props: RoomProps) {
           now, so a dismissed card costs nothing and an undismissed one hides
           less.
         */}
-        <div className="relative flex min-h-0 flex-1 flex-col">
+        <div className="relative flex min-h-0 flex-1 flex-col px-4 pb-3 lg:px-0">
           {live ? (
             <CopilotToasts
               toasts={toasts}
@@ -875,7 +888,7 @@ export function SessionRoom(props: RoomProps) {
         session" buttons in the accessibility tree, and the wrong one is always
         the one a screen reader reaches first.
       */}
-      <div className="safe-bottom sticky bottom-0 border-t border-white/10 bg-navy-600/95 px-4 pt-3 backdrop-blur">
+      <div className="safe-bottom sticky bottom-0 z-10 border-t border-white/10 bg-navy-900/90 px-4 pt-3 backdrop-blur-xl">
         <div className="mx-auto w-full lg:max-w-3xl">
           {/*
           Spoken language, above the controls rather than beside them.
@@ -892,10 +905,10 @@ export function SessionRoom(props: RoomProps) {
         */}
           {live ? (
             <div className="mb-2.5 flex items-center gap-1.5">
-              <span className="text-[10px] font-bold tracking-wider text-white/35 uppercase">
+              <span className="text-[11px] font-bold tracking-wider text-white/65 uppercase">
                 {t("troom.spoken")}
               </span>
-              <div className="flex flex-1 gap-1 rounded-xl bg-white/5 p-0.5">
+              <div className="flex flex-1 gap-1 rounded-full bg-white/5 p-1 ring-1 ring-white/10">
                 {(
                   [
                     [null, t("troom.detect")],
@@ -916,10 +929,10 @@ export function SessionRoom(props: RoomProps) {
                     }}
                     aria-pressed={spokenLanguage === code}
                     className={cn(
-                      "flex-1 rounded-lg px-2 py-1 text-xs font-semibold transition-colors",
+                      "flex-1 rounded-full px-2 py-1.5 text-xs font-semibold transition-colors",
                       spokenLanguage === code
-                        ? "bg-white/15 text-white"
-                        : "text-white/45 active:bg-white/10",
+                        ? "bg-brand-500 text-navy-700"
+                        : "text-white/70 active:bg-white/10",
                     )}
                   >
                     {label}
@@ -938,10 +951,10 @@ export function SessionRoom(props: RoomProps) {
                 aria-busy={pausing}
                 disabled={pausing || (offRecord && consent !== "granted")}
                 className={cn(
-                  "tap-target flex h-13 flex-1 items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-colors",
+                  "tap-target flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl text-[15px] font-bold transition-colors",
                   offRecord
-                    ? "bg-amber-500 text-white disabled:bg-white/10 disabled:text-slate-400"
-                    : "bg-white/10 text-white active:bg-white/20",
+                    ? "bg-amber-400 text-navy-700 disabled:bg-white/10 disabled:text-white/60"
+                    : "bg-white text-navy-700 active:bg-navy-50",
                 )}
               >
                 {offRecord && consent !== "granted" ? (
@@ -963,7 +976,7 @@ export function SessionRoom(props: RoomProps) {
                 type="button"
                 onClick={handleEnd}
                 disabled={ending || pending}
-                className="tap-target flex h-13 flex-1 items-center justify-center gap-2 rounded-2xl bg-red-600 text-sm font-semibold text-white active:bg-red-700 disabled:opacity-60"
+                className="tap-target flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-red-600 text-[15px] font-bold text-white active:bg-red-700 disabled:opacity-60"
               >
                 {ending ? (
                   <>
@@ -977,15 +990,14 @@ export function SessionRoom(props: RoomProps) {
               </button>
             </div>
           ) : props.booking && (opening === "booked" || opening === "soon") ? (
-            <p className="flex h-13 items-center justify-center gap-2 rounded-2xl bg-white/10 px-3.5 text-center text-sm font-semibold text-white"
-            >
-              <Clock className="h-4 w-4 shrink-0" aria-hidden />
+            <p className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-white/10 px-3.5 text-center text-[15px] font-bold text-white ring-1 ring-white/15">
+              <Clock className="h-4 w-4 shrink-0 text-brand-300" aria-hidden />
               {opening === "soon"
                 ? t("troom.startingSoon", { time: props.booking.label })
                 : t("troom.bookedFor", { time: props.booking.label })}
             </p>
           ) : (
-            <Button size="lg" variant="primary" full onClick={handleStart} disabled={pending}>
+            <Button size="lg" variant="primary" full className="h-14 text-[15px] font-bold" onClick={handleStart} disabled={pending}>
               {pending
                 ? t("troom.starting")
                 : opening === "early"
@@ -994,7 +1006,7 @@ export function SessionRoom(props: RoomProps) {
             </Button>
           )}
 
-          <p className="pt-2 pb-1 text-center text-[11px] text-slate-500">
+          <p className="pt-2 pb-1 text-center text-xs text-white/65">
             {live
               ? consent === "declined"
                 ? t("troom.noteOwnOnEnd")

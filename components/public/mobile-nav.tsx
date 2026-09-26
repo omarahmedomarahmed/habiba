@@ -67,7 +67,7 @@ export function MobileNav({
         aria-expanded={open}
         aria-label={t("nav.menu")}
         onClick={() => setOpen(true)}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-navy-500 hover:bg-slate-100 sm:hidden"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 lg:hidden"
       >
         <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
           <path
@@ -80,76 +80,74 @@ export function MobileNav({
         </svg>
       </button>
 
+      {/*
+        The mockups' menu: the whole screen, navy, every audience a large row
+        the thumb cannot miss, and the radar as the one teal button.
+      */}
       {open ? (
-        <div className="fixed inset-0 z-50 sm:hidden">
-          <button
-            type="button"
-            aria-label={t("nav.close")}
-            onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-navy-900/40"
-          />
-          <div className="absolute inset-x-0 top-0 max-h-dvh overflow-y-auto rounded-b-3xl bg-white pb-6 shadow-xl">
-            <div className="flex h-14 items-center justify-end px-4">
-              <button
-                type="button"
-                aria-label={t("nav.close")}
-                onClick={() => setOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-navy-500 hover:bg-slate-100"
-              >
-                <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
-                  <path
-                    d="M5 5l10 10M15 5L5 15"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-navy-900 text-white lg:hidden">
+          <div className="flex h-16 items-center justify-end px-4">
+            <button
+              type="button"
+              aria-label={t("nav.close")}
+              onClick={() => setOpen(false)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/15"
+            >
+              <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
+                <path
+                  d="M5 5l10 10M15 5L5 15"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
 
-            <nav aria-label={t("nav.menu")} className="px-3">
-              {links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className="block rounded-xl px-3 py-3 text-base font-semibold text-navy-500 hover:bg-slate-50"
-                >
-                  {link.label}
-                </Link>
-              ))}
-
+          <nav aria-label={t("nav.menu")} className="px-6 pb-10">
+            {links.map((link) => (
               <Link
-                href={radarHref}
+                key={link.href}
+                href={link.href}
                 onClick={() => setOpen(false)}
-                className={cn(
-                  "mt-2 flex items-center gap-2 rounded-xl bg-navy-500 px-3 py-3.5",
-                  "text-base font-semibold text-white",
-                )}
+                className="block border-b border-white/10 py-4 text-[24px] font-bold text-white hover:text-brand-300"
               >
-                <span className="live-dot h-2 w-2 rounded-full bg-brand-400" aria-hidden />
-                {t("nav.openRadar")}
+                {link.label}
               </Link>
+            ))}
 
-              <LanguageSwitch className="mt-4 ms-3" offered={offered} pathname={pathname} />
+            <Link
+              href={radarHref}
+              onClick={() => setOpen(false)}
+              className={cn(
+                "mt-8 flex h-14 items-center justify-center gap-2 rounded-2xl bg-brand-500 px-5",
+                "text-[16px] font-semibold text-navy-700 shadow-[0_8px_24px_-8px_rgba(46,196,182,0.7)]",
+              )}
+            >
+              <span className="live-dot h-2 w-2 rounded-full bg-navy-700" aria-hidden />
+              {t("nav.openRadar")}
+            </Link>
 
-              <p className="mt-6 px-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                {t("nav.whichAreYou")}
-              </p>
+            <LanguageSwitch className="mt-6" tone="dark" offered={offered} pathname={pathname} />
+
+            <p className="mt-10 text-[13px] font-bold uppercase tracking-[0.16em] text-white/60 rtl:tracking-normal">
+              {t("nav.whichAreYou")}
+            </p>
+            <div className="mt-3 overflow-hidden rounded-3xl bg-white/[0.06] ring-1 ring-white/10">
               {doors(t, "signin").map((door) => (
                 <Link
                   key={door.key}
                   href={door.href}
                   onClick={() => setOpen(false)}
-                  className="block rounded-xl px-3 py-2.5 hover:bg-slate-50"
+                  className="block border-b border-white/10 px-4 py-3.5 last:border-0 hover:bg-white/5"
                 >
-                  <span className="block text-sm font-semibold text-navy-500">{door.label}</span>
-                  <span className="block text-xs text-slate-600">{door.why}</span>
+                  <span className="block text-[15px] font-semibold text-white">{door.label}</span>
+                  <span className="mt-0.5 block text-[13px] text-white/70">{door.why}</span>
                 </Link>
               ))}
-            </nav>
-          </div>
+            </div>
+          </nav>
         </div>
       ) : null}
     </>

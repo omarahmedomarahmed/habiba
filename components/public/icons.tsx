@@ -55,7 +55,7 @@ export function ContentIconMark({
 }: {
   name?: string;
   className?: string;
-  tone?: "brand" | "navy" | "light";
+  tone?: "brand" | "navy" | "light" | "dark" | "card";
 }) {
   const Icon = name && name in ICONS ? ICONS[name as ContentIcon] : Sparkles;
 
@@ -77,6 +77,9 @@ export function ContentIconMark({
     brand: "bg-brand-50 text-brand-700",
     navy: "bg-navy-50 text-navy-500",
     light: "bg-white/10 text-white",
+    /* The mockups' two badges: navy with a teal glyph, and white on a tinted card. */
+    dark: "bg-navy-900 text-brand-300",
+    card: "bg-white text-brand-700 ring-1 ring-navy-100",
   };
 
   return (

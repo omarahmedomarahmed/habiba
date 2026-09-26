@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { MessageSquare, Send, Sparkles, X } from "lucide-react";
 
 import { askCopilot } from "@/app/(app)/copilot/actions";
-import { Badge, Button } from "@/components/ui";
+import { Badge, Button } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -83,11 +83,11 @@ export function AskPanel({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "tap-target flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50",
+          "tap-target flex w-full items-center justify-center gap-2 rounded-2xl bg-white/5 px-4 py-3 text-sm font-bold text-white ring-1 ring-white/12 hover:bg-white/10",
           className,
         )}
       >
-        <MessageSquare className="h-4 w-4" aria-hidden />
+        <Sparkles className="h-4 w-4 text-brand-300" aria-hidden />
         {t("troom.ask.open")}
         <Badge tone="teal">{t("troom.ask.free")}</Badge>
       </button>
@@ -97,18 +97,21 @@ export function AskPanel({
   return (
     <section
       className={cn(
-        "flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm",
+        "relative flex min-h-0 flex-col overflow-hidden rounded-3xl bg-navy-800 text-white shadow-[0_20px_40px_-20px_rgba(46,196,182,0.5)] ring-1 ring-white/12",
         className,
       )}
     >
-      <header className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
-        <p className="text-sm font-semibold text-slate-900">{t("troom.ask.title")}</p>
+      <header className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+        <p className="flex items-center gap-2 text-sm font-bold text-white">
+          <Sparkles className="h-4 w-4 text-brand-300" aria-hidden />
+          {t("troom.ask.title")}
+        </p>
         <div className="flex items-center gap-2">
           <Badge tone="teal">{t("troom.ask.free")}</Badge>
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="tap-target rounded-lg p-1 text-slate-500 hover:text-slate-700"
+            className="tap-target rounded-lg p-1 text-white/65 hover:text-white"
             aria-label={t("troom.ask.close")}
           >
             <X className="h-4 w-4" aria-hidden />
@@ -121,29 +124,29 @@ export function AskPanel({
         disappointing answer. A therapist who knows the bound will ask a
         different, better question.
       */}
-      <p className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs leading-relaxed text-slate-600">
+      <p className="border-b border-white/10 bg-white/5 px-4 py-2 text-xs leading-relaxed text-white/75">
         {t("troom.ask.bound")}
       </p>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {turns.length === 0 && !pending ? (
-          <p className="text-xs text-slate-500">{t("troom.ask.empty")}</p>
+          <p className="text-xs text-white/65">{t("troom.ask.empty")}</p>
         ) : null}
 
         {turns.map((turn, index) => (
           <div key={index} className="space-y-1.5">
-            <p className="text-sm font-medium text-slate-900">{turn.question}</p>
-            <p className="whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">
+            <p className="text-sm font-semibold text-white">{turn.question}</p>
+            <p className="whitespace-pre-wrap rounded-2xl bg-white/8 p-3 text-sm leading-relaxed text-white/90 ring-1 ring-white/12">
               {turn.answer}
             </p>
           </div>
         ))}
 
-        {pending ? <p className="text-xs text-slate-500">{t("troom.ask.thinking")}</p> : null}
-        {error ? <p className="text-xs text-red-600">{error}</p> : null}
+        {pending ? <p className="text-xs text-white/65">{t("troom.ask.thinking")}</p> : null}
+        {error ? <p className="text-xs text-red-200">{error}</p> : null}
       </div>
 
-      <div className="border-t border-slate-100 px-4 py-3">
+      <div className="border-t border-white/10 px-4 py-3">
         {/*
           🔴 48.3 — Prepare me, one click, one per session.
           It absorbs 39.1, which was scheduled as a separate screen eighteen
@@ -159,11 +162,11 @@ export function AskPanel({
               setPrepared(true);
               ask(t("troom.ask.preparePrompt"));
             }}
-            className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-800 disabled:opacity-50"
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500/15 px-3 py-2 text-sm font-semibold text-brand-200 ring-1 ring-brand-400/30 disabled:opacity-50"
           >
             <Sparkles className="h-4 w-4" aria-hidden />
             {t("troom.ask.prepare")}
-            <span className="text-xs font-normal text-brand-700">
+            <span className="text-xs font-normal text-white/65">
               {t("troom.ask.prepareOnce")}
             </span>
           </button>
@@ -189,7 +192,7 @@ export function AskPanel({
             }}
             rows={2}
             placeholder={t("troom.ask.placeholder")}
-            className="min-h-0 flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            className="min-h-0 flex-1 resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/60 focus:border-brand-400 focus:outline-none"
           />
           <Button type="submit" disabled={pending || !question.trim()}>
             <Send className="h-4 w-4" aria-hidden />

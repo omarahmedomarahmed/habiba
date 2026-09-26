@@ -56,7 +56,7 @@ export function PatientBack({
     <button
       type="button"
       onClick={() => (canGoBack ? router.back() : router.push(fallback))}
-      className="tap-target -ms-2 flex w-fit items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500"
+      className="tap-target flex h-10 w-fit items-center gap-1.5 rounded-full bg-white px-3.5 text-[14px] font-semibold text-navy-600 shadow-[0_1px_2px_rgba(10,35,66,0.06)] ring-1 ring-navy-100 transition-colors hover:bg-navy-50"
     >
       {/* The arrow follows the writing direction: RTL mirrors it. */}
       <ArrowLeft className="h-4 w-4 rtl:-scale-x-100" aria-hidden />

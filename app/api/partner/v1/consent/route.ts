@@ -33,7 +33,11 @@ export const dynamic = "force-dynamic";
  * `state: "withdrawn"` appends a row, it does not delete one. Stopping consent stops
  * any NEW reading and does not erase what was already read, which is C57's ruling on
  * our own side, unchanged by a commercial boundary. The partner's own therapist keeps
- * whatever note was already approved; nothing further is produced.
+ * whatever note was already approved; nothing further is produced. While the session
+ * is still running, a withdrawal also takes back the unapproved transcript, draft and
+ * summary (W1-17). After it ended, nothing is erased: the transcript, the approved
+ * note and the delivered summary still answer, with the coverage they had, and
+ * `new_work` in the response is false.
  *
  * ### Request
  *
@@ -134,8 +138,10 @@ export async function POST(request: Request) {
   });
 
   /*
-   * 🔴 W1-17: a withdrawal purges what the consent produced. It used to stop new
-   * reading and keep the transcript, the draft and the summary for ever.
+   * 🔴 W1-17: a withdrawal while the session runs purges what the consent produced.
+   * 🔴 Board 606: after the session ended it purges nothing (`purgeSessionMaterial`
+   * skips an ended session and `openSession` keeps its boundary), so the approved
+   * note, the transcript and the delivered summary still answer. Only new work stops.
    */
   if (state === "withdrawn") {
     const { purgeSessionMaterial } = await import("@/lib/partner/media");
@@ -147,6 +153,8 @@ export async function POST(request: Request) {
     coverage: opened.coverage,
     /* 🔴 68.18 — the sentence their therapist's screen shows, or null to carry on. */
     stopped_reason: opened.stoppedReason,
+    /* Board 606: whether anything new will be written from this session. */
+    new_work: state === "given" && opened.recordingFromSeconds !== null,
   });
 }
 

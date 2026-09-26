@@ -122,7 +122,7 @@ function Control({
           type="button"
           disabled={pending}
           onClick={onTurnOn}
-          className="tap-target mt-0.5 h-8 shrink-0 rounded-lg bg-white px-3 text-xs font-semibold text-slate-900 hover:bg-white/90 disabled:opacity-50"
+          className="tap-target mt-0.5 h-8 shrink-0 rounded-lg bg-white px-3 text-xs font-semibold text-navy-700 hover:bg-white/90 disabled:opacity-50"
         >
           {pending ? "…" : t("jconsent.turnOn")}
         </button>

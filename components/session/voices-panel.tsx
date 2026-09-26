@@ -7,7 +7,7 @@ import {
   unnameVoice,
   type SessionPanelState,
 } from "@/app/(app)/sessions/[id]/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -75,17 +75,17 @@ export function VoicesPanel({
 
   return (
     <Card className="p-4">
-      <h2 className="text-sm font-semibold text-slate-900">{t("portal.voices.title")}</h2>
+      <h2 className="text-sm font-semibold text-navy-700">{t("portal.voices.title")}</h2>
 
       {voices.length === 0 ? (
-        <p className="mt-1 text-sm text-slate-500">{t("portal.voices.none")}</p>
+        <p className="mt-1 text-sm text-navy-400">{t("portal.voices.none")}</p>
       ) : (
         <div className="mt-3 space-y-2">
           {voices.map((voice) => (
-            <div key={voice.id} className="rounded-xl border border-slate-200 px-3 py-2.5">
+            <div key={voice.id} className="rounded-xl border border-navy-100 px-3 py-2.5">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">
+                  <p className="text-sm font-medium text-navy-700">
                     {/*
                       🔴 A numbered speaker until somebody says otherwise.
                       There is no likeliest name and no confidence score.
@@ -96,7 +96,7 @@ export function VoicesPanel({
                         ? t("portal.voices.patient")
                         : t("portal.voices.unnamed", { ordinal: voice.ordinal })}
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 text-xs text-navy-400">
                     {t("portal.voices.speaking", {
                       seconds: Math.round(voice.speakingMs / 1000),
                     })}
@@ -118,7 +118,7 @@ export function VoicesPanel({
                           type="button"
                           disabled={pending}
                           onClick={() => act(() => nameVoice(sessionId, voice.id, "therapist"))}
-                          className="tap-target h-9 rounded-lg bg-slate-100 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                          className="tap-target h-9 rounded-lg bg-navy-50 px-2.5 text-xs font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
                         >
                           {pending ? t("portal.voices.saving") : t("portal.voices.bindTherapist")}
                         </button>
@@ -126,7 +126,7 @@ export function VoicesPanel({
                           type="button"
                           disabled={pending}
                           onClick={() => act(() => nameVoice(sessionId, voice.id, "patient"))}
-                          className="tap-target h-9 rounded-lg bg-slate-100 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                          className="tap-target h-9 rounded-lg bg-navy-50 px-2.5 text-xs font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
                         >
                           {pending ? t("portal.voices.saving") : t("portal.voices.bindPatient")}
                         </button>
@@ -136,7 +136,7 @@ export function VoicesPanel({
                         type="button"
                         disabled={pending}
                         onClick={() => act(() => unnameVoice(sessionId, voice.id))}
-                        className="tap-target h-9 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:underline disabled:opacity-50"
+                        className="tap-target h-9 rounded-lg px-2.5 text-xs font-medium text-navy-400 hover:underline disabled:opacity-50"
                       >
                         {t("portal.voices.unbind")}
                       </button>
@@ -148,7 +148,7 @@ export function VoicesPanel({
           ))}
 
           {canEdit && voices.some((voice) => voice.role !== null) ? (
-            <p className="text-xs leading-relaxed text-slate-500">
+            <p className="text-xs leading-relaxed text-navy-400">
               {t("portal.voices.unbindBody")}
             </p>
           ) : null}

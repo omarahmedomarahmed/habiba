@@ -16,6 +16,7 @@ import { Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { ENTITIES, SPONSOR_STATES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { countKey } from "@/lib/i18n/count-form";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -246,7 +247,7 @@ function SponsorRow({ sponsor, canManage }: { sponsor: AdminSponsorRow; canManag
                   : "text-xs text-slate-500"
               }
             >
-              {t("sponsor.attempts", { count: sponsor.attempts })}
+              {t("sponsor.attempts", { attempts: t(countKey("sponsor.attemptsCount", sponsor.attempts), { count: sponsor.attempts }) })}
             </span>
             {/* W2-A05: rotating kills the old code for anybody mid-signup, so it is confirmed. */}
             {canManage ? (

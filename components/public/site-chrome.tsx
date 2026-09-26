@@ -8,8 +8,9 @@ import { MobileNav } from "@/components/public/mobile-nav";
 import { SignInMenu } from "@/components/public/sign-in-menu";
 import { getFooterLinks, getPublicNav } from "@/lib/content/service";
 import { getI18n } from "@/lib/i18n/server";
-import { localisedPath } from "@/lib/i18n/paths";
+import { localisedPath, splitLocale } from "@/lib/i18n/paths";
 import { publicLanguages } from "@/lib/i18n/strings";
+import { cn } from "@/lib/utils";
 
 /**
  * The site's header and footer, in one place so every page can carry them.
@@ -75,10 +76,19 @@ export async function SiteHeader() {
   const { locale, t } = i18n;
   const href = (path: string) => localisedPath(path, locale);
   const pathname = (await headers()).get("x-pathname") ?? "/";
+  /* The page being read, without its language prefix, so `/ar/for-clinics` lights "For clinics". */
+  const here = splitLocale(pathname).rest;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+    /*
+      🔴 The mockups' bar: navy glass, and the selection is a teal pill.
+
+      Solid rather than clear-until-scrolled, because this header also sits on
+      the sign in pages and the legal documents, which open on white. Over a
+      navy hero it reads as the mockup's clear bar does.
+    */
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-navy-900/90 text-white backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
         {/*
           🔴 The mark alone. The word is gone from beside it.
 
@@ -89,25 +99,38 @@ export async function SiteHeader() {
           `title` stays on the Logo, so the link is still announced as
           "24Therapy" to anybody who cannot see the mark.
         */}
-        <Link href={href("/")} className="flex shrink-0 items-center">
-          <Logo ink="navy" height={28} />
+        <Link
+          href={href("/")}
+          className="flex shrink-0 items-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+        >
+          <Logo ink="white" height={28} />
         </Link>
 
-        <nav aria-label={t("nav.mainNav")} className="hidden items-center gap-0.5 md:flex">
-          {AUDIENCES.map((item) => (
-            <Link
-              key={item.href}
-              href={href(item.href)}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-navy-500"
-            >
-              {t(item.key)}
-            </Link>
-          ))}
+        <nav aria-label={t("nav.mainNav")} className="ms-3 hidden flex-1 items-center gap-1 lg:flex">
+          {AUDIENCES.map((item) => {
+            const on = here === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={href(item.href)}
+                aria-current={on ? "page" : undefined}
+                className={cn(
+                  "rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors",
+                  on
+                    ? "bg-brand-500 text-navy-700"
+                    : "text-white/85 hover:bg-white/10 hover:text-white",
+                )}
+              >
+                {t(item.key)}
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-2">
           <LanguageSwitch
             className="hidden sm:inline-flex"
+            tone="dark"
             offered={offered.map((row) => ({ code: row.code, nativeName: row.nativeName }))}
             pathname={pathname}
           />
@@ -121,14 +144,14 @@ export async function SiteHeader() {
             be looking for, and it should not be possible to unpublish it by
             accident from the content editor.
 
-            Navy ground with a teal dot, because teal reads 2.19:1 on white and
-            cannot carry a label on a light button. See docs/BRAND.md.
+            Teal ground, navy ink and a navy live dot: white on teal is 2.17:1
+            and cannot carry a label, navy on it passes. See docs/BRAND.md.
           */}
           <Link
             href={href("/radar")}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-navy-500 px-3.5 text-sm font-semibold text-white hover:bg-navy-600 sm:px-4"
+            className="inline-flex h-10 items-center gap-2 rounded-2xl bg-brand-500 px-3.5 text-[14px] font-semibold text-navy-700 shadow-[0_8px_24px_-8px_rgba(46,196,182,0.7)] transition-colors hover:bg-brand-400 sm:px-4"
           >
-            <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-400" aria-hidden />
+            <span className="live-dot h-1.5 w-1.5 rounded-full bg-navy-700" aria-hidden />
             {t("nav.radar")}
           </Link>
 
@@ -152,19 +175,25 @@ const LEGAL_KEYS = {
 } as const;
 
 export async function SiteFooter() {
-  const [nav, footer, i18n] = await Promise.all([getPublicNav(), getFooterLinks(), getI18n()]);
+  const [nav, footer, offered, i18n] = await Promise.all([
+    getPublicNav(),
+    getFooterLinks(),
+    publicLanguages(),
+    getI18n(),
+  ]);
   const { locale, t } = i18n;
   const href = (path: string) => localisedPath(path, locale);
+  const pathname = (await headers()).get("x-pathname") ?? "/";
 
   return (
-    <footer className="border-t border-slate-200 bg-white">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+    <footer className="relative overflow-hidden bg-navy-900 text-white">
+      <div className="mx-auto max-w-7xl px-5 pb-8 pt-16 sm:px-6">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div className="min-w-0">
             <Link href={href("/")} className="inline-flex items-center">
-              <Logo ink="navy" height={24} />
+              <Logo ink="white" height={32} />
             </Link>
-            <p className="mt-3 max-w-xs text-xs leading-relaxed text-slate-600">
+            <p className="mt-4 max-w-xs text-[15px] leading-relaxed text-white/70">
               {t("nav.tagline")}
             </p>
           </div>
@@ -225,10 +254,25 @@ export async function SiteFooter() {
           </FooterColumn>
         </div>
 
-        <p className="mt-10 border-t border-slate-100 pt-6 text-xs text-slate-600">
-          © {new Date().getFullYear()} {BRAND}. {t("nav.rights")}
-        </p>
+        <div className="mt-14 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
+          <p className="text-[13px] text-white/70">
+            © {new Date().getFullYear()} {BRAND}. {t("nav.rights")}
+          </p>
+          <LanguageSwitch
+            tone="dark"
+            offered={offered.map((row) => ({ code: row.code, nativeName: row.nativeName }))}
+            pathname={pathname}
+          />
+        </div>
       </div>
+      {/* The mockups' great faint wordmark: decoration, and said to nobody. */}
+      <p
+        aria-hidden
+        dir="ltr"
+        className="pointer-events-none select-none px-5 pb-2 text-center text-[18vw] font-black leading-none tracking-tighter text-white/[0.04]"
+      >
+        {BRAND}
+      </p>
     </footer>
   );
 }
@@ -236,14 +280,16 @@ export async function SiteFooter() {
 function FooterColumn({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <p className="text-xs font-semibold uppercase tracking-wide text-navy-500">{title}</p>
+      <p className="text-[13px] font-bold uppercase tracking-[0.16em] text-white/60 rtl:tracking-normal">
+        {title}
+      </p>
       {/*
         `min-w-0` on the column and `break-words` on the links, because a flex or
         grid item's default `min-width: auto` refuses to shrink below its
         content: one long Arabic label used to push the whole page sideways at
         375px.
       */}
-      <nav aria-label={title} className="mt-3 flex flex-col gap-2">
+      <nav aria-label={title} className="mt-4 flex flex-col gap-2.5">
         {children}
       </nav>
     </div>
@@ -252,7 +298,7 @@ function FooterColumn({ title, children }: { title: string; children: React.Reac
 
 function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="break-words text-xs text-slate-600 hover:text-navy-500">
+    <Link href={href} className="break-words text-[15px] text-white/80 transition-colors hover:text-white">
       {children}
     </Link>
   );

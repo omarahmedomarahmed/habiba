@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 
 import { GateSettings } from "@/components/sponsor/gate-settings";
+import { SponsorHeading } from "@/components/sponsor/heading";
 import { StaffList } from "@/components/sponsor/staff-list";
 import { emailListSummary } from "@/lib/data/sponsor-email-list";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { MAX_IDENTIFIER_FIELDS } from "@/lib/data/sponsor-admin";
 import { domainProved, domainsFor } from "@/lib/data/sponsor-domains";
 import { identifierFields } from "@/lib/data/sponsors";
@@ -54,10 +55,8 @@ export default async function SponsorSettingsPage() {
   }));
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">
-        {t("sponsor.settingsTitle")}
-      </h1>
+    <div className="mx-auto flex max-w-xl flex-col gap-5">
+      <SponsorHeading title={t("sponsor.settingsTitle")} />
 
       {actor.role === "admin" ? (
         <GateSettings
@@ -77,10 +76,10 @@ export default async function SponsorSettingsPage() {
 
       {actor.role === "admin" ? null : (
         <Card className="p-5">
-          <p className="text-sm leading-relaxed text-slate-600">
+          <p className="text-sm leading-relaxed text-navy-400">
             {t("sponsor.identifierBody")}
           </p>
-          <ul className="mt-3 space-y-1 text-sm text-slate-800">
+          <ul className="mt-3 space-y-1 text-sm text-navy-700">
             {fields.map((field) => (
               <li key={field.id}>{field.domain ?? field.shapeHint ?? field.kind}</li>
             ))}
@@ -89,7 +88,7 @@ export default async function SponsorSettingsPage() {
       )}
 
       {/* 🔴 53.19b / C247 — the cycle, and that a pause touches nothing else. */}
-      <p className="text-xs leading-relaxed text-slate-500">
+      <p className="text-xs leading-relaxed text-navy-400">
         {t("sponsor.verifyCycle", { months: settings.sponsor.verifyCycleMonths })}
       </p>
     </div>

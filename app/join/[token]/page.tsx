@@ -86,8 +86,8 @@ export default async function JoinPage({
 
     return (
       <Shell>
-        <h1 className="text-xl font-bold text-slate-900">{t("room.linkDead")}</h1>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("room.linkDeadBody")}</p>
+        <h1 className="text-xl font-bold text-navy-700">{t("room.linkDead")}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-navy-400">{t("room.linkDeadBody")}</p>
         {/*
           🔴 W2-P16: a dead link with nowhere to go. Somebody who needs a
           session now gets the radar; somebody signed in, their own sessions.
@@ -102,7 +102,7 @@ export default async function JoinPage({
           {(await optionalPatient()) ? (
             <Link
               href="/patient/sessions"
-              className="inline-flex h-11 items-center rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700"
+              className="inline-flex h-11 items-center rounded-xl bg-navy-50 px-4 text-sm font-semibold text-navy-600"
             >
               {t("psessions.title")}
             </Link>
@@ -220,6 +220,8 @@ export default async function JoinPage({
             : session.priceCents
         }
         paymentStatus={session.paymentStatus}
+        /* 🔴 Board 301: the same question the pay page asks before it offers a card. */
+        cardsLive={await (await import("@/lib/billing/egypt")).railIsReady()}
         /*
          * 🔴 A DROPPED CONNECTION IS NOT A NEW ARRIVAL.
          *
@@ -309,7 +311,7 @@ async function Shell({
       /* 🔴 75.4 — a stranger from the radar has no phone. The language is the signal. */
       country={crisisCountryFor({ locale })}
     >
-    <div className="flex min-h-dvh flex-col bg-slate-50">
+    <div className="flex min-h-dvh flex-col bg-navy-50">
       {/*
         The language switch belongs here, not buried in a menu.
         --------------------------------------------------------
@@ -325,7 +327,7 @@ async function Shell({
         <div className="w-full max-w-md">{children}</div>
       </main>
       <footer className="px-4 pb-6 text-center sm:px-6">
-        <p className="text-xs text-slate-500">{t("urgent.footer")}</p>
+        <p className="text-xs text-navy-400">{t("urgent.footer")}</p>
       </footer>
     </div>
     </PatientChrome>

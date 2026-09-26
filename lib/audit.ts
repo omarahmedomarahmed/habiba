@@ -52,6 +52,13 @@ type AuditInput = {
   resourceId?: string | null;
   patientId?: string | null;
   reason?: string | null;
+  /**
+   * 🔴 Board 593: the organisation the act was ON, when that is not the
+   * actor's own. An operator adjusting a practice's books belongs to
+   * 24Therapy, and the row named 24Therapy for Dr Amira's practice, so the
+   * audit screen said the adjustment was ours. Defaults to the actor's.
+   */
+  organizationId?: string | null;
 };
 
 /**
@@ -106,7 +113,7 @@ export async function audit(input: AuditInput): Promise<string | null> {
   }
 
   const [row] = await db.insert(auditLog).values({
-    organizationId: input.actor?.organizationId ?? null,
+    organizationId: input.organizationId ?? input.actor?.organizationId ?? null,
     actorUserId: input.actor?.userId ?? null,
     actorAccountId: input.patientAccountId ?? null,
     actorSponsorUserId: input.sponsorUserId ?? null,

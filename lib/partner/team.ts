@@ -84,6 +84,32 @@ export async function requestPartnerReset(email: string): Promise<{ ok: true }> 
 }
 
 /**
+ * The login a signed link belongs to, or null when it has expired, is forged, or
+ * was spent (the signature is over the current hash, so setting a password ends
+ * it). 🔴 Board 357: the reset page asks this on arrival, so a spent link says
+ * so before anybody types a password rather than after.
+ */
+export async function partnerLinkUser(
+  token: string,
+): Promise<{ id: string; passwordHash: string | null } | null> {
+  const [userId, expiresText, signature] = token.split(".");
+  const expires = Number(expiresText);
+  if (!userId || !signature || !Number.isFinite(expires) || expires < Date.now()) return null;
+
+  const [user] = await controlDb
+    .select({ id: partnerUsers.id, passwordHash: partnerUsers.passwordHash })
+    .from(partnerUsers)
+    .where(and(sql`${partnerUsers.id}::text = ${userId}`, isNull(partnerUsers.deletedAt)))
+    .limit(1);
+  if (!user) return null;
+
+  const want = Buffer.from(sign(user.id, expires, user.passwordHash));
+  const got = Buffer.from(signature);
+  if (want.length !== got.length || !timingSafeEqual(want, got)) return null;
+  return user;
+}
+
+/**
  * Set a password from a signed link: a reset, or a colleague's first password.
  *
  * 🔴 Every session the user had is revoked, so a reset locks out whoever was using
@@ -95,21 +121,9 @@ export async function setPartnerPassword(
 ): Promise<{ ok?: true; error?: string }> {
   const expired = { error: "That link has expired or was already used. Ask for a new one." };
 
-  const [userId, expiresText, signature] = token.split(".");
-  const expires = Number(expiresText);
-  if (!userId || !signature || !Number.isFinite(expires) || expires < Date.now()) return expired;
-  if (password.length < MIN_PASSWORD) return { error: "Use at least twelve characters." };
-
-  const [user] = await controlDb
-    .select({ id: partnerUsers.id, passwordHash: partnerUsers.passwordHash })
-    .from(partnerUsers)
-    .where(and(sql`${partnerUsers.id}::text = ${userId}`, isNull(partnerUsers.deletedAt)))
-    .limit(1);
+  const user = await partnerLinkUser(token);
   if (!user) return expired;
-
-  const want = Buffer.from(sign(user.id, expires, user.passwordHash));
-  const got = Buffer.from(signature);
-  if (want.length !== got.length || !timingSafeEqual(want, got)) return expired;
+  if (password.length < MIN_PASSWORD) return { error: "Use at least twelve characters." };
 
   const passwordHash = await hashPassword(password);
   const [changed] = await controlDb

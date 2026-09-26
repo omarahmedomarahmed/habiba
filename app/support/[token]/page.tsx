@@ -39,7 +39,7 @@ export default async function SupportTicketPage({
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-10">
       <div>
         <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("ttk.title")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("ttk.body")}</p>
+        {/* Board 588: "Enter the code" lives with the code field, and goes when the code is accepted. */}
       </div>
 
       <TicketReader token={token} />

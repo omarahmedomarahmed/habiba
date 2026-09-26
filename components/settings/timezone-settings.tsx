@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Check, Globe } from "lucide-react";
 
 import { saveTimezone } from "@/app/(app)/settings/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { formatTime, zoneLabel } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -62,24 +62,24 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
 
   return (
     <Card className="p-4">
-      <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-        <Globe className="h-4 w-4 text-slate-500" aria-hidden />
+      <p className="flex items-center gap-2 text-sm font-semibold text-navy-700">
+        <Globe className="h-4 w-4 text-navy-400" aria-hidden />
         {t("tset.zone")}
       </p>
-      <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
+      <p className="mt-0.5 text-sm leading-relaxed text-navy-400">
         {t("tset.zoneBody")}
       </p>
 
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <label className="block min-w-0 flex-1">
-          <span className="block text-xs font-medium text-slate-600">{t("tset.zoneLabel")}</span>
+          <span className="block text-xs font-medium text-navy-400">{t("tset.zoneLabel")}</span>
           <select
             value={zone}
             onChange={(e) => {
               setZone(e.target.value);
               setSaved(false);
             }}
-            className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-2 text-sm"
+            className="mt-1 h-10 w-full rounded-xl border border-navy-100 px-2 text-sm"
           >
             {zones.map((name) => (
               <option key={name} value={name}>
@@ -100,7 +100,7 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
               else setSaved(true);
             })
           }
-          className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+          className="tap-target h-10 rounded-xl bg-navy-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
         >
           {pending ? t("common.saving") : t("tset.save")}
         </button>
@@ -111,7 +111,7 @@ export function TimezoneSettings({ initial }: { initial: string | null }) {
         zone they picked. Somebody who has selected the wrong Cairo sees it
         here, before a patient does.
       */}
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-navy-400">
         {t("tset.zoneNow", { time: formatTime(now, zone), place: zoneLabel(zone, locale) })}
         {initial === null && detected
           ? ` ${t("tset.zoneNotSaved", { zone: detected })}`

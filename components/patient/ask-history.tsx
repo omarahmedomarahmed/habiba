@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { askPreviousTherapist } from "@/app/(patient)/patient/consent/actions";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { SeesWhat } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 
@@ -46,7 +47,7 @@ export function AskHistory({
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">
+      <p className="text-sm font-semibold text-navy-700">
         {t("consent.askOld")}
       </p>
 
@@ -73,9 +74,9 @@ export function AskHistory({
       {asks.length > 0 ? (
         <ul className="mt-3 space-y-2">
           {asks.map((ask) => (
-            <li key={ask.id} className="rounded-xl bg-slate-50 px-3.5 py-3">
-              <p className="text-sm font-medium text-slate-900">{ask.therapistName}</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
+            <li key={ask.id} className="rounded-xl bg-navy-50 px-3.5 py-3">
+              <p className="text-sm font-medium text-navy-700">{ask.therapistName}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
                 {ask.status === "pending"
                   ? t("pask.waiting")
                   : ask.status === "added"
@@ -93,7 +94,7 @@ export function AskHistory({
             value={choice}
             onChange={(event) => setChoice(event.target.value)}
             aria-label={t("consent.whichTherapist")}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900"
+            className="h-11 w-full rounded-xl border border-navy-100 bg-white px-3 text-sm text-navy-700"
           >
             <option value="">{t("consent.chooseTherapist")}</option>
             {clinicians.map((clinician) => (
@@ -108,7 +109,7 @@ export function AskHistory({
             value={note}
             onChange={(event) => setNote(event.target.value)}
             placeholder={t("consent.askNote")}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm leading-relaxed"
+            className="w-full rounded-xl border border-navy-100 px-3 py-2 text-sm leading-relaxed"
           />
 
           {error ? (

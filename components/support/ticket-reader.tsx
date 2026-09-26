@@ -45,7 +45,7 @@ export function TicketReader({ token }: { token: string }) {
         {state.ticket.events.map((event, i) => (
           <Card key={i} className="p-4">
             <p className="text-sm font-semibold text-slate-900">
-              {event.kind === "closed" ? t("ttk.ourReply") : t("ttk.update")}
+              {event.kind === "closed" ? t("ttk.closedNote") : t("ttk.ourReply")}
             </p>
             <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-700">
               {event.note}
@@ -63,6 +63,7 @@ export function TicketReader({ token }: { token: string }) {
 
   return (
     <Card className="p-5">
+      <p className="mb-3 text-sm leading-relaxed text-slate-600">{t("ttk.body")}</p>
       <form action={action} className="space-y-3">
         <input type="hidden" name="token" value={token} />
         <Field label={t("ttk.code")} htmlFor="code">

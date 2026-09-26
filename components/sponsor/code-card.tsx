@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Printer } from "lucide-react";
 
 import { createCode, replaceCode } from "@/app/(sponsor)/sponsor/code/actions";
-import { Card } from "@/components/ui";
+import { buttonClass, Card } from "@/components/clinician/kit";
+import { cn } from "@/lib/utils";
 
 import { ConfirmAct } from "./confirm-act";
 import { useT } from "@/lib/i18n/client";
+import { countKey } from "@/lib/i18n/count-form";
 
 /**
  * The printable code. PLAN.md 53.2, 53.9, C237.
@@ -47,19 +50,26 @@ export function CodeCard({
   const t = useT();
 
   return (
-    <Card className="p-5">
+    <Card className="p-5 sm:p-6 print:border-0 print:shadow-none">
       {/*
         The printable block. `print:` utilities rather than a separate print
         route: one document means the thing on the wall is provably the thing the
         sponsor looked at.
       */}
-      <div className="flex flex-col items-center gap-4 py-4 text-center">
-        {/* eslint-disable-next-line @next/next/no-img-element -- a data URI, not a remote asset */}
-        <img src={qrDataUri} alt={code} width={256} height={256} className="h-64 w-64" />
+      <div className="flex flex-col items-center gap-5 py-4 text-center">
+        <div className="rounded-3xl bg-white p-3 ring-1 ring-navy-100 shadow-[0_8px_24px_-12px_rgba(10,35,66,0.18)] print:shadow-none">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a data URI, not a remote asset */}
+          <img src={qrDataUri} alt={code} width={256} height={256} className="h-56 w-56 sm:h-64 sm:w-64" />
+        </div>
 
-        <p className="font-mono text-3xl font-bold tracking-[0.2em] text-slate-900">{code}</p>
+        <p
+          dir="ltr"
+          className="rounded-2xl bg-navy-50 px-5 py-2.5 font-mono text-2xl font-bold tracking-[0.2em] text-navy-700 ring-1 ring-navy-100 sm:text-3xl"
+        >
+          {code}
+        </p>
 
-        <p className="max-w-sm text-sm leading-relaxed text-slate-600">{posterLine}</p>
+        <p className="max-w-sm text-[15px] leading-relaxed text-navy-400">{posterLine}</p>
       </div>
 
       {/*
@@ -67,8 +77,8 @@ export function CodeCard({
         Printed out of the poster block, because a count of guesses is not something
         to put on a wall.
       */}
-      <div className="mt-4 border-t border-slate-100 pt-4 print:hidden">
-        <p className="text-xs text-slate-500">{t("sponsor.attempts", { count: attempts })}</p>
+      <div className="mt-4 border-t border-navy-100 pt-4 print:hidden">
+        <p className="text-[13px] font-semibold text-navy-400">{t("sponsor.attempts", { attempts: t(countKey("sponsor.attemptsCount", attempts), { count: attempts }) })}</p>
         {spike ? (
           <p className="mt-1 rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
             {t("sponsor.attemptsHigh")}
@@ -76,12 +86,13 @@ export function CodeCard({
         ) : null}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 print:hidden">
+      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-navy-100 pt-4 print:hidden">
         <button
           type="button"
           onClick={() => window.print()}
-          className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white"
+          className={buttonClass("primary", "md")}
         >
+          <Printer className="h-4 w-4" aria-hidden />
           {t("sponsor.codePrint")}
         </button>
 
@@ -119,7 +130,7 @@ export function CreateCode() {
             setError(result.error ?? null);
           })
         }
-        className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-50"
+        className={cn(buttonClass("primary", "md"), "disabled:opacity-50")}
       >
         {t("sponsor.codeCreate")}
       </button>

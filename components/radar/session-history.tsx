@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ExternalLink, MessageSquare } from "lucide-react";
 
-import { Badge, Card, EmptyState } from "@/components/ui";
+import { Badge, Card, EmptyState } from "@/components/clinician/kit";
 import { Money } from "@/components/ui/money";
 import type { RadarSessionRow } from "@/lib/data/radar";
 import { formatDate } from "@/lib/utils";
@@ -86,19 +86,19 @@ export async function SessionHistory({
 
   return (
     <Card>
-      <div className="border-b border-slate-100 px-4 py-3">
-        <p className="text-sm font-semibold text-slate-900">{t("thist.title")}</p>
-        <p className="mt-0.5 text-xs text-slate-600">
+      <div className="border-b border-navy-100/70 px-4 py-3">
+        <p className="text-sm font-semibold text-navy-700">{t("thist.title")}</p>
+        <p className="mt-0.5 text-xs text-navy-400">
           {t("thist.blurb")}
         </p>
       </div>
 
-      <ul className="divide-y divide-slate-100">
+      <ul className="divide-y divide-navy-100/70">
         {rows.map((row) => (
           <li key={row.sessionId} className="px-4 py-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-900">
+                <p className="truncate text-sm font-medium text-navy-700">
                   {/*
                     A link only when there is a record to link to. A join-link
                     patient has no `patients` row until somebody types a name,
@@ -110,13 +110,13 @@ export async function SessionHistory({
                       className="inline-flex items-center gap-1 hover:underline"
                     >
                       {row.patientLabel}
-                      <ExternalLink className="h-3 w-3 shrink-0 text-slate-600" aria-hidden />
+                      <ExternalLink className="h-3 w-3 shrink-0 text-navy-400" aria-hidden />
                     </Link>
                   ) : (
                     row.patientLabel
                   )}
                 </p>
-                <p className="mt-0.5 text-xs text-slate-600">
+                <p className="mt-0.5 text-xs text-navy-400">
                   {formatDate(row.endedAt ?? row.startedAt ?? new Date(), zone, locale)} ·{" "}
                   {row.modality === "video" ? t("thist.video") : t("thist.inPerson")}
                   {row.copilotAsked > 0
@@ -141,7 +141,7 @@ export async function SessionHistory({
                   the states where nothing is being withheld.
                 */}
                 {accessNote(row) ? (
-                  <p className="mt-1 text-xs text-slate-600">{t(accessNote(row)!)}</p>
+                  <p className="mt-1 text-xs text-navy-400">{t(accessNote(row)!)}</p>
                 ) : null}
               </div>
 
@@ -149,7 +149,7 @@ export async function SessionHistory({
                 {row.priceCents === 0 ? (
                   <Badge tone="slate">{t("thist.free")}</Badge>
                 ) : row.paid ? (
-                  <p className="text-sm font-semibold tabular-nums text-slate-900">
+                  <p className="text-sm font-semibold tabular-nums text-navy-700">
                     <Money cents={row.paid.netCents} />
                   </p>
                 ) : (
@@ -164,10 +164,10 @@ export async function SessionHistory({
               transaction.
             */}
             {row.paid ? (
-              <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-600">
+              <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-navy-400">
                 <div className="flex gap-1.5">
                   <dt>{t("thist.price")}</dt>
-                  <dd className="tabular-nums text-slate-700">
+                  <dd className="tabular-nums text-navy-600">
                     <Money cents={row.paid.grossCents} />
                   </dd>
                 </div>
@@ -187,7 +187,7 @@ export async function SessionHistory({
                         ),
                       })}
                     </dt>
-                    <dd className="tabular-nums text-slate-700">
+                    <dd className="tabular-nums text-navy-600">
                       <Money cents={row.paid.vatCents} />
                     </dd>
                   </div>
@@ -198,14 +198,14 @@ export async function SessionHistory({
                       ? t("thist.tookPercent", { percent: (row.paid.feeBps / 100).toFixed(0) })
                       : t("thist.took")}
                   </dt>
-                  <dd className="tabular-nums text-slate-700"><Money cents={row.paid.feeCents} /></dd>
+                  <dd className="tabular-nums text-navy-600"><Money cents={row.paid.feeCents} /></dd>
                 </div>
                 <div className="flex gap-1.5">
                   <dt>{t("thist.received")}</dt>
-                  <dd className="tabular-nums text-slate-700"><Money cents={row.paid.netCents} /></dd>
+                  <dd className="tabular-nums text-navy-600"><Money cents={row.paid.netCents} /></dd>
                 </div>
                 {row.paid.presentedCurrency && row.paid.presentedCurrency !== row.paid.currency ? (
-                  <div className="basis-full text-slate-600">
+                  <div className="basis-full text-navy-400">
                     {row.paid.payerCountry
                       ? t("thist.paidInFrom", {
                           currency: row.paid.presentedCurrency.toUpperCase(),
@@ -225,9 +225,9 @@ export async function SessionHistory({
               them: the AI ran either way.
             */}
             {row.ownBill ? (
-              <p className="mt-1.5 text-xs text-slate-600">
+              <p className="mt-1.5 text-xs text-navy-400">
                 {t("thist.ownBill")}{" "}
-                <span className="tabular-nums text-slate-700">
+                <span className="tabular-nums text-navy-600">
                   {row.ownBill.amountCents === 0
                     ? row.ownBill.description
                     : <Money cents={row.ownBill.amountCents} />}

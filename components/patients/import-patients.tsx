@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import { commit, preview } from "@/app/(app)/patients/import/actions";
 import { useCountryName } from "@/components/forms/phone-field";
-import { Button, Card, Field } from "@/components/ui";
+import { Button, Card, Field } from "@/components/clinician/kit";
 import { DIALLING_CODES } from "@/lib/phone/e164";
 import { useT } from "@/lib/i18n/client";
 
@@ -48,16 +48,16 @@ export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
   if (done.created !== undefined) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">
+        <p className="text-sm font-semibold text-navy-700">
           {t("import.done", { count: String(done.created) })}
         </p>
         {done.skipped ? (
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-navy-400">
             {t("import.doneSkipped", { count: String(done.skipped) })}
           </p>
         ) : null}
         {done.failed && done.failed.length > 0 ? (
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-navy-400">
             {t("import.doneFailed", { count: String(done.failed.length) })}
           </p>
         ) : null}
@@ -77,16 +77,16 @@ export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
       {found ? (
         <>
           <Card className="p-5">
-            <p className="text-sm font-semibold text-slate-900">
+            <p className="text-sm font-semibold text-navy-700">
               {t("import.found", { count: String(found.rows.length) })}
             </p>
 
-            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-navy-400">
               {t("import.matched")}
             </p>
             <ul className="mt-1 space-y-0.5">
               {found.matched.map((pair) => (
-                <li key={pair.field} className="font-mono text-xs text-slate-600">
+                <li key={pair.field} className="font-mono text-xs text-navy-400">
                   {pair.column} {"->"} {pair.field}
                 </li>
               ))}
@@ -95,29 +95,29 @@ export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
             {/* 🔴 Named, from their own file. The promise above, made checkable. */}
             {found.ignoredColumns.length > 0 ? (
               <>
-                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-navy-400">
                   {t("import.ignored")}
                 </p>
-                <p className="mt-1 font-mono text-xs text-slate-600">
+                <p className="mt-1 font-mono text-xs text-navy-400">
                   {found.ignoredColumns.join(", ")}
                 </p>
               </>
             ) : null}
 
             {state.duplicates && state.duplicates.length > 0 ? (
-              <p className="mt-3 text-sm text-slate-600">
+              <p className="mt-3 text-sm text-navy-400">
                 {t("import.alreadyHere", { count: String(state.duplicates.length) })}
               </p>
             ) : null}
 
             {found.problems.length > 0 ? (
               <>
-                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-navy-400">
                   {t("import.problems")}
                 </p>
                 <ul className="mt-1 space-y-0.5">
                   {found.problems.map((problem) => (
-                    <li key={problem.line} className="text-xs text-slate-600">
+                    <li key={problem.line} className="text-xs text-navy-400">
                       {t("import.line", { line: String(problem.line) })} {problem.reason}
                     </li>
                   ))}
@@ -125,14 +125,14 @@ export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
               </>
             ) : null}
 
-            <ul className="mt-4 divide-y divide-slate-100">
+            <ul className="mt-4 divide-y divide-navy-100/70">
               {found.rows.map((row) => (
-                <li key={row.phone} className="py-1.5 text-sm text-slate-700">
+                <li key={row.phone} className="py-1.5 text-sm text-navy-600">
                   <span className="font-medium">
                     {row.firstName}
                     {row.lastName ? ` ${row.lastName}` : ""}
                   </span>
-                  <span className="ms-2 font-mono text-xs text-slate-500">{row.phone}</span>
+                  <span className="ms-2 font-mono text-xs text-navy-400">{row.phone}</span>
                 </li>
               ))}
             </ul>
@@ -160,7 +160,7 @@ export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
               type="file"
               accept=".csv,text/csv,text/plain"
               required
-              className="block w-full text-sm text-slate-700"
+              className="block w-full text-sm text-navy-600"
             />
           </Field>
 
@@ -169,7 +169,7 @@ export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
               id="import-country"
               name="country"
               defaultValue={defaultCountry}
-              className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm"
+              className="h-11 w-full rounded-xl border border-navy-100 px-3 text-sm"
             >
               {Object.keys(DIALLING_CODES)
                 .sort((a, b) => countryName(a).localeCompare(countryName(b)))
@@ -180,7 +180,7 @@ export function ImportPatients({ defaultCountry }: { defaultCountry: string }) {
                 ))}
             </select>
           </Field>
-          <p className="text-xs leading-relaxed text-slate-500">{t("import.countryNote")}</p>
+          <p className="text-xs leading-relaxed text-navy-400">{t("import.countryNote")}</p>
 
           {state.error ? (
             <p role="alert" className="text-xs text-red-600">

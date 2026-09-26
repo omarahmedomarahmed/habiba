@@ -139,15 +139,41 @@ async function main() {
     const r1 = await patientCancel({ personId: mona.personId, accountId: null, sessionId: early.sessionId });
     const s1 = await session(early.sessionId);
     const q1 = await refundRows(earlyPay);
+    const credit = (sessionId: string) =>
+      rows<{ id: string; amount_cents: number }>(sql`
+        SELECT id, amount_cents FROM patient_credits WHERE from_session_id = ${sessionId}`);
+    const c1 = await credit(early.sessionId);
+    const p1 = await one<{ status: string }>(sql`SELECT status FROM session_payments WHERE id = ${earlyPay}`);
     check(
-      "🔴 cancelled 48 hours ahead, paid by transfer: cancelled by the patient, and the full amount owed on the refund queue",
-      r1.ok && r1.refund === "queued" && s1.status === "cancelled" && s1.cancelled_by === "patient" &&
-        s1.late_cancel === null && q1.length === 1 && q1[0]!.reason === "patient_cancel" && q1[0]!.amount_cents === 2000,
-      JSON.stringify({ r1, s1, q1 }),
+      "🔴 board 430, ruling 18: cancelled 48 hours ahead, paid by transfer: cancelled by the patient, and the full amount in their wallet",
+      r1.ok && r1.refund === "wallet" && s1.status === "cancelled" && s1.cancelled_by === "patient" &&
+        s1.late_cancel === null && q1.length === 0 && p1.status === "refunded" &&
+        c1.length === 1 && c1[0]!.amount_cents === 2000,
+      JSON.stringify({ r1, s1, q1, p1, c1 }),
+    );
+    const { walletCreditedTransfers, refundTransferInstead } = await import("../lib/billing/transfer-wallet");
+    const listed = (await walletCreditedTransfers()).find((row) => row.refId === early.sessionId);
+    check(
+      "🔴 board 430: the transfer is listed where staff press Refund instead, pointing at that credit",
+      Boolean(listed) && listed!.creditId === c1[0]?.id,
+      JSON.stringify(listed ?? null),
+    );
+    const instead = listed
+      ? await refundTransferInstead({ paymentId: listed.id, byUserId: therapist.id, reason: "The patient asked for it back" })
+      : { error: "not listed" };
+    const q1b = await rows<{ amount_cents: number }>(sql`
+      SELECT amount_cents FROM refund_requests WHERE manual_payment_id = ${listed?.id ?? null}`);
+    check(
+      "🔴 …and Refund instead queues the whole amount once",
+      Boolean(instead.ok) && q1b.length === 1 && q1b[0]!.amount_cents === 2000,
+      JSON.stringify({ instead, q1b }),
     );
     check("…and the hour is open again for somebody else", (await slotRow(early.slotId)).status === "open");
     const r1b = await patientCancel({ personId: mona.personId, accountId: null, sessionId: early.sessionId });
-    check("🔴 a second press cancels nothing and queues nothing twice", !r1b.ok && (await refundRows(earlyPay)).length === 1);
+    check(
+      "🔴 a second press cancels nothing and credits nothing twice",
+      !r1b.ok && (await credit(early.sessionId)).length === 1 && (await refundRows(earlyPay)).length === 0,
+    );
 
     /* ------------------------------------------------- cancelled late -- */
     const late = await book(mona, 5);
@@ -169,8 +195,9 @@ async function main() {
     const again = await agreeLateRefund(actor as never, late.sessionId);
     const s2b = await session(late.sessionId);
     check(
-      "🔴 the clinician agrees: refunded (queued, as it came by transfer), once, however many presses",
-      agree.ok && !again.ok && s2b.late_cancel === "refunded" && (await refundRows(latePay)).length === 1,
+      "🔴 the clinician agrees: refunded (to the wallet, as it came by transfer; ruling 18), once, however many presses",
+      agree.ok && agree.refund === "wallet" && !again.ok && s2b.late_cancel === "refunded" &&
+        (await credit(late.sessionId)).length === 1 && (await refundRows(latePay)).length === 0,
       JSON.stringify({ agree, again, s2b }),
     );
     const lateNotice = await one<{ n: number }>(sql`

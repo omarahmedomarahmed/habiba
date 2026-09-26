@@ -58,8 +58,22 @@ test("C05: a forgot-password door and a set-password door, both open", async () 
   const routing = await import("../lib/routing");
   assert.ok(routing.isClinicDoor("/clinic/forgot-password"));
   assert.ok(routing.isClinicDoor("/clinic/set-password"));
-  assert.match(read("lib/routing.ts"), /openRoutes: \[CLINIC_APPLY, CLINIC_JOIN, CLINIC_FORGOT, CLINIC_SET_PASSWORD\]/);
+  assert.match(read("lib/routing.ts"), /openRoutes: \[CLINIC_APPLY, CLINIC_JOIN, CLINIC_FORGOT, CLINIC_SET_PASSWORD[,\]]/);
 
   // And the sign-in says where it is.
   assert.match(read("app/(clinic)/clinic/sign-in/page.tsx"), /href="\/clinic\/forgot-password"/);
+});
+
+test("board 308: a cancelled invitation's link is no longer shown", async () => {
+  const { liveLink } = await import("../components/clinic/live-link");
+  const sent = { ok: true, link: "https://example.test/clinic/join/abc", invitationId: "inv-1" };
+  assert.equal(liveLink(sent, [{ id: "inv-1" }]), sent.link, "shown while the invitation is live");
+  assert.equal(liveLink(sent, []), null, "gone once it is cancelled");
+  assert.equal(liveLink({}, [{ id: "inv-1" }]), null, "nothing before an invite");
+  assert.match(
+    read("app/(clinic)/clinic/people/actions.ts"),
+    /invitationId: result\.invitationId/,
+    "the invite action says which invitation the link belongs to",
+  );
+  assert.match(read("components/clinic/people-list.tsx"), /liveLink\(state, invitations\)/);
 });

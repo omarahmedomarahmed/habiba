@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 
 import { answerQuestion, finishAssessment } from "@/app/(patient)/patient/assessments/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { sosLinesFor, type SosCountry } from "@/lib/crisis/sos";
 import { useLocale, useT } from "@/lib/i18n/client";
 
@@ -110,12 +110,12 @@ export function PatientQuestionnaire({
   if (done) {
     return (
       <Card className="p-6 text-center">
-        <p className="text-lg font-semibold text-slate-900">{t("passess.doneTitle")}</p>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("passess.doneBody")}</p>
+        <p className="text-lg font-semibold text-navy-700">{t("passess.doneTitle")}</p>
+        <p className="mt-2 text-sm leading-relaxed text-navy-400">{t("passess.doneBody")}</p>
         {/* 🔴 W2-P16: the last question ended on a page with no way off it. */}
         <Link
           href="/patient"
-          className="mt-4 inline-flex h-11 items-center rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700"
+          className="mt-4 inline-flex h-11 items-center rounded-xl bg-navy-50 px-4 text-sm font-semibold text-navy-600"
         >
           {t("tab.home")}
         </Link>
@@ -160,8 +160,8 @@ export function PatientQuestionnaire({
     const lines = sosLinesFor(sos);
     return (
       <Card role="alert" className="space-y-3 p-5">
-        <p className="text-lg font-semibold text-slate-900">{t("crisis.qTitle")}</p>
-        <p className="text-sm leading-relaxed text-slate-600">{t("crisis.qBody")}</p>
+        <p className="text-lg font-semibold text-navy-700">{t("crisis.qTitle")}</p>
+        <p className="text-sm leading-relaxed text-navy-400">{t("crisis.qBody")}</p>
         {lines.length > 0 ? (
           <div className="grid grid-cols-2 gap-2">
             {lines.map((entry) => (
@@ -196,10 +196,10 @@ export function PatientQuestionnaire({
             ))}
           </div>
         ) : null}
-        <p className="text-sm leading-relaxed text-slate-700">{t("crisis.anywhereElse")}</p>
+        <p className="text-sm leading-relaxed text-navy-600">{t("crisis.anywhereElse")}</p>
         <Link
           href="/patient/radar"
-          className="tap-target flex h-11 w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white"
+          className="tap-target flex h-11 w-full items-center justify-center rounded-xl bg-navy-900 text-sm font-semibold text-white"
         >
           {t("crisis.findSomeone")}
         </Link>
@@ -211,7 +211,7 @@ export function PatientQuestionnaire({
             setCrisis(null);
             startTransition(() => advance(next));
           }}
-          className="tap-target h-11 w-full rounded-xl bg-slate-100 text-sm font-semibold text-slate-700 disabled:opacity-60"
+          className="tap-target h-11 w-full rounded-xl bg-navy-50 text-sm font-semibold text-navy-600 disabled:opacity-60"
         >
           {t("common.continue")}
         </button>
@@ -251,11 +251,11 @@ export function PatientQuestionnaire({
         screen's to say.
       */}
       <div>
-        <p className="text-xs font-medium text-slate-500">
+        <p className="text-xs font-medium text-navy-400">
           {t("passess.progress", { current: index + 1, total: questions.length })}
         </p>
         <div
-          className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
+          className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-navy-50"
           role="progressbar"
           aria-valuenow={answered}
           aria-valuemin={0}
@@ -269,8 +269,8 @@ export function PatientQuestionnaire({
       </div>
 
       <Card className="p-5">
-        <p className="text-xs leading-relaxed text-slate-500">{t("passess.period")}</p>
-        <p className="mt-2 text-lg leading-relaxed font-medium text-slate-900">
+        <p className="text-xs leading-relaxed text-navy-400">{t("passess.period")}</p>
+        <p className="mt-2 text-lg leading-relaxed font-medium text-navy-700">
           {say(question.text)}
         </p>
 
@@ -286,8 +286,8 @@ export function PatientQuestionnaire({
                 aria-pressed={chosen}
                 className={
                   chosen
-                    ? "tap-target flex min-h-12 w-full items-center rounded-xl border border-brand-500 bg-brand-50 px-4 py-3 text-start text-sm font-medium text-slate-900 disabled:opacity-60"
-                    : "tap-target flex min-h-12 w-full items-center rounded-xl border border-slate-200 px-4 py-3 text-start text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+                    ? "tap-target flex min-h-12 w-full items-center rounded-xl border border-brand-500 bg-brand-50 px-4 py-3 text-start text-sm font-medium text-navy-700 disabled:opacity-60"
+                    : "tap-target flex min-h-12 w-full items-center rounded-xl border border-navy-100 px-4 py-3 text-start text-sm font-medium text-navy-600 hover:border-navy-200 hover:bg-navy-50 disabled:opacity-60"
                 }
               >
                 {say(option.label)}
@@ -301,7 +301,7 @@ export function PatientQuestionnaire({
             type="button"
             disabled={pending}
             onClick={() => setIndex(index - 1)}
-            className="tap-target mt-4 h-11 rounded-xl px-3 text-sm font-medium text-slate-600 disabled:opacity-50"
+            className="tap-target mt-4 h-11 rounded-xl px-3 text-sm font-medium text-navy-400 disabled:opacity-50"
           >
             {t("passess.back")}
           </button>
@@ -321,8 +321,8 @@ export function PatientQuestionnaire({
         the licence that asks us to say whose they are.
       */}
       <div>
-        <p className="text-xs font-medium text-slate-500">{t("passess.sourceLabel")}</p>
-        <p className="mt-1 text-xs leading-relaxed text-slate-500">
+        <p className="text-xs font-medium text-navy-400">{t("passess.sourceLabel")}</p>
+        <p className="mt-1 text-xs leading-relaxed text-navy-400">
           {say(name)}. {attribution}
         </p>
       </div>

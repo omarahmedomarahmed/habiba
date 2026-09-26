@@ -66,21 +66,21 @@ export default async function PatientSessionsPage({
   });
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       <PatientBack />
 
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("psessions.title")}</h1>
+      <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("psessions.title")}</h1>
 
       <nav aria-label={t("psessions.which")}>
-        <ul className="flex gap-1.5 rounded-2xl bg-slate-100 p-1">
+        <ul className="flex gap-1.5 rounded-full bg-white p-1 ring-1 ring-navy-100">
           {TABS.map((entry) => (
             <li key={entry.key} className="flex-1">
               <Link
                 href={`/patient/sessions?tab=${entry.key}`}
                 aria-current={entry.key === active ? "page" : undefined}
                 className={cn(
-                  "block rounded-xl py-2 text-center text-sm font-semibold",
-                  entry.key === active ? "bg-white text-slate-900 shadow-sm" : "text-slate-600",
+                  "block rounded-full py-2 text-center text-sm font-semibold",
+                  entry.key === active ? "bg-navy-600 text-white shadow-sm" : "text-navy-500 hover:text-navy-700",
                 )}
               >
                 {t(entry.label as MessageKey)}

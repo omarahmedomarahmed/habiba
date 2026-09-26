@@ -4,19 +4,30 @@ import { Card } from "@/components/ui";
 import { Money } from "@/components/ui/money";
 import { requireRole } from "@/lib/auth/guard";
 import { aiUsageByDay, platformStats } from "@/lib/data/admin";
+import { OpsAlertsCard } from "@/components/admin/ops-alerts";
+import { getI18n } from "@/lib/i18n/server";
+import { opsAlertBoard } from "@/lib/observability/heartbeat";
 
 export const metadata: Metadata = { title: "Admin", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function AdminOverviewPage() {
   await requireRole("super_admin");
-  const [stats, usage] = await Promise.all([platformStats(), aiUsageByDay(14)]);
+  /* 🔴 Board 423: the open operations alerts, where staff look first. */
+  const [stats, usage, alerts, { t }] = await Promise.all([
+    platformStats(),
+    aiUsageByDay(14),
+    opsAlertBoard(),
+    getI18n(),
+  ]);
 
   const maxCost = Math.max(1, ...usage.map((u) => u.costCents));
 
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">Overview</h1>
+
+      <OpsAlertsCard rows={alerts} t={t} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Practices" value={stats.organizations} />

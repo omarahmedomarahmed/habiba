@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
 import { SeatManager } from "@/components/billing/seat-manager";
-import { Card } from "@/components/ui";
+import { ClinicHead, Ring } from "@/components/clinic/ui";
+import { Card } from "@/components/clinician/kit";
 import { currentSeatBill, seatsFor } from "@/lib/billing/seats";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { clinicInvitations } from "@/lib/data/clinic";
@@ -43,10 +44,19 @@ export default async function ClinicSeatsPage() {
 
   return (
     <div className="space-y-4">
-      <Card className="p-5">
-        <p className="text-sm text-slate-700">
-          {t("clinic.seatsFilled", { filled: filled.length, invited })}
-        </p>
+      <ClinicHead title={t("clinic.nav.seats")} />
+      {/* Filled against bought, as a ring: the gap is what the practice pays for and nobody uses. */}
+      <Card className="flex items-center gap-5 p-5">
+        <Ring size={96} stroke={10} value={bill.seats > 0 ? filled.length / bill.seats : 0}>
+          <span className="text-[26px] leading-none font-bold tabular-nums text-navy-700" dir="ltr">
+            {filled.length}/{bill.seats}
+          </span>
+        </Ring>
+        <div className="min-w-0">
+          <p className="text-[15px] font-bold text-navy-700">
+            {t("clinic.seatsFilled", { filled: filled.length, invited })}
+          </p>
+        </div>
       </Card>
       <SeatManager
         seats={bill.seats}

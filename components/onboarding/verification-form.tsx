@@ -13,7 +13,7 @@ import {
   withdrawFromReview,
   type OnboardingState,
 } from "@/app/(app)/onboarding/actions";
-import { Badge, Button, Card, Field, Input } from "@/components/ui";
+import { Badge, Button, Card, Field, Input } from "@/components/clinician/kit";
 import {
   documentRequirements,
   regulatorsFor,
@@ -73,8 +73,11 @@ export function VerificationForm({
   uploadsEnabled,
   requirements,
   renewing = false,
+  documentsCleared = false,
 }: {
   state: "draft" | "submitted" | "approved" | "rejected";
+  /** Board 562: after a second rejection the files were deleted, and the card says so. */
+  documentsCleared?: boolean;
   /**
    * 🔴 W1-16: back in review because the licence ran out. The form stays
    * open so the renewal can be entered, where a plain submission is locked.
@@ -189,10 +192,10 @@ export function VerificationForm({
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
           <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
         </span>
-        <p className="mt-4 text-lg font-bold tracking-tight text-slate-900">
+        <p className="mt-4 text-lg font-bold tracking-tight text-navy-700">
           {t("tver.underReview")}
         </p>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600">
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-navy-400">
           {t("tver.underReviewBody")}
         </p>
 
@@ -211,14 +214,14 @@ export function VerificationForm({
             [t("tver.licenceExpiry"), initial.licenseExpiry],
           ].map(([label, value]) => (
             <div key={label} className="flex justify-between gap-3">
-              <dt className="text-slate-500">{label}</dt>
-              <dd className="font-medium text-slate-800">{value || "-"}</dd>
+              <dt className="text-navy-400">{label}</dt>
+              <dd className="font-medium text-navy-700">{value || "-"}</dd>
             </div>
           ))}
           {documents.map((doc) => (
             <div key={doc.key} className="flex justify-between gap-3">
-              <dt className="text-slate-500">{doc.label ?? t(doc.labelKey)}</dt>
-              <dd className="font-medium text-slate-800">{doc.url ? t("tver.uploaded") : "-"}</dd>
+              <dt className="text-navy-400">{doc.label ?? t(doc.labelKey)}</dt>
+              <dd className="font-medium text-navy-700">{doc.url ? t("tver.uploaded") : "-"}</dd>
             </div>
           ))}
         </dl>
@@ -245,7 +248,7 @@ export function VerificationForm({
           <p className="text-sm font-semibold text-red-900">{t("tver.rejected")}</p>
           <p className="mt-1 text-sm leading-relaxed text-red-800">{reviewNote}</p>
           <p className="mt-2 text-xs text-red-700">
-            {t("tver.rejectedBody")}
+            {t(documentsCleared ? "tver.rejectedCleared" : "tver.rejectedBody")}
           </p>
         </Card>
       ) : null}
@@ -258,10 +261,10 @@ export function VerificationForm({
 
       {/* ------------------------------------------------------ your details */}
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{t("tver.aboutPractice")}</p>
+        <p className="text-sm font-semibold text-navy-700">{t("tver.aboutPractice")}</p>
 
         <form action={formAction} className="mt-3 space-y-4">
-          {formState.ok ? <p className="text-sm text-emerald-700">{formState.message}</p> : null}
+          {formState.ok ? <p className="text-sm text-brand-800">{formState.message}</p> : null}
           {formState.error ? <p className="text-sm text-red-600">{formState.error}</p> : null}
 
           <Field
@@ -275,7 +278,7 @@ export function VerificationForm({
               value={country}
               onChange={(event) => setCountry(event.target.value)}
               disabled={locked}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
+              className="h-12 w-full rounded-xl border border-navy-100 bg-white px-3 text-navy-700 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
             >
               <option value="">{t("tver.chooseCountry")}</option>
               {countryOptions.map((country) => (
@@ -322,7 +325,7 @@ export function VerificationForm({
                         "rounded-full border px-2.5 py-1 text-[11px] font-medium",
                         licenseBody === body
                           ? "border-brand-600 bg-brand-50 text-brand-800"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+                          : "border-navy-100 bg-white text-navy-400 hover:border-navy-200",
                       )}
                     >
                       {body}
@@ -376,8 +379,8 @@ export function VerificationForm({
 
       {/* --------------------------------------------------------- documents */}
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{t("tver.documents")}</p>
-        <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
+        <p className="text-sm font-semibold text-navy-700">{t("tver.documents")}</p>
+        <p className="mt-0.5 text-sm leading-relaxed text-navy-400">
           {t("tver.documentsBody")}
         </p>
 
@@ -412,7 +415,7 @@ export function VerificationForm({
       <Card className="p-4">
         {outstanding.length > 0 ? (
           <>
-            <p className="text-sm font-semibold text-slate-900">{t("tver.nearlyThere")}</p>
+            <p className="text-sm font-semibold text-navy-700">{t("tver.nearlyThere")}</p>
             {/*
               Say which copy of the truth this list is reading.
 
@@ -423,14 +426,14 @@ export function VerificationForm({
               either. That is a signup drop-off, and it is entirely avoidable
               with one sentence.
             */}
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            <p className="mt-1 text-xs leading-relaxed text-navy-400">
               {t("tver.savedListNote")
                 .split("{save}")
                 .flatMap((part, index) =>
                   index === 0
                     ? [part]
                     : [
-                        <span key="save" className="font-semibold text-slate-700">
+                        <span key="save" className="font-semibold text-navy-600">
                           {t("tset.saveDetails")}
                         </span>,
                         part,
@@ -439,7 +442,7 @@ export function VerificationForm({
             </p>
             <ul className="mt-2 space-y-1">
               {outstanding.map((item) => (
-                <li key={item} className="flex items-center gap-2 text-sm text-slate-600">
+                <li key={item} className="flex items-center gap-2 text-sm text-navy-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
                   {t(`tver.missing.${item}`)}
                 </li>
@@ -447,14 +450,14 @@ export function VerificationForm({
             </ul>
           </>
         ) : (
-          <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+          <p className="flex items-center gap-2 text-sm font-semibold text-brand-800">
             <Check className="h-4 w-4" aria-hidden />
             {t("tver.everythingHere")}
           </p>
         )}
 
         {awaitingChange ? (
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">{t("tver.changeFirst")}</p>
+          <p className="mt-3 text-sm leading-relaxed text-navy-400">{t("tver.changeFirst")}</p>
         ) : null}
 
         {error ? (
@@ -529,7 +532,7 @@ function DocumentSlot({
     <div
       className={cn(
         "rounded-2xl border p-3",
-        url ? "border-brand-200 bg-brand-50/40" : "border-slate-200",
+        url ? "border-brand-200 bg-brand-50/40" : "border-navy-100",
       )}
     >
       <div className="flex items-start gap-3">
@@ -542,18 +545,18 @@ function DocumentSlot({
             referrerPolicy="no-referrer"
           />
         ) : (
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-navy-50 text-navy-400">
             <Camera className="h-5 w-5" aria-hidden />
           </span>
         )}
 
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
+          <p className="flex items-center gap-2 text-sm font-medium text-navy-700">
             {doc.label ?? t(doc.labelKey)}
             {doc.required ? null : <Badge tone="slate">{t("tver.optional")}</Badge>}
             {url ? <Badge tone="teal">{t("tver.uploaded")}</Badge> : null}
           </p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{t(doc.hintKey)}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-navy-400">{t(doc.hintKey)}</p>
           {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
         </div>
 
@@ -561,7 +564,7 @@ function DocumentSlot({
           type="button"
           disabled={disabled || pending}
           onClick={() => inputRef.current?.click()}
-          className="tap-target flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 disabled:opacity-50"
+          className="tap-target flex shrink-0 items-center gap-1.5 rounded-xl border border-navy-100 bg-white px-3 text-sm font-medium text-navy-600 disabled:opacity-50"
         >
           {pending ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -603,12 +606,12 @@ function ChipGroup({
   const chosen = new Set(selected);
   return (
     <fieldset disabled={disabled}>
-      <legend className="mb-2 block text-sm font-medium text-slate-700">{legend}</legend>
+      <legend className="mb-2 block text-sm font-medium text-navy-600">{legend}</legend>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <label
             key={option.code}
-            className="cursor-pointer rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 has-checked:border-brand-600 has-checked:bg-brand-50 has-checked:text-brand-800"
+            className="cursor-pointer rounded-full border border-navy-100 px-3 py-1.5 text-xs font-medium text-navy-400 has-checked:border-brand-600 has-checked:bg-brand-50 has-checked:text-brand-800"
           >
             <input
               type="checkbox"

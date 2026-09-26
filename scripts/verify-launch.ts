@@ -335,9 +335,25 @@ async function main() {
    * `notFound()`, so a missing page answered 200. The skeleton sits on the routes
    * that read the database first, and those are what is checked for them.
    */
+  /*
+   * 🔴 AND THE PORTALS CARRY IT ONE LEVEL DOWN, for a different reason. A
+   * loading boundary at a group root wraps the portal's whole folder, so a
+   * move inside it (`/patient/account` to `/patient`, `/sessions/new` to
+   * `/sessions`) kept the same boundary on screen and, on the production
+   * build, the navigation never finished: the patient's sign-in sat on
+   * "Working..." and a tab did nothing, in every portal. A boundary on the
+   * portal's folder, or on each clinician section, is keyed by what changes.
+   */
+  const CLINICIAN_SECTIONS = ["assistant", "billing", "bookings", "connect", "copilot", "dashboard", "earnings", "notes", "notifications", "on-call", "onboarding", "patients", "sessions", "settings", "support"];
   const loadingAt: Record<string, string[]> = {
     "(public)": ["(public)/radar/loading.tsx", "(public)/t/[id]/loading.tsx"],
     pay: ["pay/[token]/loading.tsx"],
+    "(app)": CLINICIAN_SECTIONS.map((section) => `(app)/${section}/loading.tsx`),
+    "(clinic)": ["(clinic)/clinic/loading.tsx"],
+    "(patient)": ["(patient)/patient/loading.tsx"],
+    "(sponsor)": ["(sponsor)/sponsor/loading.tsx"],
+    "(partner)": ["(partner)/partner/loading.tsx"],
+    "(admin)": ["(admin)/admin/loading.tsx"],
   };
   const missing = groups.flatMap((group) =>
     ["loading.tsx", "error.tsx"]
@@ -348,6 +364,23 @@ async function main() {
     "🔴 every route group has a loading and an error screen",
     missing.length === 0,
     missing.length === 0 ? `${groups.length} groups` : `missing: ${missing.join(", ")}`,
+  );
+  const rootLoaders = ["(app)", "(clinic)", "(patient)", "(sponsor)", "(partner)", "(admin)"]
+    .map((group) => `${group}/loading.tsx`)
+    .filter((file) => existsSync(join("app", file)));
+  check(
+    "🔴 …and no portal puts its loading boundary at the group root, where a move inside the portal never finishes",
+    rootLoaders.length === 0,
+    rootLoaders.length === 0 ? "each sits on the portal folder or the clinician section" : rootLoaders.join(", "),
+  );
+  const unlisted = readdirSync(join("app", "(app)"), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && existsSync(join("app", "(app)", entry.name, "page.tsx")))
+    .map((entry) => entry.name)
+    .filter((section) => !CLINICIAN_SECTIONS.includes(section));
+  check(
+    "🔴 …and every clinician section with a page is in that list, so a new one cannot arrive without its skeleton",
+    unlisted.length === 0,
+    unlisted.length === 0 ? `${String(CLINICIAN_SECTIONS.length)} sections` : `not listed: ${unlisted.join(", ")}`,
   );
   const leaky = groups
     .map((group) => join("app", group, "error.tsx"))

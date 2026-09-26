@@ -5,7 +5,8 @@ import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 
 import { confirmHandleCode, requestHandleCode } from "@/lib/patient-auth/handle";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -61,11 +62,18 @@ export function ProveHandle({ handle }: { handle: string }) {
   return (
     <Card className="space-y-4 p-5">
       <div>
-        <p className="text-sm font-semibold text-slate-900">{t("pclaim.handleTitle")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("pclaim.handleTitle")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("pclaim.handleBody", { handle })}
         </p>
       </div>
+
+      {/* 🔴 Board 276: it went to their email, and the page says so. */}
+      {asked.sent && !asked.channelDown && asked.channel === "email" ? (
+        <p role="status" className="rounded-xl bg-navy-50 px-3.5 py-3 text-sm leading-relaxed text-navy-600">
+          {t("pclaim.sentByEmail")}
+        </p>
+      ) : null}
 
       {asked.channelDown ? (
         <p

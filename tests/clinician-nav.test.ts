@@ -148,3 +148,12 @@ test("ruling 14b: the clinic's seven pages are four places, every page still in 
   assert.equal((block.match(/^ {2}\{\s*key: "/gm) ?? []).length, 4, "the clinic's navigation is not four places");
   assert.match(chrome, /<ClinicTabs capabilities=\{capabilities\} \/>/, "grouped clinic pages have no tab row");
 });
+
+/* Board 464 (B40 class): /sessions/new took 10.8 s; every clinician page waited on four reads in a row. */
+test("board 464 the clinician layout reads the bill, the practice link and its four facts in one round", () => {
+  const layout = readFileSync("app/(app)/layout.tsx", "utf8");
+  assert.match(layout, /const \[pending, \[linked\], radar, \[me\], state, licence\] = await Promise\.all\(\[\s*pendingFor\(\),/);
+  assert.doesNotMatch(layout, /const \[linked\] = await db/);
+  const page = readFileSync("app/(app)/sessions/new/page.tsx", "utf8");
+  assert.doesNotMatch(page, /await getCountrySettings\("eg"\)/, "the tax row is read alongside, not after");
+});

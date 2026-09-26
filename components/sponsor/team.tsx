@@ -9,7 +9,7 @@ import {
   inviteColleague,
   removeColleague,
 } from "@/app/(sponsor)/sponsor/team/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Avatar, Badge, Button, Card, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 import { ConfirmAct } from "./confirm-act";
@@ -54,18 +54,15 @@ export function Team({
   return (
     <div className="space-y-4">
       <Card className="p-5">
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-navy-100">
           {rows.map((row) => (
-            <li key={row.id} className="flex flex-wrap items-center gap-2 py-2.5">
-              <span className="min-w-0 truncate text-sm text-slate-900">{row.email}</span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+            <li key={row.id} className="flex flex-wrap items-center gap-2 py-3">
+              <Avatar name={row.email} size={32} />
+              <span className="min-w-0 truncate text-sm font-semibold text-navy-700">{row.email}</span>
+              <Badge tone={row.role === "admin" ? "teal" : "slate"}>
                 {row.role === "admin" ? t("sponsor.roleAdmin") : t("sponsor.roleViewer")}
-              </span>
-              {row.invited ? (
-                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-900">
-                  {t("sponsor.invited")}
-                </span>
-              ) : null}
+              </Badge>
+              {row.invited ? <Badge tone="amber">{t("sponsor.invited")}</Badge> : null}
               {canManage && row.id !== me ? (
                 <span className="ms-auto flex flex-wrap items-center gap-1">
                   <button
@@ -80,7 +77,7 @@ export function Team({
                         setError(result.error ?? null);
                       })
                     }
-                    className="tap-target h-9 rounded-xl px-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                    className="tap-target h-9 rounded-xl px-2 text-xs font-semibold text-navy-400 hover:bg-navy-50 disabled:opacity-50"
                   >
                     {row.role === "admin" ? t("sponsor.makeViewer") : t("sponsor.makeAdmin")}
                   </button>
@@ -102,7 +99,7 @@ export function Team({
         ) : null}
 
         {canManage ? (
-          <form action={inviteAction} className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+          <form action={inviteAction} className="mt-4 space-y-3 border-t border-navy-100 pt-4">
             <Field label={t("sponsor.email")} htmlFor="invite-email">
               <Input id="invite-email" name="email" type="email" autoCapitalize="none" required />
             </Field>
@@ -110,7 +107,7 @@ export function Team({
               name="role"
               defaultValue="viewer"
               aria-label={t("sponsor.role")}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              className="h-12 w-full rounded-2xl border border-navy-100 bg-white px-4 text-sm text-navy-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
             >
               <option value="viewer">{t("sponsor.roleViewer")}</option>
               <option value="admin">{t("sponsor.roleAdmin")}</option>
@@ -132,7 +129,7 @@ export function Team({
 
       <Card className="p-5">
         <form action={passwordAction} className="space-y-3">
-          <p className="text-sm font-semibold text-slate-900">{t("sponsor.changePassword")}</p>
+          <h2 className="text-[17px] font-bold text-navy-700">{t("sponsor.changePassword")}</h2>
           <Field label={t("sponsor.password")} htmlFor="current-password">
             <Input
               id="current-password"

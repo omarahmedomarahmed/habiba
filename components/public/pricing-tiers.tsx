@@ -4,7 +4,7 @@ import { Check } from "lucide-react";
 import { PriceTag } from "@/components/money/price-tag";
 import { SeatLadder, type SeatBandRow } from "@/components/public/seat-ladder";
 import { SeatSlider } from "@/components/public/seat-slider";
-import { Button } from "@/components/ui";
+import { btn } from "@/components/public/site-ui";
 import { egpRateMicro } from "@/lib/billing/manual";
 import { tierName as nameOfTier } from "@/lib/billing/tier-name";
 /*
@@ -21,6 +21,7 @@ import { getSettings } from "@/lib/settings";
 import { seatMonthlyCents } from "@/lib/settings/defs";
 import { Money } from "@/components/ui/money";
 import { rich, slot } from "@/lib/i18n/rich";
+import { cn } from "@/lib/utils";
 
 /**
  * The three rates. PLAN.md 17.2–17.8, 17.10.
@@ -368,13 +369,13 @@ export async function PricingTiers({
   ];
 
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-20">
-      <div className="mx-auto max-w-6xl">
-        <div className={only ? "max-w-2xl" : "mx-auto max-w-2xl text-center"}>
-          <Title className="text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+    <section className="bg-navy-50 px-5 py-16 sm:px-6 sm:py-24">
+      <div className="mx-auto max-w-7xl">
+        <div className={only ? "max-w-3xl" : "mx-auto max-w-3xl text-center"}>
+          <Title className="text-balance text-[30px] font-bold leading-[1.1] tracking-tight text-navy-700 sm:text-[44px]">
             {heading ?? (compact ? t("pricing.free") : t("pr2.title"))}
           </Title>
-          <p className="mt-2.5 text-[15px] leading-relaxed text-slate-600">
+          <p className="mt-4 text-pretty text-[17px] leading-relaxed text-navy-500 sm:text-[18px]">
             {body ?? (compact ? t("pricing.freeBody") : t("pr2.body"))}
           </p>
         </div>
@@ -382,8 +383,8 @@ export async function PricingTiers({
         <div
           className={
             only
-              ? "mt-9 grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-2"
-              : "mt-9 grid items-stretch gap-5 lg:grid-cols-3"
+              ? "mt-10 grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-2"
+              : "mt-10 grid items-stretch gap-5 lg:grid-cols-3"
           }
         >
           {shown.map((card) => (
@@ -391,38 +392,41 @@ export async function PricingTiers({
               key={card.key}
               className={
                 card.featured
-                  ? "relative flex flex-col rounded-3xl border-2 border-brand-600 bg-white p-6 shadow-xl shadow-brand-500/10"
-                  : "relative flex flex-col rounded-3xl border border-slate-200 bg-white p-6"
+                  ? "relative flex flex-col rounded-[28px] bg-white p-7 ring-2 ring-brand-500 shadow-[0_40px_100px_-30px_rgba(46,196,182,0.55)] transition-transform duration-300 hover:-translate-y-1.5"
+                  : "relative flex flex-col rounded-[28px] bg-white p-7 ring-1 ring-navy-100 shadow-[0_20px_60px_-40px_rgba(10,35,66,0.4)] transition-transform duration-300 hover:-translate-y-1.5"
               }
             >
-              <p className="text-sm font-bold text-slate-900">{card.name}</p>
-              <p className="mt-0.5 text-xs text-slate-600">{card.who}</p>
+              <p className="text-[17px] font-bold text-navy-700">{card.name}</p>
+              <p className="mt-1 text-[14px] text-navy-500">{card.who}</p>
 
-              <div className="mt-4">{card.price}</div>
-              <p className="mt-2 text-[13px] leading-relaxed text-slate-600">{card.under}</p>
+              <div className="mt-5">{card.price}</div>
+              <p className="mt-3 text-[14px] leading-relaxed text-navy-500">{card.under}</p>
 
-              <ul className="mt-5 flex-1 space-y-2.5">
+              <ul className="mt-6 flex-1 space-y-3">
                 {card.bullets.map((bullet, i) => (
-                  <li key={i} className="flex gap-2.5 text-[13px] leading-snug text-slate-700">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" aria-hidden />
+                  <li key={i} className="flex gap-3 text-[15px] leading-snug text-navy-600">
+                    <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-800">
+                      <Check className="h-3.5 w-3.5" aria-hidden />
+                    </span>
                     {bullet}
                   </li>
                 ))}
               </ul>
 
-              <Link href={card.cta.href} className="mt-6 block">
-                <Button full variant={card.featured ? "primary" : "secondary"}>
-                  {card.cta.label}
-                </Button>
+              <Link
+                href={card.cta.href}
+                className={cn(card.featured ? btn.primary : btn.dark, "mt-8 w-full focus-visible:ring-offset-white")}
+              >
+                {card.cta.label}
               </Link>
               {card.note ? (
-                <p className="mt-2 text-center text-[11px] text-slate-600">{card.note}</p>
+                <p className="mt-2.5 text-center text-[12px] text-navy-500">{card.note}</p>
               ) : null}
             </div>
           ))}
         </div>
 
-        <p className="mt-5 text-center text-sm text-slate-600">{t("pricing.patientPaysNothing")}</p>
+        <p className="mt-6 text-center text-[15px] text-navy-500">{t("pricing.patientPaysNothing")}</p>
 
         {/*
           🔴 The comparison table is for `/pricing` and nowhere else.
@@ -437,7 +441,7 @@ export async function PricingTiers({
             {/* ─────────────────────────────────── what is in each ── */}
             <div className="mt-16">
               <div className="mx-auto max-w-2xl text-center">
-                <h3 className="text-xl font-bold tracking-tight text-slate-900">
+                <h3 className="text-[26px] font-bold tracking-tight text-navy-700">
                   {t("pr2.compareTitle")}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
@@ -447,13 +451,13 @@ export async function PricingTiers({
 
               {/* The table scrolls, never the page. Three money columns at 360px
                   cannot be narrowed without lying about a number. */}
-              <div className="mt-7 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+              <div className="mt-8 overflow-x-auto rounded-[24px] bg-white ring-1 ring-navy-100">
                 <table className="w-full min-w-[34rem] text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/70 text-start">
+                    <tr className="border-b border-navy-100 bg-navy-900 text-start">
                       <th
                         scope="col"
-                        className="px-4 py-3 text-start text-[11px] font-bold tracking-wider text-slate-600 uppercase"
+                        className="px-4 py-3.5 text-start text-[11px] font-bold tracking-wider text-white/70 uppercase"
                       >
                         {t("pr2.colFeature")}
                       </th>
@@ -461,7 +465,7 @@ export async function PricingTiers({
                         <th
                           key={card.key}
                           scope="col"
-                          className="px-4 py-3 text-start text-[11px] font-bold tracking-wider text-slate-900 uppercase"
+                          className="px-4 py-3.5 text-start text-[11px] font-bold tracking-wider text-white uppercase"
                         >
                           {card.name}
                         </th>
@@ -480,7 +484,7 @@ export async function PricingTiers({
                         {row.cells.map((cell, i) => (
                           <td key={i} className="px-4 py-2.5 text-[13px] text-slate-700">
                             {cell === YES ? (
-                              <Check className="h-4 w-4 text-brand-500" aria-label={t("pr2.includedWord")} />
+                              <Check className="h-4 w-4 text-brand-700" aria-label={t("pr2.includedWord")} />
                             ) : cell === NO ? (
                               <span className="text-slate-600">{t("pr2.notIncluded")}</span>
                             ) : (
@@ -499,7 +503,7 @@ export async function PricingTiers({
             {seatRows.length > 0 ? (
               <div className="mt-16">
                 <div className="mx-auto max-w-2xl text-center">
-                  <h3 className="text-xl font-bold tracking-tight text-slate-900">
+                  <h3 className="text-[26px] font-bold tracking-tight text-navy-700">
                     {t("pricing.seatsTitle")}
                   </h3>
                 </div>
@@ -566,8 +570,8 @@ export async function PricingTiers({
             below; the compact block, which appears mid-page elsewhere, still
             needs this one because it has no band of its own.
           */
-          <Link href="/signup" className="mx-auto mt-8 block max-w-xs">
-            <Button full>{t("pricing.signUp")}</Button>
+          <Link href="/signup" className={cn(btn.dark, "mx-auto mt-8 flex w-full max-w-xs")}>
+            {t("pricing.signUp")}
           </Link>
         ) : null}
       </div>

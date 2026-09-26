@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { saveTaxDetails, type TaxState } from "@/app/(sponsor)/sponsor/pot/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -34,7 +34,7 @@ export function TaxDetails({
   const [state, action] = useActionState<TaxState, FormData>(saveTaxDetails, {});
   return (
     <Card className="p-5">
-      <p className="text-sm font-semibold text-slate-900">{t("sponsor.tax.title")}</p>
+      <h2 className="text-[17px] font-bold text-navy-700">{t("sponsor.tax.title")}</h2>
       <form action={action} className="mt-3 space-y-3">
         <Field label={t("sponsor.tax.legalName")} htmlFor="tax-name">
           <Input id="tax-name" name="legalName" defaultValue={legalName} required />

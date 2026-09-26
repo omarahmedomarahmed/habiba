@@ -4,11 +4,11 @@ import { ClaimChallenge } from "@/components/patient/claim-challenge";
 import { PatientBack } from "@/components/patient/back";
 import { ClaimFlow } from "@/components/patient/claim-flow";
 import { ProveHandle } from "@/components/patient/prove-handle";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { patientAccounts } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { patientAccounts, patients } from "@/lib/db/schema";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { openChallenges } from "@/lib/data/challenge";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
@@ -80,24 +80,41 @@ export default async function ClaimPage() {
 
   const proven = Boolean(account?.phoneVerifiedAt || account?.emailVerifiedAt);
 
-  const [suggestions, challenges] = proven
-    ? await Promise.all([mySuggestions(), openChallenges(actor.accountId)])
-    : [[], []];
+  const [suggestions, challenges, [own]] = proven
+    ? await Promise.all([
+        mySuggestions(),
+        openChallenges(actor.accountId),
+        /* 🔴 Board 274: the records already theirs, so an empty list does not deny they exist. */
+        db
+          .select({ n: count() })
+          .from(patients)
+          .where(and(eq(patients.personId, actor.personId), isNull(patients.deletedAt))),
+      ])
+    : [[], [], [{ n: 0 }]];
 
   const nothing = proven && suggestions.length === 0 && challenges.length === 0;
+  /*
+   * 🔴 Board 274 (B6 re-walk): somebody whose record is already claimed read
+   * "Nobody has written you down under this number", under an offer to take
+   * ownership of notes they already own. Nothing is waiting, and the page says
+   * the true thing: what was written about them is theirs already.
+   */
+  const alreadyTheirs = nothing && Number(own?.n ?? 0) > 0;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       {/* 🔴 37R.25 / C185 — claiming is reached from the home screen and had
           no way back to it. */}
       <PatientBack />
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">
           {t("pclaim.title")}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {t("pclaim.body", { name: actor.firstName })}
-        </p>
+        {alreadyTheirs ? null : (
+          <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">
+            {t("pclaim.body", { name: actor.firstName })}
+          </p>
+        )}
       </div>
 
       {proven ? null : (
@@ -108,10 +125,15 @@ export default async function ClaimPage() {
 
       {suggestions.length > 0 ? <ClaimFlow suggestions={suggestions} /> : null}
 
-      {nothing ? (
+      {alreadyTheirs ? (
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("pclaim.nothingTitle")}</p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          <p className="text-sm font-semibold text-navy-700">{t("pclaim.allYoursTitle")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("pclaim.allYoursBody")}</p>
+        </Card>
+      ) : nothing ? (
+        <Card className="p-5">
+          <p className="text-sm font-semibold text-navy-700">{t("pclaim.nothingTitle")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">
             {t("pclaim.nothingBody")}
           </p>
         </Card>

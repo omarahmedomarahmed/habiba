@@ -16,7 +16,8 @@ import {
 
 import { rateOnArrival, reportFromRoom, setSessionMinimised, stopRecording } from "@/app/join/[token]/actions";
 import { ConsentControls } from "@/components/join/consent-controls";
-import { Button, Card, Input, Textarea } from "@/components/ui";
+import { Button, Input, Textarea } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import type { ClockStage } from "@/lib/session-clock";
 import { cn, initials } from "@/lib/utils";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -170,12 +171,19 @@ export function PatientRoom({
       className="h-full w-full border-0"
     />
   ) : (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-6 text-center">
-      <Headphones className="h-6 w-6 text-white/30" aria-hidden />
-      <p className="text-sm font-semibold text-white">
+    <div className="relative flex h-full w-full flex-col items-center justify-center gap-2 overflow-hidden px-6 text-center">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute h-72 w-72 rounded-full opacity-60 blur-3xl"
+        style={{ background: "radial-gradient(circle, rgba(46,196,182,0.45), rgba(46,196,182,0) 70%)" }}
+      />
+      <span className="relative mb-2 flex h-20 w-20 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15">
+        <Headphones className="h-8 w-8 text-brand-300" aria-hidden />
+      </span>
+      <p className="relative text-[18px] font-bold text-white">
         {live ? t("room.started") : t("room.waiting")}
       </p>
-      <p className="max-w-xs text-xs leading-relaxed text-white/50">
+      <p className="relative max-w-xs text-[13px] leading-relaxed text-white/65">
         {live ? t("room.audioOnly") : t("room.keepOpen")}
       </p>
     </div>
@@ -215,11 +223,11 @@ export function PatientRoom({
           {recording ? (
             <span className="live-dot pointer-events-none absolute end-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500" />
           ) : null}
-          <span className="pointer-events-none absolute start-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-white/85 text-slate-900">
+          <span className="pointer-events-none absolute start-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-white/85 text-navy-700">
             <Maximize2 className="h-3 w-3" aria-hidden />
           </span>
         </button>
-        <span className="rounded-full bg-slate-900/85 px-2 py-0.5 text-[11px] font-semibold text-white">
+        <span className="rounded-full bg-navy-900/85 px-2 py-0.5 text-[11px] font-semibold text-white">
           {t("room.stillOn")}
         </span>
       </div>
@@ -227,18 +235,18 @@ export function PatientRoom({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950">
-      <div className="mx-auto grid max-w-6xl items-start gap-4 p-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-navy-900">
+      <div className="mx-auto grid max-w-6xl items-start gap-4 p-3 pt-14 lg:grid-cols-[minmax(0,1fr)_22rem] lg:p-4 lg:pt-14">
         {/* -------------------------------------------------------- the call */}
         <div className="min-w-0">
-          <div className="overflow-hidden rounded-2xl bg-black">
+          <div className="overflow-hidden rounded-[28px] bg-gradient-to-b from-navy-700 to-navy-800 ring-1 ring-white/10">
             <RecordingStrip live={live} recording={recording} token={token} />
 
             <div className="aspect-[3/4] w-full sm:aspect-video lg:aspect-[4/3]">{call}</div>
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1">
-            <p className="text-[11px] text-white/40">{t("room.trouble")}</p>
+            <p className="text-[12px] text-white/60">{t("room.trouble")}</p>
             {/*
               🔴 76.35 — MINIMISE, AND ONLY WHILE THERE IS SOMETHING TO MINIMISE.
               A control that shrinks a room nobody is in yet would be a way to
@@ -248,7 +256,7 @@ export function PatientRoom({
               <button
                 type="button"
                 onClick={() => setMinimised(true)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white"
+                className="inline-flex h-10 items-center gap-1.5 rounded-full bg-white/10 px-4 text-[13px] font-semibold text-white ring-1 ring-white/15 hover:bg-white/15"
               >
                 <Minimize2 className="h-3 w-3" aria-hidden />
                 {t("room.minimise")}
@@ -416,11 +424,11 @@ function PatientClockNote({
 
   return (
     <Card className="p-4">
-      <p className="flex items-center gap-2 text-sm text-slate-700">
-        <Clock className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+      <p className="flex items-center gap-2 text-sm text-navy-600">
+        <Clock className="h-4 w-4 shrink-0 text-navy-400" aria-hidden />
         <span>
           {rich(t("room.minutesLeft", { minutes: slot(0) }), [
-            <span key="m" className="font-semibold text-slate-900">
+            <span key="m" className="font-semibold text-navy-700">
               {minutes === 1 ? t("room.oneMinute") : t("room.manyMinutes", { count: minutes })}
             </span>,
           ])}
@@ -474,19 +482,19 @@ function WhoYouAreWith({
           {initials(therapist.firstName, therapist.name.split(" ")[1] ?? "")}
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-900">{therapist.name}</p>
-          <p className="truncate text-xs text-slate-500">
+          <p className="truncate text-sm font-semibold text-navy-700">{therapist.name}</p>
+          <p className="truncate text-xs text-navy-400">
             {therapist.credentials ?? t("room.licensed")}
           </p>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-navy-400">
         {therapist.languages.length > 0 ? <span>{t("room.speaks", { languages: therapist.languages.join(listSeparator(locale)) })}</span> : null}
         {live && elapsed ? <span className="font-medium text-brand-700">{elapsed}</span> : null}
       </div>
 
-      <p className="mt-3 flex items-start gap-1.5 border-t border-slate-100 pt-3 text-[11px] leading-relaxed text-slate-500">
+      <p className="mt-3 flex items-start gap-1.5 border-t border-navy-100 pt-3 text-[11px] leading-relaxed text-navy-400">
         <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
         {t("room.verifiedBody")}
       </p>
@@ -524,11 +532,11 @@ function SummaryAndRating({
   if (!live) {
     return (
       <Card className="p-4">
-        <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-          <Mail className="h-3.5 w-3.5 text-slate-500" aria-hidden />
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-navy-700">
+          <Mail className="h-3.5 w-3.5 text-navy-400" aria-hidden />
           {t("room.summaryTitle")}
         </p>
-        <p className="mt-1 text-xs leading-relaxed text-slate-500">
+        <p className="mt-1 text-xs leading-relaxed text-navy-400">
           {t("room.summaryWhen", { name: therapist.firstName })}
         </p>
       </Card>
@@ -549,8 +557,8 @@ function SummaryAndRating({
   return (
     <Card className="space-y-3 p-4">
       <div>
-        <p className="text-sm font-semibold text-slate-900">{t("room.howEasy")}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+        <p className="text-sm font-semibold text-navy-700">{t("room.howEasy")}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
           {t("room.appOnly", { name: therapist.firstName })}
         </p>
       </div>
@@ -569,7 +577,7 @@ function SummaryAndRating({
             <Star
               className={cn(
                 "h-7 w-7 transition-colors",
-                value <= stars ? "fill-amber-400 text-amber-400" : "text-slate-200",
+                value <= stars ? "fill-amber-400 text-amber-400" : "text-navy-100",
               )}
               aria-hidden
             />
@@ -578,7 +586,7 @@ function SummaryAndRating({
       </div>
 
       <div>
-        <label htmlFor="room-email" className="text-xs font-medium text-slate-800">
+        <label htmlFor="room-email" className="text-xs font-medium text-navy-700">
           {t("room.whereSummary")}
         </label>
         <Input
@@ -643,19 +651,19 @@ function StayHere({ therapist }: { therapist: Therapist }) {
         {t("room.beforeYouGo")}
       </p>
 
-      <p className="mt-1.5 text-2xl leading-[1.12] font-black tracking-tight text-slate-900">
+      <p className="mt-1.5 text-2xl leading-[1.12] font-black tracking-tight text-navy-700">
         {t("room.doNotClose")}
       </p>
 
-      <p className="mt-2 text-base leading-snug font-semibold text-slate-800">
+      <p className="mt-2 text-base leading-snug font-semibold text-navy-700">
         {t("room.rateAfter", { name: therapist.firstName })}
       </p>
 
-      <p className="mt-2.5 text-xs leading-relaxed text-slate-600">
+      <p className="mt-2.5 text-xs leading-relaxed text-navy-400">
         {t("room.closingCost")}
       </p>
 
-      <p className="mt-2 flex items-start gap-1.5 border-t border-amber-200 pt-2.5 text-xs leading-relaxed text-slate-600">
+      <p className="mt-2 flex items-start gap-1.5 border-t border-amber-200 pt-2.5 text-xs leading-relaxed text-navy-400">
         <Star className="mt-0.5 h-3 w-3 shrink-0 text-amber-500" aria-hidden />
         <span>
           {t("room.anonymous", { therapist: therapist.firstName })}
@@ -669,14 +677,14 @@ function Reassurance() {
   const t = useT();
   return (
     <Card className="p-4">
-      <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">{t("room.goodToKnow")}</p>
-      <ul className="mt-2 space-y-2 text-xs leading-relaxed text-slate-600">
+      <p className="text-xs font-bold tracking-wider text-navy-400 uppercase">{t("room.goodToKnow")}</p>
+      <ul className="mt-2 space-y-2 text-xs leading-relaxed text-navy-400">
         <li className="flex gap-2">
-          <Lock className="mt-0.5 h-3 w-3 shrink-0 text-slate-500" aria-hidden />
+          <Lock className="mt-0.5 h-3 w-3 shrink-0 text-navy-400" aria-hidden />
           {t("room.knowRecording")}
         </li>
         <li className="flex gap-2">
-          <Mail className="mt-0.5 h-3 w-3 shrink-0 text-slate-500" aria-hidden />
+          <Mail className="mt-0.5 h-3 w-3 shrink-0 text-navy-400" aria-hidden />
           {t("room.knowSummary")}
         </li>
         {/*
@@ -689,7 +697,7 @@ function Reassurance() {
           there. There is one line now, and it is the one `lib/crisis` owns.
         */}
         <li className="flex gap-2">
-          <Phone className="mt-0.5 h-3 w-3 shrink-0 text-slate-500" aria-hidden />
+          <Phone className="mt-0.5 h-3 w-3 shrink-0 text-navy-400" aria-hidden />
           {t("crisis.notEmergency")}
         </li>
       </ul>
@@ -715,8 +723,8 @@ function TroubleBox({ token }: { token: string }) {
   if (sent) {
     return (
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{t("room.sentToUs")}</p>
-        <p className="mt-1 text-xs leading-relaxed text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("room.sentToUs")}</p>
+        <p className="mt-1 text-xs leading-relaxed text-navy-400">
           {t("room.sentToUsBody")}
         </p>
       </Card>
@@ -728,7 +736,7 @@ function TroubleBox({ token }: { token: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-start text-xs font-medium text-white/70 hover:bg-slate-800"
+        className="flex w-full items-center gap-2 rounded-2xl border border-navy-600 bg-navy-900 px-4 py-3 text-start text-xs font-medium text-white/70 hover:bg-navy-800"
       >
         <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden />
         {t("room.troubleTitle")}
@@ -738,8 +746,8 @@ function TroubleBox({ token }: { token: string }) {
 
   return (
     <Card className="space-y-2.5 p-4">
-      <p className="text-sm font-semibold text-slate-900">{t("room.tellUsTitle")}</p>
-      <p className="text-xs leading-relaxed text-slate-500">
+      <p className="text-sm font-semibold text-navy-700">{t("room.tellUsTitle")}</p>
+      <p className="text-xs leading-relaxed text-navy-400">
         {t("room.tellUsBody")}
       </p>
       <Textarea

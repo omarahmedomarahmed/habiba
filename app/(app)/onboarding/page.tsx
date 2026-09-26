@@ -5,7 +5,7 @@ import { Lock, ShieldCheck } from "lucide-react";
 import { VerificationForm } from "@/components/onboarding/verification-form";
 import { LicenceChangeForm } from "@/components/onboarding/licence-change-form";
 import { licenceChangeView } from "@/lib/data/licence-change";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { SeesWhat } from "@/components/visual/primitives";
 import { isBackOffice, landingFor } from "@/lib/admin/access";
 import { requireUser } from "@/lib/auth/guard";
@@ -38,21 +38,25 @@ export default async function OnboardingPage() {
    */
   if (isBackOffice(actor.role)) redirect(landingFor(actor.role));
 
-  const [verification, countryOptions, languageOptions, specialtyOptions] = await Promise.all([
-    ensureVerification(actor),
-    activeTaxonomy("country"),
-    activeTaxonomy("language"),
-    activeTaxonomy("specialty"),
-  ]);
+  /*
+   * 🔴 Board 280: side by side. The labels and regulators an administrator has
+   * configured (20.4 / 20.5) and the licence change (W1-23) were each awaited
+   * after the verification row, one round trip after another, on a first load
+   * that took eleven seconds. The change view needs only to know the row is
+   * approved, so it is asked for alongside and dropped when it is not.
+   */
+  const [verification, countryOptions, languageOptions, specialtyOptions, overrides, changeIfApproved] =
+    await Promise.all([
+      ensureVerification(actor),
+      activeTaxonomy("country"),
+      activeTaxonomy("language"),
+      activeTaxonomy("specialty"),
+      requirementOverrides(),
+      licenceChangeView(actor),
+    ]);
   const missing = missingFrom(verification);
   /* 🔴 W1-23: after approval, licence details change through review. */
-  const change = verification.state === "approved" ? await licenceChangeView(actor) : null;
-  /*
-   * 20.4 / 20.5 — the labels and regulators an administrator has configured,
-   * with the shipped constants underneath. Read on the server; the form needs
-   * the whole map because it relabels the moment a country is picked.
-   */
-  const overrides = await requirementOverrides();
+  const change = verification.state === "approved" ? changeIfApproved : null;
   const requirements = documentRequirements(verification.country, overrides);
 
   /*
@@ -87,12 +91,12 @@ export default async function OnboardingPage() {
           <ShieldCheck className="h-5 w-5" aria-hidden />
         </span>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-[26px] leading-tight font-bold tracking-tight text-navy-700">
             {verification.state === "approved"
               ? t("portal.onboarding.verified")
               : t("portal.onboarding.verify")}
           </h1>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">
             {verification.state === "approved"
               ? t("portal.onboarding.verifiedBody")
               : t("portal.onboarding.verifyBody")}
@@ -121,8 +125,8 @@ export default async function OnboardingPage() {
       */}
       {verification.state !== "approved" ? (
         <div className="mt-5">
-          <p className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <Lock className="h-4 w-4 text-slate-500" aria-hidden />
+          <p className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-navy-700">
+            <Lock className="h-4 w-4 text-navy-400" aria-hidden />
             {t("portal.onboarding.whyWeAsk")}
           </p>
           <SeesWhat
@@ -138,7 +142,7 @@ export default async function OnboardingPage() {
               t("portal.onboarding.notElse"),
             ]}
           />
-          <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
+          <p className="mt-2.5 text-sm leading-relaxed text-navy-400">
             {t("portal.onboarding.publicOnly")}
           </p>
         </div>
@@ -159,6 +163,7 @@ export default async function OnboardingPage() {
           state={verification.state}
           missing={missing}
           reviewNote={verification.reviewNote}
+          documentsCleared={Boolean(verification.documentsClearedAt)}
           initial={{
             country: verification.country ?? "",
             licenseBody: verification.licenseBody ?? "",

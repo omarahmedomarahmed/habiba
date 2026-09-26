@@ -33,7 +33,7 @@ export default async function SignUpPage() {
       promise={t("auth.therapist.promise")}
       points={[t("auth.therapist.p1"), t("auth.therapist.p2"), t("auth.therapist.p3")]}
       belowForm={
-        <p className="text-xs leading-relaxed text-slate-500">
+        <p className="text-xs leading-relaxed text-navy-400">
           {t("tauth.terms")
             .split(/(\{terms\}|\{privacy\})/g)
             .map((part, index) =>

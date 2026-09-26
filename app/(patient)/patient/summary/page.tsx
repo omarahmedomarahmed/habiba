@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 
-import { Card } from "@/components/ui";
+import { Card, Face } from "@/components/patient/kit";
 import { PatientBack } from "@/components/patient/back";
 import { summariesForPerson } from "@/lib/data/summaries";
 import { getI18n } from "@/lib/i18n/server";
@@ -41,20 +42,20 @@ export default async function PatientSummaryPage() {
   const versions = await summariesForPerson(actor.personId);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       <PatientBack />
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("psummary.title")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("psummary.title")}</h1>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">
           {t("psummary.body")}
         </p>
       </div>
 
       {versions.length === 0 ? (
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("psummary.none")}</p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          <p className="text-sm font-semibold text-navy-700">{t("psummary.none")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">
             {t("psummary.noneBody")}
           </p>
         </Card>
@@ -62,30 +63,33 @@ export default async function PatientSummaryPage() {
         <ul className="space-y-3">
           {versions.map((version) => (
             <li key={version.id}>
-              <Card className="p-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {version.approvedByName}
+              <Card className="p-5">
+                <div className="flex items-center gap-3">
+                  <Face name={version.approvedByName} size={48} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[16px] font-bold text-navy-700">{version.approvedByName}</p>
                     {version.approvedByCredentials ? (
-                      <span className="ms-1.5 text-xs font-medium text-slate-500">
-                        {version.approvedByCredentials}
-                      </span>
+                      <p className="truncate text-[13px] text-navy-400">{version.approvedByCredentials}</p>
                     ) : null}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {t("psummary.version", {
-                      n: version.version,
-                      date: formatDate(version.approvedAt, actor.timezone, locale),
-                    })}
-                  </p>
+                  </div>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-500 text-navy-700">
+                    <ShieldCheck className="h-5 w-5" aria-hidden />
+                  </span>
                 </div>
 
-                <p className="mt-2.5 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+                <p className="mt-4 text-[15px] leading-relaxed whitespace-pre-wrap text-navy-700">
                   {version.body}
                 </p>
 
+                <p className="mt-3 text-[13px] text-navy-400">
+                  {t("psummary.version", {
+                    n: version.version,
+                    date: formatDate(version.approvedAt, actor.timezone, locale),
+                  })}
+                </p>
+
                 {version.approvedByLicenseBody ? (
-                  <p className="mt-3 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-navy-400">
                     {version.approvedByLicenseBody}
                     {version.approvedByLicenseNumber ? ` ${version.approvedByLicenseNumber}` : ""}
                   </p>

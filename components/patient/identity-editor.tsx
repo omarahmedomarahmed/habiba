@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 
 import { removeOwnPhoto, saveOwnName, saveOwnPhoto } from "@/app/(patient)/patient/account/actions";
 import { PatientAvatar } from "@/components/patient/avatar";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -89,7 +90,7 @@ export function IdentityEditor({
                   router.refresh();
                 })
               }
-              className="block text-xs font-medium text-slate-500"
+              className="block text-xs font-medium text-navy-400"
             >
               {t("pidentity.removePhoto")}
             </button>
@@ -103,7 +104,7 @@ export function IdentityEditor({
         </p>
       ) : null}
 
-      <p className="text-xs leading-relaxed text-slate-500">
+      <p className="text-xs leading-relaxed text-navy-400">
         {t("pidentity.photoPrivateRecord")}
       </p>
 

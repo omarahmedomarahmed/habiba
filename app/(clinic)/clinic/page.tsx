@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BarChart3, CalendarDays, ChevronLeft, ChevronRight, Clock, Download } from "lucide-react";
 
-import { Card } from "@/components/ui";
+import { ClinicHead, Share } from "@/components/clinic/ui";
+import { Avatar, Badge, buttonClass, Card, EmptyState, IconTile, Stat } from "@/components/clinician/kit";
 import { can } from "@/lib/clinic-auth/capabilities";
 import { requireClinic } from "@/lib/clinic-auth/guard";
 import { clinicWeek } from "@/lib/clinic-week";
 import { clinicSchedule, clinicUsage } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
 import { zoneLabel } from "@/lib/scheduling/tz";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { cn, formatDate, formatDateTime } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
+import { countKey } from "@/lib/i18n/count-form";
 
 /** W3: the tab title in the reader's language. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -133,60 +136,54 @@ export default async function ClinicOverviewPage({
   const booked = rows.filter((row) => !row.cancelled);
   const onTheRota = new Set(booked.map((row) => row.therapistName)).size;
 
-  return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          {t("clinic.scheduleTitle")}
-        </h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
-          {t("clinic.scheduleBody")}
-        </p>
+  /* The busiest reported week sets the length of every bar in the usage card. */
+  const busiest = Math.max(1, ...usage.map((row) => row.sessions ?? 0));
 
-        {/* 🔴 63.17 / C334 — and the sentence about the watermark is beside it. */}
-        {seesSchedule && actor.capabilities.includes("export") ? (
-          <div className="mt-3">
-            <a
-              href={`/clinic/export?what=schedule&week=${mondayKey}`}
-              className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-            >
+  return (
+    <div>
+      <ClinicHead
+        title={t("clinic.scheduleTitle")}
+        subtitle={t("clinic.scheduleBody")}
+        action={
+          /* 🔴 63.17 / C334 — and the sentence about the watermark is beside it. */
+          seesSchedule && actor.capabilities.includes("export") ? (
+            <a href={`/clinic/export?what=schedule&week=${mondayKey}`} className={buttonClass("secondary", "sm")}>
+              <Download className="h-4 w-4" aria-hidden />
               {t("clinic.exportCsv")}
             </a>
-            <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-              {t("clinic.exportWatermark")}
-            </p>
-          </div>
+          ) : null
+        }
+      >
+        {seesSchedule && actor.capabilities.includes("export") ? (
+          <p className="mt-2 text-[13px] leading-relaxed text-navy-400">{t("clinic.exportWatermark")}</p>
         ) : null}
-      </div>
+      </ClinicHead>
 
       {seesSchedule ? (
-        <>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href={`/clinic?week=${prevKey}`}
-              className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold leading-9 text-slate-700 hover:bg-slate-200"
-            >
+        <div className="space-y-4">
+          <Card className="flex flex-wrap items-center justify-between gap-2 p-2">
+            <Link href={`/clinic?week=${prevKey}`} className={buttonClass("ghost", "sm")}>
+              <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
               {t("clinic.prevWeek")}
             </Link>
-            <span className="text-xs font-medium text-slate-500">
-              {t("clinic.week", { date: day(monday) })}
-            </span>
-            <Link
-              href={`/clinic?week=${nextKey}`}
-              className="tap-target h-9 rounded-xl bg-slate-100 px-3 text-xs font-semibold leading-9 text-slate-700 hover:bg-slate-200"
-            >
+            <div className="order-first flex basis-full flex-col items-center pt-2 text-center sm:order-none sm:min-w-0 sm:flex-1 sm:basis-auto sm:pt-0">
+              <span className="text-[15px] font-bold text-navy-700">{t("clinic.week", { date: day(monday) })}</span>
+              {/*
+                🔴 T8: the zone every time on this page is in, named whether or not
+                it was a fallback. A manager with no zone of their own at a Cairo
+                practice reads "Cairo" and knows; one at a practice with no default
+                reads "UTC" and knows that too, rather than taking it for local time.
+              */}
+              <span className="inline-flex items-center gap-1 text-[12px] text-navy-400">
+                <Clock className="h-3 w-3" aria-hidden />
+                {t("clinic.timesIn", { zone: zoneLabel(zone, locale) })}
+              </span>
+            </div>
+            <Link href={`/clinic?week=${nextKey}`} className={buttonClass("ghost", "sm")}>
               {t("clinic.nextWeek")}
+              <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
             </Link>
-            {/*
-              🔴 T8: the zone every time on this page is in, named whether or not
-              it was a fallback. A manager with no zone of their own at a Cairo
-              practice reads "Cairo" and knows; one at a practice with no default
-              reads "UTC" and knows that too, rather than taking it for local time.
-            */}
-            <span className="text-xs text-slate-500">
-              {t("clinic.timesIn", { zone: zoneLabel(zone, locale) })}
-            </span>
-          </div>
+          </Card>
 
           {/*
             🔴 AND NOT ON A WEEK WITH NOTHING IN IT.
@@ -201,121 +198,120 @@ export default async function ClinicOverviewPage({
             summarise, and the empty state below says the whole truth on its own.
           */}
           {rows.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Card className="p-4">
-                <p className="text-xs font-medium text-slate-500">{t("clinic.hoursBooked")}</p>
-                <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-navy-500">
-                  {booked.length}
-                </p>
-              </Card>
-              <Card className="p-4">
-                <p className="text-xs font-medium text-slate-500">{t("clinic.onTheRota")}</p>
-                <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-navy-500">
-                  {onTheRota}
-                </p>
-              </Card>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <Stat tone="dark" label={t("clinic.hoursBooked")}>
+                {booked.length}
+              </Stat>
+              <Stat label={t("clinic.onTheRota")}>{onTheRota}</Stat>
             </div>
           ) : null}
 
           {rows.length === 0 ? (
-            <Card className="p-5">
-              <p className="text-sm leading-relaxed text-slate-600">{t("clinic.scheduleEmpty")}</p>
+            <Card>
+              <EmptyState icon={<CalendarDays className="h-6 w-6" aria-hidden />} title={t("clinic.scheduleEmpty")} />
             </Card>
           ) : (
             <Card className="overflow-hidden">
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-navy-100/70">
                 {rows.map((row) => (
-                  <li key={row.sessionId} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3">
-                    {/* 🔴 Not a link. There is nowhere for it to go. */}
-                    <span className="text-sm font-semibold text-slate-900">{row.patientName}</span>
-                    <span className="text-xs text-slate-500">{row.therapistName}</span>
-                    <span className="ms-auto text-xs tabular-nums text-slate-600">
-                      {when(row.scheduledAt)}
-                    </span>
-                    {/* 🔴 T19: the word, in their language, not the stored code. */}
-                    {row.cancelled ? (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                        {t("clinic.cancelled")}
-                      </span>
-                    ) : null}
+                  <li
+                    key={row.sessionId}
+                    className={cn("flex items-center gap-3 px-4 py-3.5 sm:px-5", row.cancelled && "opacity-70")}
+                  >
+                    <Avatar name={row.patientName} size={40} />
+                    <div className="min-w-0 flex-1">
+                      {/* 🔴 Not a link. There is nowhere for it to go. */}
+                      <p className="truncate text-[15px] font-semibold text-navy-700">{row.patientName}</p>
+                      <p className="truncate text-[13px] text-navy-400">{row.therapistName}</p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1 text-end">
+                      <span className="text-[13px] font-semibold tabular-nums text-navy-600">{when(row.scheduledAt)}</span>
+                      {/* 🔴 T19: the word, in their language, not the stored code. */}
+                      {row.cancelled ? <Badge>{t("clinic.cancelled")}</Badge> : null}
+                    </div>
                   </li>
                 ))}
               </ul>
             </Card>
           )}
-        </>
+        </div>
       ) : null}
 
       {/* 🔴 54.10 / C262 — the same floor as C229, through the same function. */}
       {seesReports ? (
-        <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("clinic.usageTitle")}</p>
-          {/*
-            🔴 WHICH WEEK, because this card and the rota above it both say "week"
-            and mean different ones.
+        <Card className={cn("p-5", seesSchedule && "mt-6")}>
+          <div className="flex items-start gap-3">
+            <IconTile tone="navy">
+              <BarChart3 className="h-5 w-5" aria-hidden />
+            </IconTile>
+            <div className="min-w-0">
+              <h2 className="text-[17px] font-bold text-navy-700">{t("clinic.usageTitle")}</h2>
+              {/*
+                🔴 WHICH WEEK, because this card and the rota above it both say "week"
+                and mean different ones.
 
-            `clinicSchedule` filters on `sessions.scheduled_at`: the hour itself.
-            `clinicUsage` groups `invoices` by `issued_at`: when it was billed. A
-            session on the 14th invoiced on the 21st is in last week's rota and
-            this week's total, both correctly. On one screen, with no label, that
-            reads as the page contradicting itself, and the first thing a practice
-            manager does with a portal that contradicts itself is stop trusting
-            the figures in it.
-          */}
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">{t("clinic.usageBasis")}</p>
+                `clinicSchedule` filters on `sessions.scheduled_at`: the hour itself.
+                `clinicUsage` groups `invoices` by `issued_at`: when it was billed. A
+                session on the 14th invoiced on the 21st is in last week's rota and
+                this week's total, both correctly. On one screen, with no label, that
+                reads as the page contradicting itself, and the first thing a practice
+                manager does with a portal that contradicts itself is stop trusting
+                the figures in it.
+              */}
+              <p className="mt-0.5 text-[13px] leading-relaxed text-navy-400">{t("clinic.usageBasis")}</p>
+            </div>
+          </div>
 
           {usage.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-500">{t("clinic.suppressed")}</p>
+            <p className="mt-4 text-sm text-navy-400">{t("clinic.suppressed")}</p>
           ) : (
-            <ul className="mt-3 space-y-1.5">
+            <ul className="mt-4 space-y-3">
               {usage.slice(-12).map((row) => (
-                <li
-                  key={row.weekStart.toISOString()}
-                  className="flex flex-wrap items-baseline justify-between gap-3 text-sm"
-                >
-                  <span className="text-slate-600">
-                    {t("clinic.week", { date: day(row.weekStart) })}
-                  </span>
-                  {/*
-                    🔴 null is SUPPRESSED and it is NOT zero.
-                    `applyActivityFloor` rolls a suppressed period's figures into the next
-                    reported one, so rendering it as 0 would be a different and false
-                    statement, and it is the statement a differencing attack needs.
-                  */}
-                  {row.sessions === null || row.spendCents === null ? (
-                    <span className="text-xs text-slate-500">{t("clinic.suppressed")}</span>
-                  ) : (
-                    <span className="tabular-nums text-slate-800">
-                      {t("clinic.sessionCount", { count: row.sessions })} ·{" "}
-                      {/*
-                        🔴 A BARE "$0.00" BESIDE FIVE SESSIONS READS AS A BROKEN PAGE.
+                <li key={row.weekStart.toISOString()}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
+                    <span className="text-navy-500">{t("clinic.week", { date: day(row.weekStart) })}</span>
+                    {/*
+                      🔴 null is SUPPRESSED and it is NOT zero.
+                      `applyActivityFloor` rolls a suppressed period's figures into the next
+                      reported one, so rendering it as 0 would be a different and false
+                      statement, and it is the statement a differencing attack needs.
+                    */}
+                    {row.sessions === null || row.spendCents === null ? (
+                      <span className="text-xs text-navy-400">{t("clinic.suppressed")}</span>
+                    ) : (
+                      <span className="font-semibold tabular-nums text-navy-700">
+                        {t(countKey("clinic.sessionCount", row.sessions), { count: row.sessions })} ·{" "}
+                        {/*
+                          🔴 A BARE "$0.00" BESIDE FIVE SESSIONS READS AS A BROKEN PAGE.
 
-                        It is not broken and it is not rounding. A session whose
-                        invoice is `included` or `waived` costs the clinic
-                        nothing: their welcome credit covered it, or a patient's
-                        employer did, or somebody waived it. The row summed to
-                        zero honestly, and the first thing a practice manager
-                        does with a money figure they cannot account for is stop
-                        believing the other ones.
+                          It is not broken and it is not rounding. A session whose
+                          invoice is `included` or `waived` costs the clinic
+                          nothing: their welcome credit covered it, or a patient's
+                          employer did, or somebody waived it. The row summed to
+                          zero honestly, and the first thing a practice manager
+                          does with a money figure they cannot account for is stop
+                          believing the other ones.
 
-                        The words say only what the zero already said, which is
-                        why this is safe to show: no new fact about who was
-                        covered or by what, because this page must not carry one.
-                        The sessions count is still under the C262 floor above.
-                      */}
-                      {row.spendCents === 0 && row.sessions > 0 ? (
-                        <span className="font-medium text-slate-600">{t("clinic.nothingToPay")}</span>
-                      ) : (
-                        money(row.spendCents)
-                      )}
-                    </span>
-                  )}
+                          The words say only what the zero already said, which is
+                          why this is safe to show: no new fact about who was
+                          covered or by what, because this page must not carry one.
+                          The sessions count is still under the C262 floor above.
+                        */}
+                        {row.spendCents === 0 && row.sessions > 0 ? (
+                          <span className="font-medium text-navy-500">{t("clinic.nothingToPay")}</span>
+                        ) : (
+                          money(row.spendCents)
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  {row.sessions !== null ? <Share value={row.sessions / busiest} className="mt-1.5" /> : null}
                 </li>
               ))}
             </ul>
           )}
 
-          <p className="mt-3 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
+          <p className="mt-4 border-t border-navy-100 pt-3 text-xs leading-relaxed text-navy-400">
             {t("clinic.suppressedBody")}
           </p>
         </Card>

@@ -41,6 +41,17 @@ import {
 import { formatMoney } from "./plans";
 import type { ManualPaymentPurpose } from "@/lib/db/schema";
 
+/**
+ * 🔴 Board 490: a turned-down transfer as the payer's page shows it: what was
+ * sent, when it was decided, its reference and the operator's reason.
+ */
+export type RejectedLive = {
+  state: "rejected";
+  reason: string;
+  sentLabel?: string;
+  reference?: string | null;
+};
+
 /** What a screen renders. Assembled once so no flow has to sequence the calls. */
 export type ManualEntry = {
   /** False when this payer has a card rail and should not see a bank account. */
@@ -65,7 +76,7 @@ export type ManualEntry = {
          */
         hasProof: boolean;
       }
-    | { state: "rejected"; reason: string };
+    | RejectedLive;
   /**
    * 🔴 THE NUMBER TO SEND, IN POUNDS, FORMATTED ON THE SERVER.
    *
@@ -343,9 +354,15 @@ export async function manualEntry(input: {
   }
 
   const history = await paymentsFor(input.payer);
-  const lastRejection = history.find(
-    (p) => p.state === "rejected" && (input.refId === null || p.refId === input.refId),
+  /*
+   * 🔴 Board 490: the NEWEST payment for this thing decides, so a rejection
+   * that was followed by a confirmed transfer stops being shown, and one that
+   * is still the last word carries what was sent, when, and its reference.
+   */
+  const latest = history.find(
+    (p) => input.refId === null || p.refId === input.refId,
   );
+  const lastRejection = latest?.state === "rejected" ? latest : undefined;
 
   return {
     needed: true,
@@ -355,7 +372,12 @@ export async function manualEntry(input: {
     rateLabel,
     lines: asLines(input.lines),
     live: lastRejection
-      ? { state: "rejected", reason: lastRejection.rejectReason ?? "" }
+      ? {
+          state: "rejected",
+          reason: lastRejection.rejectReason ?? "",
+          sentLabel: formatMoney(lastRejection.amountCents, lastRejection.currency.toUpperCase(), input.locale),
+          reference: lastRejection.reference ?? null,
+        }
       : { state: "none" },
   };
 }
@@ -510,14 +532,13 @@ export async function potTopUpLadder(input: {
  * list price, so a patient read three numbers for one session.
  */
 export async function patientOwesTotal(sessionId: string): Promise<number> {
-  const [row] = await db
-    .select({ organizationId: sessions.organizationId })
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .limit(1);
-  if (!row) return 0;
+  /* 🔴 Board 373/408 (B49): the session's organisation and what is owed, side by side. */
   const { patientOwesFor } = await import("./session-owed");
-  const owed = await patientOwesFor(sessionId);
+  const [[row], owed] = await Promise.all([
+    db.select({ organizationId: sessions.organizationId }).from(sessions).where(eq(sessions.id, sessionId)).limit(1),
+    patientOwesFor(sessionId),
+  ]);
+  if (!row) return 0;
   if (owed.grossCents <= 0) return 0;
   const money = await sessionTransferMoney({ organizationId: row.organizationId, priceCents: owed.grossCents });
   return money.settlesCents;

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { DomainList } from "@/components/sponsor/domain-list";
-import { PageHeader } from "@/components/ui";
+import { SponsorHeading } from "@/components/sponsor/heading";
 import { DNS_RECORD_NAME, domainProblem, domainsFor } from "@/lib/data/sponsor-domains";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
 import { getI18n } from "@/lib/i18n/server";
@@ -35,13 +35,13 @@ export default async function SponsorDomainsPage() {
   const domains = await domainsFor(actor.sponsorId);
 
   return (
-    <div>
-      <PageHeader
+    <div className="mx-auto max-w-3xl space-y-5">
+      <SponsorHeading
         title={t("sponsor.domains.title")}
         subtitle={t("sponsor.domains.subtitle")}
       />
 
-      <div className="px-4 pb-10 sm:px-6">
+      <div>
         <DomainList
           canEdit={actor.role === "admin"}
           recordName={DNS_RECORD_NAME}

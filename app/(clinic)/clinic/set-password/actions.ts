@@ -44,5 +44,6 @@ export async function setPassword(
     reason: "chosen by the manager from a single-use link; every session ended",
   });
 
-  redirect(CLINIC_SIGN_IN);
+  /* 🔴 Board ORG CL8.3: the door says the password is set, as `/welcome`'s landing does. */
+  redirect(`${CLINIC_SIGN_IN}?set=1`);
 }

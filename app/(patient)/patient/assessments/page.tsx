@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PatientBack } from "@/components/patient/back";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import {
   historyForPerson,
   instrumentNames,
@@ -56,26 +56,26 @@ export default async function AssessmentsPage() {
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       <div className="flex items-center gap-1">
         <PatientBack />
       </div>
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("passess.title")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("passess.body")}</p>
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("passess.title")}</h1>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">{t("passess.body")}</p>
       </div>
 
       {open.length === 0 ? (
         <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("passess.none")}</p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("passess.noneBody")}</p>
+          <p className="text-sm font-semibold text-navy-700">{t("passess.none")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("passess.noneBody")}</p>
         </Card>
       ) : (
         <div className="space-y-3">
           {open.map((assignment) => (
             <Card key={assignment.id} className="border border-brand-200 p-4">
-              <p className="text-base leading-relaxed font-medium text-slate-900">
+              <p className="text-base leading-relaxed font-medium text-navy-700">
                 {nameOf(assignment.instrumentId)}
               </p>
               <Link
@@ -92,21 +92,21 @@ export default async function AssessmentsPage() {
       {/* ------------------------------------------------ 56.9 · their own trend -- */}
 
       <div className="mt-2">
-        <h2 className="text-sm font-semibold text-slate-900">{t("passess.historyTitle")}</h2>
-        <p className="mt-1 text-xs leading-relaxed text-slate-500">{t("passess.historyBody")}</p>
+        <h2 className="text-[17px] font-bold text-navy-700">{t("passess.historyTitle")}</h2>
+        <p className="mt-1 text-xs leading-relaxed text-navy-400">{t("passess.historyBody")}</p>
       </div>
 
       {history.length === 0 ? (
-        <p className="text-sm leading-relaxed text-slate-600">{t("passess.historyNone")}</p>
+        <p className="text-sm leading-relaxed text-navy-400">{t("passess.historyNone")}</p>
       ) : (
         <div className="space-y-2">
           {history.map((entry) => (
             <Card key={entry.id} className="flex items-baseline justify-between gap-3 p-4">
               <div>
-                <p className="text-sm font-medium text-slate-900">
+                <p className="text-sm font-medium text-navy-700">
                   {nameOf(entry.instrumentId)}
                 </p>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-0.5 text-xs text-navy-400">
                   {/*
                     37L.9 / C84 — through `formatDate`, in the reader's own
                     zone and their own locale. An `Intl.DateTimeFormat` built
@@ -123,8 +123,8 @@ export default async function AssessmentsPage() {
                 moment it is styled by its value it has become a verdict.
               */}
               <div className="text-end">
-                <p className="text-xs text-slate-500">{t("passess.scoreLabel")}</p>
-                <p className="text-base font-semibold text-slate-900">{entry.score}</p>
+                <p className="text-xs text-navy-400">{t("passess.scoreLabel")}</p>
+                <p className="text-base font-semibold text-navy-700">{entry.score}</p>
               </div>
             </Card>
           ))}

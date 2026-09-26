@@ -43,7 +43,7 @@ export default async function ClinicRecordsPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+    <div className="max-w-3xl">
       <RecordsPanel
         /* 🔴 W2-C06: how the connection just went, from the callback. */
         outcome={(await searchParams).ehr ?? null}

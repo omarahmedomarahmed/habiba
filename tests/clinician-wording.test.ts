@@ -113,7 +113,7 @@ test("TE60 / TE55 /earnings rows are translated and the room's 404 is readable o
   const room = readFileSync("app/(room)/not-found.tsx", "utf8");
   assert.match(room, /tone="dark"/, "the room's 404 draws dark text on its navy ground");
   // Control: the room's ground really is dark.
-  assert.match(readFileSync("app/(room)/layout.tsx", "utf8"), /bg-navy-600/);
+  assert.match(readFileSync("app/(room)/layout.tsx", "utf8"), /bg-navy-(600|700|800|900)\b/);
   assert.match(readFileSync("components/patient/route-not-found.tsx", "utf8"), /dark \? "mt-2 text-2xl font-bold tracking-tight text-white"/);
 });
 

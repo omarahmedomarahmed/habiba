@@ -5,7 +5,7 @@ import Link from "next/link";
 import { MessageSquarePlus, Send, Trash2 } from "lucide-react";
 
 import { ask, removeThread, startThread } from "@/app/(app)/assistant/actions";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card } from "@/components/clinician/kit";
 import { linkRoster, type RosterEntry } from "@/lib/assistant/roster";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -95,7 +95,7 @@ export function AssistantChat({
               if (result.id) window.location.href = `/assistant?thread=${result.id}`;
             })
           }
-          className="tap-target flex h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800"
+          className="tap-target flex h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-navy-600 text-sm font-semibold text-white hover:bg-navy-500"
         >
           <MessageSquarePlus className="h-4 w-4" aria-hidden />
           {t("tach.newChat")}
@@ -109,8 +109,8 @@ export function AssistantChat({
                 className={cn(
                   "min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-sm",
                   thread.id === threadId
-                    ? "bg-slate-100 font-medium text-slate-900"
-                    : "text-slate-600 hover:bg-slate-50",
+                    ? "bg-navy-50 font-medium text-navy-700"
+                    : "text-navy-400 hover:bg-navy-50",
                 )}
               >
                 {thread.title}
@@ -124,7 +124,7 @@ export function AssistantChat({
                     if (thread.id === threadId) window.location.href = "/assistant";
                   })
                 }
-                className="tap-target shrink-0 rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
+                className="tap-target shrink-0 rounded-lg p-1.5 text-navy-200 hover:bg-navy-50 hover:text-navy-400"
               >
                 <Trash2 className="h-3.5 w-3.5" aria-hidden />
               </button>
@@ -136,8 +136,8 @@ export function AssistantChat({
       {/* ---------------------------------------------------------- the chat */}
       <div className="min-w-0 space-y-3">
         <Card className="flex min-h-[24rem] flex-col">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-2.5">
-            <p className="text-xs text-slate-500">
+          <div className="flex items-center justify-between gap-3 border-b border-navy-100/70 px-4 py-2.5">
+            <p className="text-xs text-navy-400">
               {t("tach.roster")}
             </p>
             {/*
@@ -150,7 +150,7 @@ export function AssistantChat({
 
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {messages.length === 0 ? (
-              <p className="text-sm leading-relaxed text-slate-500">
+              <p className="text-sm leading-relaxed text-navy-400">
                 {t("tach.blurb")}
               </p>
             ) : (
@@ -160,8 +160,8 @@ export function AssistantChat({
                   className={cn(
                     "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
                     message.role === "therapist"
-                      ? "ms-auto bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-800",
+                      ? "ms-auto bg-navy-600 text-white"
+                      : "bg-navy-50 text-navy-700",
                   )}
                 >
                   {message.role === "assistant" ? (
@@ -174,7 +174,7 @@ export function AssistantChat({
             )}
           </div>
 
-          <div className="border-t border-slate-100 p-3">
+          <div className="border-t border-navy-100/70 p-3">
             <div className="flex items-end gap-2">
               <textarea
                 rows={2}
@@ -188,14 +188,14 @@ export function AssistantChat({
                 }}
                 placeholder={threadId ? t("tach.askWeek") : t("tach.startFirst")}
                 disabled={!threadId || pending}
-                className="min-h-[3rem] flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"
+                className="min-h-[3rem] flex-1 resize-none rounded-xl border border-navy-100 px-3 py-2 text-sm disabled:bg-navy-50"
               />
               <button
                 type="button"
                 disabled={!threadId || pending || !question.trim()}
                 onClick={send}
                 aria-label={t("tach.send")}
-                className="tap-target flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white disabled:opacity-40"
+                className="tap-target flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-navy-600 text-white disabled:opacity-40"
               >
                 <Send className="h-4 w-4" aria-hidden />
               </button>

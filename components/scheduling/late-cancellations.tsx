@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { refundLateCancellation } from "@/app/(app)/bookings/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -28,19 +28,19 @@ export function LateCancellations({
 
   return (
     <Card className="mb-4 p-4">
-      <h2 className="text-sm font-semibold text-slate-900">{t("tchange.lateTitle")}</h2>
-      <p className="mt-0.5 text-xs text-slate-500">{t("tchange.lateBody", { hours: windowHours })}</p>
+      <h2 className="text-sm font-semibold text-navy-700">{t("tchange.lateTitle")}</h2>
+      <p className="mt-0.5 text-xs text-navy-400">{t("tchange.lateBody", { hours: windowHours })}</p>
       <ul className="mt-2 space-y-1.5">
         {rows.map((row) => (
           <li
             key={row.sessionId}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-navy-100 px-3 py-2"
           >
-            <span className="text-sm text-slate-900">
-              {row.name} <span className="text-xs text-slate-500">· {row.when}</span>
+            <span className="text-sm text-navy-700">
+              {row.name} <span className="text-xs text-navy-400">· {row.when}</span>
             </span>
             {done.includes(row.sessionId) ? (
-              <span className="text-xs text-emerald-700">{t("tchange.refunded")}</span>
+              <span className="text-xs text-brand-800">{t("tchange.refunded")}</span>
             ) : (
               <button
                 type="button"
@@ -53,7 +53,7 @@ export function LateCancellations({
                     else setError(result.errorKey ?? "pchange.errGone");
                   })
                 }
-                className="tap-target h-9 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
+                className="tap-target h-9 rounded-lg border border-navy-100 px-2.5 text-xs font-semibold text-navy-600 disabled:opacity-50"
               >
                 {t("tchange.refund")}
               </button>

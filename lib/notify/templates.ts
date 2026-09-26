@@ -96,6 +96,8 @@ export const WHATSAPP_TEMPLATES = {
     variables: 1,
     en: "{{1}} is in the room and waiting for you.",
     ar: "{{1}} في الغرفة وينتظرك.",
+    /* 🔴 Board 300 (B5's class): the way into the room, or a phone-only patient has none. */
+    button: { en: "Join the session", ar: "ادخل الجلسة" },
   },
   "session.summary_ready": {
     name: "summary_ready",
@@ -110,6 +112,12 @@ export const WHATSAPP_TEMPLATES = {
     variables: 1,
     en: "{{1}} has invited you to a session on 24Therapy.",
     ar: "دعاك {{1}} إلى جلسة على 24Therapy.",
+    /*
+     * 🔴 Board 300 (B5's class): the invitation to join or to pay carries its
+     * door. Without a button the WhatsApp message was the sentence alone, and a
+     * patient with only a phone number had no way in.
+     */
+    button: { en: "Open the invitation", ar: "افتح الدعوة" },
   },
   "claim.code": {
     name: "claim_code",

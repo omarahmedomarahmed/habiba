@@ -7,6 +7,8 @@ import { useFormStatus } from "react-dom";
 import {
   addUser,
   approveProduction,
+  attachPractice,
+  detachPractice,
   saveDocuments,
   setState,
   withdrawProduction,
@@ -14,6 +16,7 @@ import {
 import { Button, Card, Field, Input } from "@/components/ui";
 import { PARTNER_STATES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
+import { countKey } from "@/lib/i18n/count-form";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -55,6 +58,8 @@ export type AdminPartnerRow = {
   approvedAt: string | null;
   keyCount: number;
   users: { id: string; email: string; role: string }[];
+  /** Board 611: the practices on their bill, which their live key can reach. */
+  practices: { id: string; name: string; slug: string }[];
 };
 
 export function PartnerManagerList({ partners }: { partners: AdminPartnerRow[] }) {
@@ -84,6 +89,7 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
   const [error, setError] = useState<string | null>(null);
   const [userState, userAction] = useActionState(addUser, {});
   const [docsState, docsAction] = useActionState(saveDocuments, {});
+  const [practiceState, practiceAction] = useActionState(attachPractice, {});
 
   return (
     <Card className="p-4">
@@ -100,7 +106,7 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
         </span>
         {/* 🔴 A COUNT, never the prefixes. */}
         <span className="text-xs text-slate-500">
-          {t("apartner.keys", { count: partner.keyCount })}
+          {t(countKey("apartner.keys", partner.keyCount), { count: partner.keyCount })}
         </span>
         <button
           type="button"
@@ -165,7 +171,7 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
                   Their documents
                 </a>
               ) : (
-                "No documents yet. Approving without them is approving a form."
+                "No documents yet."
               )}
             </p>
 
@@ -232,8 +238,7 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
 
             {partner.approvedAt ? (
               <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                Withdrawing stops new keys and revokes none. Pulling a key mid-afternoon stops
-                transcription in open rooms.
+                Withdrawing stops new keys and revokes none.
               </p>
             ) : null}
           </div>
@@ -248,6 +253,50 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
                 onConfirm={(reason) => setState(partner.id, state, reason)}
               />
             ))}
+          </div>
+
+          {/*
+            Board 611: the practices on this partner's bill. Write-back, launch and
+            notes reach only these, and only our staff can put one here.
+          */}
+          <div className="space-y-2 rounded-xl bg-slate-50 p-3">
+            <p className="text-xs font-semibold text-slate-700">{t("apartner.practices")}</p>
+            {partner.practices.length === 0 ? (
+              <p className="text-xs text-slate-500">{t("apartner.practicesNone")}</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {partner.practices.map((practice) => (
+                  <li key={practice.id} className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
+                    <span className="font-medium">{practice.name}</span>
+                    <span className="text-slate-500">{practice.slug}</span>
+                    <span className="ms-auto">
+                      <ConfirmWithReason
+                        label={t("apartner.practiceDetach")}
+                        variant="secondary"
+                        onConfirm={(reason) => detachPractice(partner.id, practice.id, reason)}
+                      />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <form action={practiceAction} className="space-y-2">
+              <input type="hidden" name="partnerId" value={partner.id} />
+              <Field label={t("apartner.practiceField")} htmlFor={`pp-${partner.id}`}>
+                <Input id={`pp-${partner.id}`} name="practice" required />
+              </Field>
+              <Field label={t("aconfirm.why")} htmlFor={`pp-reason-${partner.id}`}>
+                <Input id={`pp-reason-${partner.id}`} name="reason" required minLength={10} />
+              </Field>
+              {practiceState.error ? (
+                <p role="alert" className="text-xs text-red-600">
+                  {practiceState.error}
+                </p>
+              ) : practiceState.ok ? (
+                <p className="text-xs text-brand-700">{t("apartner.practiceAttached")}</p>
+              ) : null}
+              <Submit label={t("apartner.practiceAttach")} />
+            </form>
           </div>
 
           <div className="space-y-2">

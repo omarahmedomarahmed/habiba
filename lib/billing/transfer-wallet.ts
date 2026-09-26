@@ -40,6 +40,17 @@ import { log, ref } from "@/lib/logger";
 /** The start of the resolution a wallet credit writes, and what "Refund instead" reads. */
 export const WALLET_RESOLUTION = "Credited to the patient's wallet as credit ";
 
+/**
+ * 🔴 Board 497 (AD7.7): the resolution as a person reads it. The stored line
+ * carries the credit's id because "Refund instead" finds the credit by it,
+ * and the Needs a decision card printed it whole: "…as credit a5acbfd8-…".
+ */
+export function shownResolution(resolution: string | null): string | null {
+  if (!resolution?.startsWith(WALLET_RESOLUTION)) return resolution;
+  const rest = resolution.slice(WALLET_RESOLUTION.length).replace(/^[0-9a-f-]{36}\.?\s*/, "");
+  return `Credited to the patient's wallet.${rest ? ` ${rest}` : ""}`;
+}
+
 function creditIdIn(resolution: string | null): string | null {
   if (!resolution?.startsWith(WALLET_RESOLUTION)) return null;
   const match = resolution.slice(WALLET_RESOLUTION.length).match(/^[0-9a-f-]{36}/);
@@ -183,6 +194,38 @@ async function tellPatient(input: { personId: string; amountCents: number; curre
       link: { label: words.t("pmsg.walletCredited.open"), url: `${env.appUrl}/patient/billing` },
     },
   );
+}
+
+/**
+ * 🔴 Board 430: a session paid by a transfer that had ARRIVED, then cancelled,
+ * is credited to the wallet by `refundTransferToWallet`. The transfer is
+ * marked the way `creditCancelledTransfer` marks one, so "Refund instead"
+ * lists it and acts on it. Only a confirmed transfer with no exception yet.
+ */
+export async function recordTransferInWallet(input: {
+  sessionId: string;
+  creditId: string;
+  byUserId: string | null;
+}): Promise<void> {
+  const now = new Date();
+  await db
+    .update(manualPayments)
+    .set({
+      exception: "not_payable",
+      exceptionDetail: "The session was cancelled after this transfer arrived. It is in the patient's wallet, and a refund if they ask.",
+      exceptionAt: now,
+      exceptionResolvedAt: now,
+      exceptionResolvedBy: input.byUserId,
+      exceptionResolution: `${WALLET_RESOLUTION}${input.creditId}. Refund instead from here if they ask.`,
+    })
+    .where(
+      and(
+        inArray(manualPayments.purpose, ["session", "payg_session"]),
+        eq(manualPayments.refId, input.sessionId),
+        eq(manualPayments.state, "confirmed"),
+        sql`${manualPayments.exception} IS NULL`,
+      ),
+    );
 }
 
 /**

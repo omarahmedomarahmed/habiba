@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-import { PayByTransfer } from "@/components/billing/pay-by-transfer";
+import { PayByTransfer, RejectedTransfer } from "@/components/billing/pay-by-transfer";
+import { PAY_OPEN_EVENT } from "@/components/billing/pay-open";
 import { useT } from "@/lib/i18n/client";
 import type { PotStep } from "@/lib/billing/manual-entry";
 import type {
@@ -175,6 +176,13 @@ export function PaymentPopup({
   /* Two taps to cancel, because the first one is easy to hit by accident. */
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  /*
+   * 🔴 Board 268: whether a payment was started from this screen. "Cancel this
+   * payment" showed to somebody who had never opened one, because the server's
+   * `none` covers both "nothing started" and "started on this page, not yet
+   * re-rendered". Opening the sheet is what starts one.
+   */
+  const [started, setStarted] = useState(openInitially);
 
   /*
    * 🔴 READ IN AN EFFECT, NEVER DURING RENDER.
@@ -201,6 +209,21 @@ export function PaymentPopup({
     }
   }, [storageKey]);
 
+  /* 🔴 Board 475: the bar tapped while this sheet is already on the page. */
+  useEffect(() => {
+    const onAsk = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== storageKey) return;
+      try {
+        window.localStorage.removeItem(`pay:${storageKey}`);
+      } catch {
+        /* Nothing was kept. */
+      }
+      setOpen(true);
+    };
+    window.addEventListener(PAY_OPEN_EVENT, onAsk);
+    return () => window.removeEventListener(PAY_OPEN_EVENT, onAsk);
+  }, [storageKey]);
+
   /*
    * 🔴 AND WHEN IT RENDERS ALREADY OPEN, which is how a patient always meets
    * it: they followed a link whose whole purpose was to pay, so there is no
@@ -218,7 +241,10 @@ export function PaymentPopup({
      * to read an account number, and a failure here costs the bar rather than
      * the payment, which they can still complete from this very screen.
      */
-    if (next) void onOpen?.().catch(() => undefined);
+    if (next) {
+      setStarted(true);
+      void onOpen?.().catch(() => undefined);
+    }
     try {
       if (!next) window.localStorage.removeItem(`pay:${storageKey}`);
     } catch {
@@ -249,7 +275,7 @@ export function PaymentPopup({
    * WHERE clause, so this is the second lock rather than the only one.
    */
   const cancelControl =
-    onCancel && (live.state === "none" || live.state === "awaiting_proof") ? (
+    onCancel && (live.state === "awaiting_proof" || (live.state === "none" && started)) ? (
       confirmingCancel ? (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3">
           <p className="text-sm font-semibold text-amber-900">{t("pop.cancelSure")}</p>
@@ -274,6 +300,7 @@ export function PaymentPopup({
                       /* Nothing remembered, nothing to forget. */
                     }
                     setOpen(false);
+                    setStarted(false);
                   })
                   .finally(() => {
                     setCancelling(false);
@@ -306,7 +333,8 @@ export function PaymentPopup({
     ) : null;
 
   if (!open) {
-    const label = live.state === "submitted" ? t("pop.track") : t("pop.open");
+    const label =
+      live.state === "submitted" ? t("pop.track") : live.state === "rejected" ? t("pop.sendAgain") : t("pop.open");
 
     if (minimised === "orb") {
       return (
@@ -348,6 +376,12 @@ export function PaymentPopup({
     */
     return (
       <div className="flex flex-col gap-2">
+        {/*
+          🔴 Board 490: a rejection is shown on the page, not only inside the
+          sheet, so the payer sees what was turned down and why before
+          pressing anything.
+        */}
+        {live.state === "rejected" ? <RejectedTransfer live={live} /> : null}
         <button
           type="button"
           onClick={() => remember(true)}

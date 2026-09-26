@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { HistoryAsks, RedeemInvite } from "@/components/clinical/connect-panel";
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { asksForTherapist } from "@/lib/data/portability";
 import { formatDate, fullName } from "@/lib/utils";

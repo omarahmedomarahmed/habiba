@@ -9,7 +9,7 @@ import {
   openHoursOn,
   type BookingState,
 } from "@/app/(app)/bookings/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { dayKey, formatTime, formatWeekday, zoneLabel } from "@/lib/scheduling/tz";
 
@@ -157,7 +157,7 @@ export function Calendar({
       {/* ------------------------------------------------------ the controls */}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex rounded-xl bg-slate-100 p-0.5">
+        <div className="flex rounded-xl bg-navy-50 p-0.5">
           {(["day", "week", "month"] as const).map((option) => (
             <button
               key={option}
@@ -166,8 +166,8 @@ export function Calendar({
               aria-pressed={view === option}
               className={
                 view === option
-                  ? "tap-target h-9 rounded-lg bg-white px-3 text-xs font-semibold text-slate-900 shadow-sm"
-                  : "tap-target h-9 rounded-lg px-3 text-xs font-medium text-slate-600"
+                  ? "tap-target h-9 rounded-lg bg-white px-3 text-xs font-semibold text-navy-700 shadow-sm"
+                  : "tap-target h-9 rounded-lg px-3 text-xs font-medium text-navy-400"
               }
             >
               {t(`portal.book.${option}`)}
@@ -179,21 +179,21 @@ export function Calendar({
           <button
             type="button"
             onClick={() => step(-1)}
-            className="tap-target h-9 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+            className="tap-target h-9 rounded-lg px-2.5 text-xs font-medium text-navy-400 hover:bg-navy-50"
           >
             {t("portal.book.previous")}
           </button>
           <button
             type="button"
             onClick={() => setAnchor(new Date())}
-            className="tap-target h-9 rounded-lg px-2.5 text-xs font-semibold text-slate-900 hover:bg-slate-100"
+            className="tap-target h-9 rounded-lg px-2.5 text-xs font-semibold text-navy-700 hover:bg-navy-50"
           >
             {t("portal.book.today")}
           </button>
           <button
             type="button"
             onClick={() => step(1)}
-            className="tap-target h-9 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+            className="tap-target h-9 rounded-lg px-2.5 text-xs font-medium text-navy-400 hover:bg-navy-50"
           >
             {t("portal.book.next")}
           </button>
@@ -207,7 +207,7 @@ export function Calendar({
         a different wall-clock hour half the year. The hours here ARE their
         wall clock, and saying which clock removes the only ambiguity left.
       */}
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-navy-400">
         {t("portal.book.zone", { zone: zoneLabel(zone, locale) })}
       </p>
 
@@ -236,10 +236,10 @@ export function Calendar({
               className={
                 picked
                   ? "rounded-xl border border-brand-400 bg-brand-50 p-2 text-start"
-                  : "rounded-xl border border-slate-200 p-2 text-start hover:border-slate-300"
+                  : "rounded-xl border border-navy-100 p-2 text-start hover:border-navy-200"
               }
             >
-              <span className="block text-xs font-medium text-slate-900">
+              <span className="block text-xs font-medium text-navy-700">
                 {dayLabel(day.at)}
               </span>
               {/*
@@ -247,7 +247,7 @@ export function Calendar({
                 a 40px cell is a smear; the number is the thing somebody scans
                 a month for, and the day view is one tap away.
               */}
-              <span className="mt-0.5 block text-[11px] text-slate-500">
+              <span className="mt-0.5 block text-[11px] text-navy-400">
                 {hours.length === 0
                   ? ""
                   : booked > 0
@@ -263,15 +263,15 @@ export function Calendar({
 
       {selected.length > 0 ? (
         <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("portal.book.openHours")}</p>
+          <p className="text-sm font-semibold text-navy-700">{t("portal.book.openHours")}</p>
 
           <div className="mt-3 flex flex-wrap items-end gap-3">
-            <label className="text-xs text-slate-600">
+            <label className="text-xs text-navy-400">
               <span className="block">{t("portal.book.from")}</span>
               <select
                 value={fromHour}
                 onChange={(event) => setFromHour(Number(event.target.value))}
-                className="mt-1 h-11 rounded-xl border border-slate-200 px-2 text-sm"
+                className="mt-1 h-11 rounded-xl border border-navy-100 px-2 text-sm"
               >
                 {HOURS.map((hour) => (
                   <option key={hour} value={hour}>
@@ -281,12 +281,12 @@ export function Calendar({
               </select>
             </label>
 
-            <label className="text-xs text-slate-600">
+            <label className="text-xs text-navy-400">
               <span className="block">{t("portal.book.to")}</span>
               <select
                 value={toHour}
                 onChange={(event) => setToHour(Number(event.target.value))}
-                className="mt-1 h-11 rounded-xl border border-slate-200 px-2 text-sm"
+                className="mt-1 h-11 rounded-xl border border-navy-100 px-2 text-sm"
               >
                 {HOURS.slice(1).concat(24).map((hour) => (
                   <option key={hour} value={hour}>
@@ -296,12 +296,12 @@ export function Calendar({
               </select>
             </label>
 
-            <label className="text-xs text-slate-600">
+            <label className="text-xs text-navy-400">
               <span className="block">{t("portal.book.place")}</span>
               <select
                 value={place}
                 onChange={(event) => setPlace(event.target.value as typeof place)}
-                className="mt-1 h-11 rounded-xl border border-slate-200 px-2 text-sm"
+                className="mt-1 h-11 rounded-xl border border-navy-100 px-2 text-sm"
               >
                 <option value="online">{t("portal.book.placeOnline")}</option>
                 <option value="in_person">{t("portal.book.placeInPerson")}</option>
@@ -313,7 +313,7 @@ export function Calendar({
               type="button"
               disabled={pending}
               onClick={publish}
-              className="tap-target h-11 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+              className="tap-target h-11 rounded-xl bg-navy-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
             >
               {pending ? t("portal.book.publishing") : t("portal.book.publish")}
             </button>
@@ -331,10 +331,10 @@ export function Calendar({
               const hours = byDay.get(key) ?? [];
               return (
                 <Card key={key} className="p-4">
-                  <p className="text-sm font-semibold text-slate-900">{key}</p>
+                  <p className="text-sm font-semibold text-navy-700">{key}</p>
 
                   {hours.length === 0 ? (
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-navy-400">
                       {t("portal.book.nothingOpen")}
                     </p>
                   ) : (
@@ -342,13 +342,13 @@ export function Calendar({
                       {hours.map((slot) => (
                         <div
                           key={slot.id}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2"
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-navy-100 px-3 py-2"
                         >
                           <div>
-                            <span className="text-sm font-medium text-slate-900">
+                            <span className="text-sm font-medium text-navy-700">
                               {formatTime(slot.at, zone)}
                             </span>
-                            <span className="ms-2 text-xs text-slate-500">
+                            <span className="ms-2 text-xs text-navy-400">
                               {t(`portal.book.status${cap(slot.status)}` as never)}
                               {slot.patientName ? ` · ${slot.patientName}` : ""}
                             </span>
@@ -364,14 +364,14 @@ export function Calendar({
                           */}
                           {slot.status === "booked" && slot.at.getTime() > Date.now() ? (
                             openAhead.length === 0 ? (
-                              <span className="text-xs text-slate-500">{t("tchange.noOpen")}</span>
+                              <span className="text-xs text-navy-400">{t("tchange.noOpen")}</span>
                             ) : (
                               <div className="flex flex-wrap items-center gap-2">
                                 <select
                                   value={moveTo || openAhead[0]?.id}
                                   onChange={(event) => setMoveTo(event.target.value)}
                                   aria-label={t("tchange.moveTo")}
-                                  className="h-9 rounded-lg border border-slate-200 px-2 text-xs"
+                                  className="h-9 rounded-lg border border-navy-100 px-2 text-xs"
                                 >
                                   {openAhead.map((option) => (
                                     <option key={option.id} value={option.id}>
@@ -383,7 +383,7 @@ export function Calendar({
                                   type="button"
                                   disabled={pending}
                                   onClick={() => move(slot.id)}
-                                  className="tap-target h-9 rounded-lg bg-slate-900 px-2.5 text-xs font-semibold text-white disabled:opacity-50"
+                                  className="tap-target h-9 rounded-lg bg-navy-600 px-2.5 text-xs font-semibold text-white disabled:opacity-50"
                                 >
                                   {t("tchange.move")}
                                 </button>
@@ -399,7 +399,7 @@ export function Calendar({
                                     value={invitee}
                                     onChange={(event) => setInvitee(event.target.value)}
                                     aria-label={t("portal.book.invitePick")}
-                                    className="h-9 rounded-lg border border-slate-200 px-2 text-xs"
+                                    className="h-9 rounded-lg border border-navy-100 px-2 text-xs"
                                   >
                                     {patients.map((patient) => (
                                       <option key={patient.id} value={patient.id}>
@@ -423,7 +423,7 @@ export function Calendar({
                                 type="button"
                                 disabled={pending}
                                 onClick={() => close(slot.id)}
-                                className="tap-target h-9 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:underline disabled:opacity-50"
+                                className="tap-target h-9 rounded-lg px-2.5 text-xs font-medium text-navy-400 hover:underline disabled:opacity-50"
                               >
                                 {t("portal.book.withdraw")}
                               </button>
@@ -439,7 +439,7 @@ export function Calendar({
         : null}
 
       {state.ok && state.message === t("tchange.moved") ? (
-        <p role="status" className="text-xs text-emerald-700">
+        <p role="status" className="text-xs text-brand-800">
           {state.message}
         </p>
       ) : null}
@@ -454,7 +454,7 @@ export function Calendar({
         🔴 Two sentences a clinician needs before they open an hour, and both
         are consequences they cannot see from this screen.
       */}
-      <div className="space-y-1.5 text-xs leading-relaxed text-slate-500">
+      <div className="space-y-1.5 text-xs leading-relaxed text-navy-400">
         <p>{t("portal.book.reminder")}</p>
         <p>{t("portal.book.blocksRadar")}</p>
       </div>

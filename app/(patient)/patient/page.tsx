@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Download, FileText, Globe2, NotebookPen, Search, ShieldCheck, Star } from "lucide-react";
+import { CalendarDays, Download, FileText, Globe2, Lock, NotebookPen, Search, ShieldCheck, Star } from "lucide-react";
 import { eq, sql } from "drizzle-orm";
 
-import { Badge, Card } from "@/components/ui";
+import { ghostButton, Glow, Hero, Panel, primaryButton, RowLink, Screen, SectionHead } from "@/components/patient/kit";
 import { PatientAvatar } from "@/components/patient/avatar";
 import { CategoryGrid } from "@/components/patient/category-grid";
 import { ExploreRail } from "@/components/patient/explore-rail";
@@ -155,244 +155,209 @@ export default async function PatientHomePage({
   const { t } = i18n;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-5 px-4 py-6">
-      {claimed ? (
-        <Card className="border-brand-200 bg-brand-50 p-4">
-          <p className="text-sm font-semibold text-brand-900">{t("home.claimedTitle")}</p>
-          <p className="mt-1 text-sm leading-relaxed text-brand-900/90">
-            {claimed === "kept" ? t("home.claimedKept") : t("home.claimedDropped")}
-          </p>
-        </Card>
-      ) : null}
+    <Screen>
+      {/* ------------------------------------------------------ the hero */}
 
-      {/* ------------------------------------------------------- who you are */}
+      {/*
+        The sample's hero: who you are, and the one thing to do, on the
+        night-navy ground with the teal light behind it.
 
-      <header className="flex items-center gap-3">
-        <Link href="/patient/account" aria-label={t("home.yourAccount")}>
-          <PatientAvatar
-            personId={actor.personId}
-            hasPhoto={Boolean(person?.avatarUrl)}
-            name={actor.firstName}
-            size={44}
-          />
-        </Link>
-        <div className="min-w-0">
-          <p className="truncate text-lg font-bold tracking-tight text-slate-900">
-            {t("home.greeting", { name: actor.firstName })}
-          </p>
-          <p className="truncate text-xs text-slate-500">
-            {person?.claimedAt ? t("home.recordYours") : t("home.recordUnclaimed")}
-          </p>
+        🔴 65.7 / 65.8 — THE LIVE CARD COUNTS. It reads `radarCount()`, the
+        count C285 fixed to mean the people this product would actually show.
+        Above zero it is the number, live. At zero it says so and points at
+        the hours that are bookable, which is the thing that is true instead.
+      */}
+      <Hero>
+        <div className="flex items-center gap-3">
+          <Link href="/patient/account" aria-label={t("home.yourAccount")}>
+            <PatientAvatar
+              personId={actor.personId}
+              hasPhoto={Boolean(person?.avatarUrl)}
+              name={actor.firstName}
+              size={48}
+              className="ring-2 ring-white/20"
+            />
+          </Link>
+          <div className="min-w-0">
+            <p className="truncate text-[22px] font-bold tracking-tight">
+              {t("home.greeting", { name: actor.firstName })}
+            </p>
+            <p className="truncate text-[14px] text-white/65">
+              {person?.claimedAt ? t("home.recordYours") : t("home.recordUnclaimed")}
+            </p>
+          </div>
         </div>
-      </header>
+
+        {liveNow > 0 ? (
+          <Link
+            href="/patient/radar"
+            className="mt-5 block rounded-3xl bg-white/[0.07] p-4 ring-1 ring-white/12 backdrop-blur transition-colors hover:bg-white/10"
+          >
+            <span className="flex items-center gap-2 text-[14px] font-semibold text-brand-300">
+              <span className="live-dot h-2.5 w-2.5 rounded-full bg-brand-400" aria-hidden />
+              {liveNow === 1 ? t("home.liveOne") : t("home.liveMany", { count: liveNow })}
+            </span>
+            <span className="mt-4 flex items-center justify-between gap-3">
+              <span className="flex h-11 min-w-11 items-center justify-center rounded-full bg-white/10 px-2 text-[16px] font-bold tabular-nums ring-1 ring-white/15">
+                {liveNow}
+              </span>
+              <span className="inline-flex h-11 items-center gap-2 rounded-2xl bg-brand-500 px-4 text-[14px] font-semibold text-navy-700 shadow-[0_8px_24px_-8px_rgba(46,196,182,0.7)]">
+                <Globe2 className="h-4 w-4" aria-hidden />
+                {t("home.findNow")}
+              </span>
+            </span>
+          </Link>
+        ) : (
+          <Link
+            href="/patient/browse"
+            className="mt-5 flex items-center gap-3 rounded-3xl bg-white/[0.07] p-4 ring-1 ring-white/12 transition-colors hover:bg-white/10"
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10">
+              <Globe2 className="h-5 w-5 text-white/80" aria-hidden />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[16px] font-bold">{t("home.liveNone")}</span>
+              <span className="block text-[14px] text-white/70">{t("home.liveNoneBody")}</span>
+            </span>
+          </Link>
+        )}
+      </Hero>
 
       {/* ---------------------------------------------------------- the search */}
 
       <Link
         href="/patient/browse"
-        className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-500"
+        className="flex h-12 items-center gap-2.5 rounded-2xl bg-white px-4 text-[15px] text-navy-400 ring-1 ring-navy-100 transition-shadow hover:ring-navy-200"
       >
-        <Search className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+        <Search className="h-[18px] w-[18px] shrink-0 opacity-70" aria-hidden />
         {t("home.searchPlaceholder")}
       </Link>
 
-      {/* ------------------------------------------------------------ the globe */}
-
       {/*
-        🔴 65.7 / 65.8 — THE BANNER FOR WHAT IS LIVE RIGHT NOW, AND IT COUNTS.
-
-        This was a fixed brand-coloured card reading *"Therapists who are online and
-        free this minute"*, rendered identically at four in the morning with nobody on
-        shift. C288 ruled that the public homepage may not promise a therapist in sixty
-        seconds; the same promise inside the app, to somebody who opened it because they
-        needed one, is the version that costs something.
-
-        So the banner reads `radarCount()`, which is the count C285 fixed to mean the
-        people this product would actually show if anybody tapped. Above zero it is the
-        number, live. At zero it says so and points at the hours that are bookable,
-        which is the thing that is true instead.
+        🔴 22R — the confirmation the invite page could not show. The claim
+        lands here, where the record it produced is on the screen behind it.
       */}
-      {liveNow > 0 ? (
-        <Link
-          href="/patient/radar"
-          className="flex items-center gap-3 rounded-2xl bg-brand-500 px-4 py-3.5 text-navy-600 shadow-sm active:scale-[0.99]"
-        >
-          <Globe2 className="h-6 w-6 shrink-0" aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold">{t("home.findNow")}</span>
-            <span className="block text-xs text-navy-600/80">
-              {liveNow === 1 ? t("home.liveOne") : t("home.liveMany", { count: liveNow })}
-            </span>
-          </span>
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-sm font-bold tabular-nums">
-            <span className="live-dot">●</span>
-            {liveNow}
-          </span>
-        </Link>
-      ) : (
-        <Link
-          href="/patient/browse"
-          className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 active:scale-[0.99]"
-        >
-          <Globe2 className="h-6 w-6 shrink-0 text-slate-500" aria-hidden />
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-slate-900">
-              {t("home.liveNone")}
-            </span>
-            <span className="block text-xs text-slate-500">{t("home.liveNoneBody")}</span>
-          </span>
-        </Link>
-      )}
+      {claimed ? (
+        <Panel tone="brand">
+          <p className="text-[15px] font-bold text-navy-700">{t("home.claimedTitle")}</p>
+          <p className="mt-1 text-[14px] leading-relaxed text-navy-600">
+            {claimed === "kept" ? t("home.claimedKept") : t("home.claimedDropped")}
+          </p>
+        </Panel>
+      ) : null}
 
       {/* --------------------------------------------------- what is waiting */}
 
+      {/* 7.4 — an unanswered request is the one thing on this page waiting on them. */}
       {pending > 0 ? (
-        <Card className="border-amber-200 bg-amber-50 p-4">
+        <Panel className="ring-2 ring-amber-400">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-amber-900">{t("home.askedTitle")}</p>
-            <Badge tone="amber">{pending}</Badge>
+            <p className="text-[16px] font-bold text-navy-700">{t("home.askedTitle")}</p>
+            <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-amber-400 px-2 text-[13px] font-bold text-navy-700">
+              {pending}
+            </span>
           </div>
-          <p className="mt-1 text-sm leading-relaxed text-amber-900/90">
+          <p className="mt-1 text-[14px] leading-relaxed text-navy-500">
             {pending === 1 ? t("home.askedOne") : t("home.askedMany", { count: pending })}
           </p>
-          <Link
-            href="/patient/consent"
-            className="mt-3 inline-flex text-sm font-semibold text-amber-900 underline"
-          >
+          <Link href="/patient/consent" className={`${primaryButton} mt-3 h-11 w-full`}>
             {t("home.answerNow")}
           </Link>
-        </Card>
+        </Panel>
       ) : null}
 
+      {/* 9.5 — one step, and `nextStepFor` cannot return a rate, a streak or a history. */}
       {next ? (
-        <Card className="border border-brand-200 p-4">
-          <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
-            {t("home.beforeNext")}
-          </p>
-          <p className="mt-1.5 text-base leading-relaxed font-medium text-slate-900">
-            {next.title}
-          </p>
-          {next.detail ? (
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">{next.detail}</p>
-          ) : null}
-          <Link
-            href="/patient/homework"
-            className="mt-3 inline-flex text-sm font-semibold text-brand-700 hover:underline"
-          >
-            {next.othersWaiting > 0
-              ? t("home.openAndMore", {
-                  count: `${next.othersWaiting}${next.othersWaiting === 9 ? "+" : ""}`,
-                })
-              : t("home.openIt")}
-          </Link>
-        </Card>
+        <Panel tone="dark">
+          <Glow className="-end-16 -top-16 h-48 w-48" />
+          <div className="relative">
+            <p className="text-[13px] font-semibold tracking-wide text-brand-300 uppercase">
+              {t("home.beforeNext")}
+            </p>
+            <p className="mt-1 text-[17px] leading-snug font-bold">{next.title}</p>
+            {next.detail ? (
+              <p className="mt-1 text-[14px] leading-relaxed text-white/75">{next.detail}</p>
+            ) : null}
+            <Link
+              href="/patient/homework"
+              className="mt-3 inline-flex h-10 items-center rounded-xl bg-white/10 px-3.5 text-[14px] font-semibold text-white ring-1 ring-white/15 hover:bg-white/15"
+            >
+              {next.othersWaiting > 0
+                ? t("home.openAndMore", {
+                    count: `${next.othersWaiting}${next.othersWaiting === 9 ? "+" : ""}`,
+                  })
+                : t("home.openIt")}
+            </Link>
+          </div>
+        </Panel>
       ) : null}
 
       {/*
-        🔴 56.6 — an assessment lands where homework lands.
-
-        Not in a new "assessments" tab somebody has to discover. The thing the
-        therapist asked for between sessions is one idea to a patient, and
-        splitting it across two places is how a set of questions goes
-        unanswered for a fortnight. Same card shape, same position, directly
-        under the step they were already going to see.
-
-        No score and no band here either: this is a door, not a result.
+        🔴 56.6 — an assessment lands where homework lands, same card shape,
+        same position. No score and no band here either: this is a door.
       */}
       {openAssessments.length > 0 ? (
-        <Card className="border border-brand-200 p-4">
-          <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">
+        <Panel tone="brand">
+          <p className="text-[13px] font-semibold tracking-wide text-brand-700 uppercase">
             {t("home.beforeNext")}
           </p>
-          <p className="mt-1.5 text-base leading-relaxed font-medium text-slate-900">
+          <p className="mt-1 text-[17px] leading-snug font-bold text-navy-700">
             {t("passess.title")}
           </p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("passess.body")}</p>
-          <Link
-            href="/patient/assessments"
-            className="mt-3 inline-flex text-sm font-semibold text-brand-700 hover:underline"
-          >
+          <p className="mt-1 text-[14px] leading-relaxed text-navy-500">{t("passess.body")}</p>
+          <Link href="/patient/assessments" className={`${primaryButton} mt-3 h-11`}>
             {t("passess.start")}
           </Link>
-        </Card>
+        </Panel>
       ) : null}
 
       {/* ------------------------------------------------------- explore them */}
 
       {/*
         🔴 65.7 — EXPLORE THERAPISTS, AND IT COMES BEFORE THE RANKED RAIL.
-
-        A person who has just arrived is finding out whether there is anybody here, not
-        choosing between the best four. `exploreTherapists` puts whoever is online first
-        and rotates the rest daily, so the rail is a sample of the platform rather than
-        a leaderboard with a softer word over it.
+        `exploreTherapists` puts whoever is online first and rotates the rest.
       */}
-      <section>
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-semibold text-slate-900">{t("home.exploreTitle")}</h2>
-          {explore.length > 0 ? (
-            <Link href="/patient/browse" className="text-xs font-semibold text-brand-700">
-              {t("home.exploreAll")}
-            </Link>
-          ) : null}
-        </div>
-        <div className="mt-2.5">
-          {explore.length > 0 ? (
-            <ExploreRail therapists={explore} />
-          ) : (
-            /* 🔴 65.8 — an empty platform says it is empty. */
-            <StateBanner tone="info">{t("home.nobodyListed")}</StateBanner>
-          )}
-        </div>
+      <section className="space-y-3">
+        <SectionHead
+          title={t("home.exploreTitle")}
+          href={explore.length > 0 ? "/patient/browse" : undefined}
+          action={t("home.exploreAll")}
+        />
+        {explore.length > 0 ? (
+          <ExploreRail therapists={explore} />
+        ) : (
+          /* 🔴 65.8 — an empty platform says it is empty. */
+          <StateBanner tone="info">{t("home.nobodyListed")}</StateBanner>
+        )}
       </section>
 
       {/* --------------------------------------------------------- categories */}
 
-      {/*
-        🔴 65.7 / 65.9 — AN ICON GRID OVER THE TAXONOMY AN ADMIN ALREADY EDITS.
-
-        This was a sideways-scrolling row of grey pills: the least scannable form a list
-        of eight things can take, on the one screen whose reader may be in distress.
-
-        🔴 It is hidden when empty rather than given an honest sentence, and that is a
-        deliberate difference from the two rails above. Those make a claim about the
-        platform, so their absence has to be spoken. This is a shortcut into search, and
-        a shortcut that is not offered claims nothing at all.
-      */}
+      {/* 🔴 65.7 / 65.9 — an icon grid over the taxonomy; hidden when empty. */}
       {cats.length > 0 ? (
-        <section>
-          <h2 className="text-sm font-semibold text-slate-900">{t("home.areas")}</h2>
-          <div className="mt-2.5">
-            <CategoryGrid categories={cats.slice(0, 8)} />
-          </div>
+        <section className="space-y-3">
+          <SectionHead title={t("home.areas")} />
+          <CategoryGrid categories={cats.slice(0, 8)} />
         </section>
       ) : null}
 
       {/* ------------------------------------------------------- the top rail */}
 
-      {/*
-        🔴 65.8 — FEW RATINGS SAYS FEW RATINGS.
-
-        The rail used to vanish when nobody cleared the bar, which reads to a patient as
-        a product that has no ratings feature rather than one that refuses to invent a
-        ranking. And it carried a 24-word paragraph explaining the bar, under a heading,
-        above a list nobody had scrolled to yet.
-
-        Both are now one line with two numbers in it, and the zero case is on the screen
-        rather than absent from it.
-      */}
-      <section>
-        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-          <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
-          {t("home.ratedHighest")}
-        </h2>
-        <p className="mt-0.5 text-xs text-slate-500">
-          {best.length === 0
-            ? t("home.ratedNone", { bar: RATING_BAR })
-            : t("home.ratedSome", { count: best.length, bar: RATING_BAR })}
-        </p>
+      {/* 🔴 65.8 — FEW RATINGS SAYS FEW RATINGS, in one line with two numbers. */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="flex items-center gap-1.5 text-[17px] font-bold text-navy-700">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
+            {t("home.ratedHighest")}
+          </h2>
+          <p className="mt-0.5 text-[13px] text-navy-400">
+            {best.length === 0
+              ? t("home.ratedNone", { bar: RATING_BAR })
+              : t("home.ratedSome", { count: best.length, bar: RATING_BAR })}
+          </p>
+        </div>
         {best.length > 0 ? (
-          <ul className="mt-2.5 space-y-2.5">
+          <ul className="space-y-2.5">
             {best.map((therapist) => (
               <li key={therapist.userId}>
                 <TherapistCard therapist={therapist} />
@@ -404,6 +369,7 @@ export default async function PatientHomePage({
 
       {/* ---------------------------------------------------------- sessions */}
 
+      {/* 15.3 — their own sessions, through the one query whose select list is the 15.8 enforcement. */}
       <PatientSessionList
         sessions={sessions}
         zone={actor.timezone}
@@ -413,85 +379,60 @@ export default async function PatientHomePage({
         )}
       />
 
-      {/*
-        🔴 58.3 — the link to `/patient/sessions`, which did not exist.
-
-        That page is built, works, and groups a patient's sessions into three
-        tabs with the back button and a reload both surviving. Nothing anywhere
-        linked to it: it was reachable by typing the URL, which for the person
-        it was built for is the same as absent. `verify:reachable` found it on
-        its first run, alongside two admin pages in the same state.
-      */}
+      {/* 🔴 58.3 — the link to `/patient/sessions`, which nothing linked to before. */}
       {sessions.length > 0 ? (
-        <Link
-          href="/patient/sessions"
-          className="block text-center text-sm font-semibold text-brand-700"
-        >
+        <Link href="/patient/sessions" className={`${ghostButton} w-full`}>
+          <CalendarDays className="h-4 w-4" aria-hidden />
           {t("psessions.title")}
         </Link>
       ) : null}
 
       {/* ------------------------------------------------------- your record */}
 
-      <Card className="p-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-slate-900">{t("home.yourRecord")}</p>
-          {person?.claimedAt ? (
-            <Badge tone="teal">{t("home.yours")}</Badge>
-          ) : (
-            <Badge tone="slate">{t("home.notClaimed")}</Badge>
-          )}
+      <Panel>
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-navy-600 text-white">
+            <Lock className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[16px] font-bold text-navy-700">{t("home.yourRecord")}</p>
+              {person?.claimedAt ? (
+                <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-[12px] font-semibold text-brand-800">
+                  {t("home.yours")}
+                </span>
+              ) : (
+                <span className="rounded-full bg-navy-50 px-2.5 py-0.5 text-[12px] font-semibold text-navy-500">
+                  {t("home.notClaimed")}
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-[14px] leading-relaxed text-navy-500">
+              {attached === 0
+                ? t("home.noFiles")
+                : attached === 1
+                  ? t("home.filesAttached", { count: attached })
+                  : t("home.filesAttachedMany", { count: attached })}
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5">
+              <Link href="/patient/claim" className="text-[14px] font-semibold text-brand-700">
+                {person?.claimedAt ? t("home.claimAnother") : t("home.haveRecords")}
+              </Link>
+              <Link href="/patient/profile" className="text-[14px] font-semibold text-brand-700">
+                {t("home.openProfile")}
+              </Link>
+            </div>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-slate-600">
-          {attached === 0
-            ? t("home.noFiles")
-            : attached === 1
-              ? t("home.filesAttached", { count: attached })
-              : t("home.filesAttachedMany", { count: attached })}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
-          <Link href="/patient/claim" className="text-sm font-semibold text-brand-700">
-            {person?.claimedAt ? t("home.claimAnother") : t("home.haveRecords")}
-          </Link>
-          <Link href="/patient/profile" className="text-sm font-semibold text-brand-700">
-            {t("home.openProfile")}
-          </Link>
-        </div>
-      </Card>
+      </Panel>
 
-      {/* 26.5 / 26.1 — the two things on this app that are unambiguously theirs. */}
-      <Link
-        href="/patient/journal"
-        className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
-      >
-        <NotebookPen className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
-        {t("home.journal")}
-      </Link>
-
-      <Link
-        href="/patient/summary"
-        className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
-      >
-        <FileText className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
-        {t("home.summary")}
-      </Link>
-
-      <Link
-        href="/patient/consent"
-        className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
-      >
-        <ShieldCheck className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
-        {t("home.whoCanRead")}
-      </Link>
-
-      {/* 26.9 — the whole thing, in one document they can keep. */}
-      <Link
-        href="/patient/record"
-        className="flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200"
-      >
-        <Download className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
-        {t("home.getCopy")}
-      </Link>
-    </main>
+      {/* 26.5 / 26.1 / 26.9 — the things on this app that are unambiguously theirs. */}
+      <div className="grid gap-2">
+        <RowLink href="/patient/journal" icon={<NotebookPen className="h-5 w-5" aria-hidden />} label={t("home.journal")} />
+        <RowLink href="/patient/summary" icon={<FileText className="h-5 w-5" aria-hidden />} label={t("home.summary")} />
+        <RowLink href="/patient/consent" icon={<ShieldCheck className="h-5 w-5" aria-hidden />} label={t("home.whoCanRead")} />
+        <RowLink href="/patient/record" icon={<Download className="h-5 w-5" aria-hidden />} label={t("home.getCopy")} />
+      </div>
+    </Screen>
   );
 }

@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { Clock, ShieldOff, UserCheck } from "lucide-react";
 
 import { answerRequest, revoke } from "@/app/(patient)/patient/consent/actions";
-import { Badge, Card } from "@/components/ui";
+import { Badge } from "@/components/ui";
+import { Card, Face } from "@/components/patient/kit";
 import { useT, useLocale } from "@/lib/i18n/client";
 import { REJECTION_REASON_KEYS, REJECTION_REASONS } from "@/lib/access/state";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
@@ -64,10 +65,10 @@ export function ConsentList({
   return (
     <div className="space-y-4">
       <section>
-        <h2 className="px-1 pb-2 text-sm font-semibold text-slate-900">{t("consent.waiting")}</h2>
+        <h2 className="px-1 pb-2 text-sm font-semibold text-navy-700">{t("consent.waiting")}</h2>
         {requests.length === 0 ? (
           <Card className="px-4 py-5">
-            <p className="text-sm text-slate-500">{t("consent.nobodyAsked")}</p>
+            <p className="text-sm text-navy-400">{t("consent.nobodyAsked")}</p>
           </Card>
         ) : (
           <ul className="space-y-3">
@@ -79,10 +80,10 @@ export function ConsentList({
       </section>
 
       <section>
-        <h2 className="px-1 pb-2 text-sm font-semibold text-slate-900">{t("consent.whoHasAccess")}</h2>
+        <h2 className="px-1 pb-2 text-sm font-semibold text-navy-700">{t("consent.whoHasAccess")}</h2>
         {grants.length === 0 ? (
           <Card className="px-4 py-5">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-navy-400">
               {t("consent.nobodyCanRead")}
             </p>
           </Card>
@@ -127,27 +128,32 @@ function RequestRow({
 
   return (
     <li>
-      <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{request.therapistName}</p>
-        {request.requestedAt ? (
-          <p className="mt-0.5 text-xs text-slate-500">
-            Asked on {formatDate(request.requestedAt, zone, locale)}
-          </p>
-        ) : null}
+      <Card className="p-4 ring-2 ring-amber-400">
+        <div className="flex items-center gap-3">
+          <Face name={request.therapistName} size={48} />
+          <div className="min-w-0">
+            <p className="truncate text-[16px] font-bold text-navy-700">{request.therapistName}</p>
+            {request.requestedAt ? (
+              <p className="mt-0.5 text-[13px] text-navy-400">
+                {t("consent.askedOn", { date: formatDate(request.requestedAt, zone, locale) })}
+              </p>
+            ) : null}
+          </div>
+        </div>
 
         {request.requestNote ? (
-          <blockquote className="mt-2 border-s-2 border-slate-200 ps-3 text-sm leading-relaxed text-slate-600">
+          <blockquote className="mt-2 border-s-2 border-navy-100 ps-3 text-sm leading-relaxed text-navy-400">
             {request.requestNote}
           </blockquote>
         ) : null}
 
         {declining ? (
           <div className="mt-3 space-y-2">
-            <p className="text-xs font-medium text-slate-600">
+            <p className="text-xs font-medium text-navy-400">
               {t("consent.sayWhy")}
             </p>
             {REJECTION_REASONS.map((preset) => (
-              <label key={preset} className="flex items-start gap-2 text-sm text-slate-700">
+              <label key={preset} className="flex items-start gap-2 text-sm text-navy-600">
                 <input
                   type="radio"
                   name={`reason-${request.id}`}
@@ -164,26 +170,26 @@ function RequestRow({
                 type="button"
                 disabled={pending}
                 onClick={() => answer("rejected")}
-                className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                className="tap-target h-10 rounded-2xl bg-navy-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {pending ? t("common.working") : t("common.decline")}
               </button>
               <button
                 type="button"
                 onClick={() => setDeclining(false)}
-                className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-slate-600"
+                className="tap-target h-10 rounded-2xl px-3 text-sm font-medium text-navy-400"
               >
                 {t("common.back")}
               </button>
             </div>
           </div>
         ) : (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-2">
             <button
               type="button"
               disabled={pending}
               onClick={() => answer("granted", "24h")}
-              className="tap-target h-10 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600 hover:bg-brand-400 disabled:opacity-50"
+              className="tap-target col-span-2 h-12 rounded-2xl bg-brand-500 px-4 text-[15px] font-semibold text-navy-700 shadow-[0_8px_24px_-10px_rgba(46,196,182,0.7)] hover:bg-brand-400 disabled:opacity-50"
             >
               {t("consent.yesDay")}
             </button>
@@ -191,7 +197,7 @@ function RequestRow({
               type="button"
               disabled={pending}
               onClick={() => answer("granted", "open")}
-              className="tap-target h-10 rounded-xl bg-white px-4 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
+              className="tap-target h-12 rounded-2xl border border-navy-200 bg-white px-3 text-[14px] font-semibold text-navy-600 hover:bg-navy-50 disabled:opacity-50"
             >
               {t("consent.yesUntil")}
             </button>
@@ -199,7 +205,7 @@ function RequestRow({
               type="button"
               disabled={pending}
               onClick={() => setDeclining(true)}
-              className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              className="tap-target h-12 rounded-2xl border border-navy-200 bg-white px-3 text-[14px] font-semibold text-navy-600 hover:bg-navy-50"
             >
               {t("consent.no")}
             </button>
@@ -236,23 +242,25 @@ function GrantRow({
   const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const live = grant.status === "granted" && (!grant.expiresAt || grant.expiresAt > new Date());
 
   return (
     <li>
       <Card className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+        <div className="flex items-center justify-between gap-3">
+          <Face name={grant.therapistName} size={44} />
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 text-[15px] font-bold text-navy-700">
               {live ? (
                 <UserCheck className="h-4 w-4 shrink-0 text-brand-500" aria-hidden />
               ) : (
-                <ShieldOff className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+                <ShieldOff className="h-4 w-4 shrink-0 text-navy-400" aria-hidden />
               )}
               {grant.therapistName}
             </p>
-            <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-navy-400">
               {live && grant.expiresAt ? (
                 <>
                   <Clock className="h-3 w-3" aria-hidden />
@@ -276,20 +284,49 @@ function GrantRow({
           )}
         </div>
 
-        {live ? (
+        {/*
+          🔴 Board 480: Stop acted on the first press. Ending a clinician's
+          access is not undone by pressing again (they must ask anew), so it
+          asks once, naming who and what they keep.
+        */}
+        {live && confirming ? (
+          <div className="mt-3 rounded-2xl bg-navy-50 p-3">
+            <p className="text-sm leading-relaxed text-navy-600">
+              {t("consent.stopConfirm", { name: grant.therapistName })}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => {
+                    setError(null);
+                    const result = await revoke(grant.id);
+                    if (result.error) setError(result.error);
+                    else setConfirming(false);
+                  })
+                }
+                className="tap-target h-11 rounded-2xl bg-navy-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {pending ? t("common.working") : t("consent.stopYes")}
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setConfirming(false)}
+                className="tap-target h-11 rounded-2xl px-3 text-sm font-medium text-navy-400"
+              >
+                {t("common.cancel")}
+              </button>
+            </div>
+          </div>
+        ) : live ? (
           <button
             type="button"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                setError(null);
-                const result = await revoke(grant.id);
-                if (result.error) setError(result.error);
-              })
-            }
-            className="tap-target mt-3 h-10 w-full rounded-xl bg-slate-100 text-sm font-semibold text-slate-800 hover:bg-slate-200 disabled:opacity-50"
+            onClick={() => setConfirming(true)}
+            className="tap-target mt-3 h-11 w-full rounded-2xl border border-navy-200 bg-white text-sm font-semibold text-navy-700 hover:bg-navy-50"
           >
-            {pending ? t("common.working") : t("consent.stop")}
+            {t("consent.stop")}
           </button>
         ) : null}
 

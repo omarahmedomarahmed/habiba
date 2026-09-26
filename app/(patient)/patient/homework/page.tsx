@@ -32,14 +32,14 @@ export default async function HomeworkPage() {
   ]);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       <div className="flex items-center gap-1">
         <PatientBack />
       </div>
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("homework.title")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("homework.title")}</h1>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">
           {t("homework.body")}
         </p>
       </div>

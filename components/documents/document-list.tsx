@@ -52,7 +52,10 @@ export function DocumentList({
   watermark,
   onFlag,
   zone,
+  reader = "patient",
 }: {
+  /** Board 504: who is reading, so the empty line speaks to them and not to the other side. */
+  reader?: "patient" | "clinician";
   /**
    * The zone every date on this screen is printed in. 12.3, corrected.
    *
@@ -82,7 +85,7 @@ export function DocumentList({
     return (
       <Card className="px-4 py-6">
         <p className="text-sm text-slate-500">
-          {t("pprofile.empty")}
+          {t(reader === "clinician" ? "tdocs.empty" : "pprofile.empty")}
         </p>
       </Card>
     );

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { SponsorHeading } from "@/components/sponsor/heading";
 import { Team } from "@/components/sponsor/team";
 import { sponsorTeam } from "@/lib/data/sponsor-users";
 import { getI18n } from "@/lib/i18n/server";
@@ -23,8 +24,8 @@ export default async function SponsorTeamPage() {
   const rows = await sponsorTeam(actor.sponsorId);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("sponsor.nav.team")}</h1>
+    <div className="mx-auto flex max-w-xl flex-col gap-5">
+      <SponsorHeading title={t("sponsor.nav.team")} />
       <Team
         rows={rows.map((row) => ({
           id: row.id,

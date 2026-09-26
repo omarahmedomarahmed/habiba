@@ -67,9 +67,9 @@ export function BottomNav({
     return (
       <nav
         aria-label={t("portal.nav.primary")}
-        className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden"
+        className="safe-bottom fixed inset-x-0 bottom-0 z-40 px-3 lg:hidden"
       >
-        <div className="mx-auto flex max-w-lg items-center justify-around px-2 pt-1">
+        <div className="mx-auto flex max-w-lg items-center justify-around rounded-[26px] bg-navy-900/95 px-2 py-1 shadow-[0_20px_40px_-16px_rgba(3,11,23,0.6)] ring-1 ring-white/10 backdrop-blur-xl">
           {all.map((item) => (
             <NavItem
               key={item.href}
@@ -92,18 +92,19 @@ export function BottomNav({
             type="button"
             aria-label={t("portal.nav.closeMenu")}
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-navy-500/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-navy-900/45 backdrop-blur-[2px]"
           />
-          <div className="safe-bottom animate-fade-rise absolute inset-x-0 bottom-0 rounded-t-3xl bg-white p-3 pb-24">
+          <div className="safe-bottom animate-fade-rise absolute inset-x-0 bottom-0 rounded-t-[28px] bg-white p-3 pb-28 shadow-[0_-20px_60px_-20px_rgba(3,11,23,0.45)]">
+            <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-navy-100" aria-hidden />
             <div className="mb-1 flex items-center justify-between px-2 py-1">
-              <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
+              <p className="text-[17px] font-bold text-navy-700">
                 {t("portal.nav.more")}
               </p>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={t("common.close")}
-                className="tap-target flex items-center justify-center text-slate-500"
+                className="tap-target flex items-center justify-center rounded-full text-navy-400 hover:bg-navy-50"
               >
                 <X className="h-5 w-5" aria-hidden />
               </button>
@@ -114,22 +115,22 @@ export function BottomNav({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-2xl px-3 py-3 active:bg-slate-100",
-                  isActive(item.href) && "bg-brand-50",
+                  "flex items-center gap-3 rounded-2xl px-3 py-3 active:bg-navy-50",
+                  isActive(item.href) && "bg-brand-50 ring-1 ring-brand-100",
                 )}
               >
                 <span
                   className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                    isActive(item.href) ? "bg-brand-500 text-navy-600" : "bg-slate-100 text-slate-600",
+                    "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
+                    isActive(item.href) ? "bg-brand-500 text-navy-600" : "bg-navy-50 text-navy-500",
                   )}
                 >
                   <item.icon className="h-4 w-4" aria-hidden />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-slate-900">{t(item.label)}</span>
+                  <span className="block text-[15px] font-semibold text-navy-700">{t(item.label)}</span>
                   {item.hint ? (
-                    <span className="block truncate text-xs text-slate-500">{t(item.hint)}</span>
+                    <span className="block truncate text-[13px] text-navy-400">{t(item.hint)}</span>
                   ) : null}
                 </span>
               </Link>
@@ -144,12 +145,12 @@ export function BottomNav({
               <form action={switchToClinic}>
                 <button
                   type="submit"
-                  className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-start active:bg-slate-100"
+                  className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-start active:bg-navy-50"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-navy-50 text-navy-500">
                     <Building2 className="h-4 w-4" aria-hidden />
                   </span>
-                  <span className="text-sm font-semibold text-slate-900">
+                  <span className="text-[15px] font-semibold text-navy-700">
                     {t("portal.nav.switchToClinic")}
                   </span>
                 </button>
@@ -161,9 +162,9 @@ export function BottomNav({
 
       <nav
         aria-label={t("portal.nav.primary")}
-        className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden"
+        className="safe-bottom fixed inset-x-0 bottom-0 z-40 px-3 lg:hidden"
       >
-        <div className="mx-auto flex max-w-lg items-center justify-around px-2 pt-1">
+        <div className="mx-auto flex max-w-lg items-center justify-around rounded-[26px] bg-navy-900/95 px-2 py-1 shadow-[0_20px_40px_-16px_rgba(3,11,23,0.6)] ring-1 ring-white/10 backdrop-blur-xl">
           {primary.slice(0, 2).map((item) => (
             <NavItem
               key={item.href}
@@ -177,7 +178,7 @@ export function BottomNav({
           <Link
             href="/sessions/new"
             aria-label={t("portal.dash.start")}
-            className="tap-target -mt-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500 text-navy-600 shadow-lg shadow-brand-500/30 active:bg-brand-600"
+            className="tap-target -mt-7 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-500 text-navy-600 shadow-[0_10px_28px_-8px_rgba(46,196,182,0.9)] ring-4 ring-navy-50 active:bg-brand-600"
           >
             <Plus className="h-6 w-6" aria-hidden />
           </Link>
@@ -198,13 +199,13 @@ export function BottomNav({
             aria-expanded={open}
             aria-label={t("portal.nav.more")}
             className={cn(
-              "tap-target flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5",
-              open || moreActive ? "text-brand-700" : "text-slate-500",
+              "tap-target my-1 flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-1.5 transition-colors",
+              open || moreActive ? "text-brand-300" : "text-white/70",
             )}
           >
             <MoreHorizontal className="h-5 w-5" aria-hidden />
             <span
-              className={cn("text-[10px]", open || moreActive ? "font-semibold" : "font-medium")}
+              className={cn("text-[11px]", open || moreActive ? "font-semibold" : "font-medium")}
             >
               {t("portal.nav.more")}
             </span>
@@ -231,12 +232,12 @@ function NavItem({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "tap-target flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5",
-        active ? "text-brand-700" : "text-slate-500",
+        "tap-target my-1 flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-1.5 transition-colors",
+        active ? "bg-white/10 text-brand-300" : "text-white/70",
       )}
     >
       <Icon className="h-5 w-5" aria-hidden />
-      <span className={cn("text-[10px]", active ? "font-semibold" : "font-medium")}>{label}</span>
+      <span className={cn("text-[11px]", active ? "font-semibold" : "font-medium")}>{label}</span>
     </Link>
   );
 }

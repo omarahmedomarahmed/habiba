@@ -10,7 +10,7 @@ import {
   resendDomainProof,
   type DomainState,
 } from "@/app/(sponsor)/sponsor/domains/actions";
-import { Button, Card, EmptyState, Input } from "@/components/ui";
+import { Button, Card, EmptyState, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import { ADMIN_MAILBOXES, type AdminMailbox } from "@/lib/sponsor/domain-mailboxes";
 
@@ -72,7 +72,7 @@ export function DomainList({
         rows.map((row) => (
           <Card key={row.id} className="p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-mono text-sm font-semibold text-slate-900">{row.domain}</p>
+              <p className="font-mono text-sm font-semibold text-navy-700">{row.domain}</p>
               {row.byAgreement ? (
                 <span className="text-xs font-medium text-brand-700">
                   {t("sponsor.domain.byAgreement")}
@@ -106,14 +106,14 @@ export function DomainList({
               audit their zone files and a record with no explanation gets
               deleted by whoever inherits it.
             */}
-            <div className="mt-3 rounded-xl bg-slate-50 p-3">
-              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+            <div className="mt-3 rounded-xl bg-navy-50 p-3">
+              <p className="text-xs font-semibold tracking-wide text-navy-400 uppercase">
                 {t("sponsor.domain.txt")}
               </p>
-              <p className="mt-1 font-mono text-xs break-all text-slate-700">
+              <p className="mt-1 font-mono text-xs break-all text-navy-600">
                 {recordName}.{row.domain}
               </p>
-              <p className="mt-1 font-mono text-xs break-all text-slate-700">{row.dnsToken}</p>
+              <p className="mt-1 font-mono text-xs break-all text-navy-600">{row.dnsToken}</p>
 
               {/*
                 🔴 61.4 — "check it now", because IT publishes a record and then
@@ -142,7 +142,7 @@ export function DomainList({
                     {pending && checking === row.id ? t("sponsor.domain.looking") : t("sponsor.domain.check")}
                   </Button>
                   {checkResult[row.id] ? (
-                    <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                    <p className="mt-2 text-xs leading-relaxed text-navy-400">
                       {checkResult[row.id]}
                     </p>
                   ) : null}
@@ -155,8 +155,8 @@ export function DomainList({
 
       {canEdit ? (
         <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("sponsor.domain.add")}</p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          <h2 className="text-[17px] font-bold text-navy-700">{t("sponsor.domain.add")}</h2>
+          <p className="mt-1 text-xs leading-relaxed text-navy-400">
             {t("sponsor.domain.addBody")}
           </p>
           <form action={action} className="mt-3 flex flex-wrap items-end gap-2">
@@ -203,7 +203,7 @@ function MailboxSelect({
       value={value}
       defaultValue={value === undefined ? "postmaster" : undefined}
       onChange={onChange ? (event) => onChange(event.target.value as AdminMailbox) : undefined}
-      className="h-12 rounded-xl border border-slate-300 bg-white px-3 font-mono text-sm text-slate-900"
+      className="h-12 rounded-xl border border-navy-200 bg-white px-3 font-mono text-sm text-navy-700"
     >
       {ADMIN_MAILBOXES.map((mailbox) => (
         <option key={mailbox} value={mailbox}>
@@ -224,7 +224,7 @@ function ProofMail({ domainId, domain }: { domainId: string; domain: string }) {
 
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2">
-      <span className="text-xs font-medium text-slate-600">{t("sponsor.domain.sendTo")}</span>
+      <span className="text-xs font-medium text-navy-400">{t("sponsor.domain.sendTo")}</span>
       <MailboxSelect suffix={`@${domain}`} value={mailbox} onChange={setMailbox} />
       <Button
         type="button"
@@ -245,7 +245,7 @@ function ProofMail({ domainId, domain }: { domainId: string; domain: string }) {
         {pending ? t("common.sending") : t("sponsor.domain.send")}
       </Button>
       {said ? (
-        <p role="status" className="w-full text-xs leading-relaxed text-slate-600">
+        <p role="status" className="w-full text-xs leading-relaxed text-navy-400">
           {said}
         </p>
       ) : null}
@@ -259,9 +259,9 @@ function Step({ done, label }: { done: boolean; label: string }) {
       {done ? (
         <Check className="h-4 w-4 shrink-0 text-brand-600" aria-hidden />
       ) : (
-        <Circle className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+        <Circle className="h-4 w-4 shrink-0 text-navy-200" aria-hidden />
       )}
-      <span className={done ? "text-slate-700" : "text-slate-500"}>{label}</span>
+      <span className={done ? "text-navy-600" : "text-navy-400"}>{label}</span>
     </li>
   );
 }

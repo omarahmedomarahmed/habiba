@@ -434,7 +434,20 @@ type Block = { key: string; portal: string; words: number; text: string };
 function harvest(): Block[] {
   const out: Block[] = [];
 
+  /*
+   * 🔴 Board 268 / 420 / 424: a counted sentence has four keys (the plural, One,
+   * Two, Many; see lib/i18n/count-form.ts) and a reader meets exactly one of
+   * them. Counting all four charged a portal three times over for saying "1
+   * person" instead of "1 people", so the forms beside a base are skipped.
+   */
+  const en = DICTIONARIES.en as Record<string, string>;
+  const isCountForm = (key: string) => {
+    const base = /^(.*)(One|Two|Many)$/.exec(key)?.[1];
+    return Boolean(base && base in en && `${base}One` in en && `${base}Two` in en && `${base}Many` in en);
+  };
+
   for (const [key, value] of Object.entries(DICTIONARIES.en)) {
+    if (isCountForm(key)) continue;
     const text = String(value);
     const count = words(text);
     if (count === 0) continue;

@@ -633,6 +633,45 @@ async function main() {
       refusal.error ?? "no error sentence",
     );
 
+    /*
+     * 🔴 Board 606: the same withdrawal, after the session ended, used to erase the
+     * approved note and transcript and make every GET say nobody consented. A
+     * withdrawal stops new reading and does not erase what was already read.
+     */
+    const keptRef = `${fixture}-w1`;
+    const noteAfter = await (await import("../app/api/partner/v1/sessions/[ref]/note/route")).GET(
+      new Request(`${base}/sessions/${keptRef}/note`, { headers: bearer }),
+      { params: Promise.resolve({ ref: keptRef }) },
+    );
+    const noteKept = (await noteAfter.json().catch(() => ({}))) as { approved?: string | null; coverage?: string };
+    const transcriptAfter = await (await import("../app/api/partner/v1/sessions/[ref]/transcript/route")).GET(
+      new Request(`${base}/sessions/${keptRef}/transcript`, { headers: bearer }),
+      { params: Promise.resolve({ ref: keptRef }) },
+    );
+    const transcriptKept = (await transcriptAfter.json().catch(() => ({}))) as { transcript?: string | null };
+    check(
+      "🔴 Board 606 a withdrawal after the session ended keeps the approved note and transcript readable",
+      noteAfter.status === 200 &&
+        noteKept.approved === "Approved note about sleep." &&
+        /recorded from the start/.test(noteKept.coverage ?? "") &&
+        transcriptAfter.status === 200 &&
+        /sleep/.test(transcriptKept.transcript ?? ""),
+      `note ${noteAfter.status} ${JSON.stringify(noteKept).slice(0, 120)}; transcript ${transcriptAfter.status}`,
+    );
+    const summaryAfter = await (await import("../app/api/partner/v1/sessions/[ref]/summary/route")).POST(
+      new Request(`${base}/sessions/${keptRef}/summary`, {
+        method: "POST",
+        headers: { ...bearer, "content-type": "application/json" },
+        body: JSON.stringify({ text: "A new summary" }),
+      }),
+      { params: Promise.resolve({ ref: keptRef }) },
+    );
+    check(
+      "Board 606 …and nothing new is written from it: a new summary is refused",
+      summaryAfter.status === 403,
+      `summary ${summaryAfter.status}`,
+    );
+
     const unlinked = `${fixture}-P3`;
     await endedSession(`${fixture}-u1`, unlinked);
     await db.execute(sql`

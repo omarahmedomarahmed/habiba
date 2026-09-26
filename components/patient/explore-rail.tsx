@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { DiscoverTherapist } from "@/lib/data/discover";
 import { getI18n } from "@/lib/i18n/server";
+import { Face } from "@/components/patient/kit";
 
 /**
  * 🔴 65.7 — EXPLORE THERAPISTS, AS A RAIL RATHER THAN A COLUMN OF PARAGRAPHS.
@@ -28,42 +29,29 @@ export async function ExploreRail({ therapists }: { therapists: DiscoverTherapis
   const { t } = await getI18n();
 
   return (
-    <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
+    <ul className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {therapists.map((therapist) => (
-        <li key={therapist.userId} className="w-40 shrink-0 snap-start">
+        <li key={therapist.userId} className="w-[200px] shrink-0 snap-start">
           <Link
             href={`/patient/t/${therapist.userId}`}
-            className="flex h-full flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3"
+            className="flex h-full flex-col gap-3 rounded-3xl bg-white p-4 shadow-[0_10px_30px_-18px_rgba(10,35,66,0.35)] ring-1 ring-navy-100 transition-transform active:scale-[0.98]"
           >
-            {therapist.photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={therapist.photoUrl}
-                alt=""
-                className="h-16 w-16 rounded-2xl object-cover"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-lg font-semibold text-slate-600">
-                {therapist.name.slice(0, 1)}
-              </span>
-            )}
+            <Face name={therapist.name} photoUrl={therapist.photoUrl} size={48} live={therapist.online} />
 
             <span className="min-w-0">
-              <span className="block text-sm leading-snug font-semibold text-slate-900">
+              <span className="block truncate text-[15px] leading-snug font-bold text-navy-700">
                 {therapist.name}
               </span>
               {therapist.specialties.length > 0 ? (
-                <span className="mt-0.5 block text-xs leading-snug text-slate-500">
+                <span className="mt-0.5 block truncate text-[13px] leading-snug text-navy-400">
                   {therapist.specialties[0]}
                 </span>
               ) : null}
             </span>
 
             {therapist.online ? (
-              <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
-                <span className="live-dot">●</span>
+              <span className="mt-auto inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-50 px-2 py-0.5 text-[12px] font-semibold text-brand-800">
+                <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden />
                 {t("radar.freeNow")}
               </span>
             ) : null}

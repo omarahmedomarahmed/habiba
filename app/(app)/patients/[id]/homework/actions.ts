@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import { requireUser } from "@/lib/auth/guard";
 import { accessFor } from "@/lib/data/grants";
@@ -45,10 +46,17 @@ export async function setStep(
   const g = await gate(patientId);
   if ("error" in g) return { error: g.error };
 
+  /* A session named by the browser must be this patient's, or it is dropped. */
+  let sessionId: string | null = null;
+  if (input.sessionId) {
+    const { personForSession } = await import("@/lib/data/homework");
+    if ((await personForSession(input.sessionId)) === g.personId) sessionId = input.sessionId;
+  }
+
   const result = await assignStep({
     actor: g.actor,
     personId: g.personId,
-    sessionId: input.sessionId ?? null,
+    sessionId,
     title: input.title,
     detail: input.detail ?? null,
     // A step promoted from the note's draft is recorded as `drafted`, so a
@@ -58,8 +66,17 @@ export async function setStep(
 
   if (!result.ok) return { error: result.error };
 
-  /* 🔴 K18: the patient is told; the row alone reached nobody. */
-  await tellPatientOfWork({ personId: g.personId, therapistUserId: g.actor.userId, what: "homework" });
+  /*
+   * 🔴 K18: the patient is told; the row alone reached nobody.
+   * 🔴 Board 501 / 518: after the response, and only for a step that is new. It
+   * was awaited here, so the clinician's page waited on an email before it
+   * showed the step, and a clinician who saw nothing change pressed again.
+   */
+  if (!result.already) {
+    const personId = g.personId;
+    const therapistUserId = g.actor.userId;
+    after(() => tellPatientOfWork({ personId, therapistUserId, what: "homework" }));
+  }
 
   revalidateBothSides(patientId);
   return { ok: true };

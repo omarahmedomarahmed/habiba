@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RatingForm } from "@/components/feedback/rating-form";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { feedbackContext } from "@/lib/data/feedback";
 import { Logo } from "@/components/brand/logo";
 import { getI18n } from "@/lib/i18n/server";
@@ -42,8 +42,8 @@ export default async function FeedbackPage({
     return (
       <Shell country={sosCountry}>
         <Card className="p-6 text-center">
-          <p className="text-base font-semibold text-slate-900">{t("feedback.expired")}</p>
-          <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600">
+          <p className="text-base font-semibold text-navy-700">{t("feedback.expired")}</p>
+          <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-navy-400">
             {t("feedback.expiredBody")}
           </p>
           {/*
@@ -110,8 +110,8 @@ export default async function FeedbackPage({
       */}
       {signedIn ? null : (
         <Card className="mt-6 p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("feedback.seeTitle")}</p>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("feedback.seeBody")}</p>
+          <p className="text-sm font-semibold text-navy-700">{t("feedback.seeTitle")}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-navy-400">{t("feedback.seeBody")}</p>
           <Link
             href="/patient/signup"
             className="mt-4 inline-flex h-11 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
@@ -121,7 +121,7 @@ export default async function FeedbackPage({
         </Card>
       )}
 
-      <p className="mt-6 text-center text-xs leading-relaxed text-slate-500">
+      <p className="mt-6 text-center text-xs leading-relaxed text-navy-400">
         {t("urgent.footer")}
       </p>
     </Shell>
@@ -130,7 +130,7 @@ export default async function FeedbackPage({
 
 function Shell({ children, country }: { children: React.ReactNode; country: string | null }) {
   return (
-    <div className="min-h-dvh bg-slate-50">
+    <div className="min-h-dvh bg-navy-50">
       <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">{children}</div>
       {/*
         🔴 51.4 — in the Shell rather than in either branch.

@@ -1315,7 +1315,7 @@ async function main() {
     /*  53.5 / 53.8 / 53.9 · the doors and the poster       */
     /* ==================================================== */
 
-    const { PRINCIPALS, routeDecision, SPONSOR_APPLY, SPONSOR_DOMAIN_CONFIRM } = await import(
+    const { PRINCIPALS, routeDecision, SPONSOR_APPLY, SPONSOR_DOMAIN_CONFIRM, SPONSOR_EXPIRED } = await import(
       "../lib/routing"
     );
 
@@ -1331,15 +1331,20 @@ async function main() {
      * link mailed to `postmaster@` could only be pressed by somebody who already
      * had a portal login. The link's HMAC is its authorisation (C318). The rule
      * stays a closed list, now naming both, so a third open route still fails.
+     *
+     * 🔴 Board 330: and the session-expired handler, which only revokes the
+     * caller's own session and deletes their cookie. It is open because the
+     * cookie it exists to clear must not bounce it away; it shows nothing.
      */
     const open = sponsorPrincipal.openRoutes ?? [];
     check(
       "🔴 53.5 the enquiry form and the mailbox link are reachable by a stranger, and they are the ONLY such paths",
       routeDecision(SPONSOR_APPLY, { expired: false }).kind === "pass" &&
         routeDecision(`${SPONSOR_DOMAIN_CONFIRM}/x`, { expired: false }).kind === "pass" &&
-        open.length === 2 &&
+        open.length === 3 &&
         open.includes(SPONSOR_APPLY) &&
-        open.includes(SPONSOR_DOMAIN_CONFIRM),
+        open.includes(SPONSOR_DOMAIN_CONFIRM) &&
+        open.includes(SPONSOR_EXPIRED),
       open.join(", "),
     );
 

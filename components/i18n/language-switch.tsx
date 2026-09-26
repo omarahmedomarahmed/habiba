@@ -4,8 +4,7 @@ import { useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Languages } from "lucide-react";
 
-import { setLocale } from "@/app/actions/locale";
-import { LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/config";
+import { LOCALE_COOKIE, LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/config";
 import { useLocale } from "@/lib/i18n/client";
 import { isLocalisable, localisedPath } from "@/lib/i18n/paths";
 import { cn } from "@/lib/utils";
@@ -53,11 +52,15 @@ export function LanguageSwitch({
   className,
   offered,
   pathname,
+  tone = "light",
 }: {
   className?: string;
   offered?: { code: string; nativeName: string }[];
   pathname?: string;
+  /** The website's header is navy; everywhere else sits on a light ground. */
+  tone?: "light" | "dark";
 }) {
+  const dark = tone === "dark";
   const current = useLocale();
   const router = useRouter();
   const routerPath = usePathname();
@@ -65,27 +68,42 @@ export function LanguageSwitch({
 
   const here = pathname ?? routerPath ?? "/";
 
-  const choose = (next: Locale) =>
-    startTransition(async () => {
-      /* The cookie is still the preference, and it is set either way: a reader
-         who chose Arabic on a public page stays in Arabic when they sign in. */
-      await setLocale(next);
+  /*
+   * 🔴 Board 567: the cookie is written HERE, in the browser, and the page is
+   * rendered once. It was a server action and then a refresh: a server action
+   * that sets a cookie already re-renders the page it was called from, so the
+   * refresh rendered the patient home a second time, and both buttons sat
+   * disabled for twenty seconds while a slow page rendered twice. The cookie is
+   * not httpOnly (the server only reads it), so the browser may write it. It is
+   * still the preference either way: a reader who chose Arabic on a public page
+   * stays in Arabic when they sign in.
+   */
+  const choose = (next: Locale) => {
+    if (next === current && !isLocalisable(here)) return;
+    writeLocaleCookie(next);
+    startTransition(() => {
       if (isLocalisable(here)) router.push(localisedPath(here, next));
       else router.refresh();
     });
+  };
 
   return (
     <div
-      className={cn("inline-flex items-center gap-1 rounded-full bg-slate-100 p-0.5", className)}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full p-0.5",
+        dark ? "bg-white/10 ring-1 ring-white/15" : "bg-slate-100",
+        className,
+      )}
       role="group"
       aria-label={current === "ar" ? "اللغة" : "Language"}
     >
-      <Languages className="ms-2 h-3.5 w-3.5 shrink-0 text-slate-600" aria-hidden />
+      <Languages className={cn("ms-2 h-3.5 w-3.5 shrink-0", dark ? "text-white/85" : "text-slate-600")} aria-hidden />
       {(offered?.map((row) => row.code as Locale) ?? LOCALES).map((locale) => (
         <button
           key={locale}
           type="button"
-          disabled={pending}
+          /* Board 567: never disabled, so a slow page cannot leave nothing to press. */
+          aria-busy={pending}
           onClick={() => choose(locale)}
           aria-pressed={locale === current}
           lang={locale}
@@ -94,8 +112,12 @@ export function LanguageSwitch({
             // WCAG exemption for links in a sentence does not cover it.
             "flex min-h-11 items-center rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50",
             locale === current
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-600 hover:text-slate-900",
+              ? dark
+                ? "bg-white text-navy-700 shadow-sm"
+                : "bg-white text-slate-900 shadow-sm"
+              : dark
+                ? "text-white/85 hover:text-white"
+                : "text-slate-600 hover:text-slate-900",
           )}
         >
           {LOCALE_NAMES[locale]}
@@ -103,4 +125,10 @@ export function LanguageSwitch({
       ))}
     </div>
   );
+}
+
+/** The cookie `app/actions/locale.ts` writes, with the same name and lifetime. */
+function writeLocaleCookie(locale: Locale): void {
+  const secure = window.location.protocol === "https:" ? "; secure" : "";
+  document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax${secure}`;
 }

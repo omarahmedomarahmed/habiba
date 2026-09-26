@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, Banknote, Clock, Wallet } from "lucide-react";
 
 import { openPayoutDashboard, payOutNow, type SettingsState } from "@/app/(app)/settings/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { Money } from "@/components/ui/money";
 import { useT } from "@/lib/i18n/client";
 import { rich, slot } from "@/lib/i18n/rich";
@@ -67,24 +67,29 @@ export function EarningsCard(props: EarningsProps) {
    */
   if (props.manualRail) {
     return (
-      <div className="overflow-hidden rounded-3xl bg-brand-500 text-navy-600">
-        <div className="px-5 pt-5 pb-4">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-600/10 px-2.5 py-1 text-xs font-semibold">
-            <Wallet className="h-3 w-3" aria-hidden />
+      <div className="relative overflow-hidden rounded-3xl bg-navy-900 text-white shadow-[0_20px_40px_-20px_rgba(46,196,182,0.6)]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -end-16 -top-20 h-60 w-60 rounded-full opacity-60 blur-3xl"
+          style={{ background: "radial-gradient(circle, rgba(46,196,182,0.45), rgba(46,196,182,0) 70%)" }}
+        />
+        <div className="relative px-5 pt-5 pb-4 sm:px-6 sm:pt-6">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white ring-1 ring-white/15">
+            <Wallet className="h-3.5 w-3.5 text-brand-300" aria-hidden />
             {t("tearn.title")}
           </span>
           <dl className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <dt className="text-xs text-navy-600/80">{t("tearn.thisMonth")}</dt>
-              <dd className="mt-0.5 text-2xl font-bold"><Money cents={props.thisMonthNetCents} /></dd>
+            <div className="rounded-2xl bg-white/8 px-4 py-3 ring-1 ring-white/10">
+              <dt className="text-xs font-semibold text-white/70">{t("tearn.thisMonth")}</dt>
+              <dd className="mt-0.5 text-2xl font-bold tabular-nums"><Money cents={props.thisMonthNetCents} /></dd>
             </div>
-            <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <dt className="text-xs text-navy-600/80">{t("tearn.paidSessions")}</dt>
-              <dd className="mt-0.5 text-2xl font-bold">{props.paidSessionCount}</dd>
+            <div className="rounded-2xl bg-white/8 px-4 py-3 ring-1 ring-white/10">
+              <dt className="text-xs font-semibold text-white/70">{t("tearn.paidSessions")}</dt>
+              <dd className="mt-0.5 text-2xl font-bold tabular-nums">{props.paidSessionCount}</dd>
             </div>
           </dl>
         </div>
-        <div className="border-t border-navy-600/15 px-5 py-3 text-xs text-navy-600/80">
+        <div className="relative border-t border-white/10 px-5 py-3 text-xs text-white/70 sm:px-6">
           {rich(t("tearn.lifetime", { net: slot(0), fees: slot(1) }), [
             <Money cents={props.lifetimeNetCents} />,
             <Money cents={props.platformFeesCents} />,
@@ -104,17 +109,17 @@ export function EarningsCard(props: EarningsProps) {
                 <Clock className="h-4 w-4" aria-hidden />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-900">
+                <p className="text-sm font-semibold text-navy-700">
                   {rich(t("tearn.waiting", { amount: slot(0) }), [<Money cents={props.heldCents} />])}
                 </p>
-                <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
+                <p className="mt-0.5 text-sm leading-relaxed text-navy-400">
                   {t("tearn.waitingBody")}
                 </p>
               </div>
             </div>
             <Link
               href="/settings"
-              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-navy-600 hover:bg-brand-400"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-brand-500 text-sm font-semibold text-navy-600 hover:bg-brand-400"
             >
               <Banknote className="h-4 w-4" aria-hidden />
               {t("tearn.finishSetup")}
@@ -123,19 +128,19 @@ export function EarningsCard(props: EarningsProps) {
         ) : (
           <>
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
                 <Wallet className="h-4 w-4" aria-hidden />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-900">{t("tearn.chargeTitle")}</p>
-                <p className="mt-0.5 text-sm leading-relaxed text-slate-500">
+                <p className="text-sm font-semibold text-navy-700">{t("tearn.chargeTitle")}</p>
+                <p className="mt-0.5 text-sm leading-relaxed text-navy-400">
                   {t("tearn.chargeBody")}
                 </p>
               </div>
             </div>
             <Link
               href="/settings"
-              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-500 text-sm font-semibold text-navy-600 hover:bg-brand-400"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-brand-500 text-sm font-semibold text-navy-600 hover:bg-brand-400"
             >
               <Banknote className="h-4 w-4" aria-hidden />
               {t("tpay.setUp")}
@@ -148,17 +153,22 @@ export function EarningsCard(props: EarningsProps) {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-3xl bg-brand-500 text-navy-600">
-        <div className="px-5 pt-5 pb-4">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-600/10 px-2.5 py-1 text-xs font-semibold">
-            <Wallet className="h-3 w-3" aria-hidden />
+      <div className="relative overflow-hidden rounded-3xl bg-navy-900 text-white shadow-[0_20px_40px_-20px_rgba(46,196,182,0.6)]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -end-16 -top-20 h-60 w-60 rounded-full opacity-60 blur-3xl"
+          style={{ background: "radial-gradient(circle, rgba(46,196,182,0.45), rgba(46,196,182,0) 70%)" }}
+        />
+        <div className="relative px-5 pt-5 pb-4 sm:px-6 sm:pt-6">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white ring-1 ring-white/15">
+            <Wallet className="h-3.5 w-3.5 text-brand-300" aria-hidden />
             {t("tearn.title")}
           </span>
 
-          <p className="mt-3 text-3xl font-bold tracking-tight">
+          <p className="mt-3 text-[40px] leading-tight font-bold tracking-tight tabular-nums">
             {props.availableCents === null ? "-" : <Money cents={props.availableCents} />}
           </p>
-          <p className="mt-0.5 text-sm text-navy-600/80">
+          <p className="mt-0.5 text-sm text-white/75">
             {props.availableCents === null
               ? t("tearn.unavailable")
               : (
@@ -172,13 +182,13 @@ export function EarningsCard(props: EarningsProps) {
           </p>
 
           <dl className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <dt className="text-xs text-navy-600/80">{t("tearn.thisMonth")}</dt>
-              <dd className="mt-0.5 text-2xl font-bold"><Money cents={props.thisMonthNetCents} /></dd>
+            <div className="rounded-2xl bg-white/8 px-4 py-3 ring-1 ring-white/10">
+              <dt className="text-xs font-semibold text-white/70">{t("tearn.thisMonth")}</dt>
+              <dd className="mt-0.5 text-2xl font-bold tabular-nums"><Money cents={props.thisMonthNetCents} /></dd>
             </div>
-            <div className="rounded-2xl bg-white/10 px-4 py-3">
-              <dt className="text-xs text-navy-600/80">{t("tearn.paidSessions")}</dt>
-              <dd className="mt-0.5 text-2xl font-bold">{props.paidSessionCount}</dd>
+            <div className="rounded-2xl bg-white/8 px-4 py-3 ring-1 ring-white/10">
+              <dt className="text-xs font-semibold text-white/70">{t("tearn.paidSessions")}</dt>
+              <dd className="mt-0.5 text-2xl font-bold tabular-nums">{props.paidSessionCount}</dd>
             </div>
           </dl>
 
@@ -188,13 +198,13 @@ export function EarningsCard(props: EarningsProps) {
             would be the single most misleading thing on this page.
           */}
           {props.heldCents > 0 ? (
-            <div className="mt-3 flex items-start gap-2.5 rounded-2xl bg-amber-400/20 px-4 py-3">
+            <div className="mt-3 flex items-start gap-2.5 rounded-2xl bg-amber-400/15 px-4 py-3 ring-1 ring-amber-400/30">
               <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-200" aria-hidden />
               <div className="min-w-0">
-                <p className="text-sm font-semibold">
+                <p className="text-sm font-semibold text-amber-100">
                   {rich(t("tearn.heldBy", { amount: slot(0) }), [<Money cents={props.heldCents} />])}
                 </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-navy-600/80">
+                <p className="mt-0.5 text-xs leading-relaxed text-white/75">
                   {t("tearn.heldBody")}
                 </p>
               </div>
@@ -202,7 +212,7 @@ export function EarningsCard(props: EarningsProps) {
           ) : null}
 
           {error ? (
-            <p role="alert" className="mt-3 rounded-xl bg-black/20 px-3.5 py-2.5 text-sm">
+            <p role="alert" className="mt-3 rounded-xl bg-red-500/15 px-3.5 py-2.5 text-sm text-red-100 ring-1 ring-red-400/30">
               {error}
             </p>
           ) : null}
@@ -213,7 +223,7 @@ export function EarningsCard(props: EarningsProps) {
                 type="button"
                 disabled={pending}
                 onClick={() => run(payOutNow)}
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-brand-700 disabled:opacity-50"
+                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-brand-500 px-4 text-sm font-semibold text-navy-700 hover:bg-brand-400 disabled:opacity-50"
               >
                 <Banknote className="h-4 w-4" aria-hidden />
                 {pending ? t("tpay.requesting") : t("tearn.payOutNow")}
@@ -223,7 +233,7 @@ export function EarningsCard(props: EarningsProps) {
               type="button"
               disabled={pending}
               onClick={() => run(openPayoutDashboard)}
-              className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-navy-600/10 px-4 text-sm font-semibold text-white disabled:opacity-50"
+              className="inline-flex h-11 items-center gap-1.5 rounded-2xl bg-white/10 px-4 text-sm font-semibold text-white ring-1 ring-white/15 hover:bg-white/15 disabled:opacity-50"
             >
               {t("tpay.dashboard")}
               <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
@@ -231,7 +241,7 @@ export function EarningsCard(props: EarningsProps) {
           </div>
         </div>
 
-        <div className="border-t border-navy-600/15 px-5 py-3 text-xs text-navy-600/80">
+        <div className="relative border-t border-white/10 px-5 py-3 text-xs text-white/70 sm:px-6">
           {props.settledFromEarningsCents > 0
             ? rich(t("tearn.lifetimeSettled", {
                 net: slot(0),

@@ -96,7 +96,18 @@ export async function pendingPaymentFor(
 ): Promise<PendingPayment | null> {
   const where =
     who.kind === "organization"
-      ? eq(manualPayments.organizationId, who.organizationId)
+      ? /*
+         * 🔴 Board 548: the PRACTICE's own payments only. A patient's transfer for
+         * a session carries the practice's id so the money can be routed, and
+         * matching on that id alone put "Session with Salma · Paid" on every page
+         * a clinician opened, over other patients' records. The bar follows the
+         * payer, and for a patient's booking the payer is the patient.
+         */
+        and(
+          eq(manualPayments.organizationId, who.organizationId),
+          /* A therapist pays their own bill as "user", a clinic as "organization". */
+          inArray(manualPayments.payerKind, ["user", "organization"]),
+        )
       : who.kind === "sponsor"
         ? eq(manualPayments.sponsorId, who.sponsorId)
         : eq(manualPayments.refId, who.sessionId);

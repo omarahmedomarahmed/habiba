@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { apply } from "@/app/(sponsor)/sponsor/apply/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
@@ -40,9 +40,9 @@ export function SponsorApplyForm() {
   if (state.sent) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("sponsor.apply.sent")}</p>
+        <p className="text-sm font-semibold text-navy-700">{t("sponsor.apply.sent")}</p>
         {/* 🔴 C233 — the terms are agreed before any money, and said here. */}
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+        <p className="mt-2 text-sm leading-relaxed text-navy-400">
           {t("sponsor.apply.sentBody", { email: state.email ?? "" })}
         </p>
       </Card>
@@ -57,15 +57,15 @@ export function SponsorApplyForm() {
         </Field>
 
         <fieldset>
-          <legend className="text-xs font-semibold text-slate-700">
+          <legend className="text-xs font-semibold text-navy-600">
             {t("sponsor.apply.kind")}
           </legend>
           <div className="mt-2 flex gap-4">
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2 text-sm text-navy-600">
               <input type="radio" name="kind" value="company" defaultChecked />
               {t("sponsor.apply.company")}
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2 text-sm text-navy-600">
               <input type="radio" name="kind" value="university" />
               {t("sponsor.apply.university")}
             </label>

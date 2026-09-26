@@ -30,10 +30,10 @@ export default async function ResidencyPage() {
   const { t } = await getI18n();
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       <PatientBack />
 
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">
+      <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">
         {t("residency.title")}
       </h1>
 
@@ -41,7 +41,7 @@ export default async function ResidencyPage() {
         crosses={state.crosses}
         agreedAt={state.agreedAt ? formatDate(state.agreedAt, actor.timezone, locale) : null}
         wording={state.wording}
-        homeLabel={regionLabel(state.homeRegion, locale)}
+        homeLabel={state.homeRegion ? regionLabel(state.homeRegion, locale) : null}
         servingLabel={regionLabel(state.servingRegion, locale)}
       />
     </main>

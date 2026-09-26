@@ -52,7 +52,8 @@ export const SPEND_CURVE: { week: string; cents: number }[] = [
 export const POT = {
   addedCents: 1_000_000,
   remainingCents: 412_000,
-  expiresLabel: "31 March 2027",
+  /** A date, not a label: each page writes it in its own language. */
+  expiresOn: "2027-03-31",
 };
 
 /** Seats, at the band boundary, because that is where the ladder is worth showing. */
@@ -247,8 +248,88 @@ export const RADAR_DEMO: {
   { name: "Dr Salma Demo", title: "Counsellor", languages: "Arabic, English, French", priceCents: 1_200, minutes: 30, free: true, country: "EG" },
 ];
 
-/** What the patient's billing tab shows: one settled session and one waiting. */
-export const PATIENT_BILLS: { what: string; when: string; cents: number; paid: boolean }[] = [
-  { what: "Session with Dr Nour Demo", when: "12 March", cents: 1_500, paid: false },
-  { what: "Session with Dr Nour Demo", when: "5 March", cents: 1_500, paid: true },
+/**
+ * What the patient's billing tab shows: one settled session and one waiting.
+ *
+ * The clinician and a date, not a sentence and a label: "Session with Dr Nour
+ * Demo, 12 March" was typed in English and so read in English on /ar. Each
+ * page writes the sentence and the date in its own language.
+ */
+export const PATIENT_BILLS: { clinician: string; on: string; cents: number; paid: boolean }[] = [
+  { clinician: "Dr Nour Demo", on: "2027-03-12", cents: 1_500, paid: false },
+  { clinician: "Dr Nour Demo", on: "2027-03-05", cents: 1_500, paid: true },
+];
+
+/**
+ * 🔴 THE INVENTED PEOPLE, AS AN ARABIC READER MEETS THEM.
+ *
+ * The mockups printed "Dr Nour Demo" on /ar, a Latin name in a right to left
+ * sentence. Every invented name in this file has its Arabic form here, and the
+ * marker surnames stay recognisable, so an Arabic page is just as plainly about
+ * nobody. A name missing from the table falls back to itself rather than
+ * disappearing.
+ */
+const AR_NAMES: Record<string, string> = {
+  "Dr Nour Demo": "د. نور ديمو",
+  "Dr Rami Example": "د. رامي إكزامبل",
+  "Dr Salma Demo": "د. سلمى ديمو",
+  "Dr Youssef Example": "د. يوسف إكزامبل",
+  "Hana Demo": "هنا ديمو",
+  "Mariam A.": "مريم أ.",
+  "Omar S.": "عمر س.",
+  "Laila F.": "ليلى ف.",
+  "Tarek M.": "طارق م.",
+  "Dina H.": "دينا ح.",
+  "Adam R.": "آدم ر.",
+};
+
+export function demoName(name: string, locale: "en" | "ar"): string {
+  return locale === "ar" ? (AR_NAMES[name] ?? name) : name;
+}
+
+const AR_LANGUAGES: Record<string, string> = {
+  Arabic: "العربية",
+  English: "الإنجليزية",
+  French: "الفرنسية",
+};
+
+/** "Arabic, English" becomes "العربية، الإنجليزية" on an Arabic page. */
+export function demoLanguages(list: string, locale: "en" | "ar"): string {
+  if (locale !== "ar") return list;
+  return list
+    .split(", ")
+    .map((one) => AR_LANGUAGES[one] ?? one)
+    .join("، ");
+}
+
+/**
+ * The invented person whose phone the website shows, by the language the page
+ * is read in, so the Arabic home screen does not greet somebody in Latin script.
+ */
+export const DEMO_PATIENT_NAME = { en: "Mariam", ar: "مريم" } as const;
+
+/** The invented organisations whose desks the website shows. */
+export const DEMO_ORGS = { clinic: "Nile Practice", company: "Nile Holdings", partner: "Nile Health" } as const;
+
+/**
+ * A partner's desk on the website: two keys and a short delivery log. The key
+ * prefixes are the shape the portal prints and open nothing; the subject ids
+ * are opaque strings of the kind a webhook body carries, never a name.
+ */
+export const PARTNER_KEYS: { prefix: string; live: boolean; usedAt: string; scopes: string[] }[] = [
+  { prefix: "pk_live_4f2a", live: true, usedAt: "14:02", scopes: ["session:write", "note:deliver"] },
+  { prefix: "pk_test_91cd", live: false, usedAt: "09:40", scopes: ["session:write", "consent:write"] },
+];
+
+export const PARTNER_DELIVERIES: {
+  status: number;
+  event: string;
+  state: "delivered" | "pending" | "failed";
+  attempts: number;
+  subject: string;
+  at: string;
+}[] = [
+  { status: 200, event: "note.approved", state: "delivered", attempts: 1, subject: "sub_8f3k2q", at: "14:02" },
+  { status: 200, event: "session.completed", state: "delivered", attempts: 1, subject: "sub_8f3k2q", at: "13:51" },
+  { status: 503, event: "session.completed", state: "pending", attempts: 2, subject: "sub_2m7x9d", at: "13:20" },
 ];

@@ -321,6 +321,21 @@
     transform: scaleX(1);
   }
 
+  /*
+   * The website's rise on scroll (components/public/site-ui.tsx `Rise`). It
+   * moves and never fades: a block that has not scrolled in yet is still
+   * fully drawn, so a full-page capture, a crawler or a contrast check reads
+   * it, and only the movement waits for the reader.
+   */
+  @keyframes site-rise {
+    from {
+      transform: translateY(28px);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
   @keyframes fade-rise {
     from {
       opacity: 0;

@@ -1,5 +1,17 @@
 "use client";
 
+import {
+  Globe,
+  LayoutDashboard,
+  QrCode,
+  ReceiptText,
+  Settings,
+  Users,
+  UsersRound,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
+
 import { signOutSponsor } from "@/app/(sponsor)/sponsor/sign-in/actions";
 import { Desk } from "@/components/portal/desk";
 import { useT } from "@/lib/i18n/client";
@@ -51,6 +63,18 @@ const TABS: { href: string; key: MessageKey }[] = [
   { href: "/sponsor/team", key: "sponsor.nav.team" },
 ];
 
+/** The rail's icon for each section, in the approved look. A picture, never a word. */
+const ICONS: Record<string, LucideIcon> = {
+  "/sponsor": LayoutDashboard,
+  "/sponsor/ledger": ReceiptText,
+  "/sponsor/people": Users,
+  "/sponsor/code": QrCode,
+  "/sponsor/pot": Wallet,
+  "/sponsor/domains": Globe,
+  "/sponsor/settings": Settings,
+  "/sponsor/team": UsersRound,
+};
+
 /**
  * 🔴 THIS FILE IS NOW THE SPONSOR'S ANSWERS, AND `Desk` IS THE QUESTIONS.
  *
@@ -77,6 +101,7 @@ export function SponsorChrome({
 
   return (
     <Desk
+      look="navy"
       nav={nav}
       bare={bare}
       home="/sponsor"
@@ -87,16 +112,20 @@ export function SponsorChrome({
        * could only look. The team screen's own word for it, in both languages.
        */
       badge={role === "viewer" ? t("sponsor.roleViewer") : null}
-      sections={TABS.map((tab) => ({
-        href: tab.href,
-        label: t(tab.key),
-        exact: tab.href === "/sponsor",
-      }))}
+      sections={TABS.map((tab) => {
+        const Icon = ICONS[tab.href] ?? LayoutDashboard;
+        return {
+          href: tab.href,
+          label: t(tab.key),
+          exact: tab.href === "/sponsor",
+          icon: <Icon className="h-[18px] w-[18px]" aria-hidden />,
+        };
+      })}
       actions={
         <form action={signOutSponsor}>
           <button
             type="submit"
-            className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+            className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-current underline-offset-2 hover:underline"
           >
             {t("sponsor.signOut")}
           </button>

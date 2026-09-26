@@ -143,7 +143,7 @@ export function RadarHero({
   const [fromBefore = "", fromAfter = ""] = strings.fromPrice.split("{price}");
 
   return (
-    <section className="relative isolate overflow-hidden bg-navy-600">
+    <section className="relative isolate overflow-hidden bg-navy-900">
       {/* The globe is the hero background, not an illustration beside it. It
           stays draggable where the copy does not cover it, and the gradients
           are what keep white text on a rotating planet legible. */}
@@ -152,10 +152,10 @@ export function RadarHero({
             is within a few percent of the hero background and the whole thing
             reads as a faint smudge rather than a planet. */}
         <div
-          className="absolute top-1/2 left-1/2 aspect-square w-[150%] -translate-y-1/2 translate-x-[-28%] rounded-full bg-[radial-gradient(circle,#04101f_38%,rgba(4,16,31,0)_66%)] sm:w-[105%] lg:w-[86%]"
+          className="absolute top-1/2 left-1/2 aspect-square w-[150%] -translate-y-1/2 translate-x-[-28%] rtl:translate-x-[-72%] rounded-full bg-[radial-gradient(circle,#04101f_38%,rgba(4,16,31,0)_66%)] sm:w-[105%] lg:w-[86%]"
           aria-hidden
         />
-        <div className="absolute top-1/2 left-1/2 aspect-square w-[130%] -translate-y-1/2 translate-x-[-32%] sm:w-[92%] lg:w-[74%]">
+        <div className="absolute top-1/2 left-1/2 aspect-square w-[130%] -translate-y-1/2 translate-x-[-32%] rtl:translate-x-[-68%] sm:w-[92%] lg:w-[74%]">
           <Globe
             entries={visible}
             selected={filter.country || null}
@@ -167,22 +167,22 @@ export function RadarHero({
           />
         </div>
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-navy-600 via-navy-600/70 to-transparent"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-navy-900 via-navy-900/70 to-transparent rtl:bg-gradient-to-l"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-navy-600 via-transparent to-navy-600/60"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-navy-900 via-transparent to-navy-900/60"
           aria-hidden
         />
       </div>
 
-      <div className="relative mx-auto grid max-w-6xl gap-8 px-4 pt-10 pb-12 sm:px-6 sm:pt-16 sm:pb-20 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12">
+      <div className="relative mx-auto grid max-w-7xl gap-8 px-5 pt-12 pb-14 sm:px-6 sm:pt-20 sm:pb-24 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center lg:gap-12">
         <div className="max-w-xl">
-          <span className="inline-flex items-center gap-2 rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-1 text-xs font-semibold text-teal-300">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-3 py-1.5 text-[14px] font-semibold text-white ring-1 ring-white/15">
             <span
               className={cn(
                 "h-1.5 w-1.5 rounded-full",
-                online.length > 0 ? "live-dot bg-teal-400" : "bg-slate-500",
+                online.length > 0 ? "live-dot bg-teal-400" : "bg-white/40",
               )}
             />
             {entries === null
@@ -192,11 +192,11 @@ export function RadarHero({
                 : eyebrow}
           </span>
 
-          <h1 className="mt-5 text-balance text-[2.1rem] leading-[1.08] font-bold tracking-tight text-white sm:text-[3.25rem]">
+          <h1 className="mt-6 text-balance text-[40px] leading-[1.04] font-bold tracking-tight text-white sm:text-[60px] lg:text-[68px]">
             {heading}
           </h1>
 
-          <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-white/85">
+          <p className="mt-6 max-w-xl text-pretty text-[18px] leading-relaxed text-white/85">
             {body}
           </p>
 
@@ -223,17 +223,17 @@ export function RadarHero({
             </span>
           </div>
 
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/signup"
-              className="inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-base font-semibold text-navy-600 hover:bg-white/90"
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-teal-500 px-7 text-[16px] font-semibold text-navy-700 shadow-[0_8px_24px_-8px_rgba(46,196,182,0.7)] transition-[background-color,transform] hover:-translate-y-px hover:bg-teal-400"
             >
               {strings.goOnRadar}
-              <ArrowRight className="h-4 w-4" aria-hidden />
+              <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
             </Link>
             <Link
               href="/radar"
-              className="inline-flex h-13 items-center justify-center rounded-2xl border border-white/20 px-5 text-base font-semibold text-white hover:bg-white/10"
+              className="inline-flex h-14 items-center justify-center rounded-2xl border border-white/15 bg-white/10 px-7 text-[16px] font-semibold text-white backdrop-blur transition-[background-color,transform] hover:-translate-y-px hover:bg-white/15"
             >
               {strings.full}
             </Link>
@@ -241,7 +241,7 @@ export function RadarHero({
         </div>
 
         {/* ------------------------------------------------- the live board */}
-        <div className="rounded-3xl border border-white/10 bg-navy-500/70 p-3 backdrop-blur-md lg:sticky lg:top-20 lg:self-start">
+        <div className="rounded-[28px] bg-white/[0.06] p-3 ring-1 ring-white/10 backdrop-blur-md lg:self-center">
           <div className="px-1 pb-2">
             <RadarFilters
               entries={all}

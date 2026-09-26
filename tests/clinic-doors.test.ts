@@ -23,7 +23,7 @@ test("C07: the enquiry and the invitation render inside the site's own header", 
 
 test("C07: the enquiry's done state leads somewhere", () => {
   const form = read("components/clinic/apply-form.tsx");
-  const done = form.slice(form.indexOf("if (state.sent)"), form.indexOf("return (\n    <Card className=\"p-5\">\n      <form"));
+  const done = form.slice(form.indexOf("if (state.sent)"), form.indexOf("return (\n    <div>\n      <form"));
   assert.match(done, /<Link/, "Thank you, and nothing to press");
 });
 

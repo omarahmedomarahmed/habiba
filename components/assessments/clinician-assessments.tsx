@@ -7,7 +7,7 @@ import {
   sendAssessment,
   timingsFor,
 } from "@/app/(app)/patients/[id]/assessments/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -117,15 +117,15 @@ export function ClinicianAssessments({
 
   return (
     <Card className="p-4">
-      <h2 className="text-sm font-semibold text-slate-900">{t("cassess.title")}</h2>
-      <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("cassess.body")}</p>
+      <h2 className="text-sm font-semibold text-navy-700">{t("cassess.title")}</h2>
+      <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("cassess.body")}</p>
 
       {canSend && instruments.length > 0 ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <select
             value={choice}
             onChange={(event) => setChoice(event.target.value)}
-            className="h-11 rounded-xl border border-slate-200 px-3 text-sm"
+            className="h-11 rounded-xl border border-navy-100 px-3 text-sm"
           >
             {instruments.map((instrument) => (
               <option key={instrument.key} value={instrument.key}>
@@ -155,7 +155,7 @@ export function ClinicianAssessments({
             type="button"
             disabled={pending}
             onClick={() => send("homework")}
-            className="tap-target h-11 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+            className="tap-target h-11 rounded-xl bg-navy-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
           >
             {pending ? t("cassess.sending") : t("cassess.sendHomework")}
           </button>
@@ -170,7 +170,7 @@ export function ClinicianAssessments({
 
       <div className="mt-4 space-y-2">
         {assignments.length === 0 ? (
-          <p className="text-sm text-slate-500">{t("cassess.none")}</p>
+          <p className="text-sm text-navy-400">{t("cassess.none")}</p>
         ) : (
           assignments.map((assignment) => {
             const live = progress[assignment.id];
@@ -180,14 +180,14 @@ export function ClinicianAssessments({
             return (
               <div
                 key={assignment.id}
-                className="rounded-xl border border-slate-200 px-3 py-2"
+                className="rounded-xl border border-navy-100 px-3 py-2"
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">
+                  <p className="text-sm font-medium text-navy-700">
                     {assignment.instrumentName}
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 text-xs text-navy-400">
                     {status === "completed"
                       ? t("cassess.completed")
                       : status === "started"
@@ -204,7 +204,7 @@ export function ClinicianAssessments({
 
                 <div className="flex items-baseline gap-3">
                   {score !== null && score !== undefined ? (
-                    <span className="text-sm text-slate-700">
+                    <span className="text-sm text-navy-600">
                       {t("cassess.score")} {score}
                     </span>
                   ) : null}
@@ -214,7 +214,7 @@ export function ClinicianAssessments({
                     view of the same number carries no label at all.
                   */}
                   {live?.band ? (
-                    <span className="text-sm font-semibold text-slate-900">
+                    <span className="text-sm font-semibold text-navy-700">
                       {t("cassess.band")} {live.band}
                     </span>
                   ) : null}
@@ -240,11 +240,11 @@ export function ClinicianAssessments({
                 */}
                 {status === "completed" ? (
                   timings[assignment.id] ? (
-                    <div className="mt-2 border-t border-slate-100 pt-2">
-                      <p className="text-xs font-medium text-slate-700">
+                    <div className="mt-2 border-t border-navy-100/70 pt-2">
+                      <p className="text-xs font-medium text-navy-600">
                         {t("cassess.timings")}
                       </p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+                      <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
                         {t("cassess.timingsBody")}
                       </p>
                       <ul className="mt-2 space-y-1">
@@ -254,8 +254,8 @@ export function ClinicianAssessments({
                             className="flex items-baseline justify-between gap-3 text-xs"
                           >
                             {/* The instrument's own wording, verbatim. */}
-                            <span className="text-slate-700">{timing.text}</span>
-                            <span className="shrink-0 text-slate-500">
+                            <span className="text-navy-600">{timing.text}</span>
+                            <span className="shrink-0 text-navy-400">
                               {timing.value}
                               {" · "}
                               {timing.answerMs === null

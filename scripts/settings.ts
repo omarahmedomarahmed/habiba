@@ -51,7 +51,75 @@ async function seed(db: Db) {
     countries += rows.length;
   }
 
+  const { inserted, published } = await seedShippedInstruments(db);
+
   console.log(`seeded: ${groups} setting group(s), ${countries} country/countries (new rows only)`);
+  console.log(`seeded: ${inserted} instrument(s) added, ${published} published`);
+}
+
+/**
+ * 🔴 Board 503: THE SHIPPED QUESTIONNAIRES, ON EVERY DATABASE.
+ *
+ * Production had none published, so a clinician's Questionnaires card had
+ * nothing to send and no patient could ever answer one. The rows were only ever
+ * made by the capture seed, which never runs there, and nothing in the product
+ * publishes one.
+ *
+ * Idempotent on `(key, version)`. Publishing follows `publishInstrument`'s two
+ * refusals, and the database's `instruments_free_only` and
+ * `instruments_translation_reviewed` hold them again: only a free instrument
+ * whose locales are English, or whose translation a named person reviewed, is
+ * published. PHQ-9 and GAD-7 ship English only and public domain, so both are.
+ */
+async function seedShippedInstruments(db: Db): Promise<{ inserted: number; published: number }> {
+  const { INSTRUMENT_SEEDS } = await import("../lib/data/instrument-seeds");
+  const { instruments } = schema;
+  const { and, eq, isNull } = await import("drizzle-orm");
+
+  let inserted = 0;
+  let published = 0;
+  for (const seed of INSTRUMENT_SEEDS) {
+    const rows = await db
+      .insert(instruments)
+      .values({
+        key: seed.key,
+        version: seed.version,
+        name: seed.name,
+        attribution: seed.attribution,
+        licence: seed.licence,
+        locales: seed.locales,
+        questions: seed.questions,
+        bands: seed.bands,
+      })
+      .onConflictDoNothing({ target: [instruments.key, instruments.version] })
+      .returning({ id: instruments.id });
+    inserted += rows.length;
+
+    const [row] = await db
+      .select({
+        id: instruments.id,
+        licence: instruments.licence,
+        locales: instruments.locales,
+        reviewedBy: instruments.translationReviewedBy,
+      })
+      .from(instruments)
+      .where(
+        and(
+          eq(instruments.key, seed.key),
+          eq(instruments.version, seed.version),
+          isNull(instruments.publishedAt),
+        ),
+      )
+      .limit(1);
+    if (!row) continue;
+    const free = row.licence === "public_domain" || row.licence === "free_with_attribution";
+    const readable = row.locales.every((locale) => locale === "en") || Boolean(row.reviewedBy);
+    if (!free || !readable) continue;
+    const now = new Date();
+    await db.update(instruments).set({ publishedAt: now, updatedAt: now }).where(eq(instruments.id, row.id));
+    published += 1;
+  }
+  return { inserted, published };
 }
 
 /**
@@ -697,7 +765,9 @@ async function main() {
    * by a write guard is a question nobody asks. That is why production held the
    * pre-sprint-26 prices for weeks with every gate green.
    *
-   * **`seed` only ever INSERTS.** Both statements are `onConflictDoNothing`, so
+   * **`seed` only ever INSERTS**, and fills one blank: a shipped questionnaire
+   * still unpublished that passes both publishing rules gets its `published_at`
+   * (board 503). Every insert is `onConflictDoNothing`, so
    * it cannot change a value anybody set, and the rows it adds are the code's
    * own defaults, which is exactly what the absent rows were behaving as
    * already. Its own header calls it "safe on every deploy" and nothing has

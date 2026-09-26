@@ -113,12 +113,39 @@ export async function NoteOriginNote({
   /* A partial note from one side says both things. */
   const full = oneSide && provenance === "partial" ? `${body} ${t("note.origin.oneSideWhy")}` : body;
 
+  /*
+   * Said as a strip with its own icon at the top of the document, so it reads
+   * before the note does (47.3). Amber whenever part of the session is not in
+   * the record: time off it, or only the clinician's side heard.
+   */
+  const partly = provenance === "partial" || oneSide;
+  const Icon = provenance === "clinician" ? FileText : partly ? MicOff : Mic;
   return (
-    <div className="flex items-start gap-2 rounded-xl bg-slate-50 px-3.5 py-2.5">
-      <div className="mt-0.5 shrink-0">
+    <div
+      className={
+        partly
+          ? "flex items-start gap-3 rounded-3xl border border-amber-200 bg-amber-50 p-4"
+          : provenance === "transcript"
+            ? "flex items-start gap-3 rounded-3xl border border-brand-100 bg-brand-50 p-4"
+            : "flex items-start gap-3 rounded-3xl border border-navy-100 bg-white p-4"
+      }
+    >
+      <span
+        aria-hidden
+        className={
+          partly
+            ? "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-800"
+            : provenance === "transcript"
+              ? "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-500 text-navy-600"
+              : "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-navy-50 text-navy-500"
+        }
+      >
+        <Icon className="h-5 w-5" />
+      </span>
+      <div className="min-w-0">
         <NoteOrigin provenance={provenance} offRecordSeconds={offRecordSeconds} />
+        <p className="mt-1.5 text-sm leading-relaxed font-medium text-navy-700">{full}</p>
       </div>
-      <p className="text-xs leading-relaxed text-slate-600">{full}</p>
     </div>
   );
 }

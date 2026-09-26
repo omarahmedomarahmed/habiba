@@ -6,7 +6,7 @@ import {
   disconnectMeetingAccount,
   type IntegrationState,
 } from "@/app/(app)/settings/integrations/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -64,8 +64,8 @@ export function MeetingAccounts({
   if (!available) {
     return (
       <Card className="p-5">
-        <p className="text-sm text-slate-600">{t("portal.meet.unavailable")}</p>
-        <p className="mt-2 text-sm leading-relaxed text-slate-500">
+        <p className="text-sm text-navy-400">{t("portal.meet.unavailable")}</p>
+        <p className="mt-2 text-sm leading-relaxed text-navy-400">
           {t("portal.meet.fallback")}
         </p>
       </Card>
@@ -75,7 +75,7 @@ export function MeetingAccounts({
   return (
     <div className="space-y-3">
       {connections.length === 0 ? (
-        <p className="text-sm leading-relaxed text-slate-500">{t("portal.meet.none")}</p>
+        <p className="text-sm leading-relaxed text-navy-400">{t("portal.meet.none")}</p>
       ) : null}
 
       {providers.map((spec) => {
@@ -85,10 +85,10 @@ export function MeetingAccounts({
           <Card key={spec.provider} className="p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-900">{spec.name}</p>
+                <p className="text-sm font-semibold text-navy-700">{spec.name}</p>
                 {live ? (
                   <>
-                    <p className="mt-0.5 text-sm text-slate-600">
+                    <p className="mt-0.5 text-sm text-navy-400">
                       {live.accountLabel
                         ? t("portal.meet.connected", { account: live.accountLabel })
                         : t("portal.meet.connectedOn", { date: live.connectedAt })}
@@ -100,10 +100,10 @@ export function MeetingAccounts({
                       🔴 41.3 — before they try, not after.
                       Each provider's reason differs, so each says its own.
                     */}
-                    <p className="mt-1.5 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                    <p className="mt-1.5 text-xs font-semibold tracking-wide text-navy-400 uppercase">
                       {t("portal.meet.mayBlock")}
                     </p>
-                    <p className="mt-0.5 text-sm leading-relaxed text-slate-600">
+                    <p className="mt-0.5 text-sm leading-relaxed text-navy-400">
                       {spec.mayBeBlocked}
                     </p>
                   </>
@@ -115,7 +115,7 @@ export function MeetingAccounts({
                   type="button"
                   disabled={pending}
                   onClick={() => disconnect(spec.provider)}
-                  className="tap-target h-10 shrink-0 rounded-xl bg-slate-100 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                  className="tap-target h-10 shrink-0 rounded-xl bg-navy-50 px-3 text-sm font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
                 >
                   {t("portal.meet.disconnect")}
                 </button>
@@ -126,7 +126,7 @@ export function MeetingAccounts({
                 */
                 <a
                   href={`/api/meetings/connect/${spec.provider}`}
-                  className="tap-target flex h-10 shrink-0 items-center rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white"
+                  className="tap-target flex h-10 shrink-0 items-center rounded-xl bg-navy-600 px-3 text-sm font-semibold text-white"
                 >
                   {t("portal.meet.connect", { name: spec.name })}
                 </a>
@@ -136,13 +136,13 @@ export function MeetingAccounts({
         );
       })}
 
-      <p className="text-sm leading-relaxed text-slate-500">{t("portal.meet.fallback")}</p>
+      <p className="text-sm leading-relaxed text-navy-400">{t("portal.meet.fallback")}</p>
 
       {/*
         🔴 41.1 / C132, said on the screen where somebody would wonder what we
         can see once they connect.
       */}
-      <p className="text-xs leading-relaxed text-slate-500">
+      <p className="text-xs leading-relaxed text-navy-400">
         {t("portal.meet.neverCalendar")}
       </p>
 

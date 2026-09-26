@@ -8,6 +8,8 @@ import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { NeverBar } from "@/components/visual/primitives";
 import { cn } from "@/lib/utils";
 
+import { NavyDesk } from "./desk-navy";
+
 /**
  * 🔴 THE DESK. One shell, both admin portals. Option A, /design/company/sample.
  *
@@ -74,6 +76,8 @@ export type DeskSection = {
   exact?: boolean;
   /** 🔴 Ruling 14b: the other pages this section holds, so it reads as active on them too. */
   also?: readonly string[];
+  /** Drawn beside the label in the navy rail (`look="navy"`); ignored otherwise. */
+  icon?: React.ReactNode;
 };
 
 export function Desk({
@@ -85,6 +89,8 @@ export function Desk({
   sections,
   actions,
   never,
+  tone = "slate",
+  look = "light",
   children,
 }: {
   /** Signed out gets the door and no rail: every link would bounce them. */
@@ -117,6 +123,19 @@ export function Desk({
   /** Sign out, and anything else that ends a session. Rendered in both layouts. */
   actions?: React.ReactNode;
   never: { label: string; items: string[] };
+  /**
+   * The look. `slate` is the desk as it was; `navy` is the clinician portal's
+   * shell (a navy rail with the teal selection, a frosted top bar, pills that
+   * are navy when chosen), so a practice that also runs sessions meets one
+   * product. Only the classes change: the same sections, actions and wall.
+   */
+  tone?: "slate" | "navy";
+  /**
+   * The approved navy look (`components/portal/desk-navy.tsx`), for a chrome
+   * that has moved across. Everything above holds there too: the wall in the
+   * rail, the switch within reach, the chrome out of the print.
+   */
+  look?: "light" | "navy";
   children: React.ReactNode;
 }) {
   /*
@@ -140,8 +159,45 @@ export function Desk({
     (section.exact ? pathname === section.href : pathname.startsWith(section.href)) ||
     (section.also ?? []).some((href) => pathname.startsWith(href));
 
+  if (look === "navy") {
+    return (
+      <NavyDesk
+        nav={nav}
+        bare={bare}
+        name={name}
+        badge={badge}
+        sections={sections}
+        current={current}
+        actions={actions}
+        never={never}
+        routed={routed !== null}
+      >
+        {children}
+      </NavyDesk>
+    );
+  }
+
   const wall = <NeverBar label={never.label} items={never.items} />;
   const switcher = routed === null ? null : <LanguageSwitch />;
+
+  if (tone === "navy") {
+    return (
+      <ClinicNavyDesk
+        nav={nav}
+        bare={bare}
+        name={name}
+        badge={badge}
+        home={home}
+        sections={sections}
+        actions={actions}
+        never={never}
+        current={current}
+        routed={routed !== null}
+      >
+        {children}
+      </ClinicNavyDesk>
+    );
+  }
 
   /*
    * W2-S03: the rail, the top bar and the wall are `print:hidden`, so a
@@ -251,6 +307,144 @@ export function Desk({
         {/* No rail below `lg`, so the wall goes back to the foot of the page. */}
         {nav ? (
           <footer className="mx-auto max-w-5xl px-4 pb-10 lg:hidden print:hidden">{wall}</footer>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The desk in the clinician portal's clothes (`app/(app)/layout.tsx`): the
+ * navy rail with its teal glow and the white mark, the section you are in as
+ * a teal pill with navy ink, and on a phone a frosted bar whose pills turn
+ * navy when chosen. The wall sits on a white card in the rail so its red
+ * crosses read as they do everywhere else.
+ *
+ * `data-desk="rail"` lets the actions a chrome hands over (Sign out, the
+ * switcher) take white ink in the rail and navy ink in the phone bar without
+ * a second copy of them.
+ */
+function ClinicNavyDesk({
+  nav,
+  bare,
+  name,
+  badge,
+  home,
+  sections,
+  actions,
+  never,
+  current,
+  routed,
+  children,
+}: {
+  nav: boolean;
+  bare: boolean;
+  name: string | null;
+  badge?: string | null;
+  home: string;
+  sections: readonly DeskSection[];
+  actions?: React.ReactNode;
+  never: { label: string; items: string[] };
+  current: (section: DeskSection) => boolean;
+  routed: boolean;
+  children: React.ReactNode;
+}) {
+  const wall = <NeverBar label={never.label} items={never.items} />;
+  return (
+    <div className="min-h-dvh bg-navy-50 lg:flex">
+      {nav ? (
+        <aside className="print:hidden hidden lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-64 lg:shrink-0 lg:flex-col lg:overflow-hidden lg:bg-navy-900 lg:text-white">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -start-24 -top-24 h-64 w-64 rounded-full opacity-70 blur-3xl"
+            style={{ background: "radial-gradient(circle, rgba(46,196,182,0.45), rgba(46,196,182,0) 70%)" }}
+          />
+          <div className="relative px-6 pt-6 pb-5">
+            <Link href={home} className="inline-flex items-center">
+              <Logo ink="white" height={28} />
+            </Link>
+          </div>
+
+          <nav aria-label={never.label} className="relative flex-1 space-y-1 overflow-y-auto px-4">
+            {sections.map((section) => (
+              <Link
+                key={section.href}
+                href={section.href}
+                aria-current={current(section) ? "page" : undefined}
+                className={cn(
+                  "flex h-11 items-center rounded-xl px-3 text-[14px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
+                  current(section)
+                    ? "bg-brand-500 text-navy-700 shadow-[0_8px_24px_-10px_rgba(46,196,182,0.9)]"
+                    : "text-white/75 hover:bg-white/5 hover:text-white",
+                )}
+              >
+                <span className="min-w-0 truncate">{section.label}</span>
+              </Link>
+            ))}
+          </nav>
+
+          <div className="relative mx-4 rounded-2xl bg-white p-3 [&_div]:border-0 [&_div]:pt-0">{wall}</div>
+
+          <div data-desk="rail" className="group/desk relative m-4 rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
+            <p className="truncate text-[13px] font-semibold text-white">{name}</p>
+            {badge ? (
+              <span className="mt-1 inline-block rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium text-white/85">
+                {badge}
+              </span>
+            ) : null}
+            <div className="mt-2 flex flex-wrap items-center gap-1">{actions}</div>
+            {routed ? <LanguageSwitch tone="dark" className="mt-2" /> : null}
+          </div>
+        </aside>
+      ) : null}
+
+      <div className="min-w-0 flex-1">
+        {nav ? (
+          <header className="print:hidden sticky top-0 z-20 border-b border-navy-100 bg-white/85 backdrop-blur-xl lg:hidden">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+              <Link href={home} className="inline-flex items-center">
+                <Logo ink="navy" height={24} />
+              </Link>
+              <span className="min-w-0 truncate text-sm font-bold text-navy-600">{name}</span>
+              {badge ? (
+                <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[11px] text-navy-500 ring-1 ring-navy-100">
+                  {badge}
+                </span>
+              ) : null}
+              <span className="ms-auto flex items-center gap-1">
+                {actions}
+                {routed ? <LanguageSwitch /> : null}
+              </span>
+            </div>
+            <nav
+              aria-label={never.label}
+              className="flex gap-1.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {sections.map((section) => (
+                <Link
+                  key={section.href}
+                  href={section.href}
+                  aria-current={current(section) ? "page" : undefined}
+                  className={cn(
+                    "tap-target inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-semibold",
+                    current(section)
+                      ? "bg-navy-600 text-white"
+                      : "bg-white text-navy-500 ring-1 ring-navy-100 hover:text-navy-700",
+                  )}
+                >
+                  {section.label}
+                </Link>
+              ))}
+            </nav>
+          </header>
+        ) : null}
+
+        {bare ? children : <div className="mx-auto max-w-6xl px-4 pt-6 pb-10 sm:px-6 lg:px-8 lg:pt-8">{children}</div>}
+
+        {nav ? (
+          <footer className="print:hidden mx-4 mb-10 rounded-3xl bg-white p-4 ring-1 ring-navy-100 sm:mx-6 lg:hidden [&_div]:border-0 [&_div]:pt-0">
+            {wall}
+          </footer>
         ) : null}
       </div>
     </div>

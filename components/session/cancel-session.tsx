@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { abandonSession } from "@/app/(app)/sessions/actions";
-import { Button, Input } from "@/components/ui";
+import { Button, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -34,7 +34,7 @@ import { useT } from "@/lib/i18n/client";
  * changes it into the real one and says what will happen, and clicking
  * anywhere else disarms it.
  */
-export function CancelSession({ sessionId }: { sessionId: string }) {
+export function CancelSession({ sessionId, paid = false }: { sessionId: string; paid?: boolean }) {
   const [armed, setArmed] = useState(false);
   /* 🔴 W1-13: the patient is told why, so the second click needs a reason. */
   const [reason, setReason] = useState("");
@@ -47,7 +47,7 @@ export function CancelSession({ sessionId }: { sessionId: string }) {
       <button
         type="button"
         onClick={() => setArmed(true)}
-        className="text-sm font-semibold text-slate-500 underline-offset-2 hover:underline"
+        className="text-sm font-semibold text-navy-400 underline-offset-2 hover:underline"
       >
         {t("portal.session.cancel")}
       </button>
@@ -56,7 +56,10 @@ export function CancelSession({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <p className="text-sm text-slate-600">{t("portal.session.cancelConfirm")}</p>
+      {/* 🔴 Board 429: a paid session says what happens to the patient's money, not "nothing is charged". */}
+      <p className="text-sm text-navy-400">
+        {t(paid ? "portal.session.cancelConfirmPaid" : "portal.session.cancelConfirm")}
+      </p>
       <Input
         aria-label={t("tcancel.reason")}
         placeholder={t("tcancel.reason")}
@@ -85,7 +88,7 @@ export function CancelSession({ sessionId }: { sessionId: string }) {
       <button
         type="button"
         onClick={() => setArmed(false)}
-        className="text-sm font-semibold text-slate-500"
+        className="text-sm font-semibold text-navy-400"
       >
         {t("common.back")}
       </button>

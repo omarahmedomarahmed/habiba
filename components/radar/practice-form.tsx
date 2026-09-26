@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Check, DoorOpen, MapPin, Search } from "lucide-react";
 
 import { findPracticeLocation, savePractice } from "@/app/(app)/on-call/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { countryFlag } from "@/lib/geo";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -128,8 +128,8 @@ export function PracticeForm(props: {
           <MapPin className="h-4 w-4" aria-hidden />
         </span>
         <div>
-          <p className="text-sm font-semibold text-slate-900">{t("tprac.title")}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
+          <p className="text-sm font-semibold text-navy-700">{t("tprac.title")}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
             {t("tprac.blurb")}
           </p>
         </div>
@@ -178,7 +178,7 @@ export function PracticeForm(props: {
 
       {hits.length > 0 ? (
         <div className="space-y-1.5">
-          <p className="text-xs font-semibold text-slate-600">
+          <p className="text-xs font-semibold text-navy-400">
             {t("tprac.whichOne")}
           </p>
           {hits.map((hit) => (
@@ -189,12 +189,12 @@ export function PracticeForm(props: {
                 setChosen(hit);
                 setHits([]);
               }}
-              className="flex w-full items-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-start hover:border-brand-400 hover:bg-brand-50/40"
+              className="flex w-full items-start gap-2 rounded-xl border border-navy-100 bg-white px-3 py-2.5 text-start hover:border-brand-400 hover:bg-brand-50/40"
             >
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-600" aria-hidden />
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-navy-400" aria-hidden />
               <span className="min-w-0">
-                <span className="block text-sm text-slate-800">{hit.displayName}</span>
-                <span className="block text-[11px] text-slate-600">
+                <span className="block text-sm text-navy-700">{hit.displayName}</span>
+                <span className="block text-[11px] text-navy-400">
                   {hit.lat}, {hit.lon}
                 </span>
               </span>
@@ -229,7 +229,7 @@ export function PracticeForm(props: {
           "flex cursor-pointer items-start gap-3 rounded-2xl border p-3 transition-colors",
           walkIns && chosen
             ? "border-brand-300 bg-brand-50/60"
-            : "border-slate-200 bg-white hover:bg-slate-50",
+            : "border-navy-100 bg-white hover:bg-navy-50",
           !chosen && "cursor-not-allowed opacity-60",
         )}
       >
@@ -241,11 +241,11 @@ export function PracticeForm(props: {
           className="mt-0.5 h-4 w-4 shrink-0 accent-brand-700"
         />
         <span className="min-w-0">
-          <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-navy-700">
             <DoorOpen className="h-3.5 w-3.5" aria-hidden />
             {t("tprac.walkIns")}
           </span>
-          <span className="mt-0.5 block text-xs leading-relaxed text-slate-600">
+          <span className="mt-0.5 block text-xs leading-relaxed text-navy-400">
             {chosen ? t("tprac.walkInsOn") : t("tprac.walkInsOff")}
           </span>
         </span>
