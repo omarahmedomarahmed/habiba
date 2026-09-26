@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 import { payInvoices } from "@/app/(app)/billing/actions";
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, Card } from "@/components/clinician/kit";
 import { Money } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -169,8 +169,8 @@ export function BillingLedger({
       */}
       {payable && due.length > 0 ? (
         <Card>
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-900">
+          <div className="flex items-center justify-between border-b border-navy-100/70 px-4 py-3">
+            <p className="text-sm font-semibold text-navy-700">
               {due.length === 1
                 ? t("tled.outstandingOne")
                 : t("tled.outstandingMany", { count: due.length })}
@@ -186,19 +186,19 @@ export function BillingLedger({
             </button>
           </div>
 
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-navy-100/70">
             {due.map((invoice) => {
               const payable = Math.max(0, invoice.amountCents - invoice.discountCents);
               const checked = selected.has(invoice.id);
               return (
                 <li key={invoice.id}>
-                  <label className="flex cursor-pointer items-center gap-3 px-4 py-3 active:bg-slate-50">
+                  <label className="flex cursor-pointer items-center gap-3 px-4 py-3 active:bg-navy-50">
                     <span
                       className={cn(
                         "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border",
                         checked
                           ? "border-brand-600 bg-brand-500 text-navy-600"
-                          : "border-slate-300 bg-white",
+                          : "border-navy-200 bg-white",
                       )}
                     >
                       {checked ? <Check className="h-3.5 w-3.5" aria-hidden /> : null}
@@ -210,17 +210,17 @@ export function BillingLedger({
                       onChange={() => toggle(invoice.id)}
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-slate-900">
+                      <span className="block truncate text-sm font-medium text-navy-700">
                         {invoice.description}
                       </span>
-                      <span className="block text-xs text-slate-500">
+                      <span className="block text-xs text-navy-400">
                         {invoice.issuedAt}
                         {invoice.discountCents > 0 ? (
                           <> · {rich(t("tled.creditApplied", { amount: slot(0) }), [<Money cents={invoice.discountCents} />])}</>
                         ) : null}
                       </span>
                     </span>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-navy-700">
                       <Money cents={payable} />
                     </span>
                   </label>
@@ -229,7 +229,7 @@ export function BillingLedger({
             })}
           </ul>
 
-          <div className="border-t border-slate-100 p-4">
+          <div className="border-t border-navy-100/70 p-4">
             {error ? (
               <p role="alert" className="mb-2 text-sm text-red-600">
                 {error}
@@ -259,17 +259,17 @@ export function BillingLedger({
       ) : null}
 
       <Card>
-        <div className="border-b border-slate-100 px-4 py-3">
-          <p className="text-sm font-semibold text-slate-900">{t("tled.title")}</p>
-          <p className="mt-0.5 text-xs text-slate-500">
+        <div className="border-b border-navy-100/70 px-4 py-3">
+          <p className="text-sm font-semibold text-navy-700">{t("tled.title")}</p>
+          <p className="mt-0.5 text-xs text-navy-400">
             {t("tled.blurb")}
           </p>
         </div>
 
         {history.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-slate-500">{t("tled.nothing")}</p>
+          <p className="px-4 py-6 text-sm text-navy-400">{t("tled.nothing")}</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-navy-100/70">
             {history.map((entry) => {
               const id = entry.kind === "invoice" ? entry.invoice.id : entry.payment.id;
               const open = openId === id;
@@ -278,14 +278,14 @@ export function BillingLedger({
                   <button
                     type="button"
                     onClick={() => setOpenId(open ? null : id)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-start active:bg-slate-50"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-start active:bg-navy-50"
                   >
                     <span
                       className={cn(
                         "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl",
                         entry.kind === "payment"
                           ? "bg-brand-50 text-brand-600"
-                          : "bg-slate-100 text-slate-600",
+                          : "bg-navy-50 text-navy-400",
                       )}
                     >
                       {entry.kind === "payment" ? (
@@ -296,21 +296,21 @@ export function BillingLedger({
                     </span>
 
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-slate-900">
+                      <span className="block truncate text-sm font-medium text-navy-700">
                         {entry.kind === "invoice"
                           ? entry.invoice.description
                           : t("tled.paidYou", {
                               name: entry.payment.patientName ?? t("tled.patient"),
                             })}
                       </span>
-                      <span className="block text-xs text-slate-500">{entry.at}</span>
+                      <span className="block text-xs text-navy-400">{entry.at}</span>
                     </span>
 
                     <span className="shrink-0 text-end">
                       <span
                         className={cn(
                           "block text-sm font-semibold tabular-nums",
-                          entry.kind === "payment" ? "text-brand-700" : "text-slate-900",
+                          entry.kind === "payment" ? "text-brand-700" : "text-navy-700",
                         )}
                       >
                         {entry.kind === "payment"
@@ -325,7 +325,7 @@ export function BillingLedger({
                   </button>
 
                   {open ? (
-                    <div className="border-t border-slate-100 bg-slate-50 px-4 py-3.5">
+                    <div className="border-t border-navy-100/70 bg-navy-50 px-4 py-3.5">
                       {entry.kind === "invoice" ? (
                         <InvoiceDetail invoice={entry.invoice} />
                       ) : (
@@ -438,14 +438,14 @@ function UsageBreakdown({ usage }: { usage: NonNullable<LedgerInvoice["usage"]> 
   if (items.length === 0) return null;
 
   return (
-    <div className="mt-2.5 border-t border-slate-200 pt-2.5">
-      <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
+    <div className="mt-2.5 border-t border-navy-100 pt-2.5">
+      <p className="text-[11px] font-bold tracking-wider text-navy-400 uppercase">
         {t("tled.covered")}
       </p>
       <ul className="mt-1.5 space-y-1">
         {items.map((item) => (
-          <li key={item} className="flex gap-2 text-sm text-slate-600">
-            <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-300" />
+          <li key={item} className="flex gap-2 text-sm text-navy-400">
+            <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-navy-200" />
             {item}
           </li>
         ))}
@@ -466,12 +466,12 @@ function PaymentDetail({ payment }: { payment: LedgerPayment }) {
       <Line label={t("tled.patientPaid")} value={<Money cents={payment.grossCents} />} />
       <Line
         label={t("tled.fee")}
-        value={<span className="text-slate-500">−<Money cents={ourFee} /></span>}
+        value={<span className="text-navy-400">−<Money cents={ourFee} /></span>}
       />
       {payment.settledInvoiceCents > 0 ? (
         <Line
           label={t("tled.billSettled")}
-          value={<span className="text-slate-500">−<Money cents={payment.settledInvoiceCents} /></span>}
+          value={<span className="text-navy-400">−<Money cents={payment.settledInvoiceCents} /></span>}
         />
       ) : null}
       <Line
@@ -488,7 +488,7 @@ function PaymentDetail({ payment }: { payment: LedgerPayment }) {
         payment would be the most consequential lie on the page — it says the
         money is somewhere it is not.
       */}
-      <p className="pt-1.5 text-xs leading-relaxed text-slate-500">
+      <p className="pt-1.5 text-xs leading-relaxed text-navy-400">
         <Receipt className="me-1 inline h-3 w-3" aria-hidden />
         {payment.capture === "destination" ? t("tled.directNote") : t("tled.heldNote")}
       </p>
@@ -499,8 +499,8 @@ function PaymentDetail({ payment }: { payment: LedgerPayment }) {
 function Line({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-end text-slate-800 tabular-nums">{value}</dd>
+      <dt className="text-navy-400">{label}</dt>
+      <dd className="text-end text-navy-700 tabular-nums">{value}</dd>
     </div>
   );
 }

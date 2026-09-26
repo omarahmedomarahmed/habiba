@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { Button, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/clinician/kit";
 import { signOut } from "@/lib/auth/actions";
 import {
   sendSecondStepCode,
@@ -40,8 +40,8 @@ export function SecondStepForm({ enrolled, email, next }: { enrolled: boolean; e
   return (
     <div className="space-y-4">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("tauth.secondTitle")}</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-bold tracking-tight text-navy-700">{t("tauth.secondTitle")}</h1>
+        <p className="mt-1 text-sm text-navy-400">
           {enrolled ? t("tauth.secondAppBody") : t("tauth.secondEmailBody", { email })}
         </p>
       </div>
@@ -49,7 +49,7 @@ export function SecondStepForm({ enrolled, email, next }: { enrolled: boolean; e
       {!enrolled ? (
         <form action={sendAction} className="space-y-2">
           {sendState.sent ? (
-            <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">{t("tauth.secondSent")}</p>
+            <p className="rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">{t("tauth.secondSent")}</p>
           ) : null}
           {sendState.error ? (
             <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
@@ -81,10 +81,10 @@ export function SecondStepForm({ enrolled, email, next }: { enrolled: boolean; e
         <Submit>{t("tauth.secondVerify")}</Submit>
       </form>
 
-      {!enrolled ? <p className="text-xs text-slate-500">{t("tauth.secondEnrolHint")}</p> : null}
+      {!enrolled ? <p className="text-xs text-navy-400">{t("tauth.secondEnrolHint")}</p> : null}
 
       <form action={signOut} className="pt-1 text-center">
-        <button type="submit" className="text-sm text-slate-500 hover:text-slate-800">
+        <button type="submit" className="text-sm text-navy-400 hover:text-navy-700">
           {t("tauth.secondSignOut")}
         </button>
       </form>

@@ -1,6 +1,6 @@
 import { AlertTriangle, Clock, FileText, MessageSquare } from "lucide-react";
 
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card } from "@/components/clinician/kit";
 import { formatDate } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import type { Locale } from "@/lib/i18n/config";
@@ -69,8 +69,8 @@ export async function StandingProfile({
   if (!profile || profile.sections.length === 0) {
     return (
       <Card className="px-4 py-6">
-        <p className="text-sm font-semibold text-slate-900">{t("tsp.title")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-500">{t("tsp.none")}</p>
+        <p className="text-sm font-semibold text-navy-700">{t("tsp.title")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("tsp.none")}</p>
       </Card>
     );
   }
@@ -104,10 +104,10 @@ export async function StandingProfile({
       ) : null}
 
       <Card>
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+        <div className="flex items-start justify-between gap-3 border-b border-navy-100/70 px-4 py-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-900">{t("tsp.title")}</p>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="text-sm font-semibold text-navy-700">{t("tsp.title")}</p>
+            <p className="mt-0.5 text-xs text-navy-400">
               {t("tsp.rebuilt", {
                 date: formatDate(profile.generatedAt, zone, locale),
                 sessions:
@@ -124,19 +124,19 @@ export async function StandingProfile({
           {stale ? <Badge tone="amber">{t("tsp.behind")}</Badge> : null}
         </div>
 
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-navy-100/70">
           {profile.sections.map((section) => (
             <section key={section.heading} className="px-4 py-3">
-              <h3 className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+              <h3 className="text-xs font-semibold tracking-wide text-navy-400 uppercase">
                 {section.heading}
               </h3>
-              <p className="mt-1 text-sm leading-relaxed text-slate-700">{section.body}</p>
+              <p className="mt-1 text-sm leading-relaxed text-navy-600">{section.body}</p>
               {/*
                 9.1 — dated and cited. The refs are rendered rather than
                 hidden behind a tooltip: a claim you have to hover to check is
                 a claim nobody checks.
               */}
-              <p className="mt-1.5 font-mono text-xs text-slate-500">{section.refs.join(" · ")}</p>
+              <p className="mt-1.5 font-mono text-xs text-navy-400">{section.refs.join(" · ")}</p>
             </section>
           ))}
         </div>
@@ -144,16 +144,16 @@ export async function StandingProfile({
 
       {timeline.length > 0 ? (
         <Card>
-          <div className="border-b border-slate-100 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-900">{t("tsp.timeline")}</p>
-            <p className="mt-0.5 text-xs text-slate-500">
+          <div className="border-b border-navy-100/70 px-4 py-3">
+            <p className="text-sm font-semibold text-navy-700">{t("tsp.timeline")}</p>
+            <p className="mt-0.5 text-xs text-navy-400">
               {t("tsp.timelineBody")}
             </p>
           </div>
-          <ol className="divide-y divide-slate-100">
+          <ol className="divide-y divide-navy-100/70">
             {timeline.map((entry) => (
               <li key={entry.id} className="flex items-start gap-3 px-4 py-2.5">
-                <span className="mt-0.5 shrink-0 text-slate-500">
+                <span className="mt-0.5 shrink-0 text-navy-400">
                   {entry.source === "session" ? (
                     <MessageSquare className="h-3.5 w-3.5" aria-hidden />
                   ) : (
@@ -161,14 +161,14 @@ export async function StandingProfile({
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <p className="flex items-center gap-1.5 text-xs text-navy-400">
                     <Clock className="h-3 w-3" aria-hidden />
                     {formatDate(entry.observedAt, zone, locale)}
                     {entry.ref ? (
-                      <span className="font-mono text-slate-500">{entry.ref}</span>
+                      <span className="font-mono text-navy-400">{entry.ref}</span>
                     ) : null}
                   </p>
-                  <p className="mt-0.5 text-sm leading-relaxed text-slate-700">{entry.text}</p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-navy-600">{entry.text}</p>
                 </div>
               </li>
             ))}

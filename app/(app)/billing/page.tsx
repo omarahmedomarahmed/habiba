@@ -14,7 +14,7 @@ import { BillPicker } from "@/components/billing/bill-picker";
 import { BillingLedger } from "@/components/billing/ledger";
 import { PlanCard } from "@/components/billing/plan-card";
 import { SeatManager } from "@/components/billing/seat-manager";
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { mayRunOrgAccount } from "@/lib/auth/org-authority";
 import { earningsSummary, recentPayments } from "@/lib/billing/connect";
@@ -158,12 +158,12 @@ export default async function BillingPage({
 
       <div className="space-y-4 px-4 pb-10 sm:px-6">
         {checkout && checkout !== "cancelled" ? (
-          <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
+          <p className="rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">
             {t("portal.billing.paid")}
           </p>
         ) : null}
         {checkout === "cancelled" ? (
-          <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">
+          <p className="rounded-xl bg-navy-50 px-3.5 py-2.5 text-sm text-navy-400">
             {t("portal.billing.cancelled")}
           </p>
         ) : null}
@@ -185,7 +185,7 @@ export default async function BillingPage({
           one.
         */}
         {!runsAccount ? (
-          <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-700">
+          <p className="rounded-xl bg-navy-50 px-3.5 py-2.5 text-sm text-navy-600">
             {t("tacct.clinicRunsAccount")}
           </p>
         ) : null}
@@ -261,7 +261,7 @@ export default async function BillingPage({
         */}
         {rail.needed ? (
           <>
-            <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-700">
+            <p className="rounded-xl bg-navy-50 px-3.5 py-2.5 text-sm text-navy-600">
               {summary.outstandingCount === 1
                 ? rich(t("transfer.billDueOne", { amount: slot(0) }), [<Money cents={summary.outstandingCents} />])
                 : rich(t("transfer.billDue", {
@@ -355,14 +355,14 @@ export default async function BillingPage({
         */}
         <Link
           href="/earnings"
-          className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 active:bg-slate-50"
+          className="flex items-center gap-3 rounded-3xl border border-navy-100/80 bg-white px-4 py-3.5 active:bg-navy-50"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
             <Wallet className="h-4 w-4" aria-hidden />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-slate-900">{t("portal.billing.earnings")}</span>
-            <span className="block truncate text-xs text-slate-500">
+            <span className="block text-sm font-semibold text-navy-700">{t("portal.billing.earnings")}</span>
+            <span className="block truncate text-xs text-navy-400">
               {earnings.heldCents > 0
                 ? rich(t("portal.billing.heldAndEarned", {
                     held: slot(0),
@@ -373,7 +373,7 @@ export default async function BillingPage({
                   }), [<Money cents={earnings.thisMonthNetCents} />])}
             </span>
           </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+          <ChevronRight className="h-4 w-4 shrink-0 text-navy-200" aria-hidden />
         </Link>
 
         {/*

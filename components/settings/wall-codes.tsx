@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { killWallCode, newWallCode } from "@/app/(app)/settings/codes/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { formatDate } from "@/lib/utils";
 
@@ -72,8 +72,8 @@ export function WallCodeList({ codes, zone }: { codes: WallCodeRow[]; zone: stri
   if (codes.length === 0) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("tset.codesNone")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("tset.codesNone")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("tset.codesNoneBody")}
         </p>
       </Card>
@@ -92,18 +92,18 @@ export function WallCodeList({ codes, zone }: { codes: WallCodeRow[]; zone: stri
                 dangerouslySetInnerHTML={{ __html: entry.svg }}
               />
             ) : (
-              <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-center text-xs font-medium text-slate-600">
+              <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-navy-50 text-center text-xs font-medium text-navy-400">
                 {t("tset.codeRevoked")}
               </div>
             )}
 
             <div className="min-w-0 flex-1">
-              <p className="font-mono text-lg font-bold tracking-[0.2em] text-slate-900">
+              <p className="font-mono text-lg font-bold tracking-[0.2em] text-navy-700">
                 {entry.code}
               </p>
-              <p className="mt-0.5 text-sm text-slate-600">{entry.label ?? t("tset.codeNoLabel")}</p>
-              <p className="mt-1 text-xs break-all text-slate-500">{entry.url}</p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-0.5 text-sm text-navy-400">{entry.label ?? t("tset.codeNoLabel")}</p>
+              <p className="mt-1 text-xs break-all text-navy-400">{entry.url}</p>
+              <p className="mt-1 text-xs text-navy-400">
                 {/*
                   37L.2 — these printed `iso.slice(0, 10)`, which is a date in
                   no language and in no zone: the raw UTC day, shown to a

@@ -6,7 +6,7 @@ import { Check, Loader2, Mail, Pencil, Plus, RefreshCw, Sparkles, Trash2, User }
 
 import { NoteCard } from "@/components/clinical/note-card";
 import { PatientBriefCard } from "@/components/clinical/patient-brief-card";
-import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { Button, Card, Field, Input, Textarea } from "@/components/clinician/kit";
 import {
   addNoteAddendum,
   approveNote,
@@ -143,12 +143,17 @@ export function NoteReview(props: Props) {
 
   if (props.view === "writing") {
     return (
-      <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-        <Sparkles className="h-6 w-6 animate-pulse text-brand-700" aria-hidden />
-        <p className="text-base font-semibold text-slate-900">{t("tnote.writing")}</p>
-        <p className="max-w-xs text-sm text-slate-500">
-          {t("tnote.writingBody")}
+      <Card className="space-y-4 p-6">
+        <p className="flex items-center gap-2 text-[16px] font-bold text-navy-700">
+          <Sparkles className="h-5 w-5 animate-pulse text-brand-700" aria-hidden />
+          {t("tnote.writing")}
         </p>
+        <p className="text-sm text-navy-400">{t("tnote.writingBody")}</p>
+        <div className="space-y-3 pt-1" aria-hidden>
+          {[90, 76, 84, 60].map((width) => (
+            <div key={width} className="h-3.5 animate-pulse rounded-full bg-navy-100" style={{ width: `${width}%` }} />
+          ))}
+        </div>
       </Card>
     );
   }
@@ -177,10 +182,13 @@ export function NoteReview(props: Props) {
     );
     return (
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-        <p className="text-base font-semibold text-slate-900">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-navy-50 text-navy-500 ring-1 ring-navy-100" aria-hidden>
+          <Pencil className="h-6 w-6" />
+        </span>
+        <p className="text-[17px] font-bold text-navy-700">
           {notRecorded ? t("tnote.notRecorded") : t("tnote.failed")}
         </p>
-        <p className="max-w-sm text-sm text-slate-500">
+        <p className="max-w-sm text-sm text-navy-400">
           {notRecorded ? t("tnote.notRecordedBody", { name: props.patientLabel }) : t("tnote.failedBody")}
         </p>
         <div className="flex flex-wrap justify-center gap-2">
@@ -298,7 +306,8 @@ export function NoteReview(props: Props) {
   return (
     <div className="space-y-4">
       {feedback ? (
-        <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
+        <p role="status" className="flex items-center gap-2 rounded-2xl bg-navy-700 px-4 py-3 text-sm font-semibold text-white shadow-lg">
+          <Check className="h-4 w-4 shrink-0 text-brand-300" aria-hidden />
           {feedback}
         </p>
       ) : null}
@@ -309,7 +318,7 @@ export function NoteReview(props: Props) {
       ) : null}
 
       {/* --------------------------------------------------- the two documents */}
-      <div className="flex items-stretch gap-2 rounded-2xl bg-slate-100 p-1">
+      <div className="flex items-stretch gap-1.5 rounded-3xl bg-white p-1.5 ring-1 ring-navy-100">
         <DocTab
           active={tab === "clinical"}
           onClick={() => setTab("clinical")}
@@ -345,7 +354,7 @@ export function NoteReview(props: Props) {
             did not write.
           */}
           {translated ? (
-            <div className="flex items-center gap-2 rounded-2xl bg-slate-100 p-1">
+            <div className="flex items-center gap-1.5 rounded-full bg-white p-1 ring-1 ring-navy-100">
               <LangTab
                 active={!showEnglish}
                 onClick={() => setShowEnglish(false)}
@@ -438,7 +447,7 @@ export function NoteReview(props: Props) {
           )}
 
           {showEnglish ? (
-            <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs leading-relaxed text-slate-600">
+            <p className="rounded-xl bg-navy-50 px-3.5 py-2.5 text-xs leading-relaxed text-navy-400">
               {/* W1-03: an English fragment used to print before this key. */}
               {t("tnote.machineNote", { language: props.languageLabel })}
             </p>
@@ -500,7 +509,7 @@ export function NoteReview(props: Props) {
           ) : null}
 
           {status === "approved" ? (
-            <p className="px-1 text-xs leading-relaxed text-slate-500">
+            <p className="px-1 text-xs leading-relaxed text-navy-400">
               {t("tnote.signedNote")}
             </p>
           ) : null}
@@ -549,21 +558,21 @@ export function NoteReview(props: Props) {
             </Card>
           ) : (
             <Card className="p-4">
-              <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+              <div className="flex items-start justify-between gap-3 border-b border-navy-100/70 pb-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-sm font-semibold text-navy-700">
                     {t("tnote.receives", { name: props.patientLabel })}
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 text-xs text-navy-400">
                     {t("tnote.receivesBody")}
                   </p>
                 </div>
                 <span
                   className={cn(
-                    "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium",
+                    "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold",
                     patientStatus === "approved"
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-slate-100 text-slate-600",
+                      ? "bg-brand-50 text-brand-800"
+                      : "bg-amber-50 text-amber-800",
                   )}
                 >
                   {patientStatus === "approved" ? t("tnote.approved") : t("tnote.stateDraft")}
@@ -622,18 +631,18 @@ export function NoteReview(props: Props) {
           */}
           {patientStatus === "approved" ? (
             <Card className="p-4">
-              <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                <Mail className="h-4 w-4 text-brand-600" aria-hidden />
+              <p className="flex items-center gap-2 text-sm font-semibold text-navy-700">
+                <Mail className="h-4 w-4 text-brand-700" aria-hidden />
                 {sent ? t("tnote.sentTitle") : t("tnote.releasedTitle")}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              <p className="mt-1 text-xs leading-relaxed text-navy-400">
                 {props.patientEmail
                   ? t("tnote.sentBody", { email: props.patientEmail })
                   : t("tnote.releasedBody")}
               </p>
             </Card>
           ) : (
-            <p className="px-1 text-xs leading-relaxed text-slate-500">
+            <p className="px-1 text-xs leading-relaxed text-navy-400">
               {t("tnote.nothingSent")}
             </p>
           )}
@@ -686,14 +695,14 @@ function Addenda({
     <div className="space-y-2.5">
       {lines.length > 0 ? (
         <Card className="space-y-3 p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("tnote.addenda")}</p>
+          <p className="text-sm font-semibold text-navy-700">{t("tnote.addenda")}</p>
           <ol className="space-y-3">
             {lines.map((line) => (
-              <li key={line.id} className="border-s-2 border-slate-200 ps-3">
-                <p className="text-xs text-slate-500">
+              <li key={line.id} className="border-s-2 border-navy-100 ps-3">
+                <p className="text-xs text-navy-400">
                   {t("tnote.addendumBy", { name: line.by, when: line.when })}
                 </p>
-                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-navy-600">
                   {line.body}
                 </p>
               </li>
@@ -768,7 +777,7 @@ function StepEditor({
   const t = useT();
   return (
     <div>
-      <p className="mb-1.5 text-sm font-medium text-slate-700">{t("tnote.beforeNext")}</p>
+      <p className="mb-1.5 text-sm font-medium text-navy-600">{t("tnote.beforeNext")}</p>
       <div className="space-y-2">
         {steps.map((step, index) => (
           <div key={index} className="flex items-start gap-2">
@@ -789,7 +798,7 @@ function StepEditor({
               disabled={disabled}
               onClick={() => onChange(steps.filter((_, i) => i !== index))}
               aria-label={t("tnote.removeStep", { number: index + 1 })}
-              className="tap-target mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-red-600"
+              className="tap-target mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-navy-400 hover:bg-navy-50 hover:text-red-600"
             >
               <Trash2 className="h-4 w-4" aria-hidden />
             </button>
@@ -807,7 +816,7 @@ function StepEditor({
           <Plus className="h-4 w-4" aria-hidden /> {t("tnote.addStep")}
         </button>
       ) : (
-        <p className="mt-2 px-1 text-xs text-slate-500">
+        <p className="mt-2 px-1 text-xs text-navy-400">
           {t("tnote.maxSteps")}
         </p>
       )}
@@ -836,14 +845,14 @@ function DocTab({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex min-w-0 flex-1 flex-col gap-0.5 rounded-xl px-3 py-2 text-start transition-colors",
-        active ? "bg-white shadow-sm" : "hover:bg-white/50",
+        "flex min-w-0 flex-1 flex-col gap-1 rounded-2xl px-3.5 py-2.5 text-start transition-colors",
+        active ? "bg-navy-600 shadow-[0_8px_24px_-12px_rgba(3,11,23,0.6)]" : "hover:bg-navy-50",
       )}
     >
       <span
         className={cn(
-          "flex items-center gap-1.5 truncate text-sm font-semibold",
-          active ? "text-slate-900" : "text-slate-500",
+          "flex items-center gap-1.5 truncate text-[15px] font-bold",
+          active ? "text-white" : "text-navy-500",
         )}
       >
         {icon}
@@ -851,8 +860,8 @@ function DocTab({
       </span>
       <span
         className={cn(
-          "truncate text-xs font-medium",
-          done ? "text-emerald-600" : "text-amber-600",
+          "w-fit max-w-full truncate rounded-full px-2 py-0.5 text-xs font-semibold",
+          done ? "bg-brand-50 text-brand-800" : "bg-amber-50 text-amber-800",
         )}
       >
         {state}
@@ -879,12 +888,12 @@ function LangTab({
       aria-pressed={active}
       className={
         active
-          ? "flex-1 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm"
-          : "flex-1 rounded-xl px-3 py-2 text-sm font-medium text-slate-500"
+          ? "flex-1 rounded-full bg-navy-50 px-3 py-2 text-sm font-bold text-navy-700 ring-1 ring-navy-100"
+          : "flex-1 rounded-full px-3 py-2 text-sm font-medium text-navy-400 hover:text-navy-700"
       }
     >
       {label}
-      <span className="ms-1.5 text-xs font-normal text-slate-500">{hint}</span>
+      <span className="ms-1.5 text-xs font-normal text-navy-400">{hint}</span>
     </button>
   );
 }

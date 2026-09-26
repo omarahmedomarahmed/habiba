@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { askLicenceChange, type OnboardingState } from "@/app/(app)/onboarding/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -48,11 +48,11 @@ export function LicenceChangeForm({
   return (
     <Card className="space-y-3 p-4">
       {waiting ? (
-        <p role="status" className="text-sm text-slate-700">
+        <p role="status" className="text-sm text-navy-600">
           {t("tlic.changePending")}
         </p>
       ) : reviewNote ? (
-        <p className="text-sm text-slate-700">{reviewNote}</p>
+        <p className="text-sm text-navy-600">{reviewNote}</p>
       ) : null}
 
       {open && !waiting ? (

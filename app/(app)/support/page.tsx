@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { desc, eq } from "drizzle-orm";
 
 import { TherapistSupport } from "@/components/support/therapist-support";
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";

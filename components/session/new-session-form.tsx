@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Link2, User, Users, Video } from "lucide-react";
 
 import { startNewSession, type SessionActionState } from "@/app/(app)/sessions/actions";
-import { Button, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/clinician/kit";
 import { SeesWhat, SplitBar } from "@/components/visual/primitives";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -151,7 +151,7 @@ export function NewSessionForm({
         they would find out when their patient was already in the wrong place.
       */}
       <div>
-        <p className="mb-2 text-sm font-medium text-slate-700">{t("portal.new.where")}</p>
+        <p className="mb-2 text-sm font-medium text-navy-600">{t("portal.new.where")}</p>
         <div className="grid grid-cols-2 gap-2.5">
           <ModalityOption
             active={where === "in_person"}
@@ -180,7 +180,7 @@ export function NewSessionForm({
         </div>
 
         {connectedProviders.length === 0 ? (
-          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          <p className="mt-2 text-xs leading-relaxed text-navy-400">
             {t("portal.new.connectFirst")}
           </p>
         ) : null}
@@ -200,9 +200,9 @@ export function NewSessionForm({
           type="checkbox"
           checked={transcribe}
           onChange={(event) => setTranscribe(event.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-slate-300"
+          className="mt-0.5 h-4 w-4 rounded border-navy-200"
         />
-        <span className="min-w-0 text-sm font-medium text-slate-800">
+        <span className="min-w-0 text-sm font-medium text-navy-700">
           {t("portal.new.record")}
         </span>
       </label>
@@ -245,7 +245,7 @@ export function NewSessionForm({
             name="patientId"
             value={existing}
             onChange={(event) => setExisting(event.target.value)}
-            className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
+            className="h-12 w-full rounded-xl border border-navy-100 bg-white px-3 text-navy-700 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
           >
             <option value="">{t("tnew.newPatient")}</option>
             {patients.map((patient) => (
@@ -321,8 +321,8 @@ export function NewSessionForm({
       <input type="hidden" name="inPersonPayment" value={modality === "in_person" ? inPersonPayment : ""} />
 
       {modality === "in_person" ? (
-        <div className="space-y-3 rounded-2xl border border-slate-200 p-4">
-          <p className="text-sm font-medium text-slate-800">{t("tnew.howPaid")}</p>
+        <div className="space-y-3 rounded-2xl border border-navy-100 p-4">
+          <p className="text-sm font-medium text-navy-700">{t("tnew.howPaid")}</p>
           {(["direct", "through_us"] as const).map((option) => (
             <label key={option} className="flex cursor-pointer items-start gap-3">
               <input
@@ -331,9 +331,9 @@ export function NewSessionForm({
                 checked={inPersonPayment === option}
                 onChange={() => setInPersonPayment(option)}
                 disabled={option === "through_us" && !payments}
-                className="mt-0.5 h-4 w-4 border-slate-300 text-brand-700 focus:ring-brand-600"
+                className="mt-0.5 h-4 w-4 border-navy-200 text-brand-700 focus:ring-brand-600"
               />
-              <span className="min-w-0 text-sm text-slate-800">
+              <span className="min-w-0 text-sm text-navy-700">
                 {t(option === "direct" ? "tnew.paidDirect" : "tnew.paidThroughUs")}
               </span>
             </label>
@@ -354,7 +354,7 @@ export function NewSessionForm({
             </Field>
           ) : null}
           {/* 🔴 Ruling 5: the pay-as-you-go notice, before the session starts, either way. */}
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-navy-400">
             {ourFees
               ? rich(t("tnew.paygNotice", { platform: slot(0), ai: slot(1) }), [
                   <Money key="platform" cents={ourFees.platformCents} />,
@@ -366,19 +366,19 @@ export function NewSessionForm({
       ) : null}
 
       {modality === "video" && payments ? (
-        <div className="rounded-2xl border border-slate-200 p-4">
+        <div className="rounded-2xl border border-navy-100 p-4">
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
               checked={charge}
               onChange={(event) => setCharge(event.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600"
+              className="mt-0.5 h-4 w-4 rounded border-navy-200 text-brand-700 focus:ring-brand-600"
             />
             <span className="min-w-0">
-              <span className="block text-sm font-medium text-slate-800">
+              <span className="block text-sm font-medium text-navy-700">
                 {t("tnew.charge")}
               </span>
-              <span className="mt-0.5 block text-xs text-slate-500">
+              <span className="mt-0.5 block text-xs text-navy-400">
                 {t("tnew.chargeBody")}
               </span>
             </span>
@@ -388,7 +388,7 @@ export function NewSessionForm({
             <div className="mt-3 space-y-3">
               <Field label={t("tnew.price")} htmlFor="price">
                 <div className="relative">
-                  <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-xs text-slate-500">
+                  <span className="pointer-events-none absolute inset-y-0 start-3.5 flex items-center text-xs text-navy-400">
                     EGP
                   </span>
                   <Input
@@ -479,7 +479,7 @@ export function NewSessionForm({
                 a warning about something going wrong.
               */}
               {priceCents > 0 && payments.held ? (
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">{t("tnew.weHold")}</p>
+                <p className="mt-2 text-xs leading-relaxed text-navy-400">{t("tnew.weHold")}</p>
               ) : null}
             </div>
           ) : null}
@@ -487,7 +487,7 @@ export function NewSessionForm({
       ) : null}
 
       {modality === "video" ? (
-        <p className="flex items-start gap-2 rounded-xl bg-slate-100 px-3.5 py-3 text-xs leading-relaxed text-slate-600">
+        <p className="flex items-start gap-2 rounded-xl bg-navy-50 px-3.5 py-3 text-xs leading-relaxed text-navy-400">
           <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           {t("tnew.linkNote")}
         </p>
@@ -495,7 +495,7 @@ export function NewSessionForm({
 
       <Submit />
 
-      <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
+      <p className="flex items-start gap-2 text-xs leading-relaxed text-navy-400">
         <Users className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         {t("tnew.consent")}
       </p>
@@ -525,12 +525,12 @@ function ModalityOption({
         "flex flex-col items-start gap-1.5 rounded-2xl border p-4 text-start transition-colors",
         active
           ? "border-brand-600 bg-brand-50 text-brand-900"
-          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300",
+          : "border-navy-100 bg-white text-navy-600 hover:border-navy-200",
       )}
     >
-      <span className={cn(active ? "text-brand-700" : "text-slate-500")}>{icon}</span>
+      <span className={cn(active ? "text-brand-700" : "text-navy-400")}>{icon}</span>
       <span className="text-sm font-semibold">{title}</span>
-      <span className="text-xs text-slate-500">{body}</span>
+      <span className="text-xs text-navy-400">{body}</span>
     </button>
   );
 }

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { savePatient } from "@/app/(app)/patients/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { PhoneField } from "@/components/forms/phone-field";
 import { countryFromE164, readerCountry } from "@/lib/phone/e164";
 import { useT } from "@/lib/i18n/client";
@@ -60,7 +60,7 @@ export function PatientEditor({
 
   return (
     <Card className="space-y-4 p-4">
-      {feedback ? <p className="text-sm text-emerald-700">{feedback}</p> : null}
+      {feedback ? <p className="text-sm text-brand-800">{feedback}</p> : null}
       {error ? (
         <p role="alert" className="text-sm text-red-700">
           {error}
@@ -151,8 +151,8 @@ export function PatientEditor({
         data or its erasure goes through us, where the retention question can
         actually be answered.
       */}
-      <div className="space-y-3 border-t border-slate-100 pt-3">
-        <p className="text-xs leading-relaxed text-slate-500">
+      <div className="space-y-3 border-t border-navy-100/70 pt-3">
+        <p className="text-xs leading-relaxed text-navy-400">
           {t("pted.retention")}
         </p>
       </div>

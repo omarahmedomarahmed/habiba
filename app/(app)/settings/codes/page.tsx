@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import QRCode from "qrcode";
 
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { WallCodeList, NewWallCode } from "@/components/settings/wall-codes";
 import { requireUser } from "@/lib/auth/guard";
 import { listCodes } from "@/lib/data/therapist-codes";
@@ -50,25 +50,25 @@ export default async function WallCodesPage() {
     <main className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8 sm:px-6">
       <Link
         href="/settings"
-        className="flex w-fit items-center gap-1 text-sm font-medium text-slate-500"
+        className="flex w-fit items-center gap-1 text-sm font-medium text-navy-400"
       >
-        <ArrowLeft className="h-4 w-4" aria-hidden />
+        <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
         {t("portal.nav.settings")}
       </Link>
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("portal.codes.title")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-navy-700">{t("portal.codes.title")}</h1>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("portal.codes.blurb")}
         </p>
       </div>
 
-      <Card className="border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-900">{t("portal.codes.carries")}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+      <Card className="border-navy-100 bg-navy-50 p-4">
+        <p className="text-sm font-semibold text-navy-700">{t("portal.codes.carries")}</p>
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("portal.codes.carriesBody")}
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+        <p className="mt-2 text-sm leading-relaxed text-navy-400">
           {t("portal.codes.revoke")}
         </p>
       </Card>

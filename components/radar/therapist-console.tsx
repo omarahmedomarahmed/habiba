@@ -12,7 +12,7 @@ import {
   type RadarState,
 } from "@/app/(app)/on-call/actions";
 import { WorldRadar } from "@/components/radar/world-radar";
-import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { Button, Card, Field, Input, Textarea } from "@/components/clinician/kit";
 import {
   alarmServerSnapshot,
   alarmSnapshot,
@@ -331,13 +331,13 @@ export function TherapistConsole(props: ConsoleProps) {
 
       {/* --------------------------------------------------------- profile */}
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{t("trad.profile")}</p>
-        <p className="mt-0.5 text-sm text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("trad.profile")}</p>
+        <p className="mt-0.5 text-sm text-navy-400">
           {t("trad.profileBody")}
         </p>
 
         <form action={formAction} className="mt-4 space-y-4">
-          {formState.ok ? <p className="text-sm text-emerald-700">{t("common.saved")}</p> : null}
+          {formState.ok ? <p className="text-sm text-brand-800">{t("common.saved")}</p> : null}
           {formState.error ? <p className="text-sm text-red-600">{formState.error}</p> : null}
 
           <Field
@@ -371,7 +371,7 @@ export function TherapistConsole(props: ConsoleProps) {
               id="country"
               name="country"
               defaultValue={props.country ?? ""}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
+              className="h-12 w-full rounded-xl border border-navy-100 bg-white px-3 text-navy-700 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
             >
               <option value="">{t("trad.notShared")}</option>
               {props.countryOptions.map((country) => (
@@ -417,12 +417,12 @@ function CheckGroup({
   const chosen = new Set(selected);
   return (
     <fieldset>
-      <legend className="mb-2 block text-sm font-medium text-slate-700">{legend}</legend>
+      <legend className="mb-2 block text-sm font-medium text-navy-600">{legend}</legend>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <label
             key={option.code}
-            className="cursor-pointer rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 has-checked:border-brand-600 has-checked:bg-brand-50 has-checked:text-brand-800"
+            className="cursor-pointer rounded-full border border-navy-100 px-3 py-1.5 text-xs font-medium text-navy-400 has-checked:border-brand-600 has-checked:bg-brand-50 has-checked:text-brand-800"
           >
             <input
               type="checkbox"
@@ -472,16 +472,16 @@ function GoOnlineSound({
   const [failed, setFailed] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:items-center">
+    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-navy-900/70 p-3 backdrop-blur-sm sm:items-center">
       <div className="animate-fade-rise w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-50">
           <BellRing className="h-5 w-5 text-teal-600" aria-hidden />
         </span>
 
-        <p className="mt-3 text-lg font-bold tracking-tight text-slate-900">
+        <p className="mt-3 text-lg font-bold tracking-tight text-navy-700">
           {t("trad.canWeRing")}
         </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+        <p className="mt-1.5 text-sm leading-relaxed text-navy-400">
           {t("trad.canWeRingBody")}
         </p>
 
@@ -520,7 +520,7 @@ function GoOnlineSound({
         <button
           type="button"
           onClick={() => (failed ? onArmed(false) : onCancel())}
-          className="mt-2 flex h-11 w-full items-center justify-center rounded-2xl text-sm font-medium text-slate-600 hover:bg-slate-50"
+          className="mt-2 flex h-11 w-full items-center justify-center rounded-2xl text-sm font-medium text-navy-400 hover:bg-navy-50"
         >
           {failed ? t("trad.goWithoutSound") : t("common.cancel")}
         </button>
@@ -556,14 +556,14 @@ function AlertSettings({
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+        <p className="flex items-center gap-2 text-sm font-semibold text-navy-700">
           <BellRing className="h-4 w-4 text-teal-600" aria-hidden />
           {t("trad.alertSounds")}
         </p>
         {pending ? (
-          <span className="text-xs text-slate-600">{t("common.saving")}</span>
+          <span className="text-xs text-navy-400">{t("common.saving")}</span>
         ) : saved ? (
-          <span className="text-xs text-emerald-600">{t("common.saved")}</span>
+          <span className="text-xs text-brand-700">{t("common.saved")}</span>
         ) : null}
       </div>
 
@@ -597,13 +597,13 @@ function AlertSettings({
         alarm worked except to have a patient arrive and not hear them. A
         button that plays the actual sound answers the question in one tap.
       */}
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-navy-100/70 pt-3">
         {sound === "ready" ? (
           <>
             <button
               type="button"
               onClick={() => playTone("ring")}
-              className="flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="flex h-10 items-center gap-1.5 rounded-xl border border-navy-100 px-3 text-xs font-semibold text-navy-600 hover:bg-navy-50"
             >
               <Volume2 className="h-3.5 w-3.5 text-teal-600" aria-hidden />
               {t("trad.hearBooking")}
@@ -616,7 +616,7 @@ function AlertSettings({
               <BellRing className="h-3.5 w-3.5" aria-hidden />
               {t("trad.hearWaiting")}
             </button>
-            <span className="text-xs font-medium text-emerald-600">{t("trad.soundOn")}</span>
+            <span className="text-xs font-medium text-brand-700">{t("trad.soundOn")}</span>
           </>
         ) : (
           <button
@@ -633,7 +633,7 @@ function AlertSettings({
         )}
       </div>
 
-      <p className="mt-2.5 text-xs leading-relaxed text-slate-600">
+      <p className="mt-2.5 text-xs leading-relaxed text-navy-400">
         {t("trad.soundsNote")}
       </p>
     </Card>
@@ -655,18 +655,18 @@ function AlertToggle({
     <label
       className={cn(
         "flex cursor-pointer items-start gap-3 rounded-2xl border p-3",
-        checked ? "border-teal-300 bg-teal-50/50" : "border-slate-200",
+        checked ? "border-teal-300 bg-teal-50/50" : "border-navy-100",
       )}
     >
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+        className="mt-0.5 h-4 w-4 rounded border-navy-200 text-teal-600 focus:ring-teal-500"
       />
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-slate-800">{title}</span>
-        <span className="mt-0.5 block text-xs leading-relaxed text-slate-600">{body}</span>
+        <span className="block text-sm font-medium text-navy-700">{title}</span>
+        <span className="mt-0.5 block text-xs leading-relaxed text-navy-400">{body}</span>
       </span>
     </label>
   );

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, MessageSquare } from "lucide-react";
 
-import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { listThreads } from "@/lib/data/copilot";
 import { listPatients } from "@/lib/data/patients";
@@ -66,27 +66,27 @@ export default async function CopilotInboxPage() {
               <li key={thread.threadId}>
                 <Link
                   href={`/copilot/${thread.patientId}`}
-                  className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 active:bg-slate-50"
+                  className="flex items-center gap-3 rounded-3xl border border-navy-100/80 bg-white px-4 py-3.5 active:bg-navy-50"
                 >
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-500 text-xs font-semibold text-white">
                     {initials(thread.firstName, thread.lastName)}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className="truncate text-[15px] font-semibold text-slate-900">
+                      <span className="truncate text-[15px] font-semibold text-navy-700">
                         {fullName(thread.firstName, thread.lastName)}
                       </span>
                       {thread.lastMessageAt ? (
-                        <span className="shrink-0 text-xs text-slate-500">
+                        <span className="shrink-0 text-xs text-navy-400">
                           {relativeDay(thread.lastMessageAt, actor.timezone, locale, t)}
                         </span>
                       ) : null}
                     </span>
-                    <span className="mt-0.5 block truncate text-xs text-slate-500">
+                    <span className="mt-0.5 block truncate text-xs text-navy-400">
                       {thread.lastMessage ?? `${thread.sessionCount} sessions on record`}
                     </span>
                   </span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-navy-200" aria-hidden />
                 </Link>
               </li>
             ))}
@@ -95,21 +95,21 @@ export default async function CopilotInboxPage() {
 
         {untouched.length > 0 ? (
           <Card>
-            <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
+            <p className="border-b border-navy-100/70 px-4 py-3 text-sm font-semibold text-navy-700">
               {t("portal.copilot.start")}
             </p>
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-navy-100/70">
               {untouched.map((patient) => (
                 <li key={patient.id}>
                   <Link
                     href={`/copilot/${patient.id}`}
-                    className="flex items-center gap-3 px-4 py-3 active:bg-slate-50"
+                    className="flex items-center gap-3 px-4 py-3 active:bg-navy-50"
                   >
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-navy-700">
                       {fullName(patient.firstName, patient.lastName)}
                     </span>
                     <Badge tone="slate">{patient.sessionCount} sessions</Badge>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-navy-200" aria-hidden />
                   </Link>
                 </li>
               ))}

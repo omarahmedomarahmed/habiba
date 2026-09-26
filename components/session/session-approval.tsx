@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2 } from "lucide-react";
 
 import { approveSession } from "@/app/(app)/sessions/actions";
-import { Button, Card } from "@/components/ui";
+import { Button, Card } from "@/components/clinician/kit";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 
@@ -72,8 +72,8 @@ export function SessionApproval(props: Props) {
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">{t("tappr.title")}</p>
-      <p className="mt-1 text-sm leading-relaxed text-slate-600">
+      <p className="text-sm font-semibold text-navy-700">{t("tappr.title")}</p>
+      <p className="mt-1 text-sm leading-relaxed text-navy-400">
         {t("tappr.body")}
       </p>
 
@@ -102,23 +102,23 @@ export function SessionApproval(props: Props) {
 
       {props.canSummarise ? (
         <div className="mt-4">
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-navy-700">
             {t("tappr.patientVersion")}
           </p>
-          <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+          <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
             {t("tappr.summaryBody", { name: props.patientLabel })}
           </p>
 
           {props.previousSummary ? (
-            <details className="mt-2.5 rounded-xl bg-slate-50 p-3">
-              <summary className="cursor-pointer text-xs font-semibold text-slate-600">
+            <details className="mt-2.5 rounded-xl bg-navy-50 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-navy-400">
                 {t("tappr.versionBy", {
                   version: props.previousSummary.version,
                   name: props.previousSummary.approvedByName,
                   date: props.previousSummary.on,
                 })}
               </summary>
-              <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+              <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-navy-600">
                 {props.previousSummary.body}
               </p>
             </details>
@@ -129,9 +129,9 @@ export function SessionApproval(props: Props) {
             value={summary}
             onChange={(event) => setSummary(event.target.value)}
             placeholder={t("tappr.leaveEmpty")}
-            className="mt-2.5 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm leading-relaxed"
+            className="mt-2.5 w-full rounded-xl border border-navy-100 px-3 py-2 text-sm leading-relaxed"
           />
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          <p className="mt-1 text-xs leading-relaxed text-navy-400">
             {t("tappr.patientVersionBody")}
           </p>
         </div>
@@ -197,7 +197,7 @@ function Choice({
     <label
       className={cn(
         "flex cursor-pointer items-start gap-3 rounded-xl border p-3",
-        done ? "border-brand-200 bg-brand-50/60" : "border-slate-200",
+        done ? "border-brand-200 bg-brand-50/60" : "border-navy-100",
         disabled && !done ? "opacity-50" : null,
       )}
     >
@@ -206,11 +206,11 @@ function Choice({
         checked={checked}
         disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-600"
+        className="mt-0.5 h-4 w-4 rounded border-navy-200 text-brand-700 focus:ring-brand-600"
       />
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-slate-900">{title}</span>
-        <span className="block text-xs leading-relaxed text-slate-600">{body}</span>
+        <span className="block text-sm font-medium text-navy-700">{title}</span>
+        <span className="block text-xs leading-relaxed text-navy-400">{body}</span>
       </span>
     </label>
   );

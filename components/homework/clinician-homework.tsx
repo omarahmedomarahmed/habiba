@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Check, Plus, SkipForward, Trash2 } from "lucide-react";
 
 import { removeStep, setStep } from "@/app/(app)/patients/[id]/homework/actions";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card } from "@/components/clinician/kit";
 import { formatDate } from "@/lib/utils";
 import { useLocale, useT } from "@/lib/i18n/client";
 
@@ -96,10 +96,10 @@ export function ClinicianHomework({
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+      <div className="flex items-start justify-between gap-3 border-b border-navy-100/70 px-4 py-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">{t("thw.title")}</p>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="text-sm font-semibold text-navy-700">{t("thw.title")}</p>
+          <p className="mt-0.5 text-xs text-navy-400">
             {t("thw.blurb")}
           </p>
         </div>
@@ -113,22 +113,22 @@ export function ClinicianHomework({
         clinician to read it as a score for the person rather than a signal
         about the work, and it is one screenshot away from being shown to them.
       */}
-      <dl className="flex flex-wrap gap-x-5 gap-y-1 border-b border-slate-100 px-4 py-2.5 text-xs">
+      <dl className="flex flex-wrap gap-x-5 gap-y-1 border-b border-navy-100/70 px-4 py-2.5 text-xs">
         <div className="flex gap-1.5">
-          <dt className="text-slate-500">{t("thw.open")}</dt>
-          <dd className="font-medium tabular-nums text-slate-800">{trend.open}</dd>
+          <dt className="text-navy-400">{t("thw.open")}</dt>
+          <dd className="font-medium tabular-nums text-navy-700">{trend.open}</dd>
         </div>
         <div className="flex gap-1.5">
-          <dt className="text-slate-500">{t("thw.done")}</dt>
-          <dd className="font-medium tabular-nums text-slate-800">{trend.done}</dd>
+          <dt className="text-navy-400">{t("thw.done")}</dt>
+          <dd className="font-medium tabular-nums text-navy-700">{trend.done}</dd>
         </div>
         <div className="flex gap-1.5">
-          <dt className="text-slate-500">{t("thw.notDone")}</dt>
-          <dd className="font-medium tabular-nums text-slate-800">{trend.skipped}</dd>
+          <dt className="text-navy-400">{t("thw.notDone")}</dt>
+          <dd className="font-medium tabular-nums text-navy-700">{trend.skipped}</dd>
         </div>
         <div className="flex gap-1.5">
-          <dt className="text-slate-500">{t("thw.completed")}</dt>
-          <dd className="font-medium tabular-nums text-slate-800">
+          <dt className="text-navy-400">{t("thw.completed")}</dt>
+          <dd className="font-medium tabular-nums text-navy-700">
             {/*
               Null, not 0%. A patient who has closed nothing has not failed
               everything — there is simply nothing to say yet, and those are
@@ -140,17 +140,17 @@ export function ClinicianHomework({
       </dl>
 
       {drafted.length > 0 && canAssign ? (
-        <div className="border-b border-slate-100 px-4 py-3">
-          <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+        <div className="border-b border-navy-100/70 px-4 py-3">
+          <p className="text-xs font-semibold tracking-wide text-navy-400 uppercase">
             {t("thw.drafted")}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          <p className="mt-1 text-xs leading-relaxed text-navy-400">
             {t("thw.draftedBody")}
           </p>
           <ul className="mt-2 space-y-1.5">
             {drafted.map((draft) => (
               <li key={draft.title} className="flex items-start gap-2">
-                <span className="min-w-0 flex-1 text-sm text-slate-700">{draft.title}</span>
+                <span className="min-w-0 flex-1 text-sm text-navy-600">{draft.title}</span>
                 {draft.assigned ? (
                   <Badge tone="slate">{t("thw.set")}</Badge>
                 ) : (
@@ -158,7 +158,7 @@ export function ClinicianHomework({
                     type="button"
                     disabled={pending}
                     onClick={() => add({ title: draft.title, fromDraft: true })}
-                    className="tap-target h-8 shrink-0 rounded-lg bg-slate-100 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                    className="tap-target h-8 shrink-0 rounded-lg bg-navy-50 px-2.5 text-xs font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
                   >
                     {t("thw.setThis")}
                   </button>
@@ -170,9 +170,9 @@ export function ClinicianHomework({
       ) : null}
 
       {items.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-slate-500">{t("thw.none")}</p>
+        <p className="px-4 py-5 text-sm text-navy-400">{t("thw.none")}</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-navy-100/70">
           {items.map((item) => (
             <li key={item.id} className="px-4 py-3">
               <div className="flex items-start gap-2.5">
@@ -180,18 +180,18 @@ export function ClinicianHomework({
                   {item.status === "done" ? (
                     <Check className="h-4 w-4 text-brand-500" aria-hidden />
                   ) : item.status === "skipped" ? (
-                    <SkipForward className="h-4 w-4 text-slate-500" aria-hidden />
+                    <SkipForward className="h-4 w-4 text-navy-400" aria-hidden />
                   ) : (
-                    <span className="block h-4 w-4 rounded-full border border-slate-300" />
+                    <span className="block h-4 w-4 rounded-full border border-navy-200" />
                   )}
                 </span>
 
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-800">{item.title}</p>
+                  <p className="text-sm text-navy-700">{item.title}</p>
                   {item.detail ? (
-                    <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{item.detail}</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-navy-400">{item.detail}</p>
                   ) : null}
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 text-xs text-navy-400">
                     {item.source === "drafted" ? `${t("thw.fromNote")} · ` : ""}
                     {formatDate(new Date(item.createdAt), zone, locale)}
                     {item.completedAt
@@ -201,7 +201,7 @@ export function ClinicianHomework({
                       : ""}
                   </p>
                   {item.patientNote ? (
-                    <blockquote className="mt-1.5 border-s-2 border-slate-200 ps-2.5 text-xs leading-relaxed text-slate-600">
+                    <blockquote className="mt-1.5 border-s-2 border-navy-100 ps-2.5 text-xs leading-relaxed text-navy-400">
                       “{item.patientNote}”
                     </blockquote>
                   ) : null}
@@ -219,7 +219,7 @@ export function ClinicianHomework({
                       })
                     }
                     aria-label={t("thw.withdraw")}
-                    className="tap-target shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+                    className="tap-target shrink-0 rounded-lg p-1.5 text-navy-400 hover:bg-navy-50 hover:text-navy-400 disabled:opacity-50"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   </button>
@@ -231,34 +231,34 @@ export function ClinicianHomework({
       )}
 
       {canAssign ? (
-        <div className="border-t border-slate-100 px-4 py-3">
+        <div className="border-t border-navy-100/70 px-4 py-3">
           {adding ? (
             <div className="space-y-2">
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={t("thw.titlePlaceholder")}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                className="w-full rounded-xl border border-navy-100 px-3 py-2 text-sm"
               />
               <input
                 value={detail}
                 onChange={(e) => setDetail(e.target.value)}
                 placeholder={t("thw.detailPlaceholder")}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                className="w-full rounded-xl border border-navy-100 px-3 py-2 text-sm"
               />
               <div className="flex gap-2">
                 <button
                   type="button"
                   disabled={pending || !title.trim()}
                   onClick={() => add({ title, detail })}
-                  className="tap-target h-9 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white disabled:opacity-50"
+                  className="tap-target h-9 rounded-lg bg-navy-600 px-3 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {pending ? t("common.saving") : t("thw.setIt")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setAdding(false)}
-                  className="tap-target h-9 rounded-lg px-3 text-sm font-medium text-slate-600"
+                  className="tap-target h-9 rounded-lg px-3 text-sm font-medium text-navy-400"
                 >
                   {t("common.cancel")}
                 </button>
@@ -268,7 +268,7 @@ export function ClinicianHomework({
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="tap-target flex h-9 items-center gap-1.5 rounded-lg bg-slate-100 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+              className="tap-target flex h-9 items-center gap-1.5 rounded-lg bg-navy-50 px-3 text-sm font-semibold text-navy-600 hover:bg-navy-100"
             >
               <Plus className="h-4 w-4" aria-hidden />
               {t("thw.addStep")}

@@ -16,7 +16,7 @@ import { LanguageCorner } from "@/components/i18n/language-corner";
  */
 export default function RoomLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-navy-600">
+    <div className="min-h-dvh bg-navy-900">
       <LanguageCorner />
       {children}
     </div>

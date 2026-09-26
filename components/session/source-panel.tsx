@@ -6,7 +6,7 @@ import {
   issueUploadCredential,
   revokeUploadCredential,
 } from "@/app/(app)/sessions/[id]/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -76,17 +76,17 @@ export function SourcePanel({
 
   return (
     <Card className="p-4">
-      <h2 className="text-sm font-semibold text-slate-900">{t("portal.source.title")}</h2>
+      <h2 className="text-sm font-semibold text-navy-700">{t("portal.source.title")}</h2>
 
       {kind === null ? (
-        <p className="mt-1 text-sm text-slate-500">{t("portal.source.none")}</p>
+        <p className="mt-1 text-sm text-navy-400">{t("portal.source.none")}</p>
       ) : (
         <>
-          <p className="mt-1 text-sm font-medium text-slate-800">
+          <p className="mt-1 text-sm font-medium text-navy-700">
             {t(`portal.source.kind.${kind}` as MessageKey)}
           </p>
           {provisionedAt ? (
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-navy-400">
               {t("portal.source.provisioned", { date: provisionedAt })}
             </p>
           ) : null}
@@ -95,22 +95,22 @@ export function SourcePanel({
             a tooltip: a clinician who wonders why they cannot point this at
             their own Zoom link deserves the reason rather than a dead control.
           */}
-          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          <p className="mt-2 text-xs leading-relaxed text-navy-400">
             {t("portal.source.onlyOurs")}
           </p>
         </>
       )}
 
       {kind !== null ? (
-        <div className="mt-4 border-t border-slate-100 pt-3">
-          <p className="text-xs font-semibold text-slate-700">
+        <div className="mt-4 border-t border-navy-100/70 pt-3">
+          <p className="text-xs font-semibold text-navy-600">
             {t("portal.source.tokenTitle")}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          <p className="mt-1 text-xs leading-relaxed text-navy-400">
             {t("portal.source.tokenBody")}
           </p>
 
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-navy-400">
             {tokenRevoked
               ? t("portal.source.tokenRevoked")
               : tokenExpiresAt
@@ -121,7 +121,7 @@ export function SourcePanel({
 
           {token ? (
             <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
-              <code className="block break-all text-xs text-slate-900">{token}</code>
+              <code className="block break-all text-xs text-navy-700">{token}</code>
               <p className="mt-1.5 text-xs leading-relaxed text-amber-900/90">
                 {t("portal.source.tokenOnce")}
               </p>
@@ -134,7 +134,7 @@ export function SourcePanel({
                 type="button"
                 disabled={pending}
                 onClick={issue}
-                className="tap-target h-10 rounded-xl bg-slate-900 px-3 text-xs font-semibold text-white disabled:opacity-50"
+                className="tap-target h-10 rounded-xl bg-navy-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
               >
                 {t("portal.source.tokenIssue")}
               </button>
@@ -144,7 +144,7 @@ export function SourcePanel({
                 type="button"
                 disabled={pending}
                 onClick={revoke}
-                className="tap-target h-10 rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                className="tap-target h-10 rounded-xl bg-navy-50 px-3 text-xs font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
               >
                 {t("portal.source.tokenRevoke")}
               </button>

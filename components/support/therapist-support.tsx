@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { CheckCircle2 } from "lucide-react";
 
 import { raiseTicket, type TherapistSupportState } from "@/app/(app)/support/actions";
-import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { Button, Card, Field, Input, Textarea } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
@@ -72,7 +72,7 @@ export function TherapistSupport({
               name="topic"
               required
               defaultValue="billing"
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              className="h-12 w-full rounded-xl border border-navy-100 bg-white px-3 text-sm"
             >
               {TOPICS.map((topic) => (
                 <option key={topic.value} value={topic.value}>
@@ -92,7 +92,7 @@ export function TherapistSupport({
               id="payoutRequestId"
               name="payoutRequestId"
               defaultValue=""
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              className="h-12 w-full rounded-xl border border-navy-100 bg-white px-3 text-sm"
             >
               <option value="">{t("tsup.notPayout")}</option>
               {payouts.map((row) => (
@@ -108,7 +108,7 @@ export function TherapistSupport({
               id="sessionId"
               name="sessionId"
               defaultValue=""
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              className="h-12 w-full rounded-xl border border-navy-100 bg-white px-3 text-sm"
             >
               <option value="">{t("tsup.notSession")}</option>
               {sessions.map((row) => (
@@ -134,15 +134,15 @@ export function TherapistSupport({
 
       {mine.length > 0 ? (
         <Card className="p-4">
-          <p className="text-sm font-semibold text-slate-900">{t("tsup.yourTickets")}</p>
-          <ul className="mt-2 divide-y divide-slate-100">
+          <p className="text-sm font-semibold text-navy-700">{t("tsup.yourTickets")}</p>
+          <ul className="mt-2 divide-y divide-navy-100/70">
             {mine.map((row) => (
               <li key={row.reference} className="flex items-center gap-3 py-2 text-sm">
-                <span className="font-mono text-xs text-slate-500">{row.reference}</span>
-                <span className="text-slate-700">
+                <span className="font-mono text-xs text-navy-400">{row.reference}</span>
+                <span className="text-navy-600">
                   {t(TOPICS.find((x) => x.value === row.topic)?.short ?? "tsup.topicOther")}
                 </span>
-                <span className="ms-auto text-xs text-slate-500">
+                <span className="ms-auto text-xs text-navy-400">
                   {row.status} · {row.atLabel}
                 </span>
               </li>

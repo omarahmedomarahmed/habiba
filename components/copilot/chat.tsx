@@ -24,7 +24,7 @@ import {
   setCopilotLanguage,
 } from "@/app/(app)/copilot/actions";
 import { saveVoicePreference } from "@/app/(app)/settings/actions";
-import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, Textarea } from "@/components/clinician/kit";
 import { SessionRecorder } from "@/lib/audio/recorder";
 import type { Citation } from "@/lib/db/schema";
 import { cn, formatDate, formatDuration } from "@/lib/utils";
@@ -329,10 +329,10 @@ export function CopilotChat({
         <div className="flex-1 space-y-3">
           {messages.length === 0 ? (
             <Card className="px-5 py-8 text-center">
-              <p className="text-base font-semibold text-slate-900">
+              <p className="text-base font-semibold text-navy-700">
                 {t("tcop.askAbout", { name: patientName })}
               </p>
-              <p className="mx-auto mt-1.5 max-w-sm text-sm text-slate-500">
+              <p className="mx-auto mt-1.5 max-w-sm text-sm text-navy-400">
                 {t("tcop.intro")}
               </p>
             </Card>
@@ -371,10 +371,10 @@ export function CopilotChat({
         ) : null}
 
         {/* ------------------------------------------------------- composer */}
-        <div className="sticky bottom-0 mt-3 bg-slate-50/95 pt-2 pb-2 backdrop-blur">
+        <div className="sticky bottom-0 mt-3 bg-navy-50/95 pt-2 pb-2 backdrop-blur">
           {exhausted ? (
             <Card className="p-4">
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-navy-700">
                 {t("tcop.exhausted", { limit: quota.limit ?? 0, name: patientName })}
               </p>
               {/*
@@ -382,10 +382,10 @@ export function CopilotChat({
                 over (`checkQuota`); it never reset monthly and there is no
                 Unlimited plan, so the card no longer says either.
               */}
-              <p className="mt-1 text-sm text-slate-500">{t("tcop.exhaustedBody")}</p>
+              <p className="mt-1 text-sm text-navy-400">{t("tcop.exhaustedBody")}</p>
             </Card>
           ) : (
-            <div className="rounded-2xl border border-slate-200 bg-white p-2">
+            <div className="rounded-3xl border border-navy-100/80 bg-white p-2">
               <Textarea
                 rows={2}
                 value={draft}
@@ -407,7 +407,7 @@ export function CopilotChat({
                     "tap-target flex items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium",
                     recording
                       ? "bg-red-600 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+                      : "bg-navy-50 text-navy-400 hover:bg-navy-100",
                   )}
                 >
                   {recording ? (
@@ -420,12 +420,12 @@ export function CopilotChat({
                 </button>
 
                 {transcribing ? (
-                  <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <span className="flex items-center gap-1.5 text-xs text-navy-400">
                     <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
                     {t("tcop.writingOut")}
                   </span>
                 ) : recording ? (
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-navy-400">
                     {t("tcop.listening")}
                   </span>
                 ) : null}
@@ -433,7 +433,7 @@ export function CopilotChat({
                 <span className="flex-1" />
 
                 {remaining !== null ? (
-                  <span className="text-xs text-slate-500">{t("tcop.left", { count: remaining })}</span>
+                  <span className="text-xs text-navy-400">{t("tcop.left", { count: remaining })}</span>
                 ) : null}
 
                 <Button size="sm" disabled={pending || !draft.trim()} onClick={() => send(draft)}>
@@ -448,7 +448,7 @@ export function CopilotChat({
             </div>
           )}
 
-          <p className="px-1 pt-2 text-[11px] leading-relaxed text-slate-500">
+          <p className="px-1 pt-2 text-[11px] leading-relaxed text-navy-400">
             {t("tcop.citeNote")}
           </p>
         </div>
@@ -458,14 +458,14 @@ export function CopilotChat({
       <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
         <Card className="p-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
+            <p className="text-xs font-bold tracking-wider text-navy-400 uppercase">
               {t("tcop.readAloud")}
             </p>
             <button
               type="button"
               onClick={() => setShowVoiceSettings((v) => !v)}
               aria-label={t("tcop.voiceSettings")}
-              className="tap-target flex items-center justify-center text-slate-500 hover:text-slate-700"
+              className="tap-target flex items-center justify-center text-navy-400 hover:text-navy-600"
             >
               <Settings2 className="h-4 w-4" aria-hidden />
             </button>
@@ -481,7 +481,7 @@ export function CopilotChat({
                     setVoice(e.target.value);
                     void saveVoicePreference(e.target.value, speed);
                   }}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                  className="h-11 w-full rounded-xl border border-navy-100 bg-white px-3 text-sm"
                 >
                   {VOICES.map((v) => (
                     <option key={v.value} value={v.value}>
@@ -507,21 +507,21 @@ export function CopilotChat({
               </Field>
             </div>
           ) : (
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-navy-400">
               {t("tcop.readAloudHint")}
             </p>
           )}
         </Card>
 
         <Card className="p-3">
-          <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">{t("tcop.prompts")}</p>
+          <p className="text-xs font-bold tracking-wider text-navy-400 uppercase">{t("tcop.prompts")}</p>
           <ul className="mt-2 space-y-1">
             {templates.map((template) => (
               <li key={template.label} className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setDraft(template.text)}
-                  className="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-start text-sm text-slate-700 hover:bg-slate-100"
+                  className="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-start text-sm text-navy-600 hover:bg-navy-50"
                 >
                   {template.label}
                 </button>
@@ -529,7 +529,7 @@ export function CopilotChat({
                   type="button"
                   onClick={() => copy(template.text, template.label)}
                   aria-label={t("tcop.copyPrompt", { label: template.label })}
-                  className="tap-target flex items-center justify-center rounded-lg text-slate-300 hover:text-slate-600"
+                  className="tap-target flex items-center justify-center rounded-lg text-navy-200 hover:text-navy-400"
                 >
                   {copied === template.label ? (
                     <span className="text-[10px] font-semibold text-brand-700">{t("tcop.copied")}</span>
@@ -614,7 +614,7 @@ function MessageBubble({
 
   return (
     <Card className="px-4 py-3.5">
-      <p className="text-[15px] leading-relaxed whitespace-pre-line text-slate-800">
+      <p className="text-[15px] leading-relaxed whitespace-pre-line text-navy-700">
         {message.content}
       </p>
 
@@ -629,7 +629,7 @@ function MessageBubble({
               "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors",
               openCitation === i
                 ? "bg-brand-500 text-navy-600"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+                : "bg-navy-50 text-navy-400 hover:bg-navy-100",
             )}
           >
             <Info className="h-3 w-3" aria-hidden />
@@ -660,7 +660,7 @@ function MessageBubble({
           aria-label={speaking ? t("tcop.stopReading") : t("tcop.readThis")}
           className={cn(
             "tap-target flex items-center justify-center rounded-lg px-2",
-            speaking ? "text-brand-700" : "text-slate-300 hover:text-slate-600",
+            speaking ? "text-brand-700" : "text-navy-200 hover:text-navy-400",
           )}
         >
           <Volume2 className="h-4 w-4" aria-hidden />
@@ -668,8 +668,8 @@ function MessageBubble({
       </div>
 
       {openCitation !== null && message.citations[openCitation] ? (
-        <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
-          <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">
+        <div className="mt-2.5 rounded-xl border border-navy-100 bg-navy-50 px-3.5 py-3">
+          <p className="text-[11px] font-bold tracking-wider text-navy-400 uppercase">
             {t("tcop.citedAt", {
               who:
                 message.citations[openCitation]!.speaker === "patient"
@@ -681,7 +681,7 @@ function MessageBubble({
               time: formatDuration(message.citations[openCitation]!.atSeconds),
             })}
           </p>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-700 italic">
+          <p className="mt-1.5 text-sm leading-relaxed text-navy-600 italic">
             “{message.citations[openCitation]!.quote}”
           </p>
         </div>
@@ -711,10 +711,10 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
   if (result) {
     return (
       <Card className="p-3">
-        <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
+        <p className="text-xs font-bold tracking-wider text-navy-400 uppercase">
           {t("tcop.freshStart")}
         </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+        <p className="mt-1.5 text-sm leading-relaxed text-navy-400">
           {result.removed === 1
             ? t("tcop.clearedOne", { kept: result.kept })
             : t("tcop.clearedMany", { removed: result.removed, kept: result.kept })}
@@ -728,7 +728,7 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-start text-sm text-slate-600 hover:bg-slate-50"
+        className="flex w-full items-center gap-2 rounded-3xl border border-navy-100/80 bg-white px-3 py-2.5 text-start text-sm text-navy-400 hover:bg-navy-50"
       >
         <RotateCcw className="h-3.5 w-3.5 shrink-0" aria-hidden />
         {t("tcop.startOverButton")}
@@ -739,18 +739,18 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
   return (
     <Card className="space-y-2.5 p-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">{t("tcop.startOver")}</p>
+        <p className="text-xs font-bold tracking-wider text-navy-400 uppercase">{t("tcop.startOver")}</p>
         <button
           type="button"
           onClick={() => setConfirming(false)}
           aria-label={t("common.close")}
-          className="tap-target flex items-center justify-center text-slate-300 hover:text-slate-600"
+          className="tap-target flex items-center justify-center text-navy-200 hover:text-navy-400"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
         </button>
       </div>
 
-      <ul className="space-y-1 text-xs leading-relaxed text-slate-600">
+      <ul className="space-y-1 text-xs leading-relaxed text-navy-400">
         <li className="flex gap-1.5">
           <span aria-hidden className="text-red-500">
             −
@@ -765,7 +765,7 @@ function ResetBox({ patientId, onReset }: { patientId: string; onReset: () => vo
         </li>
       </ul>
 
-      <p className="text-[11px] leading-relaxed text-slate-500">
+      <p className="text-[11px] leading-relaxed text-navy-400">
         {t("tcop.notesAreRecord")}
       </p>
 
@@ -828,11 +828,11 @@ function LanguageBox({ patientId, initial }: { patientId: string; initial: strin
 
   return (
     <Card className="p-3">
-      <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-slate-500 uppercase">
+      <p className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-navy-400 uppercase">
         <Languages className="h-3.5 w-3.5" aria-hidden />
         {t("tcop.answerIn")}
       </p>
-      <div className="mt-2 flex gap-1 rounded-xl bg-slate-100 p-1">
+      <div className="mt-2 flex gap-1 rounded-xl bg-navy-50 p-1">
         {(
           [
             ["auto", t("tcop.yourLanguage")],
@@ -848,14 +848,14 @@ function LanguageBox({ patientId, initial }: { patientId: string; initial: strin
             aria-pressed={language === code}
             className={cn(
               "flex-1 rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors disabled:opacity-60",
-              language === code ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
+              language === code ? "bg-white text-navy-700 shadow-sm" : "text-navy-400",
             )}
           >
             {label}
           </button>
         ))}
       </div>
-      <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+      <p className="mt-1.5 text-xs leading-relaxed text-navy-400">
         {language === "auto"
           ? t("tcop.langAuto")
           : language === "ar"
@@ -886,7 +886,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-start text-sm text-slate-600 hover:bg-slate-50"
+        className="flex w-full items-center gap-2 rounded-3xl border border-navy-100/80 bg-white px-3 py-2.5 text-start text-sm text-navy-400 hover:bg-navy-50"
       >
         <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
         {t("tcop.changeHow")}
@@ -897,14 +897,14 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
   return (
     <Card className="space-y-2.5 p-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
+        <p className="text-xs font-bold tracking-wider text-navy-400 uppercase">
           {t("tcop.howIAnswer")}
         </p>
         <button
           type="button"
           onClick={() => setOpen(false)}
           aria-label={t("common.close")}
-          className="tap-target flex items-center justify-center text-slate-300 hover:text-slate-600"
+          className="tap-target flex items-center justify-center text-navy-200 hover:text-navy-400"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
         </button>
@@ -918,10 +918,10 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
         anywhere to check it against.
       */}
       {lines.length > 0 ? (
-        <ul className="space-y-1 rounded-xl bg-slate-50 px-3 py-2.5">
+        <ul className="space-y-1 rounded-xl bg-navy-50 px-3 py-2.5">
           {lines.map((line) => (
-            <li key={line} className="flex items-start gap-2 text-xs leading-relaxed text-slate-600">
-              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-slate-300" />
+            <li key={line} className="flex items-start gap-2 text-xs leading-relaxed text-navy-400">
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-navy-200" />
               <span className="min-w-0 flex-1">{line}</span>
               <button
                 type="button"
@@ -935,7 +935,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
                     setRemoving(null);
                   })
                 }
-                className="tap-target -my-1 flex shrink-0 items-center justify-center text-slate-300 hover:text-red-600"
+                className="tap-target -my-1 flex shrink-0 items-center justify-center text-navy-200 hover:text-red-600"
               >
                 <X className="h-3 w-3" aria-hidden />
               </button>
@@ -962,7 +962,7 @@ function CorrectionBox({ patientId, guidance }: { patientId: string; guidance: s
             at. Saying so costs two sentences and saves a year of a patient's
             history living in a settings field.
           */}
-          <p className="text-xs leading-relaxed text-slate-500">
+          <p className="text-xs leading-relaxed text-navy-400">
             {t("tcop.correctionBody")}
           </p>
           <Input

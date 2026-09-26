@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { ImportPatients } from "@/components/patients/import-patients";
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { getI18n } from "@/lib/i18n/server";
 import { countryFromLocale } from "@/lib/phone/e164";

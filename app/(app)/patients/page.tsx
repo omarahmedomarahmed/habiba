@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, Users } from "lucide-react";
+import { ChevronRight, Upload, Users } from "lucide-react";
 
 import { AddPatient } from "@/components/patients/add-patient";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { Avatar, Card, EmptyState, PageHeader } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { listPatients } from "@/lib/data/patients";
 import { fullName, initials, relativeDay } from "@/lib/utils";
@@ -22,13 +22,22 @@ export default async function PatientsPage() {
   const patients = await listPatients(actor);
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-4xl">
       <PageHeader
         title={t("portal.patients.title")}
         subtitle={t("portal.patients.subtitle", { count: patients.length })}
+        action={
+          patients.length > 0 ? (
+            <span aria-hidden className="flex -space-x-2 rtl:space-x-reverse">
+              {patients.slice(0, 5).map((patient) => (
+                <Avatar key={patient.id} name={fullName(patient.firstName, patient.lastName)} size={36} className="ring-2 ring-navy-50" />
+              ))}
+            </span>
+          ) : null
+        }
       />
 
-      <div className="space-y-3 px-4 pb-10 sm:px-6">
+      <div className="space-y-4 px-4 sm:px-6">
         {/* 12.4 — the first screen where a therapist can write somebody down. */}
         <AddPatient />
 
@@ -39,44 +48,43 @@ export default async function PatientsPage() {
          * patients", finds one at a time, and types for an hour. The migration has to be a
          * button ON THIS SCREEN, next to the one-at-a-time form it replaces.
          */}
-        <p className="text-center">
-          <Link
-            href="/patients/import"
-            className="text-xs font-semibold text-brand-700 hover:underline"
-          >
-            {t("import.link")}
-          </Link>
-        </p>
+        <Link
+          href="/patients/import"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-navy-200 bg-white/60 px-4 py-3 text-sm font-semibold text-brand-700 transition-colors hover:bg-white"
+        >
+          <Upload className="h-4 w-4" aria-hidden />
+          {t("import.link")}
+        </Link>
 
         {patients.length === 0 ? (
           <Card>
             <EmptyState
-              icon={<Users className="h-5 w-5" aria-hidden />}
+              icon={<Users className="h-6 w-6" aria-hidden />}
               title={t("portal.patients.none")}
               body={t("portal.patients.noneBody")}
             />
           </Card>
         ) : (
-          <ul className="space-y-2">
+          <ul className="grid gap-3 sm:grid-cols-2">
             {patients.map((patient) => (
               <li key={patient.id}>
                 <Link
                   href={`/patients/${patient.id}`}
-                  className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 active:bg-slate-50"
+                  className="group flex items-center gap-3 rounded-3xl border border-navy-100/80 bg-white p-4 shadow-[0_1px_2px_rgba(10,35,66,0.04)] transition-shadow hover:shadow-[0_12px_32px_-12px_rgba(10,35,66,0.2)]"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-500 text-xs font-semibold text-white">
-                    {initials(patient.firstName, patient.lastName)}
-                  </span>
+                  <Avatar name={fullName(patient.firstName, patient.lastName) || initials(patient.firstName, patient.lastName)} size={48} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-semibold text-slate-900">
+                    <p className="truncate text-[16px] font-bold text-navy-700">
                       {fullName(patient.firstName, patient.lastName)}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {patient.sessionCount} session{patient.sessionCount === 1 ? "" : "s"}
-                      {patient.lastSessionAt ? ` · last ${relativeDay(patient.lastSessionAt, actor.timezone, locale, t)}` : ""}
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[13px] text-navy-400">
+                      <span className="inline-flex items-center rounded-full bg-navy-50 px-2 py-0.5 font-semibold text-navy-600 tabular-nums">
+                        {patient.sessionCount} session{patient.sessionCount === 1 ? "" : "s"}
+                      </span>
+                      {patient.lastSessionAt ? <span>{`last ${relativeDay(patient.lastSessionAt, actor.timezone, locale, t)}`}</span> : null}
                     </p>
                   </div>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-navy-300 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" aria-hidden />
                 </Link>
               </li>
             ))}

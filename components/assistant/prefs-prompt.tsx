@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { savePrefs } from "@/app/(app)/assistant/actions";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/clinician/kit";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -59,18 +59,18 @@ export function AssistantPrefsPrompt({
 
   return (
     <Card className="mb-4 border border-brand-200 p-4">
-      <p className="text-sm font-semibold text-slate-900">{t("tasst.beforeStart")}</p>
-      <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+      <p className="text-sm font-semibold text-navy-700">{t("tasst.beforeStart")}</p>
+      <p className="mt-0.5 text-xs leading-relaxed text-navy-400">
         {t("tasst.beforeStartBody")}
       </p>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         <label className="block">
-          <span className="block text-xs font-medium text-slate-600">{t("tasst.answerIn")}</span>
+          <span className="block text-xs font-medium text-navy-400">{t("tasst.answerIn")}</span>
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
-            className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-2 text-sm"
+            className="mt-1 h-10 w-full rounded-xl border border-navy-100 px-2 text-sm"
           >
             {/*
               "Match my question" first and default. This product's users
@@ -88,11 +88,11 @@ export function AssistantPrefsPrompt({
         </label>
 
         <label className="block">
-          <span className="block text-xs font-medium text-slate-600">{t("tasst.voice")}</span>
+          <span className="block text-xs font-medium text-navy-400">{t("tasst.voice")}</span>
           <select
             value={voice}
             onChange={(e) => setVoice(e.target.value as keyof typeof VOICES)}
-            className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-2 text-sm"
+            className="mt-1 h-10 w-full rounded-xl border border-navy-100 px-2 text-sm"
           >
             {Object.entries(VOICES).map(([value, label]) => (
               <option key={value} value={value}>
@@ -103,7 +103,7 @@ export function AssistantPrefsPrompt({
         </label>
 
         <label className="block">
-          <span className="block text-xs font-medium text-slate-600">
+          <span className="block text-xs font-medium text-navy-400">
             {t("tcop.speed", { rate: speed.toFixed(1) })}
           </span>
           <input
@@ -123,7 +123,7 @@ export function AssistantPrefsPrompt({
           type="button"
           disabled={pending}
           onClick={save}
-          className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+          className="tap-target h-10 rounded-xl bg-navy-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
         >
           {pending ? t("common.saving") : t("tdoc.save")}
         </button>
@@ -131,7 +131,7 @@ export function AssistantPrefsPrompt({
           type="button"
           disabled={pending}
           onClick={save}
-          className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-slate-600"
+          className="tap-target h-10 rounded-xl px-3 text-sm font-medium text-navy-400"
         >
           {t("tasst.fine")}
         </button>

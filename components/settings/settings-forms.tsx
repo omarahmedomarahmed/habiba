@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import { changePassword, signOut, type ActionState } from "@/lib/auth/actions";
 import { updateProfile, type SettingsState } from "@/app/(app)/settings/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Card, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 const INITIAL_SETTINGS: SettingsState = {};
@@ -55,9 +55,9 @@ export function ProfileForm({
     <>
       <Card className="p-4">
         <form action={profileAction} className="space-y-4">
-          <p className="text-sm font-semibold text-slate-900">{t("tset.details")}</p>
+          <p className="text-sm font-semibold text-navy-700">{t("tset.details")}</p>
 
-          {profileState.ok ? <p className="text-sm text-emerald-700">{t("common.saved")}</p> : null}
+          {profileState.ok ? <p className="text-sm text-brand-800">{t("common.saved")}</p> : null}
           {profileState.error ? (
             <p role="alert" className="text-sm text-red-700">
               {profileState.error}
@@ -114,7 +114,7 @@ export function ProfileForm({
           </Field>
 
           {licenceLocked ? (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-navy-400">
               {t("tlic.lockedHint")}{" "}
               <Link href="/onboarding" className="font-semibold text-brand-700">
                 {t("tlic.change")}
@@ -138,8 +138,8 @@ export function PasswordForm() {
     <>
       <Card className="p-4">
         <form action={passwordAction} className="space-y-4">
-          <p className="text-sm font-semibold text-slate-900">{t("tset.password")}</p>
-          <p className="text-xs text-slate-500">
+          <p className="text-sm font-semibold text-navy-700">{t("tset.password")}</p>
+          <p className="text-xs text-navy-400">
             {t("tset.passwordBody")}
           </p>
 
@@ -179,7 +179,7 @@ export function PasswordForm() {
             {t("portal.nav.signOut")}
           </Button>
         </form>
-        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+        <p className="mt-2 text-xs leading-relaxed text-navy-400">
           {t("tset.signOutBody")}
         </p>
       </Card>

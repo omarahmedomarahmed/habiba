@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { AuthShell } from "@/components/auth/auth-shell";
 import { ResetPasswordForm } from "@/components/auth/forms";
-import { Button } from "@/components/ui";
+import { Button } from "@/components/clinician/kit";
 import { getI18n } from "@/lib/i18n/server";
 
 /** W3: the tab title in the reader's language. */

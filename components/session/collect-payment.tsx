@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
 import { paidDirectly, sendPayLink } from "@/app/(app)/sessions/[id]/actions";
-import { Button, Card } from "@/components/ui";
+import { Button, Card } from "@/components/clinician/kit";
 import { Money } from "@/components/ui/money";
 import { useT } from "@/lib/i18n/client";
 
@@ -36,8 +36,8 @@ export function CollectPayment(props: {
   return (
     <div className="mx-auto max-w-md space-y-4 p-4">
       <Card className="p-5 text-center">
-        <p className="text-sm text-slate-600">{props.patientName}</p>
-        <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+        <p className="text-sm text-navy-400">{props.patientName}</p>
+        <p className="mt-1 text-2xl font-bold tabular-nums text-navy-700">
           <Money cents={props.priceCents} />
         </p>
         {props.paid ? (
@@ -53,8 +53,8 @@ export function CollectPayment(props: {
         ) : (
           <>
             <div className="mx-auto mt-4 w-56" dangerouslySetInnerHTML={{ __html: props.svg }} />
-            <p className="mt-3 text-sm text-slate-600">{t("collect.scan")}</p>
-            <p className="mt-1 text-xs text-slate-400" role="status">
+            <p className="mt-3 text-sm text-navy-400">{t("collect.scan")}</p>
+            <p className="mt-1 text-xs text-navy-300" role="status">
               {t("collect.waiting")}
             </p>
           </>
@@ -92,7 +92,7 @@ export function CollectPayment(props: {
           >
             {t("collect.direct")}
           </Button>
-          {note ? <p className="text-xs text-slate-600">{note}</p> : null}
+          {note ? <p className="text-xs text-navy-400">{note}</p> : null}
         </Card>
       )}
     </div>

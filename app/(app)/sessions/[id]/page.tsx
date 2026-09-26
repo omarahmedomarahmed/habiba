@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, AudioLines, ChevronDown, ChevronRight } from "lucide-react";
 
 import { NoteReview } from "@/components/session/note-review";
 import { RiskAssessment } from "@/components/clinical/risk-assessment";
@@ -10,7 +10,7 @@ import { SessionApproval } from "@/components/session/session-approval";
 import { AttributeTranscript } from "@/components/clinical/attribute-transcript";
 import { SourcePanel } from "@/components/session/source-panel";
 import { VoicesPanel } from "@/components/session/voices-panel";
-import { Badge, Button, Card } from "@/components/ui";
+import { Avatar, Card, Glow, buttonClass } from "@/components/clinician/kit";
 import { requireUser } from "@/lib/auth/guard";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
 import { personIdForPatient } from "@/lib/data/people";
@@ -191,18 +191,20 @@ export default async function SessionDetailPage({
     : [];
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <div className="flex items-center gap-1 px-4 pt-4 sm:px-6">
         <Link
           href="/sessions"
-          className="tap-target -ms-2 flex items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-800"
+          className="tap-target -ms-2 flex items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-navy-400 hover:bg-white hover:text-navy-700"
         >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
+          <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
           {t("portal.nav.sessions")}
         </Link>
       </div>
 
-      <div className="flex items-start justify-between gap-3 px-4 pt-3 pb-4 sm:px-6">
+      <div className="flex items-start justify-between gap-3 px-4 pt-3 pb-5 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3.5">
+        <Avatar name={patientLabel} size={52} />
         <div className="min-w-0">
           {/*
             🔴 76.40 — THE NAME IS THE DOOR TO THE PROFILE.
@@ -214,11 +216,11 @@ export default async function SessionDetailPage({
             it stays plain text in that one case rather than becoming a link
             that 404s.
           */}
-          <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="truncate text-[26px] leading-tight font-bold tracking-tight text-navy-700">
             {row.session.patientId ? (
               <Link
                 href={`/patients/${row.session.patientId}`}
-                className="underline decoration-slate-200 decoration-2 underline-offset-4 hover:decoration-slate-400"
+                className="underline decoration-brand-300 decoration-2 underline-offset-4 hover:decoration-brand-500"
               >
                 {patientLabel}
               </Link>
@@ -226,7 +228,7 @@ export default async function SessionDetailPage({
               patientLabel
             )}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-navy-400 tabular-nums">
             {/*
               🔴 B64: the booked hour stays the session's time. It used to
               lead with the END, so a 10:00 booking started at 00:26 read as a
@@ -250,33 +252,35 @@ export default async function SessionDetailPage({
             the other means the room emptied and nobody noticed.
           */}
           {row.session.autoEndedReason ? (
-            <p className="mt-1 text-xs text-amber-700">
+            <p className="mt-1.5 inline-flex rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
               {row.session.autoEndedReason === "cap"
                 ? t("portal.session.endedCap", { minutes: clockTotal })
                 : t("portal.session.endedQuiet")}
             </p>
           ) : null}
         </div>
+        </div>
         <SessionBadge status={row.session.status} />
       </div>
 
-      <div className="space-y-4 px-4 pb-10 sm:px-6">
+      <div className="space-y-4 px-4 sm:px-6">
         {live ? (
-          <Card className="flex flex-col items-start gap-3 p-4">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                {t("portal.session.unfinished")}
-              </p>
-              <p className="mt-0.5 text-sm text-slate-500">
-                {t("portal.session.unfinishedBody")}
-              </p>
-            </div>
-            <Link href={`/sessions/${id}/room`}>
-              <Button variant="primary">
+          <Card className="overflow-hidden p-0">
+            <div className="relative flex flex-col items-start gap-4 overflow-hidden bg-navy-900 p-5 text-white">
+              <Glow className="-end-16 -top-16 h-52 w-52 opacity-60" />
+              <div className="relative">
+                <p className="text-[17px] font-bold text-white">
+                  {t("portal.session.unfinished")}
+                </p>
+                <p className="mt-0.5 text-sm text-white/75">
+                  {t("portal.session.unfinishedBody")}
+                </p>
+              </div>
+              <Link href={`/sessions/${id}/room`} className={`${buttonClass("primary", "md")} relative`}>
                 {t("portal.session.openRoom")}
-                <ChevronRight className="h-4 w-4" aria-hidden />
-              </Button>
-            </Link>
+                <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
+              </Link>
+            </div>
 
             {/*
               🔴 58.1 — the button the pricing page already promised.
@@ -286,7 +290,9 @@ export default async function SessionDetailPage({
               nothing called it, so the only thing a clinician could do with a
               session opened by mistake was complete it and be billed.
             */}
-            <CancelSession sessionId={id} />
+            <div className="px-5 py-3.5">
+              <CancelSession sessionId={id} />
+            </div>
           </Card>
         ) : (
           <>
@@ -358,7 +364,7 @@ export default async function SessionDetailPage({
             />
           ) : null}
           {note && lateNotice ? (
-            <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs leading-relaxed text-amber-800">
+            <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed font-medium text-amber-900">
               {lateNotice}
             </p>
           ) : null}
@@ -457,12 +463,18 @@ export default async function SessionDetailPage({
         ) : null}
 
         {transcript.length > 0 ? (
-          <details className="group rounded-2xl border border-slate-200 bg-white">
-            <summary className="tap-target flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-sm font-semibold text-slate-800">
-              {t("portal.session.transcript")}
-              <span className="text-xs font-normal text-slate-500">
-                {t("portal.session.segments", { count: transcript.length })}
+          <details className="group rounded-3xl border border-navy-100/80 bg-white shadow-[0_1px_2px_rgba(10,35,66,0.04),0_8px_24px_-12px_rgba(10,35,66,0.12)]">
+            <summary className="tap-target flex cursor-pointer list-none items-center gap-3 px-4 py-4 sm:px-5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-navy-900 text-brand-300">
+                <AudioLines className="h-5 w-5" aria-hidden />
               </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[16px] font-bold text-navy-700">{t("portal.session.transcript")}</span>
+                <span className="block text-[13px] text-navy-400">
+                  {t("portal.session.segments", { count: transcript.length })}
+                </span>
+              </span>
+              <ChevronDown className="h-5 w-5 shrink-0 text-navy-400 transition-transform group-open:rotate-180" aria-hidden />
             </summary>
             {/*
               🔴 76.38 — WHO SAID IT, AND A WAY TO SAY OTHERWISE.
@@ -478,9 +490,9 @@ export default async function SessionDetailPage({
               the half a model cannot do: a clinician who was in the room saying
               which of them it got wrong.
             */}
-            <div className="border-t border-slate-100 px-4 py-4">
+            <div className="border-t border-navy-100/70 px-4 py-4 sm:px-5">
               {lateNotice ? (
-                <p className="mb-3 rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs leading-relaxed text-amber-800">
+                <p className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed font-medium text-amber-900">
                   {lateNotice}
                 </p>
               ) : null}
@@ -502,7 +514,8 @@ export default async function SessionDetailPage({
             </div>
           </details>
         ) : row.session.status === "completed" ? (
-          <p className="px-1 text-sm text-slate-500">
+          <p className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm text-navy-400 ring-1 ring-navy-100">
+            <AudioLines className="h-4 w-4 shrink-0 text-navy-300" aria-hidden />
             {t("portal.session.noTranscript")}
           </p>
         ) : null}

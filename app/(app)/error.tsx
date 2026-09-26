@@ -35,11 +35,11 @@ export default function PortalError({
       role="alert"
       className="mx-auto flex max-w-sm flex-col items-center gap-4 px-6 py-16 text-center"
     >
-      <p className="text-sm leading-relaxed text-slate-600">{t("common.somethingWrong")}</p>
+      <p className="text-sm leading-relaxed text-navy-400">{t("common.somethingWrong")}</p>
       <button
         type="button"
         onClick={reset}
-        className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white"
+        className="tap-target h-10 rounded-xl bg-navy-600 px-4 text-sm font-semibold text-white"
       >
         {t("common.retry")}
       </button>
