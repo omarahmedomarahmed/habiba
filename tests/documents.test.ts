@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { ar, en } from "../lib/i18n/messages";
 
@@ -7,6 +8,7 @@ import {
   chunkText,
   formatCitation,
   keepResolvableCitations,
+  withoutSessionRefs,
   parseCitations,
   MAX_CHARS,
   MIN_CHARS,
@@ -265,4 +267,24 @@ test("8.9, refs are parsed from what a model actually writes", () => {
   assert.deepEqual(parseRef("D7:3"), { ordinal: 7, sequence: 3 });
   assert.equal(parseRef("document seven"), null);
   assert.equal(parseRef(null), null);
+});
+
+test("board 718 the session codes come out of a copilot answer; the chips carry them", () => {
+  assert.equal(
+    withoutSessionRefs("She said she was tired all week [S1:12, S1:18, S2:12, S2:17]. Sleep improved (S3:4)."),
+    "She said she was tired all week. Sleep improved.",
+  );
+  assert.equal(withoutSessionRefs("قالت إنها تعبانة [S1:3]، وبعدين نامت."), "قالت إنها تعبانة، وبعدين نامت.");
+  /* A document reference is rendered from the text, so it stays. */
+  assert.equal(
+    withoutSessionRefs("The 2019 letter records it [D2:4, S1:7]."),
+    "The 2019 letter records it [D2:4].",
+  );
+  /* Ordinary brackets are words. */
+  assert.equal(withoutSessionRefs("She sleeps (mostly) well [see above]."), "She sleeps (mostly) well [see above].");
+  assert.ok(en["tcop.chip"].includes("{when}") && en["tcop.chip"].includes("{at}"));
+  assert.ok(ar["tcop.chip"] && ar["tcop.chip"] !== en["tcop.chip"]);
+  const chat = readFileSync("components/copilot/chat.tsx", "utf8");
+  assert.match(chat, /withoutSessionRefs\(message\.content\)/);
+  assert.match(chat, /formatDateTime\(citation\.sessionDate/);
 });

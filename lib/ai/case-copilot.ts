@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, isNotNull, lt } from "drizzle-orm";
 
 import type { Capabilities } from "@/lib/access/state";
-import { keepResolvableCitations, type DocumentRef } from "@/lib/documents/chunk";
+import { keepResolvableCitations, withoutSessionRefs, type DocumentRef } from "@/lib/documents/chunk";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
@@ -701,7 +701,7 @@ export async function askPatientCopilot(opts: {
      * broken", and the first of those is the one that matters. The answer
      * stands on its own words instead.
      */
-    const { answer, refs } = keepResolvableCitations(written, (docRef) =>
+    const { answer, refs } = keepResolvableCitations(withoutSessionRefs(written), (docRef) =>
       documents.resolvable.has(`${docRef.ordinal}:${docRef.sequence}`),
     );
 

@@ -255,3 +255,42 @@ test("board 462 a first session's note says nothing about a previous record it w
   assert.match(source, /When there is no such section, there is no previous record/);
   assert.match(source, /input\.context\.includes\(BACKGROUND_HEADING\)/);
 });
+
+/* ---------------------------------------------------------------- board 869 -- */
+
+test("board 869 the writer is never left to default an Arabic note to the masculine", async () => {
+  const { noteFromTranscript, PATIENT_GENDER_UNRECORDED } = await writer();
+  const before = mock.state.chatRequests.length;
+  await noteFromTranscript({ context: `Session type: video\n${PATIENT_GENDER_UNRECORDED}`, transcript: TRANSCRIPT });
+  await noteFromTranscript({ context: "", transcript: TRANSCRIPT, format: dap });
+  for (const index of [before, before + 1]) {
+    const prompt = systemOf(index);
+    assert.match(prompt, /GRAMMATICAL GENDER/, "every format carries the rule");
+    assert.match(prompt, /Never default to the masculine/);
+    assert.match(prompt, /أنا تعبانة/, "the transcript's own feminine forms are named as evidence");
+    assert.match(prompt, /no gender is assumed/);
+    assert.ok(prompt.indexOf("GRAMMATICAL GENDER") < prompt.indexOf("Respond with a single JSON object"));
+  }
+  const user = (JSON.parse(mock.state.chatRequests[before]!.body) as { messages: { content: string }[] })
+    .messages[1]!.content;
+  assert.ok(user.includes(PATIENT_GENDER_UNRECORDED), "the context says the gender is not recorded");
+
+  const notes = readFileSync("lib/ai/notes.ts", "utf8");
+  assert.match(notes, /PATIENT_GENDER_UNRECORDED,\n\s*\);/, "the session note's context carries the line");
+});
+
+/* ---------------------------------------------------------------- board 722 -- */
+
+test("board 722 the note is told which steps are already open, and never drafts them again", async () => {
+  const { openStepsContext, noteFromTranscript } = await writer();
+  assert.equal(openStepsContext([]), null);
+  assert.equal(openStepsContext(["  "]), null);
+  const block = openStepsContext(["Write down any worries", " Write down any worries "])!;
+  assert.match(block, /^STEPS ALREADY SET AND STILL OPEN/);
+  assert.equal(block.split("\n- ").length, 2, "one line per step");
+  const before = mock.state.chatRequests.length;
+  await noteFromTranscript({ context: block, transcript: TRANSCRIPT });
+  assert.match(systemOf(before), /STEPS ALREADY SET AND STILL OPEN" is already on their list: never draft it again/);
+  const notes = readFileSync("lib/ai/notes.ts", "utf8");
+  assert.match(notes, /openStepsContext\(open\.map/, "the session note's context carries the open steps");
+});

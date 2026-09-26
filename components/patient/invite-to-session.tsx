@@ -7,6 +7,7 @@ import { inviteToPaidSession } from "@/app/(app)/patients/actions";
 import { Card } from "@/components/clinician/kit";
 import { Money } from "@/components/ui/money";
 import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
  * 🔴 76.40 — ONE TAP FROM A PROFILE TO A BOOKED, PAID SESSION.
@@ -36,13 +37,15 @@ import { useT } from "@/lib/i18n/client";
  */
 export function InviteToSession({
   patientId,
-  hasPhone,
-  hasEmail,
+  promiseKey,
 }: {
   patientId: string;
-  /** Both read on the server too. These only decide what this says before the tap. */
-  hasPhone: boolean;
-  hasEmail: boolean;
+  /**
+   * 🔴 Board 832: the line before the tap, from `invitePromiseKey` on the
+   * server: only the route that will carry the invitation, so a chart with a
+   * number and no address is not promised a message WhatsApp cannot send.
+   */
+  promiseKey: MessageKey;
 }) {
   const t = useT();
   const [pending, start] = useTransition();
@@ -55,7 +58,7 @@ export function InviteToSession({
     channel: string | null;
   } | null>(null);
 
-  const reachable = hasPhone || hasEmail;
+  const reachable = promiseKey !== "pinv.needsHandle";
 
   const invite = () =>
     start(async () => {
@@ -116,7 +119,7 @@ export function InviteToSession({
         ) : (
           <>
             <p className="text-sm text-navy-400">
-              {reachable ? t("pinv.willSend") : t("pinv.needsHandle")}
+              {t(promiseKey)}
             </p>
             <button
               type="button"

@@ -34,8 +34,15 @@ import { LanguageSwitch } from "@/components/i18n/language-switch";
 export function LanguageCorner({ beside = null }: { beside?: React.ReactNode } = {}) {
   return (
     <div
-      className="pointer-events-none fixed top-0 end-0 z-50 flex items-center gap-2 p-2"
-      style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top, 0px))" }}
+      className="pointer-events-none fixed end-0 z-50 flex items-center gap-2 p-2"
+      /*
+        🔴 Board 884: below the Simulation banner when there is one (it sets
+        --sim-banner-h), so the switch and the bell never hide its text.
+      */
+      style={{
+        top: "var(--sim-banner-h, 0px)",
+        paddingTop: "max(0.5rem, env(safe-area-inset-top, 0px))",
+      }}
     >
       {/* W2-P09: the patient's notice bell shares the corner rather than covering a Back link. */}
       {beside ? <div className="pointer-events-auto">{beside}</div> : null}

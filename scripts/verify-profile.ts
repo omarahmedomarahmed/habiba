@@ -183,6 +183,42 @@ async function main() {
 
     await db.execute(sql`UPDATE users SET session_rate_cents = ${RATE} WHERE id = ${therapist.id}`);
 
+    /*
+     * 🔴 Board 832: a chart with only a number was promised "Sent to the
+     * number and address on their record" and answered "Nothing went out":
+     * WhatsApp is not live (decision 23). The card now promises only what will
+     * carry it, and a person with an account is reached at their own address.
+     */
+    const { inviteReach, invitePromiseKey } = await import("../lib/data/session-invite");
+    const { whatsappConfigured } = await import("../lib/notify/whatsapp");
+    const phoneOnly = await one<{ id: string; phone: string; email: string | null; person_id: string | null }>(sql`
+      SELECT id, phone, email, person_id FROM patients WHERE id = ${reachable.id}`);
+    if (!whatsappConfigured()) {
+      check(
+        "🔴 Board 832 a chart with only a number is not promised a message WhatsApp cannot send",
+        invitePromiseKey(await inviteReach({ ...phoneOnly, personId: phoneOnly.person_id })) === "pinv.phoneOnly",
+        invitePromiseKey(await inviteReach({ ...phoneOnly, personId: phoneOnly.person_id })),
+      );
+    }
+    const person = await one<{ id: string }>(sql`
+      INSERT INTO people (first_name, email) VALUES ('Layla', ${`layla.${fixture}@example.com`}) RETURNING id`);
+    const withAccount = await one<{ id: string }>(sql`
+      INSERT INTO patients (organization_id, therapist_id, first_name, phone, person_id, source)
+      VALUES (${org.id}, ${therapist.id}, 'Layla', '+201009000141', ${person.id}, 'therapist')
+      RETURNING id`);
+    const accountReach = await inviteReach({ email: null, phone: "+201009000141", personId: person.id });
+    check(
+      "🔴 Board 832 a patient with an account and no address on the chart is reached at their own",
+      accountReach.email === `layla.${fixture}@example.com` && invitePromiseKey(accountReach) !== "pinv.phoneOnly",
+      `${accountReach.email}, ${invitePromiseKey(accountReach)}`,
+    );
+    const toAccount = await inviteToSession(actor as never, withAccount.id);
+    check(
+      "🔴 Board 832 …and the invitation goes out, so the card says Sent",
+      !("error" in toAccount) && toAccount.sent && toAccount.channel === "email",
+      "error" in toAccount ? toAccount.error : `sent ${toAccount.sent} by ${toAccount.channel}`,
+    );
+
     /* ================================================================ */
     /*  2 · ONE THREAD, TWO SURFACES                                     */
     /* ================================================================ */

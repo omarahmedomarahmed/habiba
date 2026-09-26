@@ -32,6 +32,8 @@ import {
   noteFromTranscript,
   normaliseLanguage,
   normaliseNote,
+  openStepsContext,
+  PATIENT_GENDER_UNRECORDED,
 } from "./note-writer";
 
 export { noteFromTranscript, normaliseLanguage, normaliseNote };
@@ -102,6 +104,13 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
     contextParts.push(
       `Session type: ${row.modality === "video" ? "video" : "in person"}`,
       `Duration: ${row.durationMinutes ?? "unknown"} minutes`,
+      /*
+       * 🔴 Board 869: an Arabic note called a woman المريض throughout while her
+       * own lines were feminine. Nothing in the record holds a gender, and the
+       * writer is told so in as many words, so it follows the GRAMMATICAL
+       * GENDER rule: the transcript's evidence, else no gender assumed.
+       */
+      PATIENT_GENDER_UNRECORDED,
     );
     const diagnoses = row.clinical?.diagnoses ?? [];
     const goals = row.clinical?.goals ?? [];
@@ -136,6 +145,29 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
       if (block) contextParts.push("", block);
     } catch (error) {
       log.warn("note context could not read the evidence layer", {
+        session: ref(sessionId),
+        reason: safeErrorMessage(error),
+      });
+    }
+  }
+
+  /*
+   * 🔴 Board 722: the steps already set and still open. A new session's note
+   * drafted "Write down any worries" again while the same step was open, and
+   * the clinician was offered it a second time.
+   */
+  if (row?.personId) {
+    try {
+      const { homeworkItems } = await import("@/lib/db/schema");
+      const open = await db
+        .select({ title: homeworkItems.title })
+        .from(homeworkItems)
+        .where(and(eq(homeworkItems.personId, row.personId), eq(homeworkItems.status, "open")))
+        .limit(20);
+      const block = openStepsContext(open.map((step) => step.title));
+      if (block) contextParts.push("", block);
+    } catch (error) {
+      log.warn("note context could not read the open steps", {
         session: ref(sessionId),
         reason: safeErrorMessage(error),
       });

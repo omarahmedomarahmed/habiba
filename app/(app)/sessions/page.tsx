@@ -13,6 +13,7 @@ import {
 } from "@/lib/data/sessions";
 import { fullName, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
+import { countKey } from "@/lib/i18n/count-form";
 import { SessionBadge } from "@/components/sessions/status-badge";
 
 /** W3: the tab title in the reader's language. */
@@ -100,8 +101,10 @@ export default async function SessionsPage({
             <p className={now ? "truncate text-[15px] font-bold text-white" : "truncate text-[15px] font-bold text-navy-700"}>{label}</p>
             <p className={now ? "mt-0.5 text-[13px] text-white/75" : "mt-0.5 text-[13px] text-navy-400"}>
               {relativeDay(session.endedAt ?? session.scheduledAt ?? session.createdAt, actor.timezone, locale, t)}
-              {session.durationMinutes ? ` · ${session.durationMinutes} min` : ""}
-              {session.modality === "video" ? " · Video" : ""}
+              {session.durationMinutes
+                ? ` · ${t(countKey("tses.minutes", session.durationMinutes), { count: session.durationMinutes })}`
+                : ""}
+              {session.modality === "video" ? ` · ${t("thist.video")}` : ""}
             </p>
           </div>
 
