@@ -133,16 +133,16 @@ function Shell({
                     aria-label={label}
                     className={cn(
                       "relative flex h-10 w-full items-center justify-center gap-2.5 rounded-xl px-2.5 text-[13px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:justify-start",
-                      on ? "text-navy-700" : "text-white/75 hover:text-white",
+                      /*
+                        The teal is on the button itself, not a sliding layer
+                        behind it: `verify:contrast` reads each word against its
+                        own element's ground, as `desk-navy.tsx` found.
+                      */
+                      on
+                        ? "bg-brand-500 text-navy-700 shadow-[0_8px_24px_-10px_rgba(46,196,182,0.9)]"
+                        : "text-white/75 hover:bg-white/5 hover:text-white",
                     )}
                   >
-                    {on ? (
-                      <motion.span
-                        layoutId="rail"
-                        transition={spring}
-                        className="absolute inset-0 rounded-xl bg-brand-500 shadow-[0_8px_24px_-10px_rgba(46,196,182,0.9)]"
-                      />
-                    ) : null}
                     <Icon className="relative h-4 w-4 shrink-0" aria-hidden />
                     <span className="relative hidden truncate sm:inline">{label}</span>
                   </button>

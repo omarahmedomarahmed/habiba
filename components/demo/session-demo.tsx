@@ -332,12 +332,9 @@ function SessionDemoInner({
                         onClick={() => { setDoc(tab.id); }}
                         className={cn(
                           "relative flex min-w-0 flex-1 flex-col gap-1 rounded-2xl px-3 py-2 text-start",
-                          on ? "text-navy-700" : "text-white/80 hover:text-white",
+                          on ? "bg-white text-navy-700" : "text-white/80 hover:text-white",
                         )}
                       >
-                        {on ? (
-                          <motion.span layoutId={`doc-${String(run)}`} transition={soft} className="absolute inset-0 rounded-2xl bg-white" />
-                        ) : null}
                         <span className="relative flex items-center gap-1.5 truncate text-[13px] font-bold">
                           <tab.icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           <span className="truncate">{tab.label}</span>
