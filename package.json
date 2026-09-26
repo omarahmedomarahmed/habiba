@@ -75,6 +75,7 @@
     "seed:coverage": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/seed-coverage.ts",
     "seed:demo": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/seed-demo.ts",
     "verify:demo": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-demo.ts",
+    "verify:event-demo": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-event-demo.ts",
     "evals": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server evals/run.ts",
     "copilot:exam": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/copilot-exam.ts",
     "test:evals": "node --env-file-if-exists=.env.local --import tsx --test tests/evals.test.ts",

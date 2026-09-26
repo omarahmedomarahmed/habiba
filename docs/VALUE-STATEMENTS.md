@@ -254,7 +254,7 @@ One password for every patient, clinician and the clinic:
 
 🔴 **The three marked private never take it**: the repository is public and they open the
 production console and a company's money. Their password is `DEMO_PRIVATE_PASSWORD` in the
-operator's own `.env.local`, never committed. `docs/DEMO-LOGINS.md` says more.
+operator's own `.env.local`, never committed. `docs/DEMO-CAST.md` says more.
 
 | Who | Sign-in page | Address |
 | --- | --- | --- |

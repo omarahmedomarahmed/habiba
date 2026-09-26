@@ -176,7 +176,7 @@ thing, so treat it as a floor and re-measure rather than quoting it.
 | Every state a person can be stuck in | `docs/LIFECYCLES.md` |
 | Every page and control, and whether it is wired | `docs/INVENTORY.md` |
 | What the money does | `docs/FINANCIAL-PLAN.md`, `lib/billing/`, `lib/finance/` |
-| Who is on production right now | `docs/DEMO-LOGINS.md` |
+| Who is on production right now | `docs/DEMO-LOGINS.md` (event cast) or `docs/DEMO-CAST.md` (everyday cast), whichever was seeded last |
 | Which Neon branch is what | `docs/NEON-BRANCHES.md` |
 | What the video room really talks to | `docs/DAILY-HOSTS.md` |
 | What is published for the domain | `docs/EMAIL-DNS.md` |

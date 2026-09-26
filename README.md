@@ -8,8 +8,8 @@ story that the patient owns and carries.
 `24therapy.app`.
 
 > **Status: development. Nothing has launched and nobody real has an account here.**
-> Production carries a twelve-person demonstration cast seeded by `npm run seed:demo`,
-> described in `docs/DEMO-LOGINS.md`. **Every account that has ever existed here was
+> Production carries a demonstration cast seeded by `npm run seed:demo`: the event cast
+> (`--scenario=event`, `docs/DEMO-LOGINS.md`) or the everyday one (`docs/DEMO-CAST.md`). **Every account that has ever existed here was
 > synthetic**, and that is the claim to keep true.
 
 ---
@@ -31,7 +31,7 @@ this one included, is a claim somebody made on a date. The code is the evidence.
 | **Audit our claims for honesty** | `lib/content/honesty.ts`, `docs/VALUE-STATEMENTS.md`, `lib/content/defaults.ts` | Two claim shapes are refused at save time. Find a third we should refuse |
 | **Attack it** | `docs/TRAPS.md`, `HAZARDS.md`, `lib/security/csp.ts`, `lib/auth/`, `middleware.ts` | Six principals, six cookies. The company portal must never reach a patient name |
 | **Assess how much of it is real** | `docs/TAKEOVER.md` §10b, then `docs/VALUE-STATEMENTS.md` | §10b is the shape of the answer. Look for the patch before you write the finding: half of what looks broken here is handled three files away |
-| **Walk it as a person** | `docs/DEMO-LOGINS.md`, then `docs/PROVE-IT.md` | Twelve logins, five seeded positions, one password |
+| **Walk it as a person** | `docs/DEMO-LOGINS.md`, or `docs/DEMO-CAST.md` then `docs/PROVE-IT.md` | Seventeen shareable event logins; or twelve logins, five seeded positions, one password |
 | **Judge the design** | `docs/THE-REDESIGN.md`, then `/design` on a running app | Task 174 replaces all of it. `docs/TAKEOVER.md` §10 is the brief |
 | **Write or fix a check** | `docs/TRAPS.md`, then `scripts/_gates.ts`, then `scripts/_verify.ts` | Six traps, each enforced. A check with no control is not a check |
 | **Change the database** | `lib/db/schema.ts`, then `drizzle/` in order | The schema file is intent; the 116 migrations are what happened |
@@ -615,7 +615,8 @@ defects that sixty verifiers had missed.
 | `docs/NEON-BRANCHES.md` | Which Neon branch is production, which is dev, which is the one snapshot a script names as the undo. Read it before deleting any of them: three of the six are live connection strings and none of their names says so |
 | `docs/VALUE-STATEMENTS.md` | **The twenty-five things this product promises**, five per audience, each one a claim already made on a page a stranger can read. Generated: `npm run prove` |
 | `docs/PROVE-IT.md` | **The day the promises are tested.** Eight people on eight devices, five reseeds, cross-referenced so step 4 on one person's screen depends on step 3 on somebody else's. `verify:prove` fails if a promise is never walked |
-| `docs/DEMO-LOGINS.md` | Who is on the deployed product right now and where each one signs in. Generated: `npm run logins` |
+| `docs/DEMO-LOGINS.md` | The event cast: every shareable login, where it signs in and what to try. Generated: `npm run logins` |
+| `docs/DEMO-CAST.md` | The everyday cast the five positions are walked with. Generated: `npm run logins` |
 | `docs/THE-REDESIGN.md` | The current plan: what exists against what the redesign needs, what breaks, and the order to do it in |
 | `docs/simulation/` | The one-month simulation: start here, lessons, the cast, the month, every flow and edge case, the board, the audio, the record, and the coverage map |
 | `docs/FINANCIAL-PLAN.md` | The operating plan the simulation rehearses. Egypt, the $20k, the offer, and every number labelled measured, decided or guessed |
