@@ -17,6 +17,7 @@ import {
   type LedgerTxnKind,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
+import { counterAccountFor } from "@/lib/billing/adjust-effect";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -879,7 +880,7 @@ export async function postAdjustment(input: {
     // The other side is always ours. An adjustment is us deciding to be out
     // of pocket or better off; it never invents money from nowhere.
     {
-      account: input.amountCents > 0 ? "platform_revenue" : "platform_expense",
+      account: counterAccountFor(input.account, input.amountCents),
       amountCents: -input.amountCents,
       organizationId: input.organizationId,
       memo: reason,
@@ -975,6 +976,42 @@ export async function postAdjustment(input: {
     amount: input.amountCents,
   });
   return { ok: true };
+}
+
+/**
+ * 🔴 Board 593: the raw sums a hand adjustment's preview reads, in the scope
+ * the screen names. A clinician's held balance is theirs wherever it sits, as
+ * `heldBalances` reads it; every other account, and our own income and costs
+ * on the other side, are read for the organisation the adjustment is posted to.
+ */
+export async function adjustmentSums(input: {
+  organizationId: string;
+  therapistId: string | null;
+  account: LedgerAccount;
+}): Promise<Partial<Record<LedgerAccount, number>>> {
+  const sum = sql<number>`COALESCE(SUM(${ledgerEntries.amountCents}), 0)::int`;
+  const [own] = await db
+    .select({ total: sum })
+    .from(ledgerEntries)
+    .where(
+      input.account === "therapist_payable" && input.therapistId
+        ? and(eq(ledgerEntries.account, "therapist_payable"), eq(ledgerEntries.userId, input.therapistId))
+        : and(eq(ledgerEntries.account, input.account), eq(ledgerEntries.organizationId, input.organizationId)),
+    );
+  const ours = await db
+    .select({ account: ledgerEntries.account, total: sum })
+    .from(ledgerEntries)
+    .where(
+      and(
+        eq(ledgerEntries.organizationId, input.organizationId),
+        sql`${ledgerEntries.account} IN ('platform_revenue', 'platform_expense')`,
+      ),
+    )
+    .groupBy(ledgerEntries.account);
+  const out: Partial<Record<LedgerAccount, number>> = {};
+  for (const row of ours) out[row.account as LedgerAccount] = Number(row.total);
+  out[input.account] = Number(own?.total ?? 0);
+  return out;
 }
 
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

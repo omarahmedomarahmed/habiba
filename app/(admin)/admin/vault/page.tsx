@@ -137,7 +137,7 @@ export default async function VaultPage() {
             <UsdMoney cents={books.potsHeldCents} />
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Prepaid by employers, refundable on their terms.
+            Prepaid by employers.
           </p>
         </Card>
         <Card className="p-4">
@@ -153,8 +153,7 @@ export default async function VaultPage() {
             of it is counted here.
           */}
           <p className="mt-1 text-xs text-slate-500">
-            Owed to a tax authority. Excludes tax collected by clinicians on their
-            own charges.
+            Owed to a tax authority.
           </p>
         </Card>
       </div>
@@ -176,14 +175,14 @@ export default async function VaultPage() {
               <li>
                 {renewalDrift.paidWithNoReference.length} obligation
                 {renewalDrift.paidWithNoReference.length === 1 ? "" : "s"} marked paid with no
-                transaction behind them. This is money we believe we have.
+                transaction behind them.
               </li>
             ) : null}
             {renewalDrift.invoicesWithNoObligation.length > 0 ? (
               <li>
                 {renewalDrift.invoicesWithNoObligation.length} paid renewal invoice
                 {renewalDrift.invoicesWithNoObligation.length === 1 ? "" : "s"} that bought no
-                period. Somebody is entitled to a month we are not granting.
+                period.
               </li>
             ) : null}
           </ul>
@@ -202,9 +201,7 @@ export default async function VaultPage() {
             do not sum to zero
           </p>
           <p className="mt-1 text-xs text-red-700">
-            `journal` cannot create one, so each of these was written another way
-            or written before it existed. Nothing below this line can be trusted
-            until they are explained.
+            Nothing below can be trusted until these are explained.
           </p>
           <ul className="mt-2 space-y-1 font-mono text-xs text-red-700">
             {unbalanced.map((row) => (

@@ -1,9 +1,9 @@
 "use client";
 
 import { MIN_REASON } from "@/lib/admin/reason";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
-import { adjustLedger } from "@/app/(admin)/admin/actions";
+import { adjustLedger, adjustmentPreview } from "@/app/(admin)/admin/actions";
 import { Button, Card, Field, Input } from "@/components/ui";
 import {
   CLINICIAN_ALLOWED_ACCOUNTS,
@@ -11,6 +11,15 @@ import {
   LEDGER_ACCOUNTS,
   type LedgerAccount,
 } from "@/lib/db/schema";
+import {
+  adjustmentEffect,
+  effectLines,
+  effectSentence,
+  ledgerAmountFor,
+  type AdjustDirection,
+} from "@/lib/billing/adjust-effect";
+import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 /**
  * 🔴 58.1 — the screen `adjustLedger` never had.
@@ -38,6 +47,12 @@ import {
  * them to get a sign convention right under pressure, which is how a correction
  * becomes a second error. One number, one account, and the machinery balances.
  *
+ * 🔴 Board 593: and the one number was still a sign convention. It was the
+ * ledger's (debit positive), so "+2" on a clinician's held balance took $2 off
+ * it. The operator now says "add to it" or "take it off" on the balance as the
+ * screens read it, sees each balance before and after, and the screen works
+ * out the sign (`lib/billing/adjust-effect.ts`).
+ *
  * ## The reason field is not optional and not cosmetic
  *
  * It goes into the audit row. An adjustment without a reason is indistinguishable
@@ -51,12 +66,19 @@ export function LedgerAdjust({
   organizations: { id: string; name: string }[];
   clinicians: { id: string; name: string; organizationId: string }[];
 }) {
+  const t = useT();
   const [pending, start] = useTransition();
-  const [state, setState] = useState<{ error?: string; ok?: boolean; proposed?: boolean }>({});
+  const [state, setState] = useState<{ error?: string; posted?: string; proposed?: boolean }>({});
 
   const [organizationId, setOrganizationId] = useState(organizations[0]?.id ?? "");
   const [account, setAccount] = useState<LedgerAccount>("platform_expense");
   const [therapistId, setTherapistId] = useState("");
+  /*
+   * 🔴 Board 593: a direction on the balance as every screen reads it, and a
+   * positive amount. The ledger's sign is worked out in `ledgerAmountFor`, so
+   * "add $2 to Dr Amira's held balance" can no longer post as a $2 deduction.
+   */
+  const [direction, setDirection] = useState<AdjustDirection>("up");
   const [dollars, setDollars] = useState("");
   const [reason, setReason] = useState("");
   /*
@@ -78,23 +100,49 @@ export function LedgerAdjust({
   const takesClinician = (CLINICIAN_ALLOWED_ACCOUNTS as readonly LedgerAccount[]).includes(account);
   const theirs = clinicians.filter((c) => c.organizationId === organizationId);
 
-  const cents = Math.round(Number(dollars) * 100);
+  const magnitude = Math.round(Math.abs(Number(dollars)) * 100);
+  const ledgerCents = Number.isFinite(magnitude) ? ledgerAmountFor(account, direction, magnitude) : 0;
   const valid =
     organizationId !== "" &&
     (!needsClinician || therapistId !== "") &&
-    Number.isFinite(cents) &&
-    cents !== 0 &&
+    Number.isFinite(magnitude) &&
+    magnitude !== 0 &&
     reason.trim().length >= MIN_REASON;
+
+  /* 🔴 Board 593: the balances this would move, read when the choice changes. */
+  const [sums, setSums] = useState<Partial<Record<LedgerAccount, number>> | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const scopeReady = organizationId !== "" && (!needsClinician || therapistId !== "");
+  useEffect(() => {
+    if (!scopeReady) return;
+    let live = true;
+    adjustmentPreview({ organizationId, therapistId: therapistId || null, account })
+      .then((result) => {
+        if (!live) return;
+        setSums(result.sums ?? null);
+        setPreviewFailed(!result.sums);
+      })
+      .catch(() => {
+        if (live) setPreviewFailed(true);
+      });
+    return () => {
+      live = false;
+    };
+  }, [scopeReady, organizationId, therapistId, account, state.posted]);
+
+  const names = {
+    clinician: clinicians.find((c) => c.id === therapistId)?.name ?? null,
+    org: organizations.find((o) => o.id === organizationId)?.name ?? null,
+  };
+  const effect = scopeReady && sums && magnitude > 0 ? adjustmentEffect({ account, ledgerCents, sums }) : null;
 
   return (
     <Card className="p-4">
-      <p className="text-sm font-semibold text-slate-900">Adjust the books</p>
-      <p className="mt-1 text-xs leading-relaxed text-slate-500">
-        A balanced pair, audited with your name.
-      </p>
+      <p className="text-sm font-semibold text-slate-900">{t("adj.title")}</p>
+      <p className="mt-1 text-xs leading-relaxed text-slate-600">{t("adj.sub")}</p>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <Field label="Organisation" htmlFor="adj-org">
+        <Field label={t("adj.org")} htmlFor="adj-org">
           <select
             id="adj-org"
             value={organizationId}
@@ -102,6 +150,7 @@ export function LedgerAdjust({
               setOrganizationId(e.target.value);
               // A clinician belongs to one practice; a new practice means choosing again.
               setTherapistId("");
+              setSums(null);
             }}
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
           >
@@ -113,35 +162,39 @@ export function LedgerAdjust({
           </select>
         </Field>
 
-        <Field label="Account" htmlFor="adj-account">
+        <Field label={t("adj.account")} htmlFor="adj-account">
           <select
             id="adj-account"
             value={account}
             onChange={(e) => {
               setAccount(e.target.value as LedgerAccount);
               setTherapistId("");
+              setSums(null);
             }}
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
           >
             {LEDGER_ACCOUNTS.map((name) => (
               <option key={name} value={name}>
-                {name}
+                {t(`adj.acct.${name}` as MessageKey)}
               </option>
             ))}
           </select>
         </Field>
 
         {takesClinician ? (
-          <Field label="Clinician" htmlFor="adj-clinician">
+          <Field label={t("adj.clinician")} htmlFor="adj-clinician">
             <select
               id="adj-clinician"
               value={therapistId}
-              onChange={(e) => setTherapistId(e.target.value)}
+              onChange={(e) => {
+                setTherapistId(e.target.value);
+                setSums(null);
+              }}
               required={needsClinician}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
             >
               {/* Empty is a choice only where the practice itself can hold the balance. */}
-              <option value="">{needsClinician ? "…" : "None"}</option>
+              <option value="">{needsClinician ? t("adj.choose") : t("adj.none")}</option>
               {theirs.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -151,29 +204,59 @@ export function LedgerAdjust({
           </Field>
         ) : null}
 
-        <Field
-          label="Amount ($)"
-          htmlFor="adj-amount"
-          hint="Negative is fine."
-        >
+        <fieldset className="space-y-1.5">
+          <legend className="block text-sm font-medium text-slate-700">{t("adj.direction")}</legend>
+          <div className="flex flex-wrap gap-3 pt-1">
+            {(["up", "down"] as const).map((value) => (
+              <label key={value} className="flex items-center gap-2 text-sm text-slate-800">
+                <input
+                  type="radio"
+                  name="adj-direction"
+                  value={value}
+                  checked={direction === value}
+                  onChange={() => setDirection(value)}
+                />
+                {t(value === "up" ? "adj.up" : "adj.down")}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <Field label={t("adj.amount")} htmlFor="adj-amount">
           <Input
             id="adj-amount"
             type="number"
+            min="0"
             step="0.01"
+            inputMode="decimal"
             value={dollars}
-            onChange={(e) => setDollars(e.target.value)}
+            onChange={(e) => setDollars(e.target.value.replace(/^-/, ""))}
           />
         </Field>
 
-        <Field label="Reason" htmlFor="adj-reason" hint="A sentence. It is audited.">
+        <Field label={t("adj.reason")} htmlFor="adj-reason" hint={t("adj.reasonHint")}>
           <Input id="adj-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
       </div>
 
+      {effect ? (
+        <ul
+          className="mt-4 space-y-1 rounded-xl bg-slate-50 p-3 text-sm font-medium text-slate-900 ring-1 ring-slate-200"
+          data-testid="adjust-preview"
+        >
+          {effectLines(t, effect, names).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      ) : previewFailed && magnitude > 0 ? (
+        <p className="mt-3 text-sm text-amber-800">{t("adj.previewFailed")}</p>
+      ) : null}
+
       {state.error ? <p className="mt-3 text-sm text-red-600">{state.error}</p> : null}
-      {state.ok ? (
-        <p className="mt-3 text-sm text-brand-700">
-          {state.proposed ? "Asked. A second admin posts it." : "Posted."}
+      {state.proposed ? <p className="mt-3 text-sm text-brand-700">{t("appr.yours")}</p> : null}
+      {state.posted ? (
+        <p className="mt-3 text-sm text-brand-700" role="status">
+          {t("adj.posted", { effect: state.posted })}
         </p>
       ) : null}
 
@@ -188,20 +271,26 @@ export function LedgerAdjust({
               organizationId,
               therapistId: takesClinician && therapistId ? therapistId : null,
               account,
-              amountCents: cents,
+              amountCents: ledgerCents,
               reason: reason.trim(),
               idempotencyKey: key,
             });
-            setState(result.error ? { error: result.error } : { ok: true, proposed: result.proposed });
-            if (!result.error) {
-              setDollars("");
-              setReason("");
-              setKey(mintKey());
+            if (result.error) {
+              setState({ error: result.error });
+              return;
             }
+            setState(
+              result.proposed
+                ? { proposed: true }
+                : { posted: result.effect ? effectSentence(t, result.effect, names) : " " },
+            );
+            setDollars("");
+            setReason("");
+            setKey(mintKey());
           })
         }
       >
-        {pending ? "Posting…" : "Post the adjustment"}
+        {pending ? t("adj.posting") : t("adj.post")}
       </Button>
     </Card>
   );
