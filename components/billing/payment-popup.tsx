@@ -175,6 +175,13 @@ export function PaymentPopup({
   /* Two taps to cancel, because the first one is easy to hit by accident. */
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  /*
+   * 🔴 Board 268: whether a payment was started from this screen. "Cancel this
+   * payment" showed to somebody who had never opened one, because the server's
+   * `none` covers both "nothing started" and "started on this page, not yet
+   * re-rendered". Opening the sheet is what starts one.
+   */
+  const [started, setStarted] = useState(openInitially);
 
   /*
    * 🔴 READ IN AN EFFECT, NEVER DURING RENDER.
@@ -218,7 +225,10 @@ export function PaymentPopup({
      * to read an account number, and a failure here costs the bar rather than
      * the payment, which they can still complete from this very screen.
      */
-    if (next) void onOpen?.().catch(() => undefined);
+    if (next) {
+      setStarted(true);
+      void onOpen?.().catch(() => undefined);
+    }
     try {
       if (!next) window.localStorage.removeItem(`pay:${storageKey}`);
     } catch {
@@ -249,7 +259,7 @@ export function PaymentPopup({
    * WHERE clause, so this is the second lock rather than the only one.
    */
   const cancelControl =
-    onCancel && (live.state === "none" || live.state === "awaiting_proof") ? (
+    onCancel && (live.state === "awaiting_proof" || (live.state === "none" && started)) ? (
       confirmingCancel ? (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3">
           <p className="text-sm font-semibold text-amber-900">{t("pop.cancelSure")}</p>
@@ -274,6 +284,7 @@ export function PaymentPopup({
                       /* Nothing remembered, nothing to forget. */
                     }
                     setOpen(false);
+                    setStarted(false);
                   })
                   .finally(() => {
                     setCancelling(false);

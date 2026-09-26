@@ -370,3 +370,21 @@ test("W2-S10 a week that clears the floor by itself keeps its own week", () => {
   assert.equal(shown.length, 5);
   assert.ok(shown.every((entry) => entry.weekStart === "2026-08-03" && entry.weekEnd === undefined));
 });
+
+/* Board 357: a spent reset link says so on arrival, in the company and partner portals as in the clinic. */
+test("the company and partner set-password pages check the link before drawing the form", () => {
+  const sponsor = readSource("app/(sponsor)/sponsor/set-password/page.tsx");
+  assert.ok(sponsor.indexOf("sponsorPasswordLinkLive(") > -1, "the company page asks whether the link is live");
+  assert.ok(
+    sponsor.indexOf("sponsorPasswordLinkLive(") < sponsor.indexOf("<SetPasswordForm"),
+    "and asks before the form",
+  );
+  const partner = readSource("app/(partner)/partner/reset/page.tsx");
+  assert.ok(
+    partner.indexOf("partnerLinkUser(") > -1 &&
+      partner.indexOf("partnerLinkUser(") < partner.indexOf("<PartnerChoosePasswordForm"),
+  );
+  /* One rule for the page and the write: the write goes through the same check. */
+  assert.match(readSource("lib/partner/team.ts"), /const user = await partnerLinkUser\(token\);/);
+  assert.match(readSource("lib/data/sponsor-users.ts"), /export async function sponsorPasswordLinkLive/);
+});

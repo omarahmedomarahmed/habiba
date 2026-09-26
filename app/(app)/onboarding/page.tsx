@@ -38,21 +38,25 @@ export default async function OnboardingPage() {
    */
   if (isBackOffice(actor.role)) redirect(landingFor(actor.role));
 
-  const [verification, countryOptions, languageOptions, specialtyOptions] = await Promise.all([
-    ensureVerification(actor),
-    activeTaxonomy("country"),
-    activeTaxonomy("language"),
-    activeTaxonomy("specialty"),
-  ]);
+  /*
+   * 🔴 Board 280: side by side. The labels and regulators an administrator has
+   * configured (20.4 / 20.5) and the licence change (W1-23) were each awaited
+   * after the verification row, one round trip after another, on a first load
+   * that took eleven seconds. The change view needs only to know the row is
+   * approved, so it is asked for alongside and dropped when it is not.
+   */
+  const [verification, countryOptions, languageOptions, specialtyOptions, overrides, changeIfApproved] =
+    await Promise.all([
+      ensureVerification(actor),
+      activeTaxonomy("country"),
+      activeTaxonomy("language"),
+      activeTaxonomy("specialty"),
+      requirementOverrides(),
+      licenceChangeView(actor),
+    ]);
   const missing = missingFrom(verification);
   /* 🔴 W1-23: after approval, licence details change through review. */
-  const change = verification.state === "approved" ? await licenceChangeView(actor) : null;
-  /*
-   * 20.4 / 20.5 — the labels and regulators an administrator has configured,
-   * with the shipped constants underneath. Read on the server; the form needs
-   * the whole map because it relabels the moment a country is picked.
-   */
-  const overrides = await requirementOverrides();
+  const change = verification.state === "approved" ? changeIfApproved : null;
   const requirements = documentRequirements(verification.country, overrides);
 
   /*

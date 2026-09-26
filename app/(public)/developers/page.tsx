@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { PartnerDemo } from "@/components/public/audience-demos";
 import { DarkBand, Glow, btn } from "@/components/public/site-ui";
 import { Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -52,7 +53,8 @@ export default async function DevelopersPage() {
     <main>
       <DarkBand className="px-5 pt-12 pb-16 sm:px-6 sm:pt-20 sm:pb-20">
         <Glow className="-start-40 top-10 h-[480px] w-[480px] opacity-50" />
-        <div className="mx-auto max-w-3xl">
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          <div className="min-w-0">
           <h1 className="text-balance text-[38px] font-bold leading-[1.04] tracking-tight text-white sm:text-[56px]">
             {t("devs.title")}
           </h1>
@@ -64,6 +66,17 @@ export default async function DevelopersPage() {
             <Link href={PARTNER_SIGN_IN} className={cn(btn.light, btn.lg)}>
               {t("dev.signIn")}
             </Link>
+          </div>
+          </div>
+
+          {/*
+            The partner's own desk beside the words: the keys a developer holds
+            and the log of what was delivered to them, on the redesigned
+            partner portal. Invented keys that open nothing.
+          */}
+          <div className="min-w-0 text-navy-700">
+            <PartnerDemo />
+            <p className="mt-4 text-center text-[13px] text-white/70">{t("public.demoNote")}</p>
           </div>
         </div>
       </DarkBand>

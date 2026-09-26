@@ -86,32 +86,34 @@ export type SessionOwed = {
 };
 
 export async function patientOwesFor(sessionId: string): Promise<SessionOwed> {
-  const before = await owedBeforeWallet(sessionId);
+  /*
+   * 🔴 Board 373/408 (B49): side by side. The wallet's hold does not depend on
+   * the split, and every round trip here was one more a patient waited for on
+   * /patient/sessions, once per unpaid session.
+   */
   const { walletCentsOn } = await import("./wallet");
-  const walletCents = Math.min(before.grossCents, await walletCentsOn(sessionId));
+  const [before, held] = await Promise.all([owedBeforeWallet(sessionId), walletCentsOn(sessionId)]);
+  const walletCents = Math.min(before.grossCents, held);
   return { ...before, grossCents: before.grossCents - walletCents, walletCents };
 }
 
 async function owedBeforeWallet(sessionId: string): Promise<Omit<SessionOwed, "walletCents">> {
-  const [row] = await db
-    .select({ priceCents: sessions.priceCents })
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .limit(1);
+  /* The session's one payment row: `session_payments` is unique on the session. */
+  const [[row], [split]] = await Promise.all([
+    db.select({ priceCents: sessions.priceCents }).from(sessions).where(eq(sessions.id, sessionId)).limit(1),
+    db
+      .select({
+        sponsorShareCents: sessionPayments.sponsorShareCents,
+        patientShareCents: sessionPayments.patientShareCents,
+        status: sessionPayments.status,
+        fundingSource: sessionPayments.fundingSource,
+      })
+      .from(sessionPayments)
+      .where(eq(sessionPayments.sessionId, sessionId))
+      .limit(1),
+  ]);
 
   const priceCents = Math.max(0, row?.priceCents ?? 0);
-
-  /* The session's one payment row: `session_payments` is unique on the session. */
-  const [split] = await db
-    .select({
-      sponsorShareCents: sessionPayments.sponsorShareCents,
-      patientShareCents: sessionPayments.patientShareCents,
-      status: sessionPayments.status,
-      fundingSource: sessionPayments.fundingSource,
-    })
-    .from(sessionPayments)
-    .where(eq(sessionPayments.sessionId, sessionId))
-    .limit(1);
 
   /*
    * 🔴 W2-M02: ONLY A POT ROW CARRIES A SPLIT. A card checkout writes its row

@@ -27,6 +27,7 @@ import { Money } from "@/components/ui/money";
 import type { NoteContent } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
+import { countKey } from "@/lib/i18n/count-form";
 
 type Live = {
   id: string;
@@ -463,6 +464,7 @@ function People({
   onSelect: (key: string) => void;
   onOpen: (id: string) => void;
 }) {
+  const t = useT();
   const [term, setTerm] = useState(query);
   const person = people.find((p) => p.key === selected);
 
@@ -493,7 +495,7 @@ function People({
       <Card className="overflow-hidden">
         <p className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
           <Users className="h-4 w-4 text-slate-500" aria-hidden />
-          {people.length} people
+          {t(countKey("admin.count.people", people.length), { count: people.length })}
         </p>
         <ul className="divide-y divide-slate-100">
           {people.map((p) => (
@@ -679,10 +681,11 @@ function PersonDetail({ person, onOpen }: { person: Person; onOpen: (id: string)
 /* ---------------------------------------------------------- clinicians -- */
 
 function Clinicians({ roster }: { roster: Clinician[] }) {
+  const t = useT();
   return (
     <Card className="overflow-hidden">
       <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-        {roster.length} clinicians
+        {t(countKey("admin.count.clinicians", roster.length), { count: roster.length })}
       </p>
       <ul className="divide-y divide-slate-100">
         {roster.map((c) => (

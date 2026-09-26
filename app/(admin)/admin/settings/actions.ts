@@ -444,6 +444,9 @@ export async function saveTransferFields(
   const labels = formData.getAll("fieldLabel").map(String);
   const values = formData.getAll("fieldValue").map(String);
   const hints = formData.getAll("fieldHint").map(String);
+  /* 🔴 Board 364: the Arabic reader's words, optional. */
+  const labelsAr = formData.getAll("fieldLabelAr").map(String);
+  const hintsAr = formData.getAll("fieldHintAr").map(String);
   const audiences = formData.getAll("fieldAudiences").map(String);
 
   const transferFields = labels.map((label, i) => ({
@@ -451,6 +454,8 @@ export async function saveTransferFields(
     label: label.trim(),
     value: (values[i] ?? "").trim(),
     hint: (hints[i] ?? "").trim(),
+    labelAr: (labelsAr[i] ?? "").trim(),
+    hintAr: (hintsAr[i] ?? "").trim(),
     position: i,
     audiences: (audiences[i] ?? "")
       .split(",")

@@ -66,6 +66,7 @@ export default async function ForClinicsPage() {
         cta={{ label: t("marketing.companies.cta"), href: CLINIC_APPLY }}
         secondary={{ label: t("nav.contact"), href: "/contact" }}
         demo={<ClinicDemo />}
+        note={t("public.demoNote")}
       />
 
       {/*

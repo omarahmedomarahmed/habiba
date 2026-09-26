@@ -7,7 +7,9 @@ import type { Actor } from "@/lib/auth/session";
 import { controlDb } from "@/lib/db";
 import {
   availabilitySlots,
+  manualPayments,
   notifications,
+  patientCredits,
   patients,
   sessionPayments,
   sessions,
@@ -41,8 +43,16 @@ import { getSettings } from "@/lib/settings";
 
 const db = controlDb;
 
+/**
+ * What happened to the patient's money, in one word the screen turns into a
+ * sentence. 🔴 Board 430/407/419: `wallet` (ruling 18, a transfer we held),
+ * `waiting` (a transfer still being checked, which goes to the wallet when it
+ * arrives), `covered` (their benefit paid it; nothing of theirs to return).
+ */
+export type MoneyAfterCancel = "refunded" | "queued" | "none" | "held" | "wallet" | "waiting" | "covered";
+
 export type ChangeResult =
-  | { ok: true; refund?: "refunded" | "queued" | "none" | "held" }
+  | { ok: true; refund?: MoneyAfterCancel }
   | { ok: false; error: MessageKey };
 
 type Booking = {
@@ -96,6 +106,67 @@ function changeable(booking: Booking | null, now: Date): booking is Booking & { 
   );
 }
 
+/**
+ * 🔴 Board 406/419: the two facts about the money the change page has to say
+ * before anything is pressed: a transfer they sent that is still being checked,
+ * and a session their benefit paid in full.
+ */
+async function moneyOn(sessionId: string): Promise<{ transferWaiting: boolean; covered: boolean }> {
+  const [[waiting], [covered]] = await Promise.all([
+    db
+      .select({ id: manualPayments.id })
+      .from(manualPayments)
+      .where(
+        and(
+          sql`${manualPayments.purpose} IN ('session', 'payg_session')`,
+          eq(manualPayments.refId, sessionId),
+          eq(manualPayments.state, "submitted"),
+        ),
+      )
+      .limit(1),
+    db
+      .select({ id: sessionPayments.id })
+      .from(sessionPayments)
+      .where(
+        and(
+          eq(sessionPayments.sessionId, sessionId),
+          sql`${sessionPayments.status} IN ('paid', 'refunded')`,
+          eq(sessionPayments.fundingSource, "pot"),
+          eq(sessionPayments.patientShareCents, 0),
+        ),
+      )
+      .limit(1),
+  ]);
+  return { transferWaiting: Boolean(waiting), covered: Boolean(covered) };
+}
+
+/**
+ * 🔴 Board 407: what became of the money on a booking already cancelled, read
+ * back from the records, so the page that just cancelled it can say so when it
+ * redraws (it used to answer 404, and the patient never learned where her
+ * transfer went).
+ */
+async function moneyAfterCancel(booking: Booking): Promise<MoneyAfterCancel> {
+  const money = await moneyOn(booking.id);
+  if (money.covered) return "covered";
+  if (booking.lateCancel === "held") return "held";
+  const [payment] = await db
+    .select({ id: sessionPayments.id, status: sessionPayments.status })
+    .from(sessionPayments)
+    .where(and(eq(sessionPayments.sessionId, booking.id), sql`${sessionPayments.status} IN ('paid', 'refunded')`))
+    .limit(1);
+  const [credit] = await db
+    .select({ id: patientCredits.id })
+    .from(patientCredits)
+    .where(eq(patientCredits.fromSessionId, booking.id))
+    .limit(1);
+  if (credit) return "wallet";
+  if (money.transferWaiting) return "waiting";
+  if (payment?.status === "refunded") return "refunded";
+  if (payment?.status === "paid") return "queued";
+  return "none";
+}
+
 async function paidPaymentOf(sessionId: string): Promise<string | null> {
   const [payment] = await db
     .select({ id: sessionPayments.id })
@@ -114,8 +185,15 @@ async function refundPatient(input: {
   paymentId: string;
   reason: string;
   by: string | null;
-}): Promise<"refunded" | "queued" | "none"> {
-  const { refundSessionPayment } = await import("@/lib/billing/connect");
+}): Promise<"refunded" | "queued" | "none" | "wallet"> {
+  const { refundSessionPayment, refundTransferToWallet } = await import("@/lib/billing/connect");
+  /* 🔴 Board 430, ruling 18: a transfer we hold goes to their wallet by default. */
+  const toWallet = await refundTransferToWallet({
+    paymentId: input.paymentId,
+    reason: input.reason.slice(0, 200),
+    byUserId: input.by,
+  });
+  if (toWallet.ok) return "wallet";
   const result = await refundSessionPayment({
     paymentId: input.paymentId,
     reason: input.reason.slice(0, 200),
@@ -255,8 +333,15 @@ export async function patientCancel(input: {
   const { flagTransfersForCancelled } = await import("@/lib/billing/rail-exceptions");
   await flagTransfersForCancelled(booking.id);
 
-  let refund: "refunded" | "queued" | "none" | "held" = "none";
-  if (paymentId && free) {
+  let refund: MoneyAfterCancel = "none";
+  const money = await moneyOn(booking.id);
+  if (money.covered) {
+    /* 🔴 Board 419: their benefit paid all of it; nothing of theirs is held or returned. */
+    refund = "covered";
+    if (free && paymentId) {
+      await refundPatient({ paymentId, reason: "Cancelled by the patient inside the free window", by: null });
+    }
+  } else if (paymentId && free) {
     refund = await refundPatient({
       paymentId,
       reason: "Cancelled by the patient inside the free window",
@@ -264,6 +349,9 @@ export async function patientCancel(input: {
     });
   } else if (paymentId) {
     refund = "held";
+  } else if (money.transferWaiting) {
+    /* 🔴 Board 407: ruling 18, it goes to the wallet when it arrives. */
+    refund = "waiting";
   }
 
   await audit({
@@ -342,7 +430,10 @@ export async function agreeLateRefund(actor: Actor, sessionId: string): Promise<
         kind: "booking.cancelled",
         notice: { kind: "session_cancelled", key: "pnotice.lateRefunded", sessionId },
         subject: t("pnotice.lateRefunded"),
-        body: [t("pnotice.lateRefunded"), refund === "queued" ? t("w1a.refundOwedBody") : ""]
+        body: [
+          t("pnotice.lateRefunded"),
+          refund === "queued" ? t("w1a.refundOwedBody") : refund === "wallet" ? t("w1a.walletCreditBody") : "",
+        ]
           .filter(Boolean)
           .join("\n\n"),
       },
@@ -546,13 +637,43 @@ class Moved extends Error {
 }
 
 /** What the patient's change page needs: the booking, the window and the hours it may move to. */
+export type CancelledView = {
+  cancelled: true;
+  sessionId: string;
+  at: Date | null;
+  therapistName: string;
+  therapistTimezone: string | null;
+  windowHours: number;
+  money: MoneyAfterCancel;
+};
+
+/** 🔴 Board 407: a booking of theirs that is cancelled, and what became of the money. */
+export async function cancelledView(personId: string, sessionId: string): Promise<CancelledView | null> {
+  const booking = await bookingFor(sessionId);
+  if (!booking || booking.personId !== personId || booking.status !== "cancelled") return null;
+  const [therapist, money, settings] = await Promise.all([
+    therapistContact(booking.therapistId),
+    moneyAfterCancel(booking),
+    getSettings(),
+  ]);
+  return {
+    cancelled: true,
+    sessionId: booking.id,
+    at: booking.scheduledAt,
+    therapistName: [therapist?.firstName, therapist?.lastName].filter(Boolean).join(" "),
+    therapistTimezone: therapist?.timezone ?? null,
+    windowHours: settings.rules.refunds.patientCancelWindowHours,
+    money,
+  };
+}
+
 export async function changeView(personId: string, sessionId: string, now = new Date()) {
   const booking = await bookingFor(sessionId);
   if (!booking || booking.personId !== personId || !changeable(booking, now)) return null;
   const settings = await getSettings();
   const hours = settings.rules.refunds.patientCancelWindowHours;
   const free = insideFreeWindow(booking.scheduledAt, now, hours);
-  const paid = Boolean(await paidPaymentOf(booking.id));
+  const [paid, money] = await Promise.all([paidPaymentOf(booking.id).then(Boolean), moneyOn(booking.id)]);
   const therapist = await therapistContact(booking.therapistId);
   const { openHours } = await import("./scheduling");
   /* Only a booking made on an hour can move to another hour. */
@@ -572,6 +693,10 @@ export async function changeView(personId: string, sessionId: string, now = new 
     windowHours: hours,
     free,
     paid,
+    /* 🔴 Board 406: a transfer they sent that is still being checked. */
+    transferWaiting: money.transferWaiting,
+    /* 🔴 Board 419: their benefit paid it all; no refund rule is about their money. */
+    covered: money.covered,
     slots: hoursOpen.map((slot) => ({ id: slot.id, startsAt: slot.startsAt })),
   };
 }

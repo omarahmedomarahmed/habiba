@@ -66,6 +66,7 @@ export default async function ForCompaniesPage() {
         cta={{ label: t("marketing.companies.cta"), href: "/sponsor/apply" }}
         secondary={{ label: t("nav.contact"), href: "/contact" }}
         demo={<CompanyDemo />}
+        note={t("public.demoNote")}
       />
 
       {/*

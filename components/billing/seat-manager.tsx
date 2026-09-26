@@ -7,20 +7,9 @@ import { useT } from "@/lib/i18n/client";
 import { rich, slot } from "@/lib/i18n/rich";
 
 import { Button, Card } from "@/components/ui";
+import { countForm } from "@/lib/i18n/count-form";
 
 export type SeatState = { error?: string; ok?: boolean };
-
-/**
- * 🔴 B16 — which form of a count's sentence to use. The dictionary holds no
- * plural logic, so the suffix is chosen here: One and Two are their own words
- * in Arabic, and eleven and up take the singular accusative.
- */
-function countForm(n: number): "" | "One" | "Two" | "Many" {
-  if (n === 1) return "One";
-  if (n === 2) return "Two";
-  if (n >= 11) return "Many";
-  return "";
-}
 
 export type SeatQuote = {
   fromSeats: number;

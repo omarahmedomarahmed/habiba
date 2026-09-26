@@ -328,6 +328,39 @@ export const SPONSOR_DOMAIN_CONFIRM = "/sponsor/domains/confirm";
  */
 export type PrincipalCookie = "clinician" | "patient" | "sponsor" | "clinic" | "partner";
 
+/**
+ * 🔴 Board 249 / 327 / 330: the clinic, company and partner doors had the loop
+ * the clinician (`/session-expired`) and patient (W2-P01) doors lost long ago.
+ *
+ * A cookie outlives its session (aged out, or revoked by a password reset),
+ * the guard sent the holder to the sign-in page, and middleware sends a cookie
+ * holder at their own door home again, forever. A Server Component cannot
+ * delete a cookie, so each portal now has a route handler that can, and it is
+ * an open route so the cookie it exists to clear is never bounced away from it.
+ */
+export const CLINIC_EXPIRED = "/clinic/session-expired";
+export const SPONSOR_EXPIRED = "/sponsor/session-expired";
+export const PARTNER_EXPIRED = "/partner/session-expired";
+
+export type OrgPortal = "clinic" | "sponsor" | "partner";
+
+const ORG_DOORS: Record<OrgPortal, { signIn: string; expired: string }> = {
+  clinic: { signIn: CLINIC_SIGN_IN, expired: CLINIC_EXPIRED },
+  sponsor: { signIn: SPONSOR_SIGN_IN, expired: SPONSOR_EXPIRED },
+  partner: { signIn: PARTNER_SIGN_IN, expired: PARTNER_EXPIRED },
+};
+
+/** Where an org guard sends somebody it cannot resolve. Pure, so the chain is a test. */
+export function orgBounce(portal: OrgPortal, hasCookie: boolean): string {
+  const door = ORG_DOORS[portal];
+  return hasCookie ? door.expired : door.signIn;
+}
+
+/** Where an org portal's session-expired handler lands, after the cookie is gone. */
+export function orgExpiredLanding(portal: OrgPortal): string {
+  return `${ORG_DOORS[portal].signIn}?expired=1`;
+}
+
 export type Principal = {
   /** For the tests and for a failure message somebody has to read. */
   name: string;
@@ -413,7 +446,7 @@ export const PRINCIPALS: Principal[] = [
     home: "/sponsor",
     authRoutes: [SPONSOR_SIGN_IN, SPONSOR_FORGOT, SPONSOR_SET_PASSWORD],
     /* 53.5 — the enquiry form, which cannot sit behind the sign-in it precedes. */
-    openRoutes: [SPONSOR_APPLY, SPONSOR_DOMAIN_CONFIRM],
+    openRoutes: [SPONSOR_APPLY, SPONSOR_DOMAIN_CONFIRM, SPONSOR_EXPIRED],
   },
   {
     name: "clinic",
@@ -435,7 +468,7 @@ export const PRINCIPALS: Principal[] = [
      * in has no cookie, so a reset route behind the sign-in is a reset nobody
      * can reach (the 21R.4 lesson, for this principal).
      */
-    openRoutes: [CLINIC_APPLY, CLINIC_JOIN, CLINIC_FORGOT, CLINIC_SET_PASSWORD],
+    openRoutes: [CLINIC_APPLY, CLINIC_JOIN, CLINIC_FORGOT, CLINIC_SET_PASSWORD, CLINIC_EXPIRED],
   },
   {
     name: "partner",
@@ -446,7 +479,7 @@ export const PRINCIPALS: Principal[] = [
     authRoutes: [PARTNER_SIGN_IN],
     /* 55.2 — the enquiry, which cannot sit behind the sign-in it precedes. */
     /* W2-X06: and the two password pages, which a locked-out person must reach. */
-    openRoutes: [PARTNER_APPLY, PARTNER_FORGOT, PARTNER_RESET],
+    openRoutes: [PARTNER_APPLY, PARTNER_FORGOT, PARTNER_RESET, PARTNER_EXPIRED],
   },
 ];
 

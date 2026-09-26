@@ -144,7 +144,8 @@ async function main() {
    */
   check(
     "🔴 …and the screen names it as owed rather than folding it into a total",
-    /Owed to us/.test(ui) &&
+    /* Board 424: the label is the counted key now, "Owed to us, 1 invoice". */
+    /admin\.board\.owed/.test(ui) &&
       /inMonthCents/.test(ui) &&
       !/inMonthCents \+ b\.money\.dueCents/.test(ui),
     "a number that needs explaining is explained where it is read",

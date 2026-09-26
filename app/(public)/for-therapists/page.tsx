@@ -83,6 +83,7 @@ export default async function ForTherapistsPage() {
       />
 
       <FeatureBands
+        note={t("public.demoNote")}
         features={[
           {
             label: t("ft.f1.label"),

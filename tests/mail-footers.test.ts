@@ -25,6 +25,13 @@ test("a code or a reset says they asked for it, whoever they are", () => {
     assert.doesNotMatch(text, /appointment|therapist/, kind);
     assert.match(text, /asked for it/, kind);
   }
+  /*
+   * Board 389: the domain confirmation goes to admin@ at the domain, a mailbox
+   * with no account here, so it cannot say "the address on your company's account".
+   */
+  const domain = lines(footerKeys(footingFor("sponsor.domain_confirm")));
+  assert.match(domain, /asked for it/);
+  assert.doesNotMatch(domain, /account/);
   /* The clinician's own reset, from `sendPasswordReset`. */
   assert.match(lines(footerKeys({ reader: "clinician", occasion: "asked" })), /asked for it/);
 });

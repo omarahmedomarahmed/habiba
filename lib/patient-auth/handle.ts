@@ -8,7 +8,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts, patientAuthTokens, RESET_CODE_ATTEMPTS } from "@/lib/db/schema";
 import { wordsFor } from "@/lib/i18n/message-words";
 import { notify } from "@/lib/notify";
-import { whatsappConfigured } from "@/lib/notify/whatsapp";
+import { handleDelivery } from "./handle-delivery";
 import { callerKey, consume } from "@/lib/rate-limit";
 import { log, ref } from "@/lib/logger";
 
@@ -119,7 +119,7 @@ export async function requestHandleCode(): Promise<HandleState> {
     account.personId ? { personId: account.personId } : null,
     await (await import("@/lib/i18n/server")).getLocale(),
   );
-  await notify(
+  const delivery = await notify(
     { email: account.email, phone: account.phone, locale },
     {
       kind: "claim.code",
@@ -131,7 +131,13 @@ export async function requestHandleCode(): Promise<HandleState> {
 
   log.info("handle verification requested", { account: ref(account.id), channel });
 
-  return { sent: true, channel, channelDown: channel === "whatsapp" && !whatsappConfigured() };
+  /*
+   * 🔴 Board 276: what the page says comes from where the code WENT, not from
+   * which channel we meant. An account with a number and an email had its code
+   * sent by email (WhatsApp is not on, ruling 23) and was told "WhatsApp codes
+   * are not on yet, ask your therapist", as if nothing had arrived.
+   */
+  return { sent: true, ...handleDelivery(channel, delivery.channels) };
 }
 
 /** Step two: the code. Proving the handle is what unlocks everything else. */

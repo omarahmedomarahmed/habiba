@@ -1,7 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ownerOf, PRINCIPALS, routeDecision } from "../lib/routing";
+import { readFileSync } from "node:fs";
+
+import {
+  orgBounce,
+  orgExpiredLanding,
+  ownerOf,
+  patientBounce,
+  PRINCIPALS,
+  routeDecision,
+  signInDoorFor,
+  type OrgPortal,
+} from "../lib/routing";
 
 /**
  * The rule sprint 6 exists to enforce: **a patient is never sent to a
@@ -462,4 +473,58 @@ test("W2-S01 the domain mailbox confirm link opens without a portal login", () =
     to: "/sponsor/sign-in",
     keepNext: true,
   });
+});
+
+/* ------------------------------------------- board 249 / 327 / 330: every door -- */
+
+/**
+ * 🔴 A cookie that outlives its session must end at a sign-in FORM at every one
+ * of the six doors. Walks the real chain: the guard's bounce for a cookie
+ * holder, the middleware decision on that bounce (cookie still present), then
+ * the landing the handler redirects to (cookie now gone, `expired=1`). A
+ * redirect back to the principal's home at any step is the loop the clinic and
+ * company portals shipped with.
+ */
+function guardBounce(name: string, path: string): string {
+  if (name === "patient") return patientBounce(true, path);
+  if (name === "staff" || name === "clinician") return "/session-expired";
+  return orgBounce(name as OrgPortal, true);
+}
+
+function handlerLanding(name: string, path: string): string {
+  if (name === "patient") return "/patient/login?expired=1";
+  if (name === "staff" || name === "clinician") return `${signInDoorFor(path)}?expired=1`;
+  return orgExpiredLanding(name as OrgPortal);
+}
+
+test("a stale cookie at every portal ends at that portal's sign-in form, never in a loop", () => {
+  for (const principal of PRINCIPALS) {
+    const withCookie = { [principal.cookie]: true, expired: false };
+    const bounce = guardBounce(principal.name, principal.home).split("?")[0]!;
+    assert.deepEqual(
+      routeDecision(bounce, withCookie),
+      { kind: "pass" },
+      `${principal.name}: the guard's bounce ${bounce} must be reachable while the stale cookie is held`,
+    );
+    assert.notEqual(bounce, principal.signIn, `${principal.name}: a cookie holder sent straight to the door loops`);
+
+    const landing = handlerLanding(principal.name, principal.home);
+    const [landingPath, landingQuery = ""] = landing.split("?");
+    assert.equal(landingPath, principal.signIn, `${principal.name}: the handler lands on its own sign-in`);
+    assert.deepEqual(
+      routeDecision(landingPath!, { ...withCookie, expired: new URLSearchParams(landingQuery).get("expired") === "1" }),
+      { kind: "pass" },
+      `${principal.name}: the sign-in form renders after the handler`,
+    );
+  }
+});
+
+test("no org guard redirects a cookie holder straight to its sign-in page", () => {
+  for (const portal of ["clinic", "sponsor", "partner"] as const) {
+    const source = readFileSync(`lib/${portal}-auth/guard.ts`, "utf8");
+    assert.match(source, new RegExp(`orgBounce\\("${portal}"`), `${portal} guard must use orgBounce`);
+    assert.doesNotMatch(source, /redirect\([A-Z]+_SIGN_IN\)/, `${portal} guard redirects straight to the door`);
+    const handler = readFileSync(`app/(${portal})/${portal}/session-expired/route.ts`, "utf8");
+    assert.match(handler, /revoke\w+Session\(\)/, `${portal} handler must clear the cookie`);
+  }
 });

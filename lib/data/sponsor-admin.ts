@@ -16,6 +16,7 @@ import {
   type Entity,
   type IdentifierKind,
   type SponsorKind,
+  type SponsorRole,
   type SponsorState,
 } from "@/lib/db/schema";
 import { log, ref } from "@/lib/logger";
@@ -737,4 +738,102 @@ export async function sponsorUsersFor(sponsorId: string) {
     .from(sponsorUsers)
     .where(and(eq(sponsorUsers.sponsorId, sponsorId), isNull(sponsorUsers.deletedAt)))
     .orderBy(asc(sponsorUsers.email));
+}
+
+/**
+ * 🔴 Board 427 (B25 named it too): everything the admin list shows per sponsor,
+ * in five queries for the whole list.
+ *
+ * The page asked `liveCode`, `potTerms`, `sponsorUsersFor`, `ledgerPotBalance`
+ * and then `attemptsOnCode` for each sponsor: five round trips a company, the
+ * last one after the other four, all queued on one connection pool. It read
+ * 1.0 to 1.7 s warm and 11.3 s once. The same five reads, each over every
+ * sponsor at once, with the same rules as the single-sponsor functions they
+ * stand in for (the newest unrevoked code, live users by email, the pot's
+ * ledger balance, the code's attempt counter).
+ */
+export type AdminSponsorFacts = {
+  code: string | null;
+  potOpen: boolean;
+  balanceCents: number;
+  attempts: number;
+  users: { id: string; email: string; role: SponsorRole }[];
+};
+
+export async function adminSponsorFacts(sponsorIds: string[]): Promise<Map<string, AdminSponsorFacts>> {
+  const { ledgerEntries, rateLimits } = await import("@/lib/db/schema");
+  const { inArray } = await import("drizzle-orm");
+  const { subjectKey } = await import("@/lib/rate-limit");
+
+  if (sponsorIds.length === 0) return new Map();
+
+  const [codes, pots, users, balances] = await Promise.all([
+    controlDb
+      .selectDistinctOn([sponsorCodes.sponsorId], { sponsorId: sponsorCodes.sponsorId, code: sponsorCodes.code })
+      .from(sponsorCodes)
+      .where(and(inArray(sponsorCodes.sponsorId, sponsorIds), isNull(sponsorCodes.revokedAt)))
+      .orderBy(sponsorCodes.sponsorId, desc(sponsorCodes.createdAt)),
+    controlDb
+      .select({ sponsorId: sponsorPots.sponsorId, id: sponsorPots.id })
+      .from(sponsorPots)
+      .where(inArray(sponsorPots.sponsorId, sponsorIds)),
+    controlDb
+      .select({
+        sponsorId: sponsorUsers.sponsorId,
+        id: sponsorUsers.id,
+        email: sponsorUsers.email,
+        role: sponsorUsers.role,
+      })
+      .from(sponsorUsers)
+      .where(and(inArray(sponsorUsers.sponsorId, sponsorIds), isNull(sponsorUsers.deletedAt)))
+      .orderBy(asc(sponsorUsers.email)),
+    controlDb
+      .select({
+        sponsorId: ledgerEntries.refId,
+        cents: sql<number>`COALESCE(-SUM(${ledgerEntries.amountCents}), 0)::int`,
+      })
+      .from(ledgerEntries)
+      .where(
+        and(
+          eq(ledgerEntries.account, "sponsor_pot"),
+          eq(ledgerEntries.refType, "sponsor"),
+          inArray(ledgerEntries.refId, sponsorIds),
+        ),
+      )
+      .groupBy(ledgerEntries.refId),
+  ]);
+
+  const codeOf = new Map(codes.map((row) => [row.sponsorId, row.code]));
+  const keyOf = new Map(
+    [...codeOf.values()].map((code) => [subjectKey("enrol-code", code.trim().toUpperCase()), code]),
+  );
+  const counters =
+    keyOf.size === 0
+      ? []
+      : await controlDb
+          .select({ key: rateLimits.key, count: rateLimits.count })
+          .from(rateLimits)
+          .where(inArray(rateLimits.key, [...keyOf.keys()]));
+  const attemptsOf = new Map(counters.map((row) => [keyOf.get(row.key)!, row.count]));
+
+  const potOf = new Set(pots.map((row) => row.sponsorId));
+  const balanceOf = new Map(balances.map((row) => [String(row.sponsorId), Number(row.cents)]));
+
+  return new Map(
+    sponsorIds.map((id): [string, AdminSponsorFacts] => {
+      const code = codeOf.get(id) ?? null;
+      return [
+        id,
+        {
+          code,
+          potOpen: potOf.has(id),
+          balanceCents: balanceOf.get(id) ?? 0,
+          attempts: code ? (attemptsOf.get(code) ?? 0) : 0,
+          users: users
+            .filter((user) => user.sponsorId === id)
+            .map((user) => ({ id: user.id, email: user.email, role: user.role })),
+        },
+      ];
+    }),
+  );
 }

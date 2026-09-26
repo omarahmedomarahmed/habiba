@@ -594,7 +594,7 @@ async function main() {
     check(
       "🔴 W2-X06 sign-in links to the reset, /developers links to sign-in, and both password pages are open routes",
       /href=\{PARTNER_FORGOT\}/.test(signIn) && /href=\{PARTNER_SIGN_IN\}/.test(developers) &&
-        /openRoutes: \[PARTNER_APPLY, PARTNER_FORGOT, PARTNER_RESET\]/.test(routing),
+        /openRoutes: \[PARTNER_APPLY, PARTNER_FORGOT, PARTNER_RESET[,\]]/.test(routing),
       "a locked-out developer, and one arriving from the docs, both have a door",
     );
     check(

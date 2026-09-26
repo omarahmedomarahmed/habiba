@@ -510,14 +510,13 @@ export async function potTopUpLadder(input: {
  * list price, so a patient read three numbers for one session.
  */
 export async function patientOwesTotal(sessionId: string): Promise<number> {
-  const [row] = await db
-    .select({ organizationId: sessions.organizationId })
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .limit(1);
-  if (!row) return 0;
+  /* 🔴 Board 373/408 (B49): the session's organisation and what is owed, side by side. */
   const { patientOwesFor } = await import("./session-owed");
-  const owed = await patientOwesFor(sessionId);
+  const [[row], owed] = await Promise.all([
+    db.select({ organizationId: sessions.organizationId }).from(sessions).where(eq(sessions.id, sessionId)).limit(1),
+    patientOwesFor(sessionId),
+  ]);
+  if (!row) return 0;
   if (owed.grossCents <= 0) return 0;
   const money = await sessionTransferMoney({ organizationId: row.organizationId, priceCents: owed.grossCents });
   return money.settlesCents;

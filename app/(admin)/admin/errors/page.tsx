@@ -5,7 +5,9 @@ import { requireRole } from "@/lib/auth/guard";
 import { ListControls } from "@/components/admin/list-controls";
 import { PAGE_SIZE, paging, searchTerm } from "@/lib/admin/paging";
 import { ERROR_RETENTION_DAYS, recentErrors } from "@/lib/observability/errors";
-import { jobHealth } from "@/lib/observability/heartbeat";
+import { jobHealth, opsAlertBoard } from "@/lib/observability/heartbeat";
+import { OpsAlertsList } from "@/components/admin/ops-alerts";
+import { getI18n } from "@/lib/i18n/server";
 import { formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Errors", robots: { index: false } };
@@ -35,7 +37,7 @@ export default async function AdminErrorsPage({
   const { page, offset } = paging(params);
   const fetched = await recentErrors(PAGE_SIZE * 4 + 1, { offset: offset * 4, q });
   const hasMore = fetched.length > PAGE_SIZE * 4;
-  const health = await jobHealth();
+  const [health, alerts, { t, locale }] = await Promise.all([jobHealth(), opsAlertBoard(), getI18n()]);
   const rows = fetched.slice(0, PAGE_SIZE * 4);
 
   const groups = new Map<string, { rows: typeof rows; first: Date; last: Date }>();
@@ -76,11 +78,8 @@ export default async function AdminErrorsPage({
             </li>
           ))}
         </ul>
-        {health.alerts.length > 0 ? (
-          <p className="mt-2 text-xs text-slate-500">
-            Alerts this week: {health.alerts.map((a) => a.key).join(", ")}
-          </p>
-        ) : null}
+        {/* 🔴 Board 423: in plain words, each marked open or cleared, never a raw key. */}
+        <OpsAlertsList rows={alerts} t={t} zone={actor.timezone} locale={locale} />
       </Card>
 
       <ListControls base="/admin/errors" params={{}} q={q} page={page} hasMore={hasMore} />

@@ -125,6 +125,43 @@ export const REGULATORS: Record<string, string[]> = {
  * answer rather than a blank label, and inventing a plausible regulator is
  * worse than offering none.
  */
+/**
+ * 🔴 Board 364 (B50): the regulators this product names, as an Arabic reader
+ * reads them. A clinician's page in Arabic said "رخصة موثّقة لدى" followed by
+ * an English body name. Only the names we ship above and in the settings seed,
+ * and only where the Arabic name is certain; an operator adds any other on the
+ * country's settings line ("Name | الاسم").
+ */
+export const REGULATOR_NAMES_AR: Record<string, string> = {
+  "Egyptian Ministry of Health and Population": "وزارة الصحة والسكان المصرية",
+  "Ministry of Health and Population, Mental Health Secretariat": "الأمانة العامة للصحة النفسية بوزارة الصحة والسكان",
+  "Dubai Health Authority (DHA)": "هيئة الصحة بدبي",
+  "Ministry of Health and Prevention (MOHAP)": "وزارة الصحة ووقاية المجتمع",
+  "Saudi Commission for Health Specialties (SCFHS)": "الهيئة السعودية للتخصصات الصحية",
+};
+
+/**
+ * 🔴 Board 364: the name of the body that holds a clinician's licence, in the
+ * reader's language, or null when an Arabic reader would otherwise get English.
+ *
+ * In order: the operator's Arabic name for it, ours, then Arabic the name
+ * already carries in brackets ("... (نقابة الأطباء)"). Null tells the caller
+ * to say the plain line, which claims the licence check without naming a body,
+ * rather than put an English name in an Arabic sentence.
+ */
+export function regulatorNameFor(
+  name: string,
+  locale: string,
+  operatorNames: Record<string, string> = {},
+): string | null {
+  if (locale !== "ar") return name;
+  const known = operatorNames[name]?.trim() || REGULATOR_NAMES_AR[name];
+  if (known) return known;
+  const bracketed = name.match(/\(([^()]*[؀-ۿ][^()]*)\)/);
+  if (bracketed?.[1]) return bracketed[1].trim();
+  return /[A-Za-z]/.test(name) ? null : name;
+}
+
 export type CountryRequirements = {
   regulators?: string[];
   idLabelFront?: string | null;
