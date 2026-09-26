@@ -87,6 +87,10 @@ test("611: staff attach a practice by a clinician's email, as partner-billed", a
   assert.equal(result.practice?.id, practice);
   assert.deepEqual(await billing(), { partnerId: helio, mode: "partner_billed" });
   assert.deepEqual((await practicesFor(helio)).map((p) => p.id), [practice]);
+  /* 🔴 Board 934: listed by the clinician's address, and the internal slug is not in the row. */
+  const [row] = await practicesFor(helio);
+  assert.equal(row?.contactEmail, clinicianEmail.toLowerCase());
+  assert.equal("slug" in (row ?? {}), false);
 });
 
 test("611: another partner cannot take a practice that is already on a bill", async () => {
