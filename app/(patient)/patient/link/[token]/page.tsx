@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { PatientBack } from "@/components/patient/back";
 import { Card } from "@/components/patient/kit";
 import { LinkConfirm } from "@/components/patient/link-confirm";
 import { getI18n } from "@/lib/i18n/server";
@@ -28,6 +29,7 @@ export default async function LinkPage({ params }: { params: Promise<{ token: st
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-4 px-5 pt-16 pb-10">
+      <PatientBack />
       <Card className="p-5">
         {dead ? (
           <>
