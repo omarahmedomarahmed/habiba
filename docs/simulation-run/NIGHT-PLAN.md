@@ -34,6 +34,10 @@ fourth full gate.
 | S5 | Walkthrough of rounds 1 and 2 compacted on the new design; fix; G3; push main; confirm live | not started |
 | S6 | Report to the founder: rulings table, what needs the founder, what is live | not started |
 
+## After the next deploy to main
+
+- `npm run -s on:production -- settings:seed` (publishes PHQ-9 and GAD-7, board 503; idempotent).
+
 ## Recovery notes
 
 - 26 Sept 04:20: a usage limit stopped every agent at once. Their worktrees kept their commits; each was resumed with SendMessage. If that happens again, check `git -C .claude/worktrees/agent-<id> log redesign-integration..HEAD` and `status`, commit leftovers, and finish the rest yourself.
