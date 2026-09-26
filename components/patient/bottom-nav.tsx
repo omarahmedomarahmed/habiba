@@ -108,6 +108,8 @@ export function PatientBottomNav({ liveSession = null }: Props) {
       */}
       <nav
         aria-label={t("tab.sections")}
+        /* The SOS orb measures this and never rests or drags below its top edge. */
+        data-bottom-nav
         className="safe-bottom fixed inset-x-0 bottom-0 z-30 px-3"
       >
         <ul className="mx-auto flex max-w-lg items-center justify-around gap-0.5 rounded-[26px] bg-navy-900/95 px-2 py-1 shadow-[0_20px_40px_-16px_rgba(3,11,23,0.6)] ring-1 ring-white/10 backdrop-blur-xl">

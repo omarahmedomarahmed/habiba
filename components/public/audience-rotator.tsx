@@ -7,7 +7,8 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 
 import { BookingSheet } from "@/components/radar/booking-sheet";
-import type { RadarEntry } from "@/components/radar/types";
+import { OfflineCard } from "@/components/radar/offline-card";
+import type { RadarEntry, RadarOfflineEntry } from "@/components/radar/types";
 import { useT } from "@/lib/i18n/client";
 import { cn, fullName } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
@@ -33,11 +34,12 @@ const Globe = dynamic(() => import("@/components/radar/globe").then((m) => m.Glo
  *
  * The mockup's hero: the headline on the left, the planet on the right. The
  * planet is not an illustration. It is `components/radar/globe.tsx`, fed the
- * same `/api/radar` the radar page reads, so every point on it is a clinician
- * who is on shift this minute, and pressing one opens the same booking sheet
- * the radar opens. When nobody is on shift the globe is empty and the pill
- * above the headline says so (B30): a visitor at three in the morning is never
- * promised somebody the radar does not have.
+ * same `/api/radar` the radar page reads, so every bright point on it is a
+ * clinician who is on shift this minute, and pressing one opens the same
+ * booking sheet the radar opens. Verified clinicians off shift are hollow dim
+ * points that open "Offline, book a time". When nobody is on shift there is no
+ * bright point and the pill above the headline says so (B30): a visitor at
+ * three in the morning is never promised somebody the radar does not have.
  *
  * The four audiences follow as the mockup's cards, and the four working
  * screens as its "try the product" band, one tab per audience.
@@ -129,7 +131,10 @@ export function AudienceRotator({
 
   /* ------------------------------------------------ the real radar -- */
   const [entries, setEntries] = React.useState<RadarEntry[] | null>(null);
+  /* 🔴 Dim dots only: never in the live count below, never the booking sheet. */
+  const [offline, setOffline] = React.useState<RadarOfflineEntry[]>([]);
   const [picked, setPicked] = React.useState<string | null>(null);
+  const [pickedOffline, setPickedOffline] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -139,7 +144,12 @@ export function AudienceRotator({
       try {
         const response = await fetch(`/api/radar?v=${encodeURIComponent(viewer)}`, { cache: "no-store" });
         if (!response.ok || cancelled) return;
-        setEntries((await response.json()).therapists as RadarEntry[]);
+        const body = (await response.json()) as {
+          therapists: RadarEntry[];
+          offline?: RadarOfflineEntry[];
+        };
+        setEntries(body.therapists);
+        setOffline(body.offline ?? []);
       } catch {
         /* A failed poll keeps the last answer rather than inventing one. */
       }
@@ -154,6 +164,7 @@ export function AudienceRotator({
 
   const online = React.useMemo(() => (entries ?? []).filter((entry) => entry.status === "online"), [entries]);
   const selected = (entries ?? []).find((entry) => entry.userId === picked) ?? null;
+  const offlineSelected = offline.find((entry) => entry.userId === pickedOffline) ?? null;
   const count = entries === null ? null : online.length;
   const liveText = live
     ? count === null
@@ -366,17 +377,24 @@ export function AudienceRotator({
           </div>
 
           {/*
-            🔴 THE PLANET IS THE RADAR. Every point is a clinician on shift
-            now, read from `/api/radar`; pressing one opens the booking sheet
-            the radar page opens. No point is drawn that the radar does not
+            🔴 THE PLANET IS THE RADAR. Every bright point is a clinician on
+            shift now, read from `/api/radar`; pressing one opens the booking
+            sheet the radar page opens. Every hollow one is a verified
+            clinician off shift, and pressing it says so and opens their
+            profile to book a time. No point is drawn that the radar does not
             have.
           */}
           <div className="relative mx-auto aspect-square w-full max-w-[420px] sm:max-w-[560px] lg:-me-4 lg:max-w-[640px]">
             <Globe
               entries={entries ?? []}
+              offline={offline}
               selected={null}
               onSelect={() => {}}
-              onPick={(entry) => setPicked(entry.userId)}
+              onPick={(entry) => {
+                setPickedOffline(null);
+                setPicked(entry.userId);
+              }}
+              onPickOffline={(entry) => setPickedOffline(entry.userId)}
               className="h-full w-full"
             />
             {first ? (
@@ -580,6 +598,9 @@ export function AudienceRotator({
       </section>
 
       {selected ? <BookingSheet entry={selected} onClose={() => setPicked(null)} /> : null}
+      {offlineSelected && !selected ? (
+        <OfflineCard entry={offlineSelected} onClose={() => setPickedOffline(null)} />
+      ) : null}
     </>
   );
 }

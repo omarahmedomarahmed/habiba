@@ -75,9 +75,24 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
       <div className="flex items-start gap-4">
-        <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-navy-500 text-lg font-bold text-white">
-          {initials(profile.firstName, profile.lastName)}
-        </span>
+        {/*
+          The headshot the clinician published, when there is one; initials on
+          navy otherwise. A plain <img> for the reason `Avatar` gives: the URL
+          is clinician-supplied and the image optimiser would fetch any host.
+        */}
+        {profile.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={profile.photoUrl}
+            alt={name}
+            className="h-16 w-16 shrink-0 rounded-2xl bg-navy-500 object-cover"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-navy-500 text-lg font-bold text-white">
+            {initials(profile.firstName, profile.lastName)}
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">{name}</h1>
           {profile.credentials ? (

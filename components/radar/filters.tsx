@@ -22,7 +22,10 @@ export type RadarFilter = {
 export const NO_FILTER: RadarFilter = { language: "", specialty: "", country: "", region: "", inPerson: false };
 
 /** One place where "does this clinician match" is decided. */
-export function matches(entry: RadarEntry, filter: RadarFilter): boolean {
+export function matches(
+  entry: Pick<RadarEntry, "languages" | "specialties" | "country" | "region" | "practice">,
+  filter: RadarFilter,
+): boolean {
   if (filter.language && !entry.languages.includes(filter.language)) return false;
   if (filter.specialty && !entry.specialties.includes(filter.specialty)) return false;
   if (filter.country && entry.country !== filter.country) return false;

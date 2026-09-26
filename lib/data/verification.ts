@@ -421,6 +421,18 @@ export async function decideVerification(opts: {
    */
   const cleared = !opts.approve && row.rejectionCount >= REJECTIONS_BEFORE_REAPPLYING;
 
+  /*
+   * 🔴 APPROVED IS VISIBLE. The directory and the radar's offline dots read
+   * `therapist_radar`, which used to be made only when the clinician first
+   * opened /on-call. The row is made here, `offline`, so a clinician approved
+   * at noon is somebody a patient can find at one without visiting a page they
+   * had no reason to know about. Idempotent; an existing row is left alone.
+   */
+  if (opts.approve) {
+    const { ensureRadarRowForApproved } = await import("@/lib/data/radar");
+    await ensureRadarRowForApproved(row.userId);
+  }
+
   if (cleared) {
     const { deleteDocument } = await import("@/lib/uploads");
     await Promise.all(

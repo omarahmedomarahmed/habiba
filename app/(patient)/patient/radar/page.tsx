@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getI18n } from "@/lib/i18n/server";
 
 import { RadarConsole, RadarSafetyLine } from "@/components/radar/radar-console";
-import { listRadar } from "@/lib/data/radar";
+import { listRadar, listRadarOffline } from "@/lib/data/radar";
 import { firstOpenHours } from "@/lib/data/scheduling";
 import { requirePatient } from "@/lib/patient-auth/guard";
 
@@ -35,11 +35,21 @@ export default async function PatientRadarPage() {
   await requirePatient();
 
   /* 🔴 W2-P12: what to book when nobody is on shift, so an empty radar is not a dead end. */
-  const [therapists, firstHours] = await Promise.all([listRadar(), firstOpenHours()]);
+  const [therapists, offline, firstHours] = await Promise.all([
+    listRadar(),
+    /* Verified clinicians not on shift: dim dots that open their profile to book a time. */
+    listRadarOffline(),
+    firstOpenHours(),
+  ]);
 
   return (
     <div className="bg-[#04101f]">
-      <RadarConsole initial={therapists} firstHours={firstHours} />
+      <RadarConsole
+        initial={therapists}
+        initialOffline={offline}
+        firstHours={firstHours}
+        profileBase="/patient/t"
+      />
       <RadarSafetyLine />
     </div>
   );

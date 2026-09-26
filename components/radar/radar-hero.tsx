@@ -12,6 +12,7 @@ import {
   RadarFilters,
   type RadarFilter,
 } from "@/components/radar/filters";
+import { OfflineCard } from "@/components/radar/offline-card";
 import { TherapistCard } from "@/components/radar/therapist-card";
 
 /**
@@ -27,7 +28,7 @@ const Globe = dynamic(
     ssr: false,
   },
 );
-import type { RadarEntry } from "@/components/radar/types";
+import type { RadarEntry, RadarOfflineEntry } from "@/components/radar/types";
 import { Money } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
@@ -93,6 +94,9 @@ export function RadarHero({
   strings: RadarStrings;
 }) {
   const [entries, setEntries] = useState<RadarEntry[] | null>(null);
+  /* 🔴 Dim dots only. Never counted, never listed, never the booking sheet. */
+  const [offline, setOffline] = useState<RadarOfflineEntry[]>([]);
+  const [offlineId, setOfflineId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewer] = useState(() => viewerId());
   const [filter, setFilter] = useState<RadarFilter>(NO_FILTER);
@@ -110,7 +114,12 @@ export function RadarHero({
           },
         );
         if (!response.ok || cancelled) return;
-        setEntries((await response.json()).therapists as RadarEntry[]);
+        const body = (await response.json()) as {
+          therapists: RadarEntry[];
+          offline?: RadarOfflineEntry[];
+        };
+        setEntries(body.therapists);
+        setOffline(body.offline ?? []);
       } catch {
         if (!cancelled) setEntries((current) => current ?? []);
       }
@@ -130,6 +139,12 @@ export function RadarHero({
     () => all.filter((entry) => matches(entry, filter)),
     [all, filter],
   );
+
+  const visibleOffline = useMemo(
+    () => offline.filter((entry) => matches(entry, filter)),
+    [offline, filter],
+  );
+  const offlinePicked = offline.find((entry) => entry.userId === offlineId) ?? null;
 
   const online = all.filter((entry) => entry.status === "online");
   const bookable = visible.filter((entry) => entry.status === "online");
@@ -158,11 +173,16 @@ export function RadarHero({
         <div className="absolute top-1/2 left-1/2 aspect-square w-[130%] -translate-y-1/2 translate-x-[-32%] rtl:translate-x-[-68%] sm:w-[92%] lg:w-[74%]">
           <Globe
             entries={visible}
+            offline={visibleOffline}
             selected={filter.country || null}
             onSelect={(code) =>
               setFilter((f) => ({ ...f, country: code ?? "", region: "" }))
             }
-            onPick={(entry) => setSelectedId(entry.userId)}
+            onPick={(entry) => {
+              setOfflineId(null);
+              setSelectedId(entry.userId);
+            }}
+            onPickOffline={(entry) => setOfflineId(entry.userId)}
             className="h-full w-full"
           />
         </div>
@@ -300,6 +320,9 @@ export function RadarHero({
 
       {selected ? (
         <BookingSheet entry={selected} onClose={() => setSelectedId(null)} />
+      ) : null}
+      {offlinePicked && !selected ? (
+        <OfflineCard entry={offlinePicked} onClose={() => setOfflineId(null)} />
       ) : null}
     </section>
   );

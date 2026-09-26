@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { RadarEntry } from "@/components/radar/types";
+import type { GlobeEntry, RadarEntry, RadarOfflineEntry } from "@/components/radar/types";
 import {
   ease,
   project,
@@ -25,6 +25,9 @@ const SIZE = 640;
 const CX = SIZE / 2;
 const CY = SIZE / 2;
 const BASE_RADIUS = 268;
+/** One empty list, so a host passing nothing does not re-place every dot each render. */
+const NONE: RadarOfflineEntry[] = [];
+
 /** Degrees per second when nobody is touching it. */
 const DRIFT = 3.2;
 
@@ -44,16 +47,26 @@ const DRIFT = 3.2;
  */
 export function Globe({
   entries,
+  offline = NONE,
   selected,
   onSelect,
   onPick,
+  onPickOffline,
   className,
 }: {
   entries: RadarEntry[];
+  /**
+   * 🔴 Verified clinicians who are not on shift. Drawn hollow and dim, with no
+   * pulse and no glow, and never handed to `onPick`: a tap on one goes to
+   * `onPickOffline`, or straight to their profile to book a time. The live
+   * dots are drawn after these so a live one is never underneath.
+   */
+  offline?: RadarOfflineEntry[];
   /** ISO alpha-2 of the country being filtered on, if any. */
   selected: string | null;
   onSelect: (code: string | null) => void;
   onPick: (entry: RadarEntry) => void;
+  onPickOffline?: (entry: RadarOfflineEntry) => void;
   className?: string;
 }) {
   const t = useT();
@@ -73,8 +86,8 @@ export function Globe({
    * rebuilt mid-drag, which is what a dependency on a parent's inline arrow
    * function would cause on every render.
    */
-  const handlers = useRef({ onSelect, onPick, selected });
-  handlers.current = { onSelect, onPick, selected };
+  const handlers = useRef({ onSelect, onPick, onPickOffline, selected });
+  handlers.current = { onSelect, onPick, onPickOffline, selected };
 
   /* ------------------------------------------------------------ placing -- */
 
@@ -87,15 +100,20 @@ export function Globe({
    * Atlantic is a claim about where someone is, and we do not have one.
    */
   const placed = useMemo(() => {
-    const byCountry = new Map<string, RadarEntry[]>();
-    for (const entry of entries) {
+    /*
+     * Offline first, live last, in one spread per country: the spiral spaces
+     * every dot in a country whatever its state, so a live dot never sits on
+     * top of an offline one, and live ones are drawn later so they win a tap.
+     */
+    const byCountry = new Map<string, GlobeEntry[]>();
+    for (const entry of [...offline, ...entries] as GlobeEntry[]) {
       if (!entry.country) continue;
       const list = byCountry.get(entry.country);
       if (list) list.push(entry);
       else byCountry.set(entry.country, [entry]);
     }
 
-    const out: { entry: RadarEntry; lon: number; lat: number }[] = [];
+    const out: { entry: GlobeEntry; lon: number; lat: number }[] = [];
     for (const [code, list] of byCountry) {
       const centre = WORLD[code]?.c;
       list.forEach((entry, index) => {
@@ -109,12 +127,15 @@ export function Globe({
       });
     }
     return out;
-  }, [entries]);
+  }, [entries, offline]);
 
   /** Countries with at least one clinician — the only ones worth lighting up. */
   const populated = useMemo(
-    () => new Set(entries.map((entry) => entry.country).filter(Boolean) as string[]),
-    [entries],
+    () =>
+      new Set(
+        [...entries, ...offline].map((entry) => entry.country).filter(Boolean) as string[],
+      ),
+    [entries, offline],
   );
 
   const placedRef = useRef(placed);
@@ -279,8 +300,17 @@ export function Globe({
       const target = document.elementFromPoint(event.clientX, event.clientY);
       const dot = target?.closest("[data-therapist]")?.getAttribute("data-therapist");
       if (dot) {
-        const entry = placedRef.current.find((p) => p.entry.userId === dot);
-        if (entry) handlers.current.onPick(entry.entry);
+        const entry = placedRef.current.find((p) => p.entry.userId === dot)?.entry;
+        /*
+         * 🔴 An offline dot never reaches `onPick`, which is the booking sheet's
+         * door on every host. It opens their profile to book a time instead.
+         */
+        if (entry?.status === "offline") {
+          if (handlers.current.onPickOffline) handlers.current.onPickOffline(entry);
+          else window.location.assign(`/t/${entry.userId}`);
+        } else if (entry) {
+          handlers.current.onPick(entry);
+        }
         return;
       }
 
@@ -311,7 +341,9 @@ export function Globe({
   }, []);
 
   const hovered = hover ? WORLD[hover] : null;
+  /* 🔴 Online means live: the count beside "online now" never includes an offline dot. */
   const hoveredCount = hover ? entries.filter((e) => e.country === hover).length : 0;
+  const hoveredOffline = hover ? offline.filter((e) => e.country === hover).length : 0;
 
   return (
     <div className={cn("relative", className)}>
@@ -404,8 +436,30 @@ export function Globe({
                 else dots.current.delete(entry.userId);
               }}
               data-therapist={entry.userId}
+              data-state={entry.status}
               className="cursor-pointer"
             >
+              {entry.status === "offline" ? (
+                /*
+                 * 🔴 HOLLOW AND DIM, AND CHEAP. No pulse and no glow filter: a
+                 * blur per dot is what would make five hundred of them stutter
+                 * on a phone, and a pulse would say "live". The invisible ring
+                 * is the thumb-sized target a 4px dot cannot be.
+                 */
+                <>
+                  <circle r="10" fill="#000" fillOpacity="0" />
+                  <circle
+                    r="4"
+                    fill="#04101f"
+                    fillOpacity="0.55"
+                    stroke="#94a3b8"
+                    strokeOpacity="0.85"
+                    strokeWidth="1.4"
+                  />
+                  <title>{`${entry.firstName}, ${t("radar.legendOffline")}`}</title>
+                </>
+              ) : (
+              <>
               {entry.status === "online" ? (
                 <circle r="12" fill="#2EC4B6" opacity="0.18" pointerEvents="none">
                   <animate
@@ -436,6 +490,8 @@ export function Globe({
                 filter="url(#globe-glow)"
               />
               <title>{`${entry.firstName}, ${t(entry.status === "online" ? "radar.dotOnline" : entry.status === "pending" ? "radar.dotPending" : "radar.dotBusy")}`}</title>
+              </>
+              )}
             </g>
           ))}
         </g>
@@ -464,6 +520,11 @@ export function Globe({
               ? t("radar.onlineTap", { count: hoveredCount })
               : t("radar.nobodyHere")}
           </p>
+          {hoveredOffline > 0 ? (
+            <p className="text-[11px] text-white/85">
+              {hoveredOffline} · {t("radar.legendOffline")}
+            </p>
+          ) : null}
         </div>
       ) : null}
 

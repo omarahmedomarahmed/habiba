@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { MoneyDisplayProvider } from "@/components/money/display";
 import { RadarConsole, RadarSafetyLine } from "@/components/radar/radar-console";
-import { listRadar } from "@/lib/data/radar";
+import { listRadar, listRadarOffline } from "@/lib/data/radar";
 import { firstOpenHours } from "@/lib/data/scheduling";
 import { getI18n } from "@/lib/i18n/server";
 import { crisisCountryFor } from "@/lib/crisis/line";
@@ -36,7 +36,12 @@ export const dynamic = "force-dynamic";
  */
 export default async function RadarPage() {
   /* 🔴 W2-P12: what to book when nobody is on shift, so an empty radar is not a dead end. */
-  const [therapists, firstHours] = await Promise.all([listRadar(), firstOpenHours()]);
+  const [therapists, offline, firstHours] = await Promise.all([
+    listRadar(),
+    /* Verified clinicians not on shift: dim dots that open their profile to book a time. */
+    listRadarOffline(),
+    firstOpenHours(),
+  ]);
   const { t, locale } = await getI18n();
 
   return (
@@ -52,7 +57,7 @@ export default async function RadarPage() {
         a title a screen reader and an outline can find.
       */}
       <h1 className="sr-only">{t("radar.pageTitle")}</h1>
-      <RadarConsole initial={therapists} firstHours={firstHours} />
+      <RadarConsole initial={therapists} initialOffline={offline} firstHours={firstHours} />
       <RadarSafetyLine />
       {/*
         🔴 51.4 — the orb belongs HERE most of all.

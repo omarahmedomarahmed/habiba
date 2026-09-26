@@ -24,6 +24,8 @@ import {
   claimTherapist,
   invalidateRadarBoard,
   listRadar,
+  listRadarOffline,
+  ensureRadarRowForApproved,
   releaseClaim,
   releaseReservation,
   setOnline,
@@ -244,8 +246,70 @@ test("a clinician whose heartbeat stopped is not bookable and is swept offline",
   assert.equal(
     visible.some((row) => row.userId === therapistId),
     false,
-    "an offline clinician is not on the public radar",
+    "an offline clinician is not on the live board",
   );
+
+  /*
+   * 🔴 2026-09-26: they are on the map as a dim dot instead, and only there.
+   * The live board and the offline list are disjoint, and the offline shape
+   * has no status a booking sheet could read as "now".
+   */
+  const dim = (await listRadarOffline()).find((row) => row.userId === therapistId);
+  assert.equal(dim?.status, "offline", "a verified clinician off shift is drawn as an offline dot");
+});
+
+test("a live clinician is on the live board and never also an offline dot", async () => {
+  await setStatus({ status: "online", lastSeenAt: new Date(), pendingUntil: null, pendingSessionId: null, reservedBy: null });
+  invalidateRadarBoard();
+  const live = (await listRadar()).some((row) => row.userId === therapistId);
+  const dim = (await listRadarOffline()).some((row) => row.userId === therapistId);
+  assert.equal(live, true, "a beating clinician is live");
+  assert.equal(dim, false, "the two lists never hold the same person");
+  await setStatus({ status: "offline" });
+});
+
+/*
+ * 🔴 2026-09-26: approval makes the radar row, so a verified clinician is
+ * visible to patients without first opening /on-call. Offline, in the country
+ * they gave the reviewer, and never overwriting a row the clinician edited.
+ */
+test("approval makes an offline radar row once, and never overwrites one", async () => {
+  const [other] = await db
+    .insert(users)
+    .values({
+      organizationId,
+      email: `radar-approved-${stamp}@example.test`,
+      passwordHash: "scrypt$16384$8$1$00$00",
+      firstName: "Approved",
+      lastName: "Tester",
+      sessionRateCents: 0,
+    })
+    .returning({ id: users.id });
+  try {
+    await db.insert(therapistVerifications).values({
+      userId: other!.id,
+      organizationId,
+      state: "approved",
+      country: "EG",
+      languages: ["Arabic"],
+    });
+
+    await ensureRadarRowForApproved(other!.id);
+    const [made] = await db.select().from(therapistRadar).where(eq(therapistRadar.userId, other!.id));
+    assert.equal(made?.status, "offline", "nobody is made online by being approved");
+    assert.equal(made?.country, "EG", "the dot lands in the country they gave the reviewer");
+    assert.deepEqual(made?.languages, ["Arabic"]);
+
+    await db.update(therapistRadar).set({ headline: "Mine", country: "AE" }).where(eq(therapistRadar.userId, other!.id));
+    await ensureRadarRowForApproved(other!.id);
+    const [kept] = await db.select().from(therapistRadar).where(eq(therapistRadar.userId, other!.id));
+    assert.equal(kept?.headline, "Mine", "an existing row is the clinician's and is left alone");
+    assert.equal(kept?.country, "AE");
+  } finally {
+    await db.delete(therapistRadar).where(eq(therapistRadar.userId, other!.id));
+    await db.delete(therapistVerifications).where(eq(therapistVerifications.userId, other!.id));
+    await db.delete(users).where(eq(users.id, other!.id));
+  }
 });
 
 test("the claim window is long enough to type a card number", () => {

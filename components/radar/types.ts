@@ -78,3 +78,19 @@ export type RadarEntry = {
    */
   reservedByYou: boolean;
 };
+
+/**
+ * 🔴 A verified clinician who is not on shift: a dim dot that opens their
+ * profile to book a time.
+ *
+ * Its own type rather than a fourth `status` on `RadarEntry`, so the booking
+ * sheet, which takes `RadarEntry`, cannot be handed one: "book now" for
+ * somebody who is not there is a type error, not a review comment. Served as
+ * `offline` beside `therapists` from `/api/radar`.
+ */
+export type RadarOfflineEntry = Omit<RadarEntry, "status" | "reservedByYou"> & {
+  status: "offline";
+};
+
+/** What the globe draws: a live clinician or an offline one. */
+export type GlobeEntry = RadarEntry | RadarOfflineEntry;
