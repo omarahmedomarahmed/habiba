@@ -279,7 +279,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             label: "Patients",
             clause: "for the person who owns it",
-            body: "Every dot on the radar is a verified clinician who has said they are free right now. Pick one, say what to call you, and you are in a session. No account, no waiting list, no form about your insurance.",
+            body: "Every bright dot on the radar is a verified clinician who says they are free right now. Pick one, say what to call you, and you are in a session. No account, no waiting list, no form about your insurance.",
             href: "/for-patients",
             hrefLabel: "How it works for patients",
             demo: "patient-app",
