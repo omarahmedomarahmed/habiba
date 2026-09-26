@@ -11,6 +11,7 @@ import {
   noteAddenda,
   patients,
   sessionNotes,
+  sessionPayments,
   sessions,
   users,
   type NoteProvenance,
@@ -100,6 +101,11 @@ export type PatientSession = {
   cancelled: boolean;
   /** What they still owe, after their benefit and with VAT. Null when nothing is owed. */
   owedCents: number | null;
+  /**
+   * 🔴 Board 418: their company's benefit paid all of it. The card then says
+   * so instead of printing the session's price, which read as money they paid.
+   */
+  covered: boolean;
   /** 🔴 Ruling 16: a booking still ahead, which they may cancel or move. */
   changeable: boolean;
 };
@@ -128,6 +134,13 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
       priceCurrency: sessions.priceCurrency,
       paymentStatus: sessions.paymentStatus,
       status: sessions.status,
+      /* 🔴 Board 418: a pot row that left the patient nothing to pay. */
+      covered: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${sessionPayments}
+         WHERE ${sessionPayments.sessionId} = ${qualified(sessions.id)}
+           AND ${sessionPayments.status} = 'paid'
+           AND ${sessionPayments.fundingSource} = 'pot'
+           AND ${sessionPayments.patientShareCents} = 0)`,
       therapistId: users.id,
       therapistFirst: users.firstName,
       therapistLast: users.lastName,
@@ -214,6 +227,7 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
       brief: signed ? row.brief : null,
       cancelled: row.status === "cancelled",
       owedCents: owed.get(row.id) ?? null,
+      covered: Boolean(row.covered),
       changeable:
         row.status === "scheduled" &&
         row.startedAt === null &&
@@ -491,5 +505,10 @@ export function groupOf(input: {
    * booked appointment and 15.3 lists it separately, because "past sessions"
    * that mixes them reads as a course of treatment somebody never had.
    */
-  return input.fromRadar || !input.scheduled ? "past_instant" : "past_scheduled";
+  /*
+   * 🔴 Board 343: the radar only. A session a clinician invited somebody to
+   * from their chart has no booked hour either, and it was filed under "Sessions
+   * you found on the radar" for a patient who never opened the radar.
+   */
+  return input.fromRadar ? "past_instant" : "past_scheduled";
 }

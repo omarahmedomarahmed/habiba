@@ -273,6 +273,10 @@ async function main() {
           "past_instant",
     );
     check(
+      "🔴 board 343 a past session a clinician invited them to (no booked hour, not the radar) is NOT filed under the radar",
+      groupOf({ at: new Date(now - 86_400_000), now, scheduled: false, fromRadar: false }) === "past_scheduled",
+    );
+    check(
       "🔴 15.3 a CANCELLED session an hour away is in the past list, not under Today (live walkthrough)",
       groupOf({ at: new Date(now + 3_600_000), now, scheduled: true, fromRadar: false, cancelled: true }) ===
         "past_scheduled",

@@ -1,0 +1,73 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { readSource } from "../scripts/_verify";
+import { cancelledPaymentRoute } from "../lib/billing/split-refund";
+import { sortForGroup } from "../lib/sessions/order";
+
+/**
+ * Round 2 board, patient app and therapist portal (fix2/care). Each test names
+ * the board row it would have caught.
+ */
+
+const transfer = {
+  fundingSource: "card",
+  capture: "platform",
+  stripePaymentIntentId: null,
+  gatewayPaid: false,
+  hasPerson: true,
+  walletEnabled: true,
+};
+
+test("board 430: a cancelled session paid by bank transfer goes to the patient's wallet (ruling 18)", () => {
+  assert.equal(cancelledPaymentRoute(transfer), "wallet");
+});
+
+test("board 430: a card, gateway or pot payment goes back on its own rail", () => {
+  assert.equal(cancelledPaymentRoute({ ...transfer, stripePaymentIntentId: "pi_1" }), "rail");
+  assert.equal(cancelledPaymentRoute({ ...transfer, gatewayPaid: true }), "rail");
+  assert.equal(cancelledPaymentRoute({ ...transfer, fundingSource: "pot" }), "rail");
+  assert.equal(cancelledPaymentRoute({ ...transfer, capture: "destination" }), "rail");
+});
+
+test("board 430: no wallet to put it in (a guest, or the wallet off) queues a refund instead", () => {
+  assert.equal(cancelledPaymentRoute({ ...transfer, hasPerson: false }), "rail");
+  assert.equal(cancelledPaymentRoute({ ...transfer, walletEnabled: false }), "rail");
+});
+
+test("board 430: both cancellations try the wallet before the refund queue", () => {
+  for (const file of ["lib/data/clinician-cancel.ts", "lib/data/booking-change.ts"]) {
+    const source = readSource(file);
+    const wallet = source.indexOf("refundTransferToWallet(");
+    const rail = source.indexOf("refundSessionPayment({");
+    assert.ok(wallet > 0 && rail > wallet, `${file} calls refundTransferToWallet before refundSessionPayment`);
+  }
+  assert.match(readSource("lib/data/clinician-cancel.ts"), /w1a\.walletCreditBody/);
+});
+
+test("board 374: the Booked list runs soonest first, the past lists latest first", () => {
+  const rows = [
+    { id: "mon10", at: new Date("2026-09-28T07:00:00Z") },
+    { id: "sun11", at: new Date("2026-09-27T08:00:00Z") },
+    { id: "sun10", at: new Date("2026-09-27T07:00:00Z") },
+  ];
+  assert.deepEqual(sortForGroup("upcoming", rows).map((r) => r.id), ["sun10", "sun11", "mon10"]);
+  assert.deepEqual(sortForGroup("today", rows).map((r) => r.id), ["sun10", "sun11", "mon10"]);
+  assert.deepEqual(sortForGroup("past_scheduled", [...rows].reverse()).map((r) => r.id), ["mon10", "sun11", "sun10"]);
+  assert.match(readSource("components/patient/session-list.tsx"), /sortForGroup\(/);
+});
+
+test("board 407: a cancelled booking of theirs renders, never a 404, on the change page", () => {
+  const page = readSource("app/(patient)/patient/sessions/[id]/change/page.tsx");
+  assert.match(page, /cancelledView\(/);
+  assert.ok(page.indexOf("cancelledView(") < page.lastIndexOf("notFound()") + 1_000);
+});
+
+test("board 418: a covered session never prints its price as paid", () => {
+  assert.match(readSource("components/patient/session-list.tsx"), /session\.covered/);
+  assert.match(readSource("app/(patient)/patient/account/page.tsx"), /session\.covered/);
+});
+
+test("board 429: the clinician's cancel confirmation reads the payment", () => {
+  assert.match(readSource("app/(app)/sessions/[id]/page.tsx"), /<CancelSession sessionId=\{id\} paid=/);
+});
