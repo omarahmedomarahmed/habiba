@@ -211,6 +211,15 @@ async function main() {
      * swallowed.
      */
     const left = new Set(targets);
+
+    /*
+     * 🔴 THE ONE CYCLE NO PASS CAN BREAK: users → organizations → partners →
+     * users (the admin who approved the partner). Every row in it blocks the
+     * next, so the approval is emptied first (with its date, which a check
+     * pairs with it). The partner row itself goes a pass later.
+     */
+    await db.execute(sql`UPDATE partners SET approved_by_user_id = NULL, approved_at = NULL`);
+
     try {
       /*
        * 🔴 THE ONE RULE THIS SCRIPT BREAKS, NAMED AND PUT BACK.
