@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { readSource } from "../scripts/_verify";
 import { cancelledPaymentRoute } from "../lib/billing/split-refund";
 import { sortForGroup } from "../lib/sessions/order";
+import { uncoveredStretches } from "../lib/transcript/gaps";
 
 /**
  * Round 2 board, patient app and therapist portal (fix2/care). Each test names
@@ -70,4 +71,19 @@ test("board 418: a covered session never prints its price as paid", () => {
 
 test("board 429: the clinician's cancel confirmation reads the payment", () => {
   assert.match(readSource("app/(app)/sessions/[id]/page.tsx"), /<CancelSession sessionId=\{id\} paid=/);
+});
+
+test("board 334/344: two tracks stored interleaved are one covered session, not minutes off record", () => {
+  /* A two-minute call: the clinician's track and the patient's, stored in arrival order. */
+  const chunk = (n: number) => ({ startMs: (n - 1) * 8_000, endMs: n * 8_000 });
+  const stored = [chunk(1), chunk(13), chunk(2), chunk(14), chunk(3), chunk(15), chunk(4)];
+  const alsoMiddle = [...stored, ...[5, 6, 7, 8, 9, 10, 11, 12].map(chunk)];
+  assert.deepEqual(uncoveredStretches(alsoMiddle, 20_000), []);
+  /* A real stretch neither track covers still counts, once. */
+  const gap = uncoveredStretches([chunk(1), chunk(2), { startMs: 60_000, endMs: 68_000 }, chunk(3)], 20_000);
+  assert.deepEqual(gap, [{ fromMs: 24_000, toMs: 60_000, seconds: 36 }]);
+});
+
+test("board 334: a session held in our own room names its source", () => {
+  assert.match(readSource("app/(app)/sessions/[id]/page.tsx"), /impliedKind=/);
 });

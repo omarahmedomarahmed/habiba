@@ -214,8 +214,39 @@ const HALLUCINATION_ARTEFACTS = new Set([
 // says out loud in a session. Filtering it would delete real clinical content
 // to save one line of noise, which is the wrong trade in a chart.
 
+/**
+ * 🔴 Board 335: THE PROMPT IS NEVER A LINE OF SPEECH.
+ *
+ * On a quiet chunk the model can hand back the decoding hint it was given, and
+ * "Clinical therapy session. Conversational speech." went into the transcript
+ * as the patient's words, labelled Them, where the note could quote it. Every
+ * sentence of any prompt we send is taken out of what comes back, compared
+ * without case, punctuation or spacing; what is left is kept, and a chunk that
+ * was nothing but the prompt is silence.
+ */
+function comparable(sentence: string): string {
+  return sentence
+    .toLowerCase()
+    .replace(/[\p{P}\p{S}]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const PROMPT_SENTENCES = new Set(
+  Object.values(CHUNK_PROMPTS).flatMap((prompt) =>
+    [prompt, ...prompt.split(/(?<=[.!?؟])\s+/)].map(comparable).filter(Boolean),
+  ),
+);
+
+function withoutPrompt(text: string): string {
+  if (PROMPT_SENTENCES.has(comparable(text))) return "";
+  const sentences = text.split(/(?<=[.!?؟])\s+/);
+  const kept = sentences.filter((sentence) => !PROMPT_SENTENCES.has(comparable(sentence)));
+  return kept.length === sentences.length ? text : kept.join(" ").trim();
+}
+
 export function cleanTranscript(text: string): string {
-  const trimmed = text.trim();
+  const trimmed = withoutPrompt(text.trim());
   if (!trimmed) return "";
   if (HALLUCINATION_ARTEFACTS.has(trimmed.toLowerCase())) return "";
   if (trimmed.length < 2) return "";

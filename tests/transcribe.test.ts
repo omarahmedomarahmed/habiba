@@ -96,3 +96,17 @@ test("English artefacts still go, and real English stays", () => {
   assert.equal(cleanTranscript("thanks for watching!"), "");
   assert.equal(cleanTranscript("Thank you for seeing me today."), "Thank you for seeing me today.");
 });
+
+test("board 335: the prompt handed back on a quiet chunk is never a line of speech", () => {
+  assert.equal(cleanTranscript("Clinical therapy session. Conversational speech."), "");
+  assert.equal(cleanTranscript("clinical therapy session conversational speech"), "");
+  assert.equal(cleanTranscript("Conversational speech."), "");
+  assert.equal(cleanTranscript(chunkPrompt("ar")), "");
+  assert.equal(cleanTranscript(chunkPrompt("fr")), "");
+  /* Real words around it stay. */
+  assert.equal(
+    cleanTranscript("Clinical therapy session. Conversational speech. I have not slept all week."),
+    "I have not slept all week.",
+  );
+  assert.equal(cleanTranscript("We talked about my therapy session."), "We talked about my therapy session.");
+});

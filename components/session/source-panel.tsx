@@ -38,6 +38,7 @@ import type { MessageKey } from "@/lib/i18n/messages";
 export function SourcePanel({
   sessionId,
   kind,
+  impliedKind = null,
   provisionedAt,
   tokenExpiresAt,
   tokenRevoked,
@@ -46,6 +47,8 @@ export function SourcePanel({
 }: {
   sessionId: string;
   kind: string | null;
+  /** 🔴 Board 334: where the audio came from when no source row was written (our room, or in person). */
+  impliedKind?: "24t_room" | "in_person" | null;
   provisionedAt: string | null;
   tokenExpiresAt: string | null;
   tokenRevoked: boolean;
@@ -79,7 +82,11 @@ export function SourcePanel({
       <h2 className="text-sm font-semibold text-navy-700">{t("portal.source.title")}</h2>
 
       {kind === null ? (
-        <p className="mt-1 text-sm text-navy-400">{t("portal.source.none")}</p>
+        impliedKind ? (
+          <p className="mt-1 text-sm font-medium text-navy-700">{t(`portal.source.kind.${impliedKind}`)}</p>
+        ) : (
+          <p className="mt-1 text-sm text-navy-400">{t("portal.source.none")}</p>
+        )
       ) : (
         <>
           <p className="mt-1 text-sm font-medium text-navy-700">
