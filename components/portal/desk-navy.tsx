@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 
@@ -49,6 +50,14 @@ export function NavyDesk({
   routed: boolean;
   children: React.ReactNode;
 }) {
+  /* On a phone the current section may sit past the edge of the pill row; bring it into view. */
+  const pills = useRef<HTMLElement>(null);
+  const here = sections.find(current)?.href;
+  useEffect(() => {
+    const on = pills.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    on?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [here]);
+
   return (
     <div className="min-h-dvh bg-navy-50 lg:flex">
       {nav ? (
@@ -124,6 +133,7 @@ export function NavyDesk({
 
             {/* `shrink-0` on every pill: a sideways scroller only scrolls if its children refuse to shrink. */}
             <nav
+              ref={pills}
               aria-label={never.label}
               className="flex gap-1.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >

@@ -102,7 +102,8 @@ export default async function SponsorLedgerPage({
 
   const figure = (label: string, value: React.ReactNode, dark = false) => (
     <Stat label={label} tone={dark ? "dark" : "light"} className="p-4 sm:p-5">
-      <span className="text-[22px]">{value}</span>
+      {/* A held-back figure is a sentence, and a sentence is set smaller than a number. */}
+      <span className={typeof value === "string" ? "block text-[16px] leading-snug" : "text-[22px]"}>{value}</span>
     </Stat>
   );
 
@@ -222,7 +223,7 @@ export default async function SponsorLedgerPage({
 
       <Card className="overflow-x-auto p-0">
         {rows.length === 0 ? (
-          <p className="p-4 text-sm text-navy-400">
+          <p className="p-5 text-sm text-navy-400">
             {pot.underHeadcount
               ? t("sponsor.suppressedBody")
               : heldBack
