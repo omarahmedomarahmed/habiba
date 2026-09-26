@@ -17,6 +17,7 @@ with the reason, so any of them can be reversed in the morning.
 | N10 | Round 2 fixes are made on the redesign branch, and G1 and G2 become one full gate run before main | The redesign is what ships, so fixing the old screens first would be fixed twice; one gate run instead of two saves about ninety minutes of the night and stays inside the founder's limit |
 | N11 | A clinic's part-month seat price shows EGP 666.50 rather than 666.67 (board 252), left as it is for launch | Bills are stored in USD cents and shown in EGP at 50, so every EGP figure is a multiple of 0.50 and the one shown is exactly what is charged; storing EGP on each bill changes the bank-transfer path the night before launch |
 | N12 | The first sign-in after the site sat idle can hang once (board 255); left for launch, retried by the person | A cold database connection; the documented fix is a package not yet installed, and adding a dependency at night is riskier than a retry |
+| N13 | Round 2 closes with what ran: ORG complete, CARE and OPS-WEB stopped by a usage limit after about 400 rows between them; their unwalked steps join the post-redesign walkthrough (S5) instead of a re-run | The redesign changes every screen those steps would walk, so walking them twice costs time and proves the old screens |
 
 ## Needs the founder
 
@@ -27,3 +28,4 @@ with the reason, so any of them can be reversed in the morning.
 | F3 | In /admin/settings: the Arabic name after a bar on Egypt's regulator line (for example "Supreme Council for Mental Health \| المجلس القومي للصحة النفسية") and an Arabic note on the InstaPay line | Operator-typed text; your console login expired overnight |
 | F4 | Save the rules once in /admin/settings so the 15 and 5 minute start clock is stored (it already applies as the default) | Same console login |
 | F5 | Patient bank details on the transfer sheet if bank transfer (not only InstaPay) is wanted | A business choice and a real account |
+| F6 | Set TOKEN_ENCRYPTION_KEY on Vercel production (32 random bytes, base64: `openssl rand -base64 32`) and keep a copy in your password manager. Until then partners cannot register webhooks (board 619) and no integration credential can be stored | Losing or changing this key makes every stored credential unreadable, so its only copy should be yours, not something generated in a night session |
