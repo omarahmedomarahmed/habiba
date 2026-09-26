@@ -30,7 +30,7 @@ fourth full gate.
 | S1 | Redesign wave 1 in worktrees, started in parallel: website, patient app, therapist portal, to the `/design` mockups, with the radar globe from the current radar | done, merged into local branch `redesign-integration` (worktree `.claude/worktrees/redesign-integration`) |
 | S2 | Round 2 with round 3 folded in, on the live site at day 7 (jobs fired before and after the move, verify:migrations passed) | workflow running (run wf_90d1ff11-9c1, script scratchpad/sim/round2.js) |
 | S3 | Fix every round 2 bug; G1; migrations; push main; confirm live | not started |
-| S4 | Redesign wave 2 (clinic, company, partner); merge waves 1 and 2; G2; push main; confirm live | partner merged into `redesign-integration`; clinic and company agents running |
+| S4 | Redesign wave 2 (clinic, company, partner); merge waves 1 and 2; G2; push main; confirm live | all six surfaces merged into `redesign-integration` (typechecks); a QA agent is fixing contrast and every verifier on a branch off it; then round 2 fixes merge in, G2, main |
 | S5 | Walkthrough of rounds 1 and 2 compacted on the new design; fix; G3; push main; confirm live | not started |
 | S6 | Report to the founder: rulings table, what needs the founder, what is live | not started |
 
