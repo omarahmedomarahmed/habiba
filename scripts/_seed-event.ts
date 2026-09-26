@@ -71,8 +71,8 @@ type Clinician = {
   first: string;
   last: string;
   email: string;
-  /** Which practice: their own, or the clinic. */
-  org: "karim" | "amira" | "hesham" | "clinic";
+  /** Which practice: their own (named by their key), or the clinic. */
+  org: string;
   licence: string;
   /** Pounds per session. */
   egp: number;
@@ -115,7 +115,7 @@ const CLINICIANS: Clinician[] = [
     org: "clinic",
     licence: "EG-PSY-31188",
     egp: 1_000,
-    city: "Cairo",
+    city: "Heliopolis",
     governorate: "Cairo Governorate",
     languages: ["Arabic", "English"],
     specialties: ["Depression", "Grief & loss", "Relationships"],
@@ -133,7 +133,7 @@ const CLINICIANS: Clinician[] = [
     org: "clinic",
     licence: "EG-PSY-27754",
     egp: 1_400,
-    city: "Giza",
+    city: "Dokki",
     governorate: "Giza Governorate",
     languages: ["Arabic", "English"],
     specialties: ["Trauma & PTSD", "Panic attacks", "Anxiety"],
@@ -151,7 +151,7 @@ const CLINICIANS: Clinician[] = [
     org: "clinic",
     licence: "EG-PSY-40921",
     egp: 1_100,
-    city: "Cairo",
+    city: "Maadi",
     governorate: "Cairo Governorate",
     languages: ["Arabic", "English", "French"],
     specialties: ["Family conflict", "Relationships", "Postnatal"],
@@ -197,6 +197,102 @@ const CLINICIANS: Clinician[] = [
     hours: [14, 20],
     practice: { name: "Hesham Ragab Counselling", address: "40 El Gomhoreya Street, Mansoura" },
   },
+  /*
+   * 🔴 THE RADAR'S MAP. `city` is the district, because the zoomed globe draws
+   * each clinician at the district they name (`lib/radar-places.ts`): most of
+   * the cast is in Cairo, spread over Heliopolis, Maadi, Zamalek, Dokki and New
+   * Cairo, and Alexandria is a city of its own in Smouha, Sporting and Gleem.
+   */
+  {
+    key: "laila",
+    first: "Laila",
+    last: "Sherif",
+    email: "laila.sherif@example.com",
+    org: "laila",
+    licence: "EG-PSY-35562",
+    egp: 1_300,
+    city: "New Cairo",
+    governorate: "Cairo Governorate",
+    languages: ["Arabic", "English"],
+    specialties: ["Depression", "Chronic illness", "Anxiety"],
+    headline: "Low mood and living with chronic illness",
+    credentials: "Clinical psychologist",
+    bio: "I work with people whose health has changed their lives: chronic pain and illness, and the low mood and guilt that come with them. Online, or in person in New Cairo.",
+    hours: [10, 16],
+    practice: { name: "Laila Sherif Psychology", address: "90th Street, Fifth Settlement, New Cairo" },
+  },
+  {
+    key: "tarek",
+    first: "Tarek",
+    last: "Fahmy",
+    email: "tarek.fahmy@example.com",
+    org: "tarek",
+    licence: "EG-PSY-29017",
+    egp: 1_250,
+    city: "Zamalek",
+    governorate: "Cairo Governorate",
+    languages: ["Arabic", "English"],
+    specialties: ["Work stress & burnout", "Anxiety", "Relationships"],
+    headline: "Confidence and anxiety at work",
+    credentials: "Counselling psychologist",
+    bio: "Presenting, leading, being seen at work: short, practical therapy for the anxiety that gets in the way. Arabic or English, online or in Zamalek.",
+    hours: [13, 19],
+    practice: { name: "Tarek Fahmy Counselling", address: "8 Brazil Street, Zamalek, Cairo" },
+  },
+  {
+    key: "rania",
+    first: "Rania",
+    last: "Khalil",
+    email: "rania.khalil@example.com",
+    org: "rania",
+    licence: "EG-PSY-33940",
+    egp: 850,
+    city: "Smouha",
+    governorate: "Alexandria Governorate",
+    languages: ["Arabic", "English"],
+    specialties: ["Postnatal", "Depression", "Anxiety"],
+    headline: "New mothers, low mood and anxiety, in Alexandria",
+    credentials: "Clinical psychologist",
+    bio: "The year after a baby arrives, and the low mood and worry nobody warns you about. In person in Smouha, or online anywhere in Egypt.",
+    hours: [8, 14],
+    practice: { name: "Rania Khalil Therapy", address: "14 Victor Emmanuel Square, Smouha, Alexandria" },
+  },
+  {
+    key: "ayman",
+    first: "Ayman",
+    last: "Saleh",
+    email: "ayman.saleh@example.com",
+    org: "ayman",
+    licence: "EG-PSY-24478",
+    egp: 800,
+    city: "Sporting",
+    governorate: "Alexandria Governorate",
+    languages: ["Arabic"],
+    specialties: ["Panic attacks", "Anxiety", "Sleep"],
+    headline: "Panic and sleepless nights, in Arabic",
+    credentials: "Psychotherapist",
+    bio: "Panic attacks, health worry and the nights they keep you up, worked on step by step in Arabic. In Sporting, or online.",
+    hours: [15, 21],
+    practice: { name: "Ayman Saleh Counselling", address: "Abou Qir Street, Sporting, Alexandria" },
+  },
+  {
+    key: "heba",
+    first: "Heba",
+    last: "Gamal",
+    email: "heba.gamal@example.com",
+    org: "heba",
+    licence: "EG-PSY-38105",
+    egp: 950,
+    city: "Gleem",
+    governorate: "Alexandria Governorate",
+    languages: ["Arabic", "English", "French"],
+    specialties: ["Trauma & PTSD", "Grief & loss", "Relationships"],
+    headline: "Trauma and grief, at your pace",
+    credentials: "Clinical psychologist",
+    bio: "Trauma-focused therapy and support through loss, in Arabic, English or French. By the sea in Gleem, or online.",
+    hours: [9, 15],
+    practice: { name: "Heba Gamal Psychology", address: "Mostafa Fahmy Street, Gleem, Alexandria" },
+  },
 ];
 
 type Person = {
@@ -229,6 +325,12 @@ const PEOPLE: Person[] = [
   { key: "aya", first: "Aya", last: "Hamdy", email: "aya.hamdy@example.com", phone: "+201009000081", login: "hidden", employer: "pharma" },
   { key: "mostafa", first: "Mostafa", last: "Reda", email: "mostafa.reda@example.com", phone: "+201009000082", login: "hidden", employer: "pharma" },
   { key: "ingy", first: "Ingy", last: "Sabry", email: "ingy.sabry@example.com", phone: "+201009000083", login: "hidden", employer: "pharma" },
+  /* The new clinicians' patients. They pay for themselves, so no company's pot moves. */
+  { key: "salah", first: "Salah", last: "Mekky", email: "salah.mekky@example.com", phone: "+201009000091", login: "hidden" },
+  { key: "lobna", first: "Lobna", last: "Fathy", email: "lobna.fathy@example.com", phone: "+201009000092", login: "hidden" },
+  { key: "mona", first: "Mona", last: "Serag", email: "mona.serag@example.com", phone: "+201009000093", login: "hidden" },
+  { key: "waleed", first: "Waleed", last: "Nasr", email: "waleed.nasr@example.com", phone: "+201009000094", login: "hidden" },
+  { key: "khaled", first: "Khaled", last: "Anwar", email: "khaled.anwar@example.com", phone: "+201009000095", login: "hidden" },
 ];
 
 /** The same shape `seed-demo.ts` writes, so every screen that reads a note reads this one. */
@@ -305,11 +407,22 @@ export async function seedEvent(ctx: { db: Db; adminId: string }): Promise<void>
 
   /* ------------------------------------------------------ practices -- */
 
-  const orgs: Record<Clinician["org"], string> = { karim: "", amira: "", hesham: "", clinic: "" };
+  const orgs: Record<string, string> = { clinic: "" };
   for (const [key, name, slug, contact, email] of [
     ["karim", "Karim Nabil Psychology", "karim-nabil-psychology", "Karim Nabil", EVENT.karim],
     ["amira", "Amira Mansour Therapy", "amira-mansour-therapy", "Amira Mansour", "amira.mansour@example.com"],
     ["hesham", "Hesham Ragab Counselling", "hesham-ragab-counselling", "Hesham Ragab", "hesham.ragab@example.com"],
+    /* The rest of every solo practice, named from the clinician. */
+    ...CLINICIANS.filter((c) => c.org !== "clinic" && !["karim", "amira", "hesham"].includes(c.key)).map(
+      (c) =>
+        [
+          c.key,
+          c.practice.name,
+          c.practice.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+          `${c.first} ${c.last}`,
+          c.email,
+        ] as const,
+    ),
   ] as const) {
     const row = await one<{ id: string }>(sql`
       INSERT INTO organizations (name, region, slug, kind, contact_name, contact_email, created_at)

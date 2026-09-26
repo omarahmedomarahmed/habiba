@@ -9,9 +9,10 @@ import { BookingSheet } from "@/components/radar/booking-sheet";
 import {
   matches,
   NO_FILTER,
-  RadarFilters,
+  RadarChips,
   type RadarFilter,
 } from "@/components/radar/filters";
+import { GlobeInfo, type GlobeHover } from "@/components/radar/globe-info";
 import { OfflineCard } from "@/components/radar/offline-card";
 import { TherapistCard } from "@/components/radar/therapist-card";
 
@@ -100,6 +101,7 @@ export function RadarHero({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewer] = useState(() => viewerId());
   const [filter, setFilter] = useState<RadarFilter>(NO_FILTER);
+  const [info, setInfo] = useState<GlobeHover | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,6 +136,8 @@ export function RadarHero({
   }, [viewer]);
 
   const all = entries ?? [];
+  /* Everybody on the map, live and offline: what the chips are drawn from. */
+  const everyone = useMemo(() => [...(entries ?? []), ...offline], [entries, offline]);
 
   const visible = useMemo(
     () => all.filter((entry) => matches(entry, filter)),
@@ -183,6 +187,8 @@ export function RadarHero({
               setSelectedId(entry.userId);
             }}
             onPickOffline={(entry) => setOfflineId(entry.userId)}
+            onHover={setInfo}
+            showInfo={false}
             className="h-full w-full"
           />
         </div>
@@ -262,13 +268,14 @@ export function RadarHero({
 
         {/* ------------------------------------------------- the live board */}
         <div className="rounded-[28px] bg-white/[0.06] p-3 ring-1 ring-white/10 backdrop-blur-md lg:self-center">
-          <div className="px-1 pb-2">
-            <RadarFilters
-              entries={all}
-              value={filter}
-              onChange={setFilter}
-              tone="dark"
-            />
+          {/*
+            The same chips and box as the radar page. The globe is this hero's
+            background, so they sit at the top of the board over it, where the
+            copy never covers them.
+          */}
+          <div className="space-y-2 px-1 pb-2">
+            <RadarChips entries={everyone} value={filter} onChange={setFilter} />
+            <GlobeInfo info={info} legend={offline.length > 0} />
           </div>
 
           <div className="max-h-[22rem] space-y-2 overflow-y-auto pe-0.5">
