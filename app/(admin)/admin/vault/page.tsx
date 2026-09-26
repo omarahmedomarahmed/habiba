@@ -96,7 +96,6 @@ export default async function VaultPage() {
           65's rule almost exactly inverted: the page was writing what it was
           about to show.
         */}
-        <p className="mt-1 text-sm text-slate-500">Money in, money out, what is left.</p>
       </div>
 
       {/*

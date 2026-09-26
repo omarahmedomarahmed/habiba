@@ -2041,6 +2041,8 @@ export const en = {
   "aops.openCountMany": "{count} open",
   "aops.none": "Nothing open.",
   "aops.see": "Jobs and errors",
+  /* 🔴 Board 543/544: what an open alert means for staff answering people. */
+  "aops.staffNote": "The owner knows. Tell anyone asking it is running late.",
   "aops.week": "Alerts this week",
   "aops.cronOverdue": "{job} has stopped running on time",
   "aops.cronOverdueOther": "The {job} job has stopped running on time",
@@ -7082,6 +7084,8 @@ export const ar: Record<MessageKey, string> = {
   "aops.openCountMany": "{count} مفتوحًا",
   "aops.none": "لا شيء مفتوح.",
   "aops.see": "المهام والأخطاء",
+  /* 🔴 Board 543/544: what an open alert means for staff answering people. */
+  "aops.staffNote": "المالك يعلم. قل لمن يسأل إن هذا الجزء متأخر.",
   "aops.week": "تنبيهات هذا الأسبوع",
   "aops.cronOverdue": "{job}: توقفت عن العمل في موعدها",
   "aops.cronOverdueOther": "مهمة {job} توقفت عن العمل في موعدها",

@@ -51,6 +51,34 @@ export function OpsAlertsCard({ rows, t }: { rows: Row[]; t: Translate }) {
   );
 }
 
+/**
+ * 🔴 Board 543 / 544: the open alerts for staff below the owner, on every
+ * console page they can open. /admin and /admin/errors are the owner's, so
+ * Farida (SU5) never saw that session reminders or billing were late while
+ * people wrote in about exactly that. Staff see what is OPEN and what it means
+ * for the people they answer; the jobs page and the daily one-hand report stay
+ * the owner's. Renders nothing when nothing is open.
+ */
+export function StaffOpsAlerts({ rows, t }: { rows: Row[]; t: Translate }) {
+  const open = rows.filter((row) => row.status === "open");
+  if (open.length === 0) return null;
+  return (
+    <div role="alert" className="border-b border-red-200 bg-red-50">
+      <div className="mx-auto max-w-5xl px-4 py-2 text-sm text-red-900 sm:px-6">
+        <p className="font-semibold">
+          {t("aops.title")} · {t(countKey("aops.openCount", open.length), { count: open.length })}
+        </p>
+        <ul className="mt-0.5 list-disc ps-5">
+          {open.map((row) => (
+            <li key={row.key}>{alertSentence(t, row.key)}</li>
+          ))}
+        </ul>
+        <p className="mt-0.5 text-xs">{t("aops.staffNote")}</p>
+      </div>
+    </div>
+  );
+}
+
 /** Every alert of the week, each marked open, cleared or a report. For /admin/errors. */
 export function OpsAlertsList({
   rows,

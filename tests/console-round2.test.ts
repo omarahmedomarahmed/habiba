@@ -153,6 +153,17 @@ test("484: /admin/transfers asks the database in three rounds, not seven", () =>
   assert.doesNotMatch(page, /rows=\{await approvalViews/);
 });
 
+test("543/544: staff below the owner see the open operations alerts on every console page", () => {
+  const layout = readFileSync("app/(admin)/layout.tsx", "utf8");
+  assert.match(layout, /ownsOverview \? Promise\.resolve\(\[\]\) : opsAlertBoard\(\)/);
+  assert.match(layout, /<StaffOpsAlerts rows=\{alerts\} t=\{t\} \/>/);
+  const card = readFileSync("components/admin/ops-alerts.tsx", "utf8");
+  const staff = card.slice(card.indexOf("export function StaffOpsAlerts"));
+  assert.match(staff, /row\.status === "open"/, "only what is open, never the owner's reports");
+  assert.doesNotMatch(staff.slice(0, staff.indexOf("\n}\n")), /\/admin\/errors/, "no link to a page they cannot open");
+  for (const dict of [en, ar]) assert.ok(dict["aops.staffNote"]);
+});
+
 test("490: a rejected top-up shows on the page, with what was sent, before anything is pressed", () => {
   const popup = readFileSync("components/billing/payment-popup.tsx", "utf8");
   const closed = popup.slice(popup.indexOf("if (!open) {"));
