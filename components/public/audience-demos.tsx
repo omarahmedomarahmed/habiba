@@ -1,5 +1,4 @@
-import { DeviceFrame } from "@/components/demo/device-frame";
-import { ClinicConsole, CompanyConsole, PartnerConsole } from "@/components/demo/portal-demo";
+import { ClinicConsole, CompanyConsole, PartnerConsole, TherapistConsole } from "@/components/demo/portal-demo";
 import { SplitBar } from "@/components/visual/primitives";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings, platformFeeOn } from "@/lib/settings";
@@ -46,9 +45,7 @@ import { DEMO_SESSION_EGP, egp } from "@/lib/marketing/prices";
  */
 export function CompanyDemo({ initial }: { initial?: string } = {}) {
   return (
-    <DeviceFrame as="browser" path="/sponsor" bodyClassName="h-[30rem]">
-      <CompanyConsole initial={initial} />
-    </DeviceFrame>
+    <CompanyConsole initial={initial} frame={{ bodyClassName: "h-[30rem]" }} />
   );
 }
 
@@ -61,9 +58,18 @@ export function CompanyDemo({ initial }: { initial?: string } = {}) {
  */
 export function ClinicDemo({ initial }: { initial?: string } = {}) {
   return (
-    <DeviceFrame as="browser" path="/clinic" bodyClassName="h-[30rem]">
-      <ClinicConsole initial={initial} />
-    </DeviceFrame>
+    <ClinicConsole initial={initial} frame={{ bodyClassName: "h-[30rem]" }} />
+  );
+}
+
+/**
+ * 🔴 A THERAPIST, the same way (founder, 26 Sep): Dr Karim Nabil's own desk, the
+ * clinician's navy sidebar with New session, his sessions with Mariam Hassan, and what
+ * each EGP 1,200 session left him.
+ */
+export function TherapistDemo({ initial }: { initial?: string } = {}) {
+  return (
+    <TherapistConsole initial={initial} frame={{ bodyClassName: "h-[30rem]" }} />
   );
 }
 
@@ -73,9 +79,7 @@ export function ClinicDemo({ initial }: { initial?: string } = {}) {
  */
 export function PartnerDemo({ initial }: { initial?: string } = {}) {
   return (
-    <DeviceFrame as="browser" path="/partner" bodyClassName="h-[26rem]">
-      <PartnerConsole initial={initial} />
-    </DeviceFrame>
+    <PartnerConsole initial={initial} frame={{ bodyClassName: "h-[26rem]" }} />
   );
 }
 

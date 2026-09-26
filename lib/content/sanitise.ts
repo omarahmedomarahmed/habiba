@@ -98,11 +98,11 @@ const RULES: Record<string, BlockRule> = {
     items: { field: "items", keys: ["audience", "title", "body", "demo"] },
   },
   prose: { keys: ["heading", "body", "icon"] },
-  features: { keys: ["heading"], items: { field: "items", keys: ["title", "body", "icon"] } },
+  features: { keys: ["heading"], flags: ["ticks"], items: { field: "items", keys: ["title", "body", "icon"] } },
   showcase: {
     keys: ["heading", "body"],
-    flags: ["side"],
-    items: { field: "items", keys: ["title", "body", "icon", "demo"] },
+    flags: ["side", "bands"],
+    items: { field: "items", keys: ["title", "body", "icon", "demo", "label"] },
   },
   faq: { keys: ["heading"], items: { field: "items", keys: ["q", "a"] } },
   flow: { keys: ["heading"], items: { field: "steps", keys: ["title", "detail"] } },
@@ -130,7 +130,7 @@ const RULES: Record<string, BlockRule> = {
     items: { field: "items", keys: ["name", "logo", "via", "status"] },
   },
   crisis: { keys: ["heading", "body"] },
-  cta: { keys: ["heading", "body", "ctaLabel", "ctaHref", "backgroundImage"] },
+  cta: { keys: ["heading", "body", "ctaLabel", "ctaHref", "backgroundImage", "audience"] },
 };
 
 /**

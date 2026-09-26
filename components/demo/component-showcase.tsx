@@ -98,6 +98,13 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
     case "summary":
       return <PatientApp content={content} open="summary" />;
 
+    /* Her Therapists tab, and who can read her history, for the patient page's bands. */
+    case "patient-therapists":
+      return <PatientApp content={content} initial="therapists" />;
+
+    case "patient-access":
+      return <PatientApp content={content} open="access" />;
+
     /*
      * The rolling profile, shown as what it is: dated observations, each one
      * traceable to the session it came from. Never a paragraph of AI prose

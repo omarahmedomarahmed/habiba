@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import { CompanyDemo } from "@/components/public/audience-demos";
-import { ArrowRight } from "lucide-react";
-
+import { AlsoIncluded, AudienceClose, CostPanel, FeatureBands } from "@/components/public/audience-page";
 import { AudienceHero } from "@/components/public/audience-hero";
-import { SiteCard, btn } from "@/components/public/site-ui";
-import { cn } from "@/lib/utils";
-import { FlowStrip, SeesWhat } from "@/components/visual/primitives";
+import { CompanyDemo } from "@/components/public/audience-demos";
+import { Meter } from "@/components/visual/primitives";
 import { getI18n } from "@/lib/i18n/server";
+import { COMPANY } from "@/lib/marketing/fixtures";
+import { egp } from "@/lib/marketing/prices";
 
 export const metadata: Metadata = {
   title: "For companies",
@@ -17,112 +15,128 @@ export const metadata: Metadata = {
 };
 
 /**
- * 🔴 65.16 / 65.20 — THE AUDIENCE THAT HAD NO PAGE.
+ * 🔴 THE SAME PAGE AS `/for-therapists`, FOR THE PERSON WHO PAYS FOR OTHER PEOPLE.
  *
- * > *Every audience gets a real page, not a section. `/for-companies`, `/for-clinics`,
- * > `/for-patients`, `/developers`, each laid out properly rather than as a wall under a
- * > heading.*
+ * *"Unify the For-* pages. The company and clinic pages are empty; the therapist page
+ * is the reference for all other pages to look like."* (founder, 26 Sep)
  *
- * A therapist had a page, patients had a page, clinics had a page and developers had a
- * page. The employer funding all of it had two sentences on the pricing page. Sprint 53
- * built the whole sponsor portal and nothing on the public site ever said so.
+ * So this is the therapist page's shape, band for band: the hero with the audience's
+ * own working desk beside it, six numbered bands that each put a real screen beside a
+ * claim, the list of what is true and has no screen, what it costs, and the closing
+ * band with the way to the other three pages.
  *
- * ## 🔴 THE WALL IS THE PITCH, WHICH IS 65.15's OWN WORDING
+ * ## Every band is the same console, opened where the claim is
  *
- * *Bring mental health to your people, and never learn who went. C227 and C244 are the
- * product, and they are the pitch.* An HR director choosing between vendors is choosing
- * who will be able to tell them which of their staff is in therapy, and the answer here
- * is nobody. So the comparison is the first thing on the page rather than a paragraph
- * under the features.
+ * `CompanyDemo` is `/sponsor` as Dalia Samir at Cairo Foundry sees it, with every
+ * section in its rail pressable. A band about the joining code opens it on the joining
+ * code; the reader can walk from there to anything else. Nothing on this page says what
+ * the portal does that the portal beside it does not show.
  *
- * ## 🔴 65.17 — AND THE PANEL BESIDE IT IS THE REAL PORTAL
+ * ## 🔴 The wall is on every screen, not in a paragraph
  *
- * `CompanyDemo` renders `SpendHeatmap`, the component `/sponsor` itself renders, with
- * one suppressed week in it because that is what C229 does to a small figure. Nobody had
- * to write a sentence claiming we suppress small numbers: the chart does it.
- *
- * ## 🔴 65.21 — AND IT IS IN THE DICTIONARY, NOT IN THIS FILE
- *
- * `/for-clinics` and `/integrations` are hand-built pages under `app/(public)/`, which
- * `scripts/_i18n-coverage.ts` exempts on the stated ground that "the rows are already
- * published in both languages". That is true of `[slug]` and false of these: their text
- * is typed into the markup and exists in English only. This page is built the other way
- * round so it cannot join them.
+ * "This portal will never show you" sits at the foot of the console's rail on every
+ * band, because it sits there in the real portal. 65.15's pitch, *never learn who went*,
+ * is made by the product rather than by a sentence about it.
  */
 export default async function ForCompaniesPage() {
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
+  const money = (pounds: number) => egp(pounds * 100, locale);
 
   return (
     <main>
-      {/*
-        🔴 76.84 — the band the homepage gives this audience, at the top of the
-        page that is about them. The console is the real `/sponsor` one, so the
-        hero cannot outlive the feature it is about (65.17).
-      */}
       <AudienceHero
         eyebrow={t("marketing.companies.eyebrow")}
         heading={t("marketing.companies.title")}
         body={t("marketing.companies.lede")}
         cta={{ label: t("marketing.companies.cta"), href: "/sponsor/apply" }}
-        secondary={{ label: t("nav.contact"), href: "/contact" }}
+        secondary={{ label: t("ft.secondary"), href: "#cost" }}
         demo={<CompanyDemo />}
         note={t("public.demoNote")}
       />
 
+      <FeatureBands
+        note={t("public.demoNote")}
+        features={[
+          {
+            label: t("marketing.companies.f1.label"),
+            heading: t("marketing.companies.f1.heading"),
+            body: t("marketing.companies.f1.body"),
+            demo: <CompanyDemo initial="pot" />,
+          },
+          {
+            label: t("marketing.companies.f2.label"),
+            heading: t("marketing.companies.f2.heading"),
+            body: t("marketing.companies.f2.body"),
+            demo: <CompanyDemo initial="code" />,
+          },
+          {
+            label: t("marketing.companies.f3.label"),
+            heading: t("marketing.companies.f3.heading"),
+            body: t("marketing.companies.f3.body"),
+            demo: <CompanyDemo initial="people" />,
+          },
+          {
+            label: t("marketing.companies.f4.label"),
+            heading: t("marketing.companies.f4.heading"),
+            body: t("marketing.companies.f4.body"),
+            demo: <CompanyDemo initial="ledger" />,
+          },
+          {
+            label: t("marketing.companies.f5.label"),
+            heading: t("marketing.companies.f5.heading"),
+            body: t("marketing.companies.f5.body"),
+            demo: <CompanyDemo initial="settings" />,
+          },
+          {
+            label: t("marketing.companies.f6.label"),
+            heading: t("marketing.companies.f6.heading"),
+            body: t("marketing.companies.f6.body"),
+            demo: <CompanyDemo initial="team" />,
+          },
+        ]}
+      />
+
+      <AlsoIncluded
+        title={t("ft.also")}
+        items={[
+          t("marketing.companies.also1"),
+          t("marketing.companies.also2"),
+          t("marketing.companies.also3"),
+          t("marketing.companies.also4"),
+          t("marketing.companies.also5"),
+          t("marketing.companies.also6"),
+        ]}
+      />
+
       {/*
-        The wall and the steps, side by side on the mockups' tinted ground:
-        what the company sees and does not, then how it starts.
+        What it costs a company is what its people's sessions cost, at the share it
+        chose, and the sentence under the heading is the portal's own (`sponsor.cov.quoted`).
+        The figure is Cairo Foundry's pot, as the meter on `/sponsor/pot` draws it.
       */}
-      <section className="bg-navy-50 px-5 py-16 sm:px-6 sm:py-24">
-      <div className="mx-auto max-w-6xl">
-        <div className="grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
-          <div className="overflow-hidden rounded-[18px] bg-white shadow-[0_20px_50px_-40px_rgba(10,35,66,0.5)]">
-          <SeesWhat
-            who={t("sponsor.apply.seesWho")}
-            can={[
-              t("sponsor.apply.seesCount"),
-              t("sponsor.apply.seesSpend"),
-              t("sponsor.apply.seesWeekly"),
-            ]}
-            cannot={[
-              t("sponsor.neverIndividual"),
-              t("sponsor.neverAttendance"),
-              t("sponsor.neverClinical"),
-            ]}
+      <div id="cost" className="scroll-mt-20">
+        <CostPanel
+          label={t("ft.secondary")}
+          heading={t("marketing.companies.costHeading")}
+          body={t("sponsor.cov.quoted")}
+          cta={{ label: t("marketing.companies.cta"), href: "/sponsor/apply" }}
+        >
+          <Meter
+            usedLabel={money(COMPANY.leftEgp)}
+            ofLabel={`${t("sponsor.funded")}: ${money(COMPANY.putInEgp)}`}
+            fraction={COMPANY.spentEgp / COMPANY.putInEgp}
+            note={t("marketing.companies.costNote")}
           />
-          </div>
-
-          <SiteCard>
-          <FlowStrip
-            steps={[
-              {
-                title: t("marketing.companies.step1"),
-                detail: t("marketing.companies.step1Body"),
-              },
-              {
-                title: t("marketing.companies.step2"),
-                detail: t("marketing.companies.step2Body"),
-              },
-              {
-                title: t("marketing.companies.step3"),
-                detail: t("marketing.companies.step3Body"),
-              },
-            ]}
-          />
-          </SiteCard>
-        </div>
-
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-          <Link href="/sponsor/apply" className={cn(btn.dark, btn.lg)}>
-            {t("marketing.companies.cta")}
-            <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
-          </Link>
-          <Link href="/contact" className={cn(btn.ghost, btn.lg)}>
-            {t("nav.contact")}
-          </Link>
-        </div>
+        </CostPanel>
       </div>
-      </section>
+
+      <AudienceClose
+        who="company"
+        t={t}
+        heading={t("marketing.companies.closeHeading")}
+        body={t("marketing.companies.closeBody")}
+        cta={{ label: t("marketing.companies.cta"), href: "/sponsor/apply" }}
+        secondary={{ label: t("nav.signIn"), href: "/sponsor/sign-in" }}
+      />
     </main>
   );
 }

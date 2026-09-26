@@ -446,202 +446,93 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "hero",
         eyebrow: "For patients",
         heading: "Your therapy record, and it is actually yours",
-        body: "Read it, hand it to the next therapist in one tap, and take that back just as fast. The phone beside this is the app, and nothing in it asks you for an account.",
+        body: "Find somebody, book them, and read what they write to you afterwards. The phone beside this is the app, as Mariam sees it when she signs in.",
         ctaLabel: "See who is online now",
         ctaHref: "/radar",
         /*
-         * 🔴 76.81 — THE APP, WORKING, INSTEAD OF NOTHING.
-         *
-         * This hero carried `demo: "none"`, so the page that exists to explain
-         * the patient's half of the product opened with a paragraph and an
-         * empty column. The claim it makes is a SEQUENCE — find somebody, see
-         * the price, go in, no account — and the only honest way to make a
-         * claim about a sequence is to let somebody run it.
+         * 🔴 76.81 — THE APP, WORKING, INSTEAD OF NOTHING. Every tab on the dock
+         * is a button, and a therapist's page books an hour.
          */
         demo: "patient-app",
         icon: "shield",
         backgroundImage: "/backgrounds/waves.svg",
       },
       /*
-       * 🔴 65.20 — THE CLAIM FLOW AS THREE STEPS, which is the ticket's own example.
+       * 🔴 THE SAME PAGE AS `/for-therapists` (founder, 26 Sep).
        *
-       * This was four feature cards of prose describing an ordered process: you generate
-       * a code, they enter it, you are asked. 65.22 forbids numbering content that is not
-       * a sequence; this one is, so it is numbered, and the numbers are the information
-       * the four paragraphs were spending words to establish.
+       * *"The patient page is crowded with a lot of things; the therapist page is
+       * the reference for all other pages to look like."* This page was nine
+       * sections of cards, prose, two walkthroughs and a six-question FAQ. It is
+       * now the therapist page's shape: the hero with the app beside it, six
+       * numbered bands each opening the app on the screen the claim is about,
+       * one list of what is true and has no screen, what it costs, and the
+       * closing band.
+       *
+       * Where each old section went:
+       *
+       *   "It moves with you"        band 4, over her summary, and the list
+       *   "What it actually looks
+       *    like"                     bands 1 and 2, as screens rather than a pair
+       *   "You never talk to the AI" the list, in one line (P3 and T5 cite it)
+       *   seesWhat                   band 5, where access is stopped for real
+       *   the two walkthroughs       band 5 and the list (claim with your number)
+       *   the FAQ                    cut to the four questions about money
        */
-      /*
-       * 🔴 ELEVEN SECTIONS BECAME EIGHT, AND FOUR PHONES BECAME TWO.
-       *
-       * This page was 9,600px tall and showed the SAME patient app four
-       * separate times: once in the hero, once under "Finding somebody", and
-       * twice more as full-width bands in two sections called "The two screens
-       * that argument rests on" and "What it actually looks like". Those two
-       * sections alone were 3,138px, a third of the page, and a reader
-       * scrolling them met the same phone three screens apart with a different
-       * caption each time.
-       *
-       * The cause is that every screen of the app was getting its own section,
-       * which is what you do when a mockup is a picture. This one is not a
-       * picture: it has five tabs and they all work, so a reader who wants to
-       * see the journal can open the journal. So the page shows the app TWICE,
-       * side by side, says out loud that it is the real thing, and stops
-       * narrating it.
-       *
-       * What went, and where it went rather than being lost:
-       *
-       *   flow                  the consent walkthrough below walks the same
-       *                         three steps, and lets you press them
-       *   "The two screens"     both are tabs in the app beside this text
-       *   "Finding somebody"    a third copy of the hero's phone; its language
-       *                         and booking claims moved into the caption
-       *   "Or book an hour"     same
-       *   "The rest of it"      its four claims merged into "It moves with
-       *                         you", which is what they were all about
-       */
-      {
-        type: "features",
-        heading: "It moves with you",
-        items: [
-          {
-            title: "One record, however many therapists",
-            body: "Every version of your summary stays, under its author's name.",
-            icon: "users",
-          },
-          {
-            title: "A copy you can keep",
-            body: "Every session, note and summary, emailed to you, never over WhatsApp.",
-            icon: "fileText",
-          },
-          {
-            title: "A psychiatrist and a therapist, on one record",
-            body: "Grant each separately, take either back on its own.",
-            icon: "users",
-          },
-          {
-            title: "You can be recorded, or not",
-            body: "Asked for, not assumed, and stoppable mid-session.",
-            icon: "mic",
-          },
-          {
-            title: "Claim it with your phone number",
-            body: "We ask two questions first: a number is not a person.",
-            icon: "shield",
-          },
-          {
-            title: "It is still there in three years",
-            body: "Nothing is deleted and nothing expires.",
-            icon: "clock",
-          },
-          /*
-           * 🔴 51.9 — the capability that was shipped and never sold.
-           *
-           * Every clinician on the radar carries the languages they work in,
-           * and the filter bar has narrowed by language since sprint 50. Not
-           * one page had ever said so, which is the expensive kind of gap:
-           * the code is paid for and the value is not collected. For a
-           * diaspora reader it is the whole reason to be here rather than
-           * with a therapist down their own street.
-           */
-          {
-            title: "Somebody who speaks your first language",
-            body: "Narrow the radar by language before you pick anybody.",
-            icon: "heart",
-          },
-        ],
-      },
       {
         type: "showcase",
-        /*
-         * 🔴 `side`, which is the whole point of this section.
-         *
-         * Two screens beside each other, captions underneath. The band layout
-         * this used to have gave each screen a full-width row of its own, and
-         * is how one app became 3,138px of page.
-         */
-        side: true,
-        heading: "What it actually looks like",
-        body: "This is the app, not a picture of it. Every tab along the bottom works, so open the one you were going to ask about.",
+        bands: true,
         items: [
           {
-            title: "Find somebody now",
-            /*
-             * 🔴 51.9 — the language clause LEFT here when it got its own item
-             * above. It was a sub-clause in a sentence about the map, which is
-             * not selling it, and keeping both would be saying it twice on one
-             * page. The prose budget is what made that a decision rather than
-             * an accumulation.
-             */
-            body: "A live map of clinicians who are online this minute. Or book an hour instead: everyone has a calendar, and a reminder goes out before it.",
-            icon: "zap",
-            /*
-              `patient-app`, not `radar`: the CMS union does not carry a
-              `radar` name and `ComponentShowcase` maps both to the same thing,
-              `PatientApp` opened on its radar tab. The editable row uses the
-              name the schema allows.
-            */
-            demo: "patient-app",
+            label: "Finding somebody",
+            title: "Somebody who speaks your first language.",
+            body: "Browse by what you want help with and by language, see each therapist's price, and book an hour they published.",
+            demo: "patient-therapists",
           },
           {
-            title: "Your sessions, and the steps you agreed",
-            body: "The sessions you booked, the ones you found on the radar, and the note written to you after each. Plus what you agreed to try, written the way you agreed it. Nobody scores you.",
-            icon: "users",
+            label: "Your sessions",
+            title: "Your sessions, and what your therapist wrote to you.",
+            body: "Every session you booked, with the note your therapist signed for you after it, and a way to book them again.",
             demo: "patient-sessions",
+          },
+          {
+            label: "Your steps",
+            title: "What you agreed to try, in the words you agreed it.",
+            body: "One step at a time, ticked off by you. Nobody scores you.",
+            demo: "homework",
+          },
+          {
+            label: "It moves with you",
+            title: "One record, however many therapists.",
+            body: "Every version of your summary stays, under its author's name, so the next therapist does not start from nothing.",
+            demo: "summary",
+          },
+          {
+            label: "Who can read it",
+            title: "Nobody reads your history until you say yes.",
+            body: "You see who can read it and who cannot see it, and you stop anyone in one tap. They keep only what they already read.",
+            demo: "patient-access",
+          },
+          {
+            label: "Your journal",
+            title: "What you write between sessions is yours.",
+            body: "In your own words, on your own time. A therapist reads it only if you give them access.",
+            demo: "journal",
           },
         ],
       },
       {
         type: "features",
-        heading: "You never talk to the AI",
+        ticks: true,
+        heading: "Also included",
         items: [
-          {
-            title: "There is no chatbot here, and there will not be one",
-            body: "No screen in the patient app types to a model, and the import graph is what stops it.",
-            icon: "lock",
-          },
-          {
-            title: "What it does instead",
-            body: "It puts what it read in front of your clinician, with the sentence it came from attached.",
-            icon: "brain",
-          },
-          {
-            title: "Only a clinician you chose can ask it anything",
-            body: "Only about you, and only while you allow it. Take it back and it stops that second.",
-            icon: "shield",
-          },
-          {
-            title: "Nothing written by a machine reaches you unsigned",
-            body: "The person who was in the room reads it and puts their name on it first.",
-            icon: "check",
-          },
+          { title: "No account needed for a session", body: "" },
+          { title: "A copy of everything, emailed to you, never over WhatsApp", body: "" },
+          { title: "A psychiatrist and a therapist on one record, each granted separately", body: "" },
+          { title: "Recording is asked for, not assumed, and stops when you say", body: "" },
+          { title: "Claim a record a therapist already keeps, with your phone number", body: "" },
+          { title: "You never talk to the AI: nothing written by a machine reaches you unsigned", body: "" },
         ],
       },
-      {
-        type: "seesWhat",
-        heading: "What your therapist can and cannot see",
-        who: "A therapist you allow",
-        can: [
-          "The sessions they ran with you, and their own notes",
-          "Your history, while you allow it",
-          "What you wrote, if you gave them access",
-        ],
-        cannot: [
-          "Another therapist's notes, unless you say so",
-          "Anything at all before you say yes",
-          "Your record after you end their access",
-        ],
-      },
-      /*
-       * 🔴 76.75 — THE TWO FLOWS, WALKED RATHER THAN DESCRIBED.
-       *
-       * Both were paragraphs on this page, and a paragraph is exactly what a
-       * company writes when its product does something else. They sit above
-       * the FAQ because they answer the two questions the FAQ was answering
-       * in prose, and because a reader who has come this far down a page for
-       * patients is asking how, not whether.
-       */
-      { type: "walkthrough", which: "claim" },
-      { type: "walkthrough", which: "consent" },
       {
         type: "faq",
         heading: "What it costs you",
@@ -655,22 +546,22 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             a: "Yes. The rate you were shown is the rate you are charged.",
           },
           {
+            q: "What if my employer pays?",
+            a: "Then your session says it is covered, and you pay nothing or only the part they do not cover. They are not told you went.",
+          },
+          {
             q: "What if the therapist does not turn up?",
             a: "After five minutes: somebody else at the same price or less, or your money back.",
           },
-          {
-            q: "Do I need an account?",
-            a: "Not for a session. Yes to keep your history and claim a record.",
-          },
-          {
-            q: "If I stop using 24Therapy, do I lose everything?",
-            a: "No. Ask for a copy and it is emailed to you. It is a record extract, not a certificate.",
-          },
-          {
-            q: "Can a therapist read my record without me agreeing?",
-            a: "No. Every grant needs you, signed in, answering. You are messaged each time one starts.",
-          },
         ],
+      },
+      {
+        type: "cta",
+        audience: "patient",
+        heading: "Find somebody who fits.",
+        body: "Browse the therapists listed here, or open the radar and see who is on it now.",
+        ctaLabel: "See who is online now",
+        ctaHref: "/radar",
       },
       { type: "crisis" },
     ],

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowRight, Phone } from "lucide-react";
 
 import { AudienceRotator } from "@/components/public/audience-rotator";
+import { AlsoIncluded, AudienceClose, FeatureBands } from "@/components/public/audience-page";
+import type { DoorKey } from "@/lib/auth/doors";
 import { ComponentShowcase } from "@/components/demo/component-showcase";
 import { HowItWorks } from "@/components/public/how-it-works";
 import { ClaimFlowDemo, ConsentFlowDemo } from "@/components/demo/flow-demo";
@@ -145,6 +147,15 @@ function Block({
     case "howItWorks":
       return <HowItWorksBlock block={block} demo={demo} t={t} />;
     case "features":
+      /* 🔴 The audience pages' tick list, drawn by the component `/for-therapists` uses. */
+      if (block.ticks && !dense) {
+        return (
+          <AlsoIncluded
+            title={block.heading ?? ""}
+            items={block.items.map((item) => (item.body ? `${item.title}. ${item.body}` : item.title))}
+          />
+        );
+      }
       return <Features block={block} dense={dense} />;
     case "showcase":
       return <Showcase block={block} demo={demo} t={t} />;
@@ -177,7 +188,7 @@ function Block({
         </Section>
       );
     case "cta":
-      return <Cta block={block} />;
+      return <Cta block={block} t={t} />;
     case "prose":
       return <Prose block={block} />;
     /*
@@ -463,7 +474,8 @@ function Hero({
                 {block.ctaLabel}
                 <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
               </Link>
-              <Link href="/login" className={cn(btn.light, btn.lg)}>
+              {/* A patient's hero signs a patient in, not a clinician. */}
+              <Link href={block.demo === "patient-app" ? SIGN_IN.patient : SIGN_IN.therapist} className={cn(btn.light, btn.lg)}>
                 {t("nav.signIn")}
               </Link>
             </div>
@@ -599,6 +611,27 @@ function Showcase({
   );
 
   /*
+   * 🔴 THE AUDIENCE PAGES' BANDS (founder, 26 Sep). `/for-patients` is a CMS
+   * row and `/for-therapists` is hand-built, and the founder's reference for
+   * all four is the therapist page. So a `bands` showcase renders the very
+   * component that page renders: numbered, alternating, one claim beside one
+   * working screen. Same rhythm, one implementation.
+   */
+  if (block.bands) {
+    return (
+      <FeatureBands
+        note={t("public.demoNote")}
+        features={block.items.map((item) => ({
+          label: item.label ?? item.title,
+          heading: item.title,
+          body: item.body,
+          demo: <DemoFor name={item.demo} demo={demo} t={t} />,
+        }))}
+      />
+    );
+  }
+
+  /*
    * 🔴 SCREENS BESIDE EACH OTHER, for the case where a reader is comparing two
    * rather than being argued at about one. Side by side, the caption goes
    * under the screen it describes and the section is half as tall.
@@ -667,7 +700,35 @@ function Faq({ block }: { block: Extract<ContentBlock, { type: "faq" }> }) {
   );
 }
 
-function Cta({ block }: { block: Extract<ContentBlock, { type: "cta" }> }) {
+/** Where each audience signs in, for the button beside the closing call. */
+const SIGN_IN: Record<DoorKey, string> = {
+  therapist: "/login",
+  patient: "/patient/login",
+  company: "/sponsor/sign-in",
+  clinic: "/clinic/sign-in",
+};
+
+function Cta({ block, t }: { block: Extract<ContentBlock, { type: "cta" }>; t: Translate }) {
+  /*
+   * 🔴 An audience page closes the way `/for-therapists` closes: the dark band,
+   * the button, sign in beside it, and the other three pages under it. The
+   * value is a free string once it has been through the sanitiser, so it is
+   * checked against the four doors rather than trusted.
+   */
+  const who = block.audience && block.audience in SIGN_IN ? (block.audience as DoorKey) : null;
+  if (who) {
+    return (
+      <AudienceClose
+        who={who}
+        t={t}
+        heading={block.heading}
+        body={block.body}
+        cta={{ label: block.ctaLabel, href: block.ctaHref }}
+        secondary={{ label: t("nav.signIn"), href: SIGN_IN[who] }}
+      />
+    );
+  }
+
   const image = safeImageUrl(block.backgroundImage);
 
   return (

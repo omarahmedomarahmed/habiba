@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { LayoutGroup, motion } from "motion/react";
-import { CalendarDays, CircleUser, Globe2, ListChecks, Receipt } from "lucide-react";
+import { CalendarDays, CircleUser, Globe2, Home, Users } from "lucide-react";
 
 import { BrowserFrame as DsBrowserFrame } from "@/app/design/_ds/frames";
 import { spring } from "./motion";
@@ -145,10 +145,10 @@ type Tab = { icon: typeof Globe2; label: string; lifted?: boolean };
  * A caller that passes `tabs` replaces these with the app's real, keyed ones.
  */
 const TABS: readonly Tab[] = [
+  { icon: Home, label: "Home" },
   { icon: CalendarDays, label: "Sessions" },
-  { icon: ListChecks, label: "Steps" },
-  { icon: Globe2, label: "Talk now", lifted: true },
-  { icon: Receipt, label: "Billing" },
+  { icon: Globe2, label: "Find someone now", lifted: true },
+  { icon: Users, label: "Therapists" },
   { icon: CircleUser, label: "You" },
 ];
 
@@ -223,25 +223,27 @@ function PhoneFrame({
 
         {nav ? (
           /*
-            The bar floats: a white card with rounded ends above the home
-            indicator, the page's ground showing round it, and the redesign's
-            sliding navy-50 pill under the tab you are on.
+            🔴 THE DOCK THE APP HAS NOW (founder, 26 Sep): the therapist
+            portal's floating navy bar with the patient's five, as
+            `components/patient/bottom-nav.tsx` draws it. Inset from the edges,
+            rounded, a raised teal square in the centre, and teal on glass for
+            the tab you are on.
           */
           <div
             aria-hidden={onTab ? undefined : true}
-            className="absolute inset-x-2 bottom-3 z-20 select-none rounded-[22px] bg-white/95 px-1.5 pt-1.5 pb-1 shadow-[0_12px_32px_-12px_rgba(10,35,66,0.35)] ring-1 ring-navy-100 backdrop-blur-xl"
+            className="absolute inset-x-2 bottom-2.5 z-20 select-none rounded-[22px] bg-navy-900/95 px-1.5 py-0.5 shadow-[0_20px_40px_-16px_rgba(3,11,23,0.6)] ring-1 ring-white/10 backdrop-blur-xl"
           >
             <LayoutGroup id={pill}>
-              <div className="flex items-end justify-around">
+              <div className="flex items-center justify-around gap-0.5">
                 {bar.map(({ key, icon: Icon, label, lifted }) => {
                   const on = activeTab === key;
                   /*
                    * 🔴 76.81 — THE LIFTED GLOBE CARRIES NO WRITTEN LABEL, as on
                    * the real bar: the string is "Find someone now" and four
-                   * words do not fit under a circle in either language.
+                   * words do not fit under a square in either language.
                    */
                   const body = lifted ? (
-                    <span className="grid h-12 w-12 place-items-center rounded-full bg-brand-500 text-navy-700 shadow-[0_10px_28px_-8px_rgba(46,196,182,0.8)] ring-4 ring-white">
+                    <span className="grid h-11 w-11 place-items-center rounded-2xl bg-brand-500 text-navy-700 shadow-[0_10px_28px_-8px_rgba(46,196,182,0.9)] ring-4 ring-navy-50">
                       <Icon className="h-5 w-5" aria-hidden />
                     </span>
                   ) : (
@@ -250,19 +252,17 @@ function PhoneFrame({
                         <motion.span
                           layoutId="phone-tab"
                           transition={spring}
-                          className="absolute inset-0 rounded-2xl bg-navy-50"
+                          className="absolute inset-0 rounded-2xl bg-white/10"
                         />
                       ) : null}
-                      <Icon className="relative h-[18px] w-[18px]" aria-hidden />
-                      <span className="relative max-w-[3.6rem] truncate text-[9.5px] leading-none font-semibold">
-                        {label}
-                      </span>
+                      <Icon className="relative h-4 w-4" aria-hidden />
+                      <span className="relative max-w-full truncate text-[9px] leading-none">{label}</span>
                     </>
                   );
                   const shape = cn(
-                    "relative flex flex-col items-center justify-center gap-1",
-                    lifted ? "-mt-6" : "h-11 min-w-0 flex-1 rounded-2xl",
-                    !lifted && (on ? "text-navy-700" : "text-navy-400"),
+                    "relative flex flex-col items-center justify-center gap-0.5",
+                    lifted ? "-mt-6 shrink-0 px-0.5" : "my-1 h-10 min-w-0 flex-1 rounded-2xl px-0.5",
+                    !lifted && (on ? "font-semibold text-brand-300" : "font-medium text-white/70"),
                   );
                   return onTab ? (
                     <button
@@ -346,6 +346,8 @@ const SELF_FRAMED: ReadonlySet<string> = new Set([
   "patient-sessions",
   "journal",
   "summary",
+  "patient-therapists",
+  "patient-access",
 ]);
 
 /**
