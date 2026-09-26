@@ -75,7 +75,7 @@ export function OfflineCard({
         className="mt-3 flex h-10 items-center justify-center gap-2 rounded-xl bg-white/10 text-sm font-semibold text-white hover:bg-white/15"
       >
         <CalendarClock className="h-4 w-4" aria-hidden />
-        {t("radar.seeTimes")}
+        {t("pbook.bookSession")}
       </Link>
     </div>
   );

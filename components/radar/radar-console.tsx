@@ -279,7 +279,7 @@ export function RadarConsole({
           <div className="pointer-events-none absolute top-14 start-3 flex items-center gap-3 rounded-full bg-[#04101f]/70 px-3 py-1 text-[11px] text-white/85 backdrop-blur sm:top-16 sm:start-[21rem]">
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-teal-400" aria-hidden />
-              {t("radar.legendLive")}
+              {t("radar.freeNow")}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full border border-slate-400" aria-hidden />

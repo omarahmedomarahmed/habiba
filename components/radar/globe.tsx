@@ -456,7 +456,7 @@ export function Globe({
                     strokeOpacity="0.85"
                     strokeWidth="1.4"
                   />
-                  <title>{`${entry.firstName}, ${t("radar.dotOffline")}`}</title>
+                  <title>{`${entry.firstName}, ${t("radar.legendOffline")}`}</title>
                 </>
               ) : (
               <>
@@ -522,7 +522,7 @@ export function Globe({
           </p>
           {hoveredOffline > 0 ? (
             <p className="text-[11px] text-white/85">
-              {t("radar.offlineHere", { count: hoveredOffline })}
+              {hoveredOffline} · {t("radar.legendOffline")}
             </p>
           ) : null}
         </div>
