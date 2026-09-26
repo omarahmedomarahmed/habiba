@@ -113,8 +113,12 @@ const EXPORTS_BY_DESIGN: Record<string, string> = {};
  * Measured on 2026-09-14, the day four hostile auditors each found one of these
  * by hand and this gate could see none of them. Lower it whenever the number
  * drops; it must never rise.
+ *
+ * 2026-09-26: 95 became 52 when `uncalledExports` stopped ignoring a call in
+ * the function's own file. The 48 it cleared are all called by their own
+ * module (a rule split out so a test can pin it); none of them was dead.
  */
-const DEAD_EXPORT_BASELINE = 95;
+const DEAD_EXPORT_BASELINE = 52;
 
 /* --------------------------------------------------------------- checks -- */
 

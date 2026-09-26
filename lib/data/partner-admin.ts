@@ -386,7 +386,7 @@ export async function withdrawApproval(partnerId: string): Promise<{ ok: true }>
  */
 export type PartnerPractice = { id: string; name: string; slug: string };
 
-export async function findPracticeFor(
+async function findPracticeFor(
   needle: string,
 ): Promise<{ practice?: PartnerPractice & { partnerId: string | null }; error?: MessageKey }> {
   const value = needle.trim().toLowerCase();

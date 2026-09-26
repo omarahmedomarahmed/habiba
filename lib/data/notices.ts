@@ -61,7 +61,7 @@ export type Notice = {
  */
 const REASON_NOTICES = new Set<string>(["w1a.cancelledByClinician"]);
 
-export function noticeCarriesReason(messageKey: string): boolean {
+function noticeCarriesReason(messageKey: string): boolean {
   return REASON_NOTICES.has(messageKey);
 }
 
