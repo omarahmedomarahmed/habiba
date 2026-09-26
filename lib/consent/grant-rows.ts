@@ -33,6 +33,13 @@ export function splitGrants<T extends GrantRow>(grants: T[], now: number): { liv
   const latest = new Map<string, T>();
   for (const grant of grants) {
     if (isLiveGrant(grant, now) || current.has(grant.therapistName)) continue;
+    /*
+     * Shoot P19: a request still waiting for its answer is not access that
+     * ended. It fell through to the ended list and, with no expiry, no stop
+     * and no decline, printed "Expired" beside a clinician who had never been
+     * granted anything. It is the card under "Waiting for your answer" only.
+     */
+    if (grant.status === "pending") continue;
     const seen = latest.get(grant.therapistName);
     if (!seen || endedAt(grant) > endedAt(seen)) latest.set(grant.therapistName, grant);
   }
