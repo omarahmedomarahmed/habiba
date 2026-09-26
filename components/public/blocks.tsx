@@ -263,6 +263,7 @@ function HowItWorksBlock({
     <HowItWorks
       heading={block.heading}
       body={block.body}
+      note={t("public.demoNote")}
       items={block.items.map((item) => ({
         audience: item.audience,
         title: item.title,
@@ -512,8 +513,12 @@ function Hero({
             <p className="mt-4 text-center text-[13px] text-white/70">{t("public.demoNote")}</p>
           </div>
         ) : null}
-        {block.demo === "company" ? <div className="min-w-0 text-navy-700"><CompanyDemo /></div> : null}
-        {block.demo === "clinic" ? <div className="min-w-0 text-navy-700"><ClinicDemo /></div> : null}
+        {block.demo === "company" || block.demo === "clinic" ? (
+          <div className="min-w-0 text-navy-700">
+            {block.demo === "company" ? <CompanyDemo /> : <ClinicDemo />}
+            <p className="mt-4 text-center text-[13px] text-white/70">{t("public.demoNote")}</p>
+          </div>
+        ) : null}
         {block.demo === "fee-split" ? <div className="min-w-0 text-navy-700"><TherapistSplitDemo /></div> : null}
       </div>
     </DarkBand>
@@ -615,6 +620,7 @@ function Showcase({
               </figure>
             ))}
           </div>
+          <p className="mt-10 text-center text-[13px] text-navy-500">{t("public.demoNote")}</p>
         </div>
       </section>
     );
@@ -638,6 +644,8 @@ function Showcase({
 
               <div className={cn("min-w-0", i % 2 === 1 && "lg:order-1")}>
                 <DemoFor name={item.demo} demo={demo} t={t} />
+                {/* B30: every example screen says it is one, under it. */}
+                <p className="mt-4 text-center text-[13px] text-navy-500">{t("public.demoNote")}</p>
               </div>
             </div>
           ))}

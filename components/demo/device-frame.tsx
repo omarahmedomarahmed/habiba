@@ -1,8 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { LayoutGroup, motion } from "motion/react";
 import { CalendarDays, CircleUser, Globe2, ListChecks, Receipt } from "lucide-react";
 
+import { BrowserFrame as DsBrowserFrame } from "@/app/design/_ds/frames";
+import { spring } from "./motion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -52,6 +55,7 @@ export function DeviceFrame({
   tabs,
   activeTab,
   onTab,
+  sos,
   children,
   className,
   bodyClassName,
@@ -74,6 +78,8 @@ export function DeviceFrame({
   tabs?: NavTab[];
   activeTab?: string;
   onTab?: (key: string) => void;
+  /** Phone only: the label of the SOS orb, drawn when the screen is the patient app. */
+  sos?: string;
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
@@ -88,6 +94,7 @@ export function DeviceFrame({
         tabs={tabs}
         activeTab={activeTab}
         onTab={onTab}
+        sos={sos}
       >
         {children}
       </PhoneFrame>
@@ -100,6 +107,11 @@ export function DeviceFrame({
   );
 }
 
+/**
+ * 🔴 THE REDESIGN'S DESK WINDOW, imported from the design system rather than
+ * redrawn: `app/design/_ds/frames.tsx` is the window every portal mockup was
+ * approved inside, so the website shows the product in the same glass.
+ */
 function BrowserFrame({
   path,
   children,
@@ -112,39 +124,9 @@ function BrowserFrame({
   bodyClassName?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-2xl border border-slate-700/60 bg-navy-600 shadow-2xl shadow-navy-900/30",
-        className,
-      )}
-    >
-      {/*
-       * The chrome. `select-none` because a reader dragging across the page
-       * should not end up with "24therapy.app/sessions/live" in their clipboard,
-       * and `aria-hidden` because a screen reader announcing three coloured
-       * circles and a URL that goes nowhere is noise in front of the content.
-       */}
-      <div
-        aria-hidden
-        className="flex select-none items-center gap-2 border-b border-slate-700/60 bg-navy-700 px-3 py-2.5"
-      >
-        <div className="flex gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-slate-600" />
-          <span className="h-2.5 w-2.5 rounded-full bg-slate-600" />
-          <span className="h-2.5 w-2.5 rounded-full bg-slate-600" />
-        </div>
-
-        {path ? (
-          <div className="ms-2 flex min-w-0 flex-1 items-center rounded-md bg-navy-800/70 px-2.5 py-1">
-            <span className="truncate font-mono text-[11px] leading-none text-slate-300">
-              24therapy.app{path}
-            </span>
-          </div>
-        ) : null}
-      </div>
-
-      <div className={cn("h-[20rem] bg-white", bodyClassName)}>{children}</div>
-    </div>
+    <DsBrowserFrame url={`24therapy.app${path ?? ""}`} className={className}>
+      <div className={cn("h-[20rem] bg-navy-50", bodyClassName)}>{children}</div>
+    </DsBrowserFrame>
   );
 }
 
@@ -178,6 +160,7 @@ function PhoneFrame({
   tabs,
   activeTab,
   onTab,
+  sos,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -186,124 +169,127 @@ function PhoneFrame({
   tabs?: NavTab[];
   activeTab?: string;
   onTab?: (key: string) => void;
+  sos?: string;
 }) {
   const bar: NavTab[] = tabs ?? TABS.map((t) => ({ ...t, key: t.label }));
+  const pill = React.useId();
   return (
     <div
       className={cn(
         /*
-         * 🔴 A PHONE HAS TO BE PHONE-SHAPED, AND THE FIRST VERSION WAS NOT.
-         *
-         * It was a 300px box that grew to whatever the content needed, so a
-         * two-entry journal drew something roughly square and the founder's
-         * word for it was "a smartwatch". A phone is read as a phone because of
-         * its ASPECT, so the body is a fixed 9:19.5 and the content scrolls
-         * inside it, exactly as it does on the real device.
+         * 🔴 A PHONE HAS TO BE PHONE-SHAPED. A fixed 9:19.5 body with the
+         * content scrolling inside it, in the redesign's clothes: the navy-900
+         * body with its faint inner edge, the island, and the navy-50 ground
+         * every patient screen is painted on (`app/design/_ds/frames.tsx`).
          */
-        "mx-auto w-[300px] max-w-full shrink-0 rounded-[2.75rem] border-[10px] border-navy-800 bg-navy-800 shadow-2xl shadow-navy-900/40",
+        "mx-auto w-[300px] max-w-full shrink-0 rounded-[3rem] bg-navy-900 p-2.5 shadow-[0_40px_120px_-30px_rgba(3,11,23,0.65),inset_0_0_0_2px_rgba(255,255,255,0.08)]",
         className,
       )}
     >
-      <div className="relative flex aspect-[9/19.5] flex-col overflow-hidden rounded-[2rem] bg-white">
-        {/* The status bar: the time and the indicators every phone carries. */}
+      <div className="relative flex aspect-[9/19.5] flex-col overflow-hidden rounded-[2.4rem] bg-navy-50">
+        {/* The status bar: the time, the island and the indicators every phone carries. */}
         <div
           aria-hidden
-          className="relative flex h-11 shrink-0 select-none items-end justify-between bg-white px-6 pb-1"
+          className="relative z-20 flex h-10 shrink-0 select-none items-center justify-between px-6 text-navy-700"
         >
-          <span className="text-[11px] font-semibold text-slate-900">9:41</span>
-          {/* The notch, floating over the bar as it does on the device. */}
-          <span className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-6 w-28 rounded-b-2xl bg-navy-800" />
-          <span className="flex items-center gap-1 text-slate-900">
+          <span className="text-[11px] font-semibold">9:41</span>
+          <span className="pointer-events-none absolute start-1/2 top-2 h-5 w-20 -translate-x-1/2 rounded-full bg-black rtl:translate-x-1/2" />
+          <span className="flex items-center gap-1">
             <SignalIcon />
             <BatteryIcon />
           </span>
         </div>
 
-        <div className={cn("no-scrollbar min-h-0 flex-1 overflow-y-auto", bodyClassName)}>
+        <div className={cn("no-scrollbar min-h-0 flex-1 overflow-y-auto", nav && "pb-20", bodyClassName)}>
           {children}
         </div>
 
+        {/*
+          🔴 THE SOS ORB, where the real app floats it: red, round, above the
+          bar, on every patient screen. Drawn, not pressable: the crisis sheet
+          it opens carries real numbers, and a marketing page has no country
+          to pick them by (C98).
+        */}
+        {sos ? (
+          <span
+            role="img"
+            aria-label={sos}
+            className="absolute end-2.5 bottom-[5.25rem] z-20 flex h-11 w-11 select-none items-center justify-center rounded-full bg-red-600 text-[10px] font-bold tracking-wider text-white shadow-[0_8px_20px_-6px_rgba(220,38,38,0.7)] ring-4 ring-white/80"
+          >
+            SOS
+          </span>
+        ) : null}
+
         {nav ? (
+          /*
+            The bar floats: a white card with rounded ends above the home
+            indicator, the page's ground showing round it, and the redesign's
+            sliding navy-50 pill under the tab you are on.
+          */
           <div
             aria-hidden={onTab ? undefined : true}
-            className="relative shrink-0 select-none border-t border-slate-200 bg-white/95 px-2 pt-2 pb-1"
+            className="absolute inset-x-2 bottom-3 z-20 select-none rounded-[22px] bg-white/95 px-1.5 pt-1.5 pb-1 shadow-[0_12px_32px_-12px_rgba(10,35,66,0.35)] ring-1 ring-navy-100 backdrop-blur-xl"
           >
-            <div className="flex items-end justify-around">
-              {bar.map(({ key, icon: Icon, label, lifted }) => {
-                const on = activeTab === key;
-                /*
-                 * 🔴 The lifted globe is brand-filled ALWAYS, and the flat tabs
-                 * light only when they are the one you are on. That is what the
-                 * real bar does: the radar is the thing somebody might need
-                 * urgently, so it is loud whether or not you are looking at it.
-                 */
-                /*
-                 * 🔴 76.81 — THE LIFTED GLOBE CARRIES NO WRITTEN LABEL, and
-                 * that is not a space saving. `components/patient/bottom-nav.tsx`
-                 * gives it an `aria-label` and nothing visible, because the
-                 * string is "Find someone now" and four words do not fit under
-                 * a 56px circle in either language. The first draft of this
-                 * frame printed it anyway and the bar read "Find some…", which
-                 * is a fifth tab labelled with a truncation.
-                 */
-                const body = (
-                  <>
-                    <span
-                      className={cn(
-                        "grid place-items-center",
-                        lifted
-                          ? "h-11 w-11 rounded-full bg-brand-500 text-navy-600 shadow-lg shadow-brand-500/30"
-                          : cn("h-5 w-5", on ? "text-brand-700" : "text-slate-600"),
-                      )}
-                    >
+            <LayoutGroup id={pill}>
+              <div className="flex items-end justify-around">
+                {bar.map(({ key, icon: Icon, label, lifted }) => {
+                  const on = activeTab === key;
+                  /*
+                   * 🔴 76.81 — THE LIFTED GLOBE CARRIES NO WRITTEN LABEL, as on
+                   * the real bar: the string is "Find someone now" and four
+                   * words do not fit under a circle in either language.
+                   */
+                  const body = lifted ? (
+                    <span className="grid h-12 w-12 place-items-center rounded-full bg-brand-500 text-navy-700 shadow-[0_10px_28px_-8px_rgba(46,196,182,0.8)] ring-4 ring-white">
                       <Icon className="h-5 w-5" aria-hidden />
                     </span>
-                    {lifted ? null : (
-                      <span
-                        className={cn(
-                          "max-w-[3.8rem] truncate text-[9px] leading-none",
-                          on ? "font-semibold text-brand-700" : "text-slate-600",
-                        )}
-                      >
+                  ) : (
+                    <>
+                      {on ? (
+                        <motion.span
+                          layoutId="phone-tab"
+                          transition={spring}
+                          className="absolute inset-0 rounded-2xl bg-navy-50"
+                        />
+                      ) : null}
+                      <Icon className="relative h-[18px] w-[18px]" aria-hidden />
+                      <span className="relative max-w-[3.6rem] truncate text-[9.5px] leading-none font-semibold">
                         {label}
                       </span>
-                    )}
-                  </>
-                );
-                const shape = cn("flex flex-col items-center gap-0.5", lifted && "-mt-5");
-                return onTab ? (
-                  <button
-                    key={key}
-                    type="button"
-                    aria-current={on ? "page" : undefined}
-                    aria-label={lifted ? label : undefined}
-                    onClick={() => { onTab(key); }}
-                    className={cn(shape, "tap-target")}
-                  >
-                    {body}
-                  </button>
-                ) : (
-                  <span key={key} className={shape}>
-                    {body}
-                  </span>
-                );
-              })}
-            </div>
+                    </>
+                  );
+                  const shape = cn(
+                    "relative flex flex-col items-center justify-center gap-1",
+                    lifted ? "-mt-6" : "h-11 min-w-0 flex-1 rounded-2xl",
+                    !lifted && (on ? "text-navy-700" : "text-navy-400"),
+                  );
+                  return onTab ? (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-current={on ? "page" : undefined}
+                      aria-label={lifted ? label : undefined}
+                      onClick={() => { onTab(key); }}
+                      className={cn(shape, "tap-target outline-none focus-visible:ring-2 focus-visible:ring-brand-400")}
+                    >
+                      {body}
+                    </button>
+                  ) : (
+                    <span key={key} className={shape}>
+                      {body}
+                    </span>
+                  );
+                })}
+              </div>
+            </LayoutGroup>
           </div>
         ) : null}
 
-        {/*
-         * The home indicator. Without it the content runs into the rounded
-         * corner and the phone reads as cut off. It is also where the real
-         * product's `safe-bottom` padding goes, so this is a thing the app
-         * genuinely reserves rather than a drawn decoration.
-         */}
-        <div
+        {/* The home indicator, under the floating bar. */}
+        <span
           aria-hidden
-          className="flex shrink-0 select-none items-center justify-center bg-white pt-1 pb-2"
-        >
-          <span className="h-1 w-28 rounded-full bg-slate-900/80" />
-        </div>
+          className="absolute inset-x-0 bottom-1 z-20 mx-auto h-1 w-24 rounded-full bg-navy-900/70"
+        />
       </div>
     </div>
   );

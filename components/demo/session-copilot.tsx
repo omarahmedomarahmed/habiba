@@ -184,14 +184,14 @@ export function SessionCopilot({
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col bg-white", className)}>
-      <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-4 py-2.5">
+      <div className="flex shrink-0 items-center gap-2 border-b border-navy-100 px-4 py-2.5">
         <Sparkles className="h-4 w-4 text-brand-700" aria-hidden />
-        <span className="text-xs font-bold tracking-wide text-slate-900 uppercase">
+        <span className="text-xs font-bold tracking-wide text-navy-700 uppercase">
           {t("dcp.title")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="live-dot h-1.5 w-1.5 rounded-full bg-brand-500" />
-          <span className="text-[11px] font-medium text-slate-600">{t("dcp.inSession")}</span>
+          <span className="text-[11px] font-medium text-navy-500">{t("dcp.inSession")}</span>
         </span>
       </div>
 
@@ -207,7 +207,7 @@ export function SessionCopilot({
         className="no-scrollbar min-h-0 flex-1 space-y-2.5 overflow-y-auto px-4 py-3.5"
       >
         {entries.length === 0 ? (
-          <p className="pt-6 text-center text-sm text-slate-600">{t("dcp.quiet")}</p>
+          <p className="pt-6 text-center text-sm text-navy-500">{t("dcp.quiet")}</p>
         ) : null}
 
         {entries.map((entry) => (
@@ -226,7 +226,7 @@ export function SessionCopilot({
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
-                className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400"
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-navy-300"
                 style={{ animationDelay: `${String(i * 160)}ms` }}
               />
             ))}
@@ -241,7 +241,7 @@ export function SessionCopilot({
        * worse than no box. The field beside them is shown as what it is: the
        * real one, disabled here.
        */}
-      <div className="shrink-0 border-t border-slate-200 bg-slate-50/80 px-4 py-3">
+      <div className="shrink-0 border-t border-navy-100 bg-navy-50/80 px-4 py-3">
         {remaining.length > 0 ? (
           <div className="mb-2.5 flex flex-wrap gap-1.5">
             {remaining.map((i) => (
@@ -257,16 +257,16 @@ export function SessionCopilot({
           </div>
         ) : null}
 
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+        <div className="flex items-center gap-2 rounded-xl border border-navy-100 bg-white px-3 py-2">
           <input
             disabled
             aria-label={t("dcp.askLabel")}
             placeholder={
               remaining.length > 0 ? t("dcp.askOwn") : t("dcp.askAnything")
             }
-            className="min-w-0 flex-1 bg-transparent text-[14px] text-slate-900 placeholder:text-slate-500 focus:outline-none"
+            className="min-w-0 flex-1 bg-transparent text-[14px] text-navy-700 placeholder:text-navy-300 focus:outline-none"
           />
-          <Send className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+          <Send className="h-4 w-4 shrink-0 text-navy-200" aria-hidden />
         </div>
       </div>
     </div>
@@ -291,7 +291,7 @@ function Bubble({
   if (entry.kind === "you") {
     return (
       <div className={cn("flex justify-end", !still && "animate-fade-rise")}>
-        <p className="max-w-[85%] rounded-2xl rounded-ee-md bg-navy-500 px-3.5 py-2 text-[14px] leading-relaxed text-white">
+        <p className="max-w-[85%] rounded-2xl rounded-ee-md bg-navy-600 px-3.5 py-2 text-[14px] leading-relaxed text-white">
           {entry.text}
         </p>
       </div>
@@ -312,7 +312,7 @@ function Bubble({
     return (
       <div
         className={cn(
-          "rounded-2xl border border-slate-200 bg-white px-3.5 py-3 transition-colors duration-500",
+          "rounded-2xl border border-navy-100 bg-white px-3.5 py-3 transition-colors duration-500",
           litRing,
           !still && "animate-fade-rise",
         )}
@@ -323,7 +323,7 @@ function Bubble({
             <p className="text-[10px] font-bold tracking-wider text-brand-800 uppercase">
               {entry.label}
             </p>
-            <p className="mt-0.5 text-[14px] leading-relaxed text-slate-900">{entry.text}</p>
+            <p className="mt-0.5 text-[14px] leading-relaxed text-navy-700">{entry.text}</p>
           </div>
         </div>
       </div>
@@ -335,12 +335,12 @@ function Bubble({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-slate-200 bg-white px-3.5 py-3 transition-colors duration-500",
+        "rounded-2xl border border-navy-100 bg-white px-3.5 py-3 transition-colors duration-500",
         litRing,
         !still && "animate-fade-rise",
       )}
     >
-      <p className="text-[14px] leading-relaxed text-slate-900">{entry.text}</p>
+      <p className="text-[14px] leading-relaxed text-navy-700">{entry.text}</p>
 
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {entry.cites.map((cite, i) => {
@@ -355,7 +355,7 @@ function Bubble({
                 "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors",
                 open === i
                   ? "bg-brand-500 text-navy-600"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+                  : "bg-navy-50 text-navy-600 hover:bg-navy-100",
               )}
             >
               <Info className="h-3 w-3" aria-hidden />
@@ -366,12 +366,12 @@ function Bubble({
       </div>
 
       {open !== null && entry.cites[open] ? (
-        <div className="mt-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-          <p className="text-[10px] font-bold tracking-wider text-slate-600 uppercase">
+        <div className="mt-2.5 rounded-xl border border-navy-100 bg-navy-50 px-3 py-2.5">
+          <p className="text-[10px] font-bold tracking-wider text-navy-500 uppercase">
             {entry.cites[open].who === "patient" ? t("dcp.patientSaid") : t("dcp.youSaid")} ·{" "}
             {entry.cites[open].on} · {entry.cites[open].at}
           </p>
-          <p className="mt-1 text-[13px] leading-relaxed text-slate-800 italic">
+          <p className="mt-1 text-[13px] leading-relaxed text-navy-600 italic">
             “{entry.cites[open].quote}”
           </p>
         </div>

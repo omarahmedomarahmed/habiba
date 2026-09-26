@@ -252,3 +252,35 @@ export const PATIENT_BILLS: { what: string; when: string; cents: number; paid: b
   { what: "Session with Dr Nour Demo", when: "12 March", cents: 1_500, paid: false },
   { what: "Session with Dr Nour Demo", when: "5 March", cents: 1_500, paid: true },
 ];
+
+/**
+ * The invented person whose phone the website shows, by the language the page
+ * is read in, so the Arabic home screen does not greet somebody in Latin script.
+ */
+export const DEMO_PATIENT_NAME = { en: "Mariam", ar: "مريم" } as const;
+
+/** The invented organisations whose desks the website shows. */
+export const DEMO_ORGS = { clinic: "Nile Practice", company: "Nile Holdings", partner: "Nile Health" } as const;
+
+/**
+ * A partner's desk on the website: two keys and a short delivery log. The key
+ * prefixes are the shape the portal prints and open nothing; the subject ids
+ * are opaque strings of the kind a webhook body carries, never a name.
+ */
+export const PARTNER_KEYS: { prefix: string; live: boolean; usedAt: string; scopes: string[] }[] = [
+  { prefix: "pk_live_4f2a", live: true, usedAt: "14:02", scopes: ["session:write", "note:deliver"] },
+  { prefix: "pk_test_91cd", live: false, usedAt: "09:40", scopes: ["session:write", "consent:write"] },
+];
+
+export const PARTNER_DELIVERIES: {
+  status: number;
+  event: string;
+  state: "delivered" | "pending" | "failed";
+  attempts: number;
+  subject: string;
+  at: string;
+}[] = [
+  { status: 200, event: "note.approved", state: "delivered", attempts: 1, subject: "sub_8f3k2q", at: "14:02" },
+  { status: 200, event: "session.completed", state: "delivered", attempts: 1, subject: "sub_8f3k2q", at: "13:51" },
+  { status: 503, event: "session.completed", state: "pending", attempts: 2, subject: "sub_2m7x9d", at: "13:20" },
+];

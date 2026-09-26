@@ -1,8 +1,9 @@
 import { DeviceFrame } from "@/components/demo/device-frame";
-import { ClinicConsole, CompanyConsole } from "@/components/demo/portal-demo";
+import { ClinicConsole, CompanyConsole, PartnerConsole } from "@/components/demo/portal-demo";
 import { SplitBar } from "@/components/visual/primitives";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings, platformFeeOn } from "@/lib/settings";
+import { DEMO_SESSION_EGP, egp } from "@/lib/marketing/prices";
 
 /**
  * 🔴 65.17 / 65.20 — THE REAL COMPONENTS, RENDERED, ONE PER AUDIENCE.
@@ -30,12 +31,6 @@ import { getSettings, platformFeeOn } from "@/lib/settings";
  * Which imports nothing. There is no path from a row to this file.
  */
 
-const money = (cents: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
 
 /**
  * 🔴 76.71 — A COMPANY, AS THE CONSOLE THEY WILL SIT IN FRONT OF.
@@ -51,7 +46,7 @@ const money = (cents: number) =>
  */
 export function CompanyDemo({ initial }: { initial?: string } = {}) {
   return (
-    <DeviceFrame as="browser" path="/sponsor" bodyClassName="h-[26rem]">
+    <DeviceFrame as="browser" path="/sponsor" bodyClassName="h-[30rem]">
       <CompanyConsole initial={initial} />
     </DeviceFrame>
   );
@@ -66,8 +61,20 @@ export function CompanyDemo({ initial }: { initial?: string } = {}) {
  */
 export function ClinicDemo({ initial }: { initial?: string } = {}) {
   return (
-    <DeviceFrame as="browser" path="/clinic" bodyClassName="h-[26rem]">
+    <DeviceFrame as="browser" path="/clinic" bodyClassName="h-[30rem]">
       <ClinicConsole initial={initial} />
+    </DeviceFrame>
+  );
+}
+
+/**
+ * A PARTNER, the same way: the keys a developer holds and the log of what was
+ * sent to them, on the partner portal's navy desk.
+ */
+export function PartnerDemo({ initial }: { initial?: string } = {}) {
+  return (
+    <DeviceFrame as="browser" path="/partner" bodyClassName="h-[26rem]">
+      <PartnerConsole initial={initial} />
     </DeviceFrame>
   );
 }
@@ -81,14 +88,16 @@ export function ClinicDemo({ initial }: { initial?: string } = {}) {
  * reads `platformFeeBps` and rounds the way the charge does (`platformFeeOn`).
  */
 export async function TherapistSplitDemo() {
-  const [{ t }, settings] = await Promise.all([getI18n(), getSettings()]);
-  const price = 6_000;
+  const [{ t, locale }, settings] = await Promise.all([getI18n(), getSettings()]);
+  /* The benchmark session in pounds, from the product's defaults, not a typed figure. */
+  const price = DEMO_SESSION_EGP;
+  const money = (minor: number) => egp(minor, locale);
   const feeBps = settings.session.platformFeeBps;
   const fee = platformFeeOn(price, feeBps);
   const percent = Number((feeBps / 100).toFixed(2));
 
   return (
-    <div className="rounded-3xl bg-white p-5 shadow-xl ring-1 ring-slate-900/5">
+    <div className="rounded-3xl border border-navy-100/80 bg-white p-5 shadow-[0_1px_2px_rgba(10,35,66,0.04),0_8px_24px_-12px_rgba(10,35,66,0.12)]">
       <SplitBar
         parts={[
           { label: t("tnew.youKeep", { amount: money(price - fee) }), value: price - fee, kind: "keep" },

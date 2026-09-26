@@ -77,8 +77,14 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
       return <PatientApp content={content} open="steps" />;
 
     case "radar":
-    case "patient-app":
       return <PatientApp content={content} initial="radar" />;
+
+    /*
+     * The app itself opens where the app opens: home, on the navy header card,
+     * with the radar one press away on the lifted globe.
+     */
+    case "patient-app":
+      return <PatientApp content={content} initial="home" />;
 
     /*
      * 🔴 76.81 — THE JOURNAL AND THE SUMMARY ARE SCREENS OF HER APP, not two
@@ -99,13 +105,16 @@ function DemoSurface({ demo, content }: { demo?: string; content?: DemoContent }
      */
     case "profile":
       return (
-        <Scroller as="ul" className="space-y-2 bg-white p-3">
+        <Scroller as="ul" className="space-y-2 bg-navy-50 p-3">
             {(content?.observations ?? []).map((row) => (
-              <li key={row.at} className="border-s-2 border-brand-200 ps-3">
+              <li
+                key={row.at}
+                className="rounded-2xl border border-navy-100/80 bg-white p-3 shadow-[0_1px_2px_rgba(10,35,66,0.04)]"
+              >
                 <p className="text-[11px] font-semibold tracking-wide text-brand-700 uppercase">
                   {row.at}
                 </p>
-                <p className="text-sm leading-snug text-slate-700">{row.text}</p>
+                <p className="mt-0.5 text-sm leading-snug text-navy-600">{row.text}</p>
               </li>
             ))}
         </Scroller>
@@ -158,7 +167,7 @@ function Scroller({
       <Tag className={`no-scrollbar h-full overflow-y-auto ${className ?? ""}`}>{children}</Tag>
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-transparent"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-navy-50 to-transparent"
       />
     </div>
   );

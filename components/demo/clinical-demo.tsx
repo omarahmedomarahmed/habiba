@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, MicOff, Pause, Play, RotateCcw, ShieldAlert } from "lucide-react";
+import { Check, MicOff, Pause, Play, RotateCcw, ShieldAlert, Sparkles, User } from "lucide-react";
 
 import { NoteCard } from "@/components/clinical/note-card";
 import { RiskBanner } from "@/components/clinical/risk-banner";
@@ -85,7 +85,7 @@ export function TranscriptDemo({ content }: { content?: DemoContent }) {
   const done = visible >= lines.length;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-navy-500">
+    <div className="flex h-full min-h-0 flex-col bg-navy-900">
       <TranscriptPanel
         lines={lines.slice(0, visible)}
         live={!offRecord}
@@ -94,7 +94,7 @@ export function TranscriptDemo({ content }: { content?: DemoContent }) {
         className="min-h-0 flex-1"
       />
 
-      <div className="flex shrink-0 items-center gap-2 border-t border-slate-800/60 bg-navy-600/70 px-3 py-2.5">
+      <div className="flex shrink-0 items-center gap-2 border-t border-white/10 bg-white/[0.04] px-3 py-2.5">
         {!still ? (
           <button
             type="button"
@@ -107,7 +107,7 @@ export function TranscriptDemo({ content }: { content?: DemoContent }) {
                 setPlaying((p) => !p);
               }
             }}
-            className="tap-target flex items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium text-slate-200 hover:bg-white/5"
+            className="tap-target flex items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium text-white/85 hover:bg-white/5"
           >
             {done ? (
               <RotateCcw className="h-3.5 w-3.5" aria-hidden />
@@ -128,7 +128,7 @@ export function TranscriptDemo({ content }: { content?: DemoContent }) {
             "tap-target ms-auto flex items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-semibold",
             offRecord
               ? "border-amber-400/40 bg-amber-400/20 text-amber-100"
-              : "border-white/15 text-slate-200 hover:bg-white/5",
+              : "border-white/15 text-white/85 hover:bg-white/5",
           )}
         >
           <MicOff className="h-3.5 w-3.5" aria-hidden />
@@ -149,19 +149,71 @@ export function TranscriptDemo({ content }: { content?: DemoContent }) {
 export function NoteDemo({ content }: { content?: DemoContent }) {
   const t = useT();
   const [approved, setApproved] = useState(false);
+  const [doc, setDoc] = useState<"clinical" | "patient">("clinical");
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white">
-      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
-        <NoteCard
-          note={content?.note ?? DEMO_NOTE}
-          status={approved ? "approved" : "draft"}
-          compact
-          patientLabel={t("hdemo.patientLabel")}
-        />
+    <div className="flex h-full min-h-0 flex-col bg-navy-50">
+      {/*
+        The two documents, as the review screen's switch draws them
+        (`components/session/note-review.tsx`): the clinical note and the
+        summary the patient reads, each with the state it is in.
+      */}
+      <div className="shrink-0 p-3 pb-0">
+        <div className="flex items-stretch gap-1.5 rounded-3xl bg-white p-1.5 ring-1 ring-navy-100">
+          {(
+            [
+              { id: "clinical", icon: Sparkles, label: t("tnote.clinicalTab"), done: approved },
+              { id: "patient", icon: User, label: t("tnote.patientTab"), done: false },
+            ] as const
+          ).map((tab) => {
+            const on = doc === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => { setDoc(tab.id); }}
+                className={cn(
+                  "flex min-w-0 flex-1 flex-col gap-1 rounded-2xl px-3 py-2 text-start transition-colors",
+                  on ? "bg-navy-600 shadow-[0_8px_24px_-12px_rgba(3,11,23,0.6)]" : "hover:bg-navy-50",
+                )}
+              >
+                <span className={cn("flex items-center gap-1.5 truncate text-[13px] font-bold", on ? "text-white" : "text-navy-500")}>
+                  <tab.icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">{tab.label}</span>
+                </span>
+                <span
+                  className={cn(
+                    "w-fit max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                    tab.done ? "bg-brand-50 text-brand-800" : "bg-amber-50 text-amber-800",
+                  )}
+                >
+                  {tab.id === "clinical"
+                    ? approved
+                      ? t("tnote.stateSigned")
+                      : t("tnote.stateDraft")
+                    : t("tnote.stateNotApproved")}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2.5 border-t border-slate-200 bg-slate-50 px-3.5 py-3">
+      <div className="no-scrollbar m-3 min-h-0 flex-1 overflow-y-auto rounded-3xl border border-navy-100/80 bg-white">
+        {doc === "clinical" ? (
+          <NoteCard
+            note={content?.note ?? DEMO_NOTE}
+            status={approved ? "approved" : "draft"}
+            compact
+            patientLabel={t("hdemo.patientLabel")}
+          />
+        ) : (
+          <p className="p-4 text-[14px] leading-relaxed text-navy-600">{content?.brief}</p>
+        )}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2.5 border-t border-navy-100 bg-white px-3.5 py-3">
         {approved ? (
           <>
             <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[12px] font-medium text-brand-800">
@@ -171,14 +223,14 @@ export function NoteDemo({ content }: { content?: DemoContent }) {
             <button
               type="button"
               onClick={() => { setApproved(false); }}
-              className="tap-target shrink-0 rounded-lg px-2.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-200"
+              className="tap-target shrink-0 rounded-lg px-2.5 text-[12px] font-semibold text-navy-600 hover:bg-navy-100"
             >
               {t("dclin.backToDraft")}
             </button>
           </>
         ) : (
           <>
-            <p className="min-w-0 flex-1 text-[12px] leading-snug text-slate-700">
+            <p className="min-w-0 flex-1 text-[12px] leading-snug text-navy-600">
               {t("dclin.draftUntil")}
             </p>
             <button
@@ -208,7 +260,7 @@ export function RiskDemo({ content }: { content?: DemoContent }) {
   const [shown, setShown] = useState(true);
 
   return (
-    <div className="flex h-full flex-col justify-center gap-3 bg-slate-50 p-3.5">
+    <div className="flex h-full flex-col justify-center gap-3 bg-navy-50 p-3.5">
       {shown ? (
         <RiskBanner
           level="high"
@@ -217,15 +269,15 @@ export function RiskDemo({ content }: { content?: DemoContent }) {
           className="w-full animate-fade-rise"
         />
       ) : (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center">
-          <ShieldAlert className="mx-auto h-5 w-5 text-slate-600" aria-hidden />
-          <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+        <div className="rounded-2xl border border-navy-100 bg-white p-4 text-center">
+          <ShieldAlert className="mx-auto h-5 w-5 text-navy-500" aria-hidden />
+          <p className="mt-2 text-[13px] leading-relaxed text-navy-600">
             {t("dclin.dismissedBody")}
           </p>
           <button
             type="button"
             onClick={() => { setShown(true); }}
-            className="tap-target mt-2 rounded-xl bg-slate-900 px-3.5 text-[12px] font-semibold text-white"
+            className="tap-target mt-2 rounded-xl bg-navy-700 px-3.5 text-[12px] font-semibold text-white"
           >
             {t("dclin.raiseAgain")}
           </button>

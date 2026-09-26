@@ -35,6 +35,7 @@ export function AudienceHero({
   cta,
   secondary,
   demo,
+  note,
 }: {
   eyebrow: string;
   heading: string;
@@ -42,6 +43,8 @@ export function AudienceHero({
   cta: { label: string; href: string };
   secondary?: { label: string; href: string };
   demo: React.ReactNode;
+  /** B30: the screen beside the words is an example, said under it. */
+  note?: string;
 }) {
   return (
     <DarkBand className="px-5 pt-12 pb-16 sm:px-6 sm:pt-20 sm:pb-24">
@@ -76,7 +79,10 @@ export function AudienceHero({
         </div>
 
         {/* The console, on the navy ground, keeps its own light card and ink. */}
-        <div className="min-w-0 text-navy-700">{demo}</div>
+        <div className="min-w-0 text-navy-700">
+          {demo}
+          {note ? <p className="mt-4 text-center text-[13px] text-white/70">{note}</p> : null}
+        </div>
       </div>
     </DarkBand>
   );
