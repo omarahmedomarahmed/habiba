@@ -463,15 +463,15 @@ export function AudienceRotator({
                         className={cn(
                           "pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-40%",
                           dark
-                            ? "from-navy-900 via-navy-900/90 to-navy-900/45"
-                            : "from-white via-white/90 to-white/45",
+                            ? "from-navy-900 via-navy-900/90 to-navy-900/35"
+                            : "from-white via-white/90 to-white/35",
                         )}
                       />
                       <span
                         aria-hidden
                         className={cn(
                           "pointer-events-none absolute inset-0 -z-10 transition-opacity duration-500 group-hover:opacity-0 group-focus-visible:opacity-0",
-                          dark ? "bg-navy-900/65" : "bg-white/65",
+                          dark ? "bg-navy-900/55" : "bg-white/55",
                         )}
                       />
                     </>
