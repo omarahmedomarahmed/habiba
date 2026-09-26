@@ -268,7 +268,13 @@ export function Face({
         <span
           aria-hidden
           className={cn("flex h-full w-full items-center justify-center", square ? "rounded-2xl" : "rounded-full")}
-          style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
+          /*
+           * The navy end is also the element's own colour, as the clinician
+           * kit's avatar does: a gradient is an image, so without it the white
+           * initials sit on a transparent box and the contrast gate (and a
+           * forced colours mode) reads white on white.
+           */
+          style={{ backgroundColor: from, backgroundImage: `linear-gradient(135deg, ${from}, ${to})` }}
         >
           {initials}
         </span>
