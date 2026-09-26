@@ -160,7 +160,7 @@ export function NavProgress() {
         ref={bar}
         data-nav-progress="idle"
         aria-hidden
-        className="nav-bar pointer-events-none fixed inset-x-0 top-0 z-[1000] h-[3px]"
+        className="nav-bar pointer-events-none fixed inset-x-0 top-0 z-[290] h-[3px]"
       >
         <i className="nav-bar-fill" />
         <i className="nav-bar-finish" />
@@ -168,7 +168,7 @@ export function NavProgress() {
       <div
         ref={veil}
         data-nav-overlay="idle"
-        className="nav-veil pointer-events-none fixed inset-0 z-[999] flex items-center justify-center bg-white/75"
+        className="nav-veil pointer-events-none fixed inset-0 z-[289] flex items-center justify-center bg-white/75"
       >
         <LogoLoader label={t("common.loading")} />
       </div>

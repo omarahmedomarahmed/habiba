@@ -246,6 +246,12 @@ const PORTALS: Record<string, readonly string[]> = {
     "pat",
     "pr2",
     /*
+     * The public booking page's refusals, in the reader's language (board 795):
+     *   grep -rn 'bookerr\.' app components lib   -> app/(public)/t/[id]/book/actions.ts
+     * A visitor booking from a public profile reads them, so they are public.
+     */
+    "bookerr",
+    /*
      * 🔴 B32: the Arabic shell of the legal pages and the integrations page:
      *
      *   grep -rn 'page\.' 'app/(public)/[slug]/page.tsx' lib/content/service.ts
