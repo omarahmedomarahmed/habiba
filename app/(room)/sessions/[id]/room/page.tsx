@@ -105,6 +105,7 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
       modality={row.session.modality}
       initialStatus={row.session.status}
       startedAt={row.session.startedAt?.toISOString() ?? null}
+      clockStartedAt={row.session.clockStartedAt?.toISOString() ?? null}
       /*
        * 🔴 The instant THIS render happened, so the room's clock hydrates
        * without a mismatch. `components/session/session-room.tsx` carries the

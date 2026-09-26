@@ -116,6 +116,8 @@ export async function recordExternalSession(input: {
       modality: "video",
       scheduledAt: input.startedAt,
       startedAt: input.startedAt,
+      /* 🔴 0183: a finished session reported whole; its clock ran from its start. */
+      clockStartedAt: input.startedAt,
       endedAt,
       durationMinutes: minutes,
       feedbackToken: randomBytes(24).toString("base64url"),

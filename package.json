@@ -52,6 +52,7 @@
     "test:paymob": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/paymob.test.ts",
     "test:physics": "node --env-file-if-exists=.env.local --import tsx --test tests/physics.test.ts",
     "test:clock": "node --env-file-if-exists=.env.local --import tsx --test tests/clock.test.ts",
+    "test:session-reminders": "node --env-file-if-exists=.env.local --import tsx --test tests/session-reminders.test.ts",
     "test:toasts": "node --env-file-if-exists=.env.local --import tsx --test tests/toasts.test.ts",
     "test:transcribe": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/transcribe.test.ts tests/transcribe-request.test.ts",
     "settings:seed": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts seed",

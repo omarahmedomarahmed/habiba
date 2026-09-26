@@ -21,7 +21,7 @@ import {
 } from "@/lib/db/schema";
 import { ensurePersonForPatient, normalisePhone } from "@/lib/data/people";
 import { log, ref } from "@/lib/logger";
-import { capSeconds, sessionClock, type SessionClock } from "@/lib/session-clock";
+import { capSeconds, clockAnchor, sessionClock, type SessionClock } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
 import { isUuid } from "@/lib/uuid";
 
@@ -651,7 +651,19 @@ export async function startSession(actor: Actor, sessionId: string): Promise<boo
    */
   const started = await db
     .update(sessions)
-    .set({ status: "in_progress", startedAt: new Date(), updatedAt: new Date() })
+    .set({
+      status: "in_progress",
+      startedAt: new Date(),
+      /*
+       * 🔴 0183: the clock starts when both people are there. In person they
+       * are in one room, so that is now. On video it is the first poll from the
+       * patient's open page after this (`markClockStarted`), which may be the
+       * next five seconds or, for a clinician who started early alone, the
+       * moment the patient arrives.
+       */
+      clockStartedAt: sql`CASE WHEN ${sessions.modality} = 'video' THEN NULL ELSE now() END`,
+      updatedAt: new Date(),
+    })
     .where(
       and(
         scope(actor),
@@ -690,13 +702,16 @@ export async function startSession(actor: Actor, sessionId: string): Promise<boo
  * Unauthenticated by design, because the patient needs it too and has no
  * account. It returns nothing but a countdown.
  */
-export async function readSessionClock(sessionId: string): Promise<SessionClock & { live: boolean }> {
+export async function readSessionClock(
+  sessionId: string,
+): Promise<SessionClock & { live: boolean; clockStartedAt: string | null }> {
   const { clock: limits } = await getSettings();
 
   const [row] = await db
     .select({
       status: sessions.status,
       startedAt: sessions.startedAt,
+      clockStartedAt: sessions.clockStartedAt,
       /*
        * The last thing anybody said, for the "everyone left" check.
        *
@@ -714,17 +729,43 @@ export async function readSessionClock(sessionId: string): Promise<SessionClock 
     .limit(1);
 
   if (!row) {
-    return { ...sessionClock({ startedAt: null, limits }), live: false };
+    return { ...sessionClock({ startedAt: null, limits }), live: false, clockStartedAt: null };
   }
 
   return {
     ...sessionClock({
-      startedAt: row.status === "in_progress" ? row.startedAt : null,
+      /* 🔴 0183: from when both people were there, not from the first arrival. */
+      startedAt:
+        row.status === "in_progress"
+          ? clockAnchor({ startedAt: row.startedAt, clockStartedAt: row.clockStartedAt, limits })
+          : null,
       lastActivityAt: row.lastActivityAt,
       limits,
     }),
     live: row.status === "in_progress",
+    clockStartedAt: row.status === "in_progress" ? (row.clockStartedAt?.toISOString() ?? null) : null,
   };
+}
+
+/**
+ * 🔴 0183: BOTH PEOPLE ARE THERE, so the fifty minutes start now.
+ *
+ * Called from the patient's own five second poll while the session is live:
+ * the clinician has started (the status says so) and the patient's page is
+ * open (it is asking). Conditional on `clock_started_at IS NULL`, so it is
+ * written once and every later poll is a no-op that changes nothing.
+ */
+export async function markClockStarted(sessionId: string): Promise<void> {
+  await db
+    .update(sessions)
+    .set({ clockStartedAt: new Date() })
+    .where(
+      and(
+        eq(sessions.id, sessionId),
+        eq(sessions.status, "in_progress"),
+        isNull(sessions.clockStartedAt),
+      ),
+    );
 }
 
 /**
@@ -756,7 +797,8 @@ export async function autoEndSession(
       status: "completed",
       endedAt,
       autoEndedReason: reason,
-      durationMinutes: sql`GREATEST(1, ROUND(EXTRACT(EPOCH FROM (${endedAt.toISOString()}::timestamptz - ${sessions.startedAt})) / 60))::int`,
+      /* 🔴 0183: the minutes both people were there, from the clock's own start. */
+      durationMinutes: sql`GREATEST(1, ROUND(EXTRACT(EPOCH FROM (${endedAt.toISOString()}::timestamptz - COALESCE(${sessions.clockStartedAt}, ${sessions.startedAt}))) / 60))::int`,
       noteStatus: "generating",
       updatedAt: endedAt,
     })
@@ -802,7 +844,8 @@ export async function sweepOverrunSessions(): Promise<{ ended: number }> {
       and(
         eq(sessions.status, "in_progress"),
         isNotNull(sessions.startedAt),
-        lt(sessions.startedAt, cutoff),
+        /* 🔴 0183: past the cap from the clock's start, or from Start when it never began. */
+        lt(sql`COALESCE(${sessions.clockStartedAt}, ${sessions.startedAt})`, cutoff),
       ),
     )
     .limit(200);
@@ -829,6 +872,7 @@ export async function completeSession(actor: Actor, sessionId: string) {
     .select({
       status: sessions.status,
       startedAt: sessions.startedAt,
+      clockStartedAt: sessions.clockStartedAt,
       patientId: sessions.patientId,
     })
     .from(sessions)
@@ -841,8 +885,10 @@ export async function completeSession(actor: Actor, sessionId: string) {
   }
 
   const endedAt = new Date();
-  const durationMinutes = current.startedAt
-    ? Math.max(1, Math.round((endedAt.getTime() - current.startedAt.getTime()) / 60000))
+  /* 🔴 0183: counted from when both people were there, as the clock was. */
+  const countedFrom = current.clockStartedAt ?? current.startedAt;
+  const durationMinutes = countedFrom
+    ? Math.max(1, Math.round((endedAt.getTime() - countedFrom.getTime()) / 60000))
     : null;
 
   await db

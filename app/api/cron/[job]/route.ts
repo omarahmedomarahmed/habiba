@@ -52,6 +52,9 @@ export const maxDuration = 300;
  *   retention  03:10  purges audit rows past six years, expired sessions,
  *                     spent rate-limit rows and errors past thirty days, and
  *                     takes clinicians with an expired licence off (W1-16).
+ *   tick       every minute  🔴 0183: the 60, 30 and 15 minute reminders and
+ *                     the "you can go in now" at 5, for booked sessions. One
+ *                     indexed read that finds nothing on almost every minute.
  *
  * 🔴 0165: `crisis` WAS DAILY, and that was a launch blocker. A crisis alert
  * whose notification failed waited up to a day for its retry. It runs on the
@@ -828,6 +831,42 @@ const JOBS = {
     const { extractPending } = await import("@/lib/data/documents");
     const { done, failed } = await extractPending();
     return { extracted: done, extractFailed: failed };
+  },
+
+  /**
+   * 🔴 0183: THE MINUTE TICK. The founder: "send email reminders of session
+   * starting in 1 hr then 30 mins then 15 mins, then at 5 mins before the
+   * session tell them they can start it now".
+   *
+   * ## Why a minute, when everything above is folded into an hour
+   *
+   * The note at the top of this file is about Neon billing the time the
+   * compute is awake. A "starts in 15 minutes" message cannot ride an hourly
+   * wake, and it cannot ride the patient's own poll either: the patient this
+   * is for is precisely the one with no page open yet. So it is its own
+   * schedule, and priced like the reminders job was (11R.17): scale to zero is
+   * 0 seconds on this project, so a wake costs the second or so it runs. 1,440
+   * short wakes a day is about 0.1 CU-hours, cents a month, against a patient
+   * who forgets a session they booked this morning.
+   *
+   * 🔴 Per-minute Vercel cron needs the Pro plan (Hobby allows one run a day);
+   * the hourly jobs above already need Pro, so nothing changes there.
+   *
+   * Idempotent: every message is claimed in `session_reminders` before it is
+   * sent, so a tick that overlaps the last one, or a rerun by hand, sends
+   * nothing twice. Each part caught on its own (C14).
+   */
+  async tick() {
+    const failed: string[] = [];
+    const { sweepSessionReminders } = await import("@/lib/data/session-reminders");
+    const reminders = await step(failed, "sweepSessionReminders", () => sweepSessionReminders());
+    return {
+      failedSteps: failed.join(",") || undefined,
+      remindersDue: reminders?.due,
+      remindersSent: reminders?.sent,
+      remindersUnreachable: reminders?.unreachable,
+      remindersFailed: reminders?.failed,
+    };
   },
 } as const;
 

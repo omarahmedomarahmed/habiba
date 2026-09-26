@@ -521,6 +521,12 @@ export async function checkJoinState(token: string): Promise<{
   recording: boolean;
   startedAt: string | null;
   /**
+   * 🔴 0183: when the fifty minutes started, which is when both people were
+   * there. Null while the patient waits for the clinician, and for the few
+   * seconds after Start before this poll confirms the patient is here.
+   */
+  clockStartedAt: string | null;
+  /**
    * The two controls from §3 / 7.8, on the same poll as everything else.
    *
    * On this poll rather than on their own read so the panel cannot drift from
@@ -552,6 +558,7 @@ export async function checkJoinState(token: string): Promise<{
       ended: true,
       recording: false,
       startedAt: null,
+      clockStartedAt: null,
       clock: null,
       consent: { recording: null, profileShare: null },
     };
@@ -621,7 +628,13 @@ export async function checkJoinState(token: string): Promise<{
    * guarded on `in_progress`, so both sides racing is a no-op for whoever
    * arrives second.
    */
-  const { readSessionClock, autoEndSession } = await import("@/lib/data/sessions");
+  const { readSessionClock, autoEndSession, markClockStarted } = await import("@/lib/data/sessions");
+  /*
+   * 🔴 0183: THIS POLL IS THE PATIENT BEING HERE. The clinician has started
+   * (live) and the patient's page is open (it is asking), so both people are
+   * there and the fifty minutes begin. Written once; a no-op on every later poll.
+   */
+  if (live) await markClockStarted(session.id);
   const clock = await readSessionClock(session.id);
 
   if (clock.shouldEnd && clock.endReason) {
@@ -643,6 +656,7 @@ export async function checkJoinState(token: string): Promise<{
       ended: true,
       recording: false,
       startedAt: null,
+      clockStartedAt: null,
       clock: null,
       consent: { recording: null, profileShare: null },
     };
@@ -653,6 +667,7 @@ export async function checkJoinState(token: string): Promise<{
     ended: false,
     recording: live && !row?.recordingPausedAt,
     startedAt: row?.startedAt?.toISOString() ?? null,
+    clockStartedAt: clock.clockStartedAt,
     consent: {
       recording: row?.recordingConsent ?? null,
       profileShare: row?.profileShareConsent ?? null,

@@ -144,6 +144,35 @@ export function sessionClock(input: {
   };
 }
 
+/**
+ * 🔴 0183: WHERE THE CLOCK COUNTS FROM, which is when both people are there.
+ *
+ * The founder: "don't count the 50 mins until the therapist joins if they
+ * started the session early". A patient may open the room from five minutes
+ * before the booked time; the clinician pressing Start (`startedAt`) is the
+ * therapist joining, and on video the patient's open page confirms both are
+ * there within a poll (`clockStartedAt`). Until then the clock has not started
+ * and the room says who it is waiting for.
+ *
+ * One backstop: a session the clinician started and the patient never opened
+ * still ends at the cap, counted from `startedAt`, so a room nobody came to is
+ * never left running for ever.
+ */
+export function clockAnchor(input: {
+  startedAt: Date | string | null | undefined;
+  clockStartedAt: Date | string | null | undefined;
+  now?: Date;
+  limits?: ClockLimits;
+}): Date | null {
+  const clock = toDate(input.clockStartedAt);
+  if (clock) return clock;
+  const started = toDate(input.startedAt);
+  if (!started) return null;
+  const limits = input.limits ?? DEFAULT_CLOCK_LIMITS;
+  const now = input.now ?? new Date();
+  return now.getTime() - started.getTime() >= capSeconds(limits) * 1000 ? started : null;
+}
+
 /** `m:ss`, or `mm:ss`. The countdown both sides read. */
 export function formatRemaining(seconds: number): string {
   const safe = Math.max(0, Math.round(seconds));

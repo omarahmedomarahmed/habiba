@@ -22,6 +22,7 @@ import { patients, therapistRadar, users } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { callerKey, releaseHold } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
+import { capSeconds } from "@/lib/session-clock";
 import { formatDateTime } from "@/lib/utils";
 import { missedBooking } from "@/lib/sessions/doors";
 
@@ -313,6 +314,8 @@ export default async function JoinPage({
           The booked instant goes in; the component keeps the clock.
         */
         booking={booking}
+        /* 🔴 0183: the length the room promises starts when the clinician joins. */
+        sessionMinutes={Math.round(capSeconds((await getSettings()).clock) / 60)}
         recoveryFrom={
           session.scheduledAt && !session.startedAt ? session.scheduledAt.toISOString() : null
         }

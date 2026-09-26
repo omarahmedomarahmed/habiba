@@ -257,7 +257,12 @@ async function main() {
   );
   check(
     "…seeding a heartbeat for every scheduled job, so a job that never runs is still late",
-    vercel.crons.every((c) => migration.includes(`('${c.path.replace("/api/cron/", "")}', now())`)),
+    /* 🔴 0183 seeds the minute tick's row, the one job added after 0165. */
+    vercel.crons.every((c) =>
+      [migration, read("drizzle/0183_the_hour_before_and_the_clock_that_waits.sql")].some((sqlText) =>
+        sqlText.includes(`('${c.path.replace("/api/cron/", "")}', now())`),
+      ),
+    ),
   );
   check(
     "every cron run records a heartbeat, clean or thrown",
@@ -265,7 +270,9 @@ async function main() {
   );
 
   const heartbeat = await import("../lib/observability/heartbeat");
-  const intervalOf = (schedule: string) => (hourly(schedule) ? 1 : daily(schedule) ? 24 : NaN);
+  const everyMinute = (schedule: string) => schedule === "* * * * *";
+  const intervalOf = (schedule: string) =>
+    everyMinute(schedule) ? 1 / 60 : hourly(schedule) ? 1 : daily(schedule) ? 24 : NaN;
   const disagreements = vercel.crons
     .map((c) => [c.path.replace("/api/cron/", ""), intervalOf(c.schedule)] as const)
     .filter(([job, hours]) => heartbeat.CRON_INTERVAL_HOURS[job] !== hours);
