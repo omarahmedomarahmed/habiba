@@ -96,11 +96,21 @@ export function PatientBottomNav({ liveSession = null }: Props) {
 
   return (
     <>
+      {/*
+        🔴 THE THERAPIST PORTAL'S DOCK, WITH THE PATIENT'S FIVE (founder, 26 Sep).
+
+        The same floating navy bar the clinician gets on a phone
+        (`components/nav/bottom-nav.tsx`): inset from the edges, rounded, a
+        raised teal centre, teal-on-glass for the current page. It floats, so
+        `safe-bottom` pads under it for the home indicator and the page keeps
+        its `pb-24` in `chrome.tsx`. The session orb (`bottom-24`) and the SOS
+        orb both sit above it and stay pressable.
+      */}
       <nav
         aria-label={t("tab.sections")}
-        className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-navy-100 bg-white/90 backdrop-blur-xl"
+        className="safe-bottom fixed inset-x-0 bottom-0 z-30 px-3"
       >
-        <ul className="mx-auto flex max-w-lg items-end justify-between gap-1 px-2 pt-2 pb-1.5">
+        <ul className="mx-auto flex max-w-lg items-center justify-around gap-0.5 rounded-[26px] bg-navy-900/95 px-2 py-1 shadow-[0_20px_40px_-16px_rgba(3,11,23,0.6)] ring-1 ring-white/10 backdrop-blur-xl">
           {liveSession ? (
             <Item
               href={liveSession.href}
@@ -122,12 +132,13 @@ export function PatientBottomNav({ liveSession = null }: Props) {
             />
           ))}
 
-          <li className="-mt-5">
+          <li className="flex shrink-0 justify-center px-1">
             <Link
               href="/patient/radar"
               aria-label={t("tab.radar")}
+              aria-current={on("/patient/radar") ? "page" : undefined}
               onClick={intercept ? (event) => intercept(event, "/patient/radar") : undefined}
-              className="flex h-[60px] w-[60px] flex-col items-center justify-center rounded-full bg-brand-500 text-navy-700 shadow-[0_10px_28px_-8px_rgba(46,196,182,0.8)] ring-4 ring-white transition-transform hover:bg-brand-400 active:scale-95"
+              className="tap-target -mt-7 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500 text-navy-700 shadow-[0_10px_28px_-8px_rgba(46,196,182,0.9)] ring-4 ring-navy-50 transition-[background-color,transform] hover:bg-brand-400 active:scale-95 active:bg-brand-600"
             >
               <Globe2 className="h-6 w-6" aria-hidden />
             </Link>
@@ -199,22 +210,22 @@ function Item({
   onClick?: (event: React.MouseEvent, href: string) => void;
 }) {
   return (
-    <li className="flex-1">
+    <li className="min-w-0 flex-1">
       <Link
         href={href}
         aria-current={active ? "page" : undefined}
         onClick={onClick ? (event) => onClick(event, href) : undefined}
         className={cn(
-          "tap-target relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11.5px] font-semibold transition-colors",
+          "tap-target my-1 flex flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-1.5 text-[11px] transition-colors",
           tone === "live"
-            ? "bg-red-50 text-red-700"
+            ? "bg-red-600 font-semibold text-white"
             : active
-              ? "bg-navy-50 text-navy-700"
-              : "text-navy-400 hover:text-navy-600",
+              ? "bg-white/10 font-semibold text-brand-300"
+              : "font-medium text-white/70 hover:text-white",
         )}
       >
-        <Icon className="h-[22px] w-[22px]" aria-hidden />
-        {label}
+        <Icon className="h-5 w-5" aria-hidden />
+        <span className="max-w-full truncate">{label}</span>
       </Link>
     </li>
   );

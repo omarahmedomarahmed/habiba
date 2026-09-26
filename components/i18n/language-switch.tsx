@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Languages } from "lucide-react";
 
@@ -66,7 +66,20 @@ export function LanguageSwitch({
   const routerPath = usePathname();
   const [pending, startTransition] = useTransition();
 
-  const here = pathname ?? routerPath ?? "/";
+  /*
+   * The server's `pathname` is right for the first paint and stale after the
+   * first client-side navigation: the website header lives in a layout, which
+   * is not rendered again when only the page under it changes. So once
+   * mounted, and again on every route change, the address bar is read, which
+   * is the one place the `/ar/...` prefix of a rewritten page is still written
+   * (26 September, the same staleness that lit the wrong header link).
+   */
+  const [live, setLive] = useState<string | null>(null);
+  useEffect(() => {
+    setLive(window.location.pathname);
+  }, [routerPath]);
+
+  const here = live ?? pathname ?? routerPath ?? "/";
 
   /*
    * 🔴 Board 567: the cookie is written HERE, in the browser, and the page is

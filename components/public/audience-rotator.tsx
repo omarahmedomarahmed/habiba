@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 
@@ -413,21 +414,72 @@ export function AudienceRotator({
           <p className="text-[13px] font-bold uppercase tracking-[0.18em] text-brand-700 rtl:tracking-normal">
             {eyebrow}
           </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {panels.map((one, i) =>
-              one.href ? (
+          {/*
+            🔴 FOUR CARDS, ONE BOX MODEL, A PHOTOGRAPH UNDER EACH.
+
+            Every card has the same 1px border (white/10 on the dark two,
+            navy-200 on the white two) and the rows are `auto-rows-fr`, so the
+            two columns are the same height in both rows and nothing is off by
+            the width of a ring. The white cards used to carry a `ring` the dark
+            ones did not, which is why the founder saw them sit a few pixels
+            apart and why a white card on navy-50 had no visible edge at all.
+
+            The photograph sits under two washes. The first is a gradient that
+            is solid where the words are (the bottom, where `mt-auto` puts them)
+            and thins toward the top; the second is a flat extra wash that only
+            exists at rest. Hover or keyboard focus fades the second one out, so
+            the picture comes up at the top of the card while the text keeps a
+            solid ground under it in both states. That is what keeps
+            `verify:contrast` true: no line of text ever sits on the photograph.
+          */}
+          <div className="mt-8 grid auto-rows-fr gap-4 sm:grid-cols-2">
+            {panels.map((one, i) => {
+              if (!one.href) return null;
+              const dark = i === 0 || i === 3;
+              const image = audienceImage(one.href);
+              return (
                 <Link
                   key={one.label}
                   href={one.href}
                   className={cn(
-                    "group relative flex min-h-[200px] flex-col overflow-hidden rounded-[28px] p-7 transition-transform duration-300 hover:-translate-y-1.5",
-                    i === 0 || i === 3 ? "bg-navy-900 text-white" : "bg-white text-navy-700 ring-1 ring-navy-100",
+                    "group relative isolate flex min-h-[240px] flex-col overflow-hidden rounded-[28px] border p-7 outline-none transition-[transform,border-color,box-shadow] duration-300 motion-safe:hover:-translate-y-1.5 motion-safe:focus-visible:-translate-y-1.5 sm:min-h-[260px]",
+                    dark
+                      ? "border-white/10 bg-navy-900 text-white hover:border-brand-400 hover:shadow-[0_24px_48px_-24px_rgba(46,196,182,0.55)] focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400"
+                      : "border-navy-200 bg-white text-navy-700 hover:border-brand-500 hover:shadow-[0_24px_48px_-24px_rgba(10,35,66,0.35)] focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500",
                   )}
                 >
+                  {image ? (
+                    <>
+                      <Image
+                        src={image}
+                        alt=""
+                        fill
+                        loading="lazy"
+                        sizes="(min-width: 1280px) 620px, (min-width: 640px) 50vw, 100vw"
+                        className="-z-20 object-cover transition-transform duration-700 ease-out motion-safe:group-hover:scale-105 motion-safe:group-focus-visible:scale-105"
+                      />
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-40%",
+                          dark
+                            ? "from-navy-900 via-navy-900/90 to-navy-900/35"
+                            : "from-white via-white/90 to-white/35",
+                        )}
+                      />
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "pointer-events-none absolute inset-0 -z-10 transition-opacity duration-500 group-hover:opacity-0 group-focus-visible:opacity-0",
+                          dark ? "bg-navy-900/55" : "bg-white/55",
+                        )}
+                      />
+                    </>
+                  ) : null}
                   <span
                     className={cn(
-                      "absolute end-6 top-6 flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-300 group-hover:rotate-45 rtl:group-hover:-rotate-45",
-                      i === 0 || i === 3 ? "bg-white/10" : "bg-navy-50",
+                      "absolute end-6 top-6 flex h-10 w-10 items-center justify-center rounded-full transition-[transform,background-color,color] duration-300 group-hover:rotate-45 group-hover:bg-brand-500 group-hover:text-navy-700 group-focus-visible:bg-brand-500 group-focus-visible:text-navy-700 rtl:group-hover:-rotate-45",
+                      dark ? "bg-navy-900/70 ring-1 ring-white/15" : "bg-white/90 ring-1 ring-navy-100",
                     )}
                   >
                     <ArrowUpRight className="h-5 w-5 rtl:-scale-x-100" aria-hidden />
@@ -435,7 +487,7 @@ export function AudienceRotator({
                   <span
                     className={cn(
                       "mt-auto pt-10 text-[13px] font-bold uppercase tracking-[0.16em] rtl:tracking-normal",
-                      i === 0 || i === 3 ? "text-brand-300" : "text-brand-700",
+                      dark ? "text-brand-300" : "text-brand-700",
                     )}
                   >
                     {one.label}
@@ -447,15 +499,15 @@ export function AudienceRotator({
                     <span
                       className={cn(
                         "mt-2 line-clamp-2 max-w-md text-[15px] leading-relaxed",
-                        i === 0 || i === 3 ? "text-white/70" : "text-navy-500",
+                        dark ? "text-white/75" : "text-navy-500",
                       )}
                     >
                       {one.body}
                     </span>
                   ) : null}
                 </Link>
-              ) : null,
-            )}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -530,6 +582,26 @@ export function AudienceRotator({
       {selected ? <BookingSheet entry={selected} onClose={() => setPicked(null)} /> : null}
     </>
   );
+}
+
+/**
+ * The photograph behind each audience card, chosen by the page the card opens.
+ *
+ * Keyed on the destination rather than the position or the label: the label is
+ * translated and the order is content, but `/for-clinics` is a clinic in every
+ * language. A panel an editor points somewhere else simply has no picture.
+ * Sources and licences: `public/images/audiences/CREDITS.md`.
+ */
+const AUDIENCE_IMAGES: Record<string, string> = {
+  "/for-patients": "/images/audiences/patients-phone-at-home.webp",
+  "/for-therapists": "/images/audiences/therapists-session-room.webp",
+  "/for-clinics": "/images/audiences/clinics-reception.webp",
+  "/for-companies": "/images/audiences/companies-team-office.webp",
+};
+
+function audienceImage(href: string): string | null {
+  const path = href.replace(/^\/(ar|en)(?=\/)/, "").replace(/[?#].*$/, "");
+  return AUDIENCE_IMAGES[path] ?? null;
 }
 
 /** The mockups' faint grid on the dark band, fading out below the top. */
