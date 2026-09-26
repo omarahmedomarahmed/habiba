@@ -100,135 +100,111 @@ export type DemoContent = {
 
 /** The shipped default. Every word invented; see the file it comes from. */
 export const DEMO_FALLBACK: DemoContent = {
-  transcript: DEMO_TRANSCRIPT.slice(0, 6).map((line) => ({
+  /*
+   * 🔴 THE VIDEO'S STORY (founder, 26 Sep): Mariam Hassan and Dr Karim Nabil,
+   * her fourth session, typed out of `scripts/_event-story.ts` by hand. Every
+   * demonstration on the site now tells the one story a visitor can then sign
+   * into with the event logins.
+   */
+  transcript: DEMO_TRANSCRIPT.slice(0, 8).map((line) => ({
     id: line.id,
     speaker: line.speaker === "patient" ? "patient" : "therapist",
     text: line.text,
   })),
   brief: DEMO_NOTE.patientBrief ?? "",
   steps: DEMO_NOTE.patientSteps ?? [],
-  /*
-   * 🔴 76.66 — SIX, NOT THREE, AND THE COUNT IS THE POINT.
-   *
-   * These fixtures feed both the marketing demos and the UI reference, and at
-   * two or three entries every screen rendered a third full and two thirds
-   * white. A product shown half empty looks like a product with nothing in it.
-   * Six observations is also closer to what a rolling profile actually holds
-   * after a few months, so the demo stops understating the thing it sells.
-   */
   observations: [
-    { at: "12 March", text: "Sleep disruption returns before performance reviews, twice now." },
-    { at: "5 March", text: "Kept the wind-down on four nights. Named it as the first thing that has worked." },
-    { at: "27 February", text: "Describes the wind-down routine as 'pointless' before trying it." },
-    { at: "20 February", text: "Work anxiety framed as 'just how the job is' rather than as a thing to treat." },
-    { at: "13 February", text: "Reports the 03:00 waking is the part she dreads, more than the tiredness." },
-    { at: "6 February", text: "First session. Came for sleep; work anxiety surfaced by minute ten." },
+    { at: "19 September", text: "Sleeping through five of seven nights after agreeing response times with her manager." },
+    { at: "12 September", text: "A message answered the next morning had no consequence at work." },
+    { at: "12 September", text: "Kept the correction from a team meeting and dropped the praise from the same week." },
+    { at: "5 September", text: "Slept through on both nights the phone stayed out of the bedroom." },
+    { at: "5 September", text: "Traces the rule that she must always be available to her father." },
+    { at: "29 August", text: "Has not declined a request from her manager in two years." },
   ],
   homework: [
-    { title: "Screens down an hour before bed", detail: "Four nights. Pick them now." },
-    { title: "Same wake time after a bad night", detail: "The one that does the most work." },
-    { title: "Two times, written down", detail: "Roughly asleep, roughly awake. Not a diary." },
-    { title: "Out of bed after twenty minutes awake", detail: "Somewhere dim. Back when you are heavy." },
-    { title: "One line about the review, before bed", detail: "On paper, so it is not in your head at three." },
+    { title: "Your early sign is checking the phone in bed", detail: "If you notice it, the phone goes back to the kitchen." },
+    { title: "Book a session early if it comes back", detail: "Before it gets bad, not after." },
+    { title: "Keep the kitchen rule on the nights it is easy", detail: "Not every night." },
+    { title: "One piece of evidence for and against, each day", detail: "About 'she thinks I am lazy'." },
+    { title: "Ask Sherine for ten minutes", detail: "About urgent messages." },
   ],
   patientSessions: [
-    { therapist: "Dr Nadia Farouk", when: "Tomorrow, 18:00", brief: null },
+    { therapist: "Dr Karim Nabil", when: "Tomorrow, 16:00", brief: null },
     {
-      therapist: "Dr Nadia Farouk",
-      when: "Last Tuesday",
-      brief: "You said you would try going to bed earlier, and on the two nights you did it worked.",
+      therapist: "Dr Karim Nabil",
+      when: "19 September",
+      brief:
+        "You had the conversation you were dreading, and it turned out your manager never expected a reply at night. Five nights of seven slept through.",
     },
     {
-      therapist: "Dr Nadia Farouk",
-      when: "Two weeks ago",
-      brief: "We looked at what happens between eleven and three, and you noticed it is the review you are rehearsing.",
+      therapist: "Dr Karim Nabil",
+      when: "12 September",
+      brief:
+        "Three of four nights slept through, and the late message you answered on Sunday cost you nothing.",
     },
     {
-      therapist: "Dr Nadia Farouk",
-      when: "Last month",
-      brief: "First session. You came about sleep and we ended up talking about work, which is worth following.",
+      therapist: "Dr Karim Nabil",
+      when: "5 September",
+      brief:
+        "Your own notes did the work this week: two nights with the phone in the kitchen, and you slept until seven both times.",
     },
   ],
-  /*
-   * 🔴 Two clinicians, deliberately. One version would demonstrate a summary;
-   * two with different names on them demonstrate the thing that is actually
-   * hard, which is that moving practice does not start you again.
-   */
   summaryVersions: [
     {
-      version: 2,
-      author: "Dr Youssef Bakr",
-      on: "4 June",
-      body: "Picking up from Dr Farouk. Sleep is steadier and the work anxiety underneath it is what we are on now. You said the reviews are the trigger rather than the job, which is worth holding on to.",
-    },
-    {
       version: 1,
-      author: "Dr Nadia Farouk",
-      on: "18 March",
-      body: "You came about sleep and we found the pattern around performance reviews within two sessions. The wind-down routine helps on the nights you keep it. Handing over because you are moving cities, not because anything went wrong.",
+      author: "Dr Karim Nabil",
+      on: "20 September",
+      body: "Work-related anxiety with middle insomnia, maintained by answering her manager's messages late at night. After agreeing response times at work she sleeps through five nights of seven; PHQ-9 12 to 7, GAD-7 13 to 8. Relapse plan in place for quarter close.",
     },
   ],
   journalEntries: [
-    { on: "2 June", text: "Slept through for the first time in about three weeks. Nothing special happened, which is the annoying part." },
-    { on: "31 May", text: "Got out of bed at half one like she said instead of lying there. Felt stupid. Went back down quicker though." },
-    { on: "29 May", text: "Bad one. Kept rehearsing the review in my head until about two. Did the breathing, it helped a bit, not much." },
-    { on: "26 May", text: "Wrote the review thing down before bed. Still thought about it, but it did not feel like it was growing." },
-    { on: "22 May", text: "Skipped the wind-down, stayed on my phone. Predictable. Not doing that again this week." },
+    { on: "21 September", text: "Talked to Sherine. She said she never expected replies at night. Two years. I laughed in the car on the way home." },
+    { on: "14 September", text: "The meeting keeps replaying. Evidence for lazy: one wrong number. Evidence against: she asked me to present to the investors. Writing it down makes the second one louder." },
+    { on: "8 September", text: "Phone in the kitchen. Slept until 7. First time in weeks. نمت كويس الحمد لله." },
+    { on: "1 September", text: "Answered Sherine at 11:40 again. Woke at 3:10. Wrote it down like Dr Karim said. It feels stupid to write down but the pattern is already obvious." },
   ],
   note: DEMO_NOTE,
   copilot: [
-    { kind: "explore", text: "Two of seven nights went better, worth naming that back." },
-    { kind: "observation", text: "Fatigue and worry described as a loop, not two problems." },
-    { kind: "explore", text: "She called the routine pointless in February and is keeping it now." },
-    { kind: "pattern", text: "Third mention of the performance review in four sessions." },
-    { kind: "observation", text: "Says 'just how the job is' when the work comes up. Same phrase as 20 February." },
+    { kind: "explore", text: "Five nights of seven slept through. Worth naming that back to her." },
+    { kind: "observation", text: "Laughed describing her manager's answer. Much brighter than at intake." },
+    { kind: "explore", text: "Ask what she would notice first if it started coming back." },
+    { kind: "pattern", text: "Quarter close named as the month it could return." },
+    { kind: "observation", text: "Both questionnaires about five points lower than in the first week." },
   ],
   copilotAsks: [
     {
-      q: "Has she mentioned the review before?",
-      a: "Three times in the last four sessions. On 20 February she called it \"the thing in March\" and moved on; by 12 March she was naming it as the reason she was awake. The pattern is that it comes up late in the session rather than when you ask about work.",
+      q: "What seems to be driving the 3am waking: the workload, or the manager?",
+      a: "Mostly the late messages rather than the volume of work. In the second session she reported waking at three on the five nights she had answered after ten, and sleeping until seven on the two nights her phone stayed in the kitchen. Since agreeing response times with her manager she has slept through five nights of seven.",
       cites: [
         {
-          on: "20 February",
-          at: "31:04",
+          on: "5 September",
+          at: "00:19",
           who: "patient",
-          quote: "There is the thing in March but that is ages away, it is fine.",
-        },
-        {
-          on: "12 March",
-          at: "08:20",
-          who: "patient",
-          quote: "I wake around three and then my head just starts going about the review.",
+          quote: "The two nights I left the phone in the kitchen I slept until seven. Both of them.",
         },
       ],
     },
     {
-      q: "What have we tried for the sleep?",
-      a: "One thing: the wind-down routine agreed on 20 February. She called it pointless at the time. Adherence went from zero to two nights of seven, and both of those nights she reported getting back to sleep faster. Nothing else has been tried, so this is a first intervention rather than a failed one.",
+      q: "Where does the rule about always answering come from?",
+      a: "She traces it to her father, who told her work comes first and you answer when you are called. In the second session she said she had not noticed she had brought it with her.",
       cites: [
         {
-          on: "20 February",
-          at: "44:12",
+          on: "5 September",
+          at: "00:48",
           who: "patient",
-          quote: "I will try it but honestly it sounds a bit pointless.",
-        },
-        {
-          on: "12 March",
-          at: "14:55",
-          who: "patient",
-          quote: "I did it twice. Both times I got back down quicker, which I had not really clocked.",
+          quote: "My father, I think. He always said work comes first, you answer when you are called.",
         },
       ],
     },
     {
       q: "Anything I should be careful about today?",
-      a: "Nothing on the risk side has been flagged in this session or the previous four. One thing to hold lightly: she tends to close down when the work is named directly, and opens up when it arrives sideways through sleep. That is an observation about two sessions, not a rule.",
+      a: "Nothing on the risk side has come up in her four sessions, and she answered zero both times on the PHQ-9 item about self-harm. The one thing to plan for is quarter close, which she named herself as the month it could come back.",
       cites: [
         {
-          on: "26 February",
-          at: "19:41",
-          who: "therapist",
-          quote: "Can we stay with work for a minute?",
+          on: "19 September",
+          at: "00:52",
+          who: "patient",
+          quote: "I am worried it will come back when the quarter closes. That is always a bad month.",
         },
       ],
     },
@@ -264,179 +240,146 @@ export const DEMO_FALLBACK: DemoContent = {
  * An admin can still override any of it from the CMS. This is the floor.
  */
 export const DEMO_FALLBACK_AR: DemoContent = {
+  /*
+   * 🔴 The video's session, written in Arabic rather than translated: the
+   * conversation in Egyptian as Mariam would speak it, the note in Modern
+   * Standard Arabic as a record is written. Same session as the English one.
+   */
   transcript: [
-    { id: "ar-1", speaker: "therapist", text: "طيب، حكيلي عن النوم الأسبوع ده." },
-    { id: "ar-2", speaker: "patient", text: "بنام بالعافية. بفضل مستني الساعة تبقى تلاتة وأنا صاحي." },
-    { id: "ar-3", speaker: "therapist", text: "وبيحصل ده كل ليلة، ولا في ليالي بعينها؟" },
-    { id: "ar-4", speaker: "patient", text: "الأحد والاتنين أوحش حاجة. يوم التقييم في الشغل يوم التلات." },
-    { id: "ar-5", speaker: "therapist", text: "ده أول مرة نقول فيها إن التقييم قبل النوم مش بعده." },
-    { id: "ar-6", speaker: "patient", text: "أيوه. أنا مكنتش واخد بالي إن ده نفس النمط." },
+    { id: "ar-1", speaker: "therapist", text: "شكلك مختلف النهارده. الكلام مع شيرين مشي إزاي؟" },
+    { id: "ar-2", speaker: "patient", text: "كلمتها يوم التلات. كنت خايفة جدًا بس الموضوع طلع أبسط بكتير." },
+    { id: "ar-3", speaker: "therapist", text: "اتفقتوا على إيه؟" },
+    {
+      id: "ar-4",
+      speaker: "patient",
+      text: "لو حاجة مستعجلة تتصل. غير كده برد الصبح. وقالتلي إنها أصلًا ما كانتش مستنية مني رد بالليل.",
+    },
+    { id: "ar-5", speaker: "therapist", text: "ما كانتش مستنية. ده عمل فيكي إيه؟" },
+    { id: "ar-6", speaker: "patient", text: "ضحكت. سنتين برد نص الليل وهي عمرها ما احتاجت ده." },
+    { id: "ar-7", speaker: "therapist", text: "والنوم الأسبوع ده؟" },
+    { id: "ar-8", speaker: "patient", text: "خمس ليالي من سبعة نمت من غير ما أصحى. والاستبيانات حسيتها مختلفة وأنا بملاها." },
   ],
   brief:
-    "اتكلمنا النهاردة عن النوم، ولقينا إن أسوأ ليلتين هما اللي قبل التقييم في الشغل. اتفقنا تجرب تسيب الموبايل ساعة قبل ما تنام، أربع ليالي بس، وتصحى في نفس الميعاد حتى لو الليلة كانت وحشة.",
+    "عملتي الكلام اللي كنتي خايفة منه، وطلع إن مديرتك عمرها ما كانت مستنية منك رد بالليل. خمس ليالي من سبعة نمتي من غير ما تصحي، والاستبيانين نزلوا حوالي خمس نقط عن أول أسبوع.",
   steps: [
-    "الموبايل بعيد ساعة قبل النوم، أربع ليالي",
-    "نفس ميعاد الصحيان حتى بعد ليلة وحشة",
-    "تكتب ميعادين تقريبيين: نمت امتى، صحيت امتى",
+    "علامتك المبكرة إنك تمسكي الموبايل وإنتي في السرير",
+    "لو لاحظتيها: الموبايل يرجع المطبخ، واحجزي جلسة بدري",
   ],
   observations: [
-    { at: "١٢ مارس", text: "النوم بيتقطع قبل التقييم في الشغل، للمرة التانية." },
-    { at: "٥ مارس", text: "مشيت على الروتين أربع ليالي. قالت إنها أول حاجة نفعت معاها." },
-    { at: "٢٧ فبراير", text: "بيوصف روتين ما قبل النوم بأنه «ملوش لازمة» قبل ما يجربه." },
-    { at: "٢٠ فبراير", text: "بتتكلم عن ضغط الشغل كأنه «طبيعة الشغل» مش حاجة ليها علاج." },
-    { at: "١٣ فبراير", text: "بتقول إن الصحيان الساعة تلاتة هو الجزء اللي بتخاف منه، أكتر من التعب نفسه." },
-    { at: "٦ فبراير", text: "أول جلسة. جه بسبب النوم، وقلق الشغل ظهر في أول عشر دقايق." },
+    { at: "19 سبتمبر", text: "تنام دون انقطاع خمس ليالٍ من سبع بعد الاتفاق مع مديرتها على مواعيد الرد." },
+    { at: "12 سبتمبر", text: "رسالة رُدّ عليها في الصباح التالي لم يترتب عليها شيء في العمل." },
+    { at: "12 سبتمبر", text: "احتفظت بالتصحيح في اجتماع الفريق وأسقطت الإشادة في الأسبوع نفسه." },
+    { at: "5 سبتمبر", text: "نامت دون انقطاع في الليلتين اللتين بقي فيهما الهاتف خارج غرفة النوم." },
+    { at: "5 سبتمبر", text: "تُرجع قاعدة الإتاحة الدائمة إلى والدها." },
+    { at: "29 أغسطس", text: "لم ترفض طلبًا لمديرتها منذ عامين." },
   ],
   homework: [
-    { title: "الموبايل بعيد ساعة قبل النوم", detail: "أربع ليالي. اختارهم دلوقتي." },
-    { title: "نفس ميعاد الصحيان بعد الليلة الوحشة", detail: "دي اللي بتعمل الشغل كله." },
-    { title: "ميعادين مكتوبين", detail: "نمت امتى تقريبًا، وصحيت امتى. مش مفكرة." },
-    { title: "اقومي من السرير بعد عشرين دقيقة صحيان", detail: "مكان إضاءته هادية. وارجعي لما تتقلي." },
-    { title: "سطر واحد عن التقييم قبل النوم", detail: "على ورق، عشان ما يفضلش في دماغك الساعة تلاتة." },
+    { title: "علامتك المبكرة: الموبايل في السرير", detail: "لو لاحظتيها، الموبايل يرجع المطبخ." },
+    { title: "احجزي جلسة بدري لو رجع", detail: "قبل ما يسوء، مش بعده." },
+    { title: "قاعدة المطبخ في الليالي السهلة", detail: "مش لازم كل ليلة." },
+    { title: "دليل مع ودليل ضد، كل يوم", detail: "على جملة «هي شايفاني كسولة»." },
+    { title: "عشر دقايق مع شيرين", detail: "عن الرسايل المستعجلة." },
   ],
   patientSessions: [
-    { therapist: "د. نادية فاروق", when: "بكرة، ٦ مساءً", brief: null },
+    { therapist: "د. كريم نبيل", when: "بكرة، 4 العصر", brief: null },
     {
-      therapist: "د. نادية فاروق",
-      when: "الثلاثاء اللي فات",
-      brief: "قلت إنك هتجرب تنام بدري، وفي الليلتين اللي عملت فيهم كده فعلًا نفع.",
+      therapist: "د. كريم نبيل",
+      when: "19 سبتمبر",
+      brief: "عملتي الكلام اللي كنتي خايفة منه، وطلع إن مديرتك عمرها ما كانت مستنية منك رد بالليل. خمس ليالي من سبعة نمتي كويس.",
     },
     {
-      therapist: "د. نادية فاروق",
-      when: "من أسبوعين",
-      brief: "بصينا على اللي بيحصل بين حداشر وتلاتة، ولاحظتي إن اللي بتعيديه في دماغك هو التقييم.",
+      therapist: "د. كريم نبيل",
+      when: "12 سبتمبر",
+      brief: "تلات ليالي من أربعة نمتي من غير ما تصحي، والرسالة اللي رديتي عليها الأحد الصبح ما كلفتكيش حاجة.",
     },
     {
-      therapist: "د. نادية فاروق",
-      when: "الشهر اللي فات",
-      brief: "أول جلسة. جيتي بسبب النوم وانتهينا بنتكلم عن الشغل، وده يستاهل نكمل فيه.",
+      therapist: "د. كريم نبيل",
+      when: "5 سبتمبر",
+      brief: "ملاحظاتك إنتي عملت الشغل الأسبوع ده: ليلتين والموبايل في المطبخ، ونمتي لحد سبعة في الاتنين.",
     },
   ],
   summaryVersions: [
     {
-      version: 2,
-      author: "د. يوسف بكر",
-      on: "٤ يونيو",
-      body: "مكمل بعد د. نادية. النوم بقى أهدى، واللي تحته قلق الشغل وده اللي شغالين عليه دلوقتي. قلت إن التقييم هو اللي بيقلقك مش الشغل نفسه، وده كلام يستاهل نمسك فيه.",
-    },
-    {
       version: 1,
-      author: "د. نادية فاروق",
-      on: "١٨ مارس",
-      body: "جيت بسبب النوم، ولقينا النمط اللي حوالين التقييم في جلستين. روتين ما قبل النوم بينفع في الليالي اللي بتلتزم بيه. بسلّم الملف لأنك بتنتقل مدينة، مش لأن حاجة مشيت غلط.",
+      author: "د. كريم نبيل",
+      on: "20 سبتمبر",
+      body: "قلق مرتبط بالعمل مع أرق في منتصف الليل، يستمر بسبب الرد على رسائل مديرتها في وقت متأخر. بعد الاتفاق على مواعيد للرد في العمل صارت تنام دون انقطاع خمس ليالٍ من سبع؛ PHQ-9 من 12 إلى 7، وGAD-7 من 13 إلى 8. خطة للوقاية من الانتكاس جاهزة قبل إغلاق الربع.",
     },
   ],
   journalEntries: [
-    { on: "٢ يونيو", text: "نمت الليلة كلها لأول مرة من حوالي تلات أسابيع. مفيش حاجة مخصوص حصلت، وده الجزء المضايق." },
-    { on: "٣١ مايو", text: "قمت من السرير الساعة واحدة ونص زي ما قالت، بدل ما أفضل نايمة صاحية. حسيت إني بعمل حاجة سخيفة. بس رجعت نمت أسرع." },
-    { on: "٢٩ مايو", text: "ليلة وحشة. فضلت أعيد التقييم في دماغي لحد تقريبًا اتنين. عملت التنفس، نفع شوية، مش كتير." },
-    { on: "٢٦ مايو", text: "كتبت موضوع التقييم قبل ما أنام. فضلت أفكر فيه، بس ما حستش إنه بيكبر." },
-    { on: "٢٢ مايو", text: "ما عملتش الروتين وفضلت على الموبايل. متوقع. مش هكرر ده الأسبوع ده." },
+    { on: "21 سبتمبر", text: "كلمت شيرين. قالت إنها عمرها ما استنت مني رد بالليل. سنتين. ضحكت في العربية وأنا راجعة البيت." },
+    { on: "14 سبتمبر", text: "الاجتماع بيتعاد في دماغي. دليل إني كسولة: رقم واحد غلط. دليل العكس: طلبت مني أعرض قدام المستثمرين. لما بكتبها التانية بيبقى صوتها أعلى." },
+    { on: "8 سبتمبر", text: "الموبايل في المطبخ. نمت لحد 7. أول مرة من أسابيع. نمت كويس الحمد لله." },
+    { on: "1 سبتمبر", text: "رديت على شيرين الساعة 11:40 تاني. صحيت 3:10. كتبتها زي ما دكتور كريم قال. حاسة إنها حاجة سخيفة أكتبها بس النمط باين من دلوقتي." },
   ],
   /*
-   * 🔴 76.32 — AND THE NOTE IS WRITTEN IN ARABIC, not translated into it.
-   *
-   * The note is the one artefact on this page a clinician will read closely,
-   * and clinical Arabic is its own register: Modern Standard for the record,
-   * even where the transcript above it is Egyptian as a patient would speak.
-   * A SOAP note phrased in colloquial Egyptian would demonstrate a product
-   * that does not know the difference, which is the doubt a clinician arrives
-   * with.
-   *
-   * Same session as the transcript above, deliberately. A hero that shows one
-   * conversation and a note about a different one is the failure sprint 21R
-   * named in the other language.
+   * The note in Modern Standard Arabic, the register of a record, even where
+   * the transcript above it is Egyptian as she would speak.
    */
   note: {
     soap: {
       subjective:
-        "يفيد المريض بعودة أرق منتصف الليل خلال الأسبوع الماضي، مع الاستيقاظ قرابة الثالثة فجرًا وأفكار متكررة تدور حول تقييم أداء وشيك في العمل. يصف حلقة متبادلة بين إرهاق النهار وقلق الترقّب. التزام جزئي بروتين ما قبل النوم المتفق عليه، ليلتان من سبع، مع عودة أسرع للنوم في الليلتين.",
-      objective:
-        "متيقظ وموجَّه ومتفاعل طوال الجلسة. الوجدان مقيَّد قليلًا ومتوافق مع المزاج المذكور. الكلام طبيعي في معدله وحجمه. البصيرة سليمة، وقد راجع المريض تقييمه العام الأولي عند عرض بياناته عليه.",
+        "عقدت اجتماعًا فرديًا مع مديرتها واتفقتا على أن الأمور العاجلة تكون بمكالمة هاتفية وأن كل ما عداها ينتظر حتى الصباح. قالت المديرة إنها لم تتوقع ردودًا ليلية قط. نامت دون انقطاع خمس ليالٍ من سبع. تتوقع ضغطًا عند إغلاق الربع.",
+      objective: "مسترخية، مبتسمة، مع دعابة تلقائية. الكلام والوجدان أكثر إشراقًا بوضوح مقارنة بالجلسة الأولى.",
       assessment:
-        "انتكاسة اضطراب نوم مدفوع بالقلق في سياق ضاغط محدد ومحدود زمنيًا. متسقة مع الصياغة القائمة ولا تمثل عملية جديدة. الالتزام، لا الاستراتيجية، هو العامل المحدد. لم تُستخلص أو تُلاحَظ أي مؤشرات خطورة.",
-      plan: "رفع هدف روتين ما قبل النوم إلى أربع ليالٍ قبل الجلسة القادمة، مع تسجيل مكتوب لليالي المنفَّذة. مواصلة العمل المعرفي على التقييم الكارثي لمراجعة الأداء. إعادة تقييم نمط النوم في الجلسة القادمة.",
+        "تحسن ملحوظ في النوم والقلق. PHQ-9 7 (من 12)، وGAD-7 8 (من 13). المعتقد المتعلق بالإتاحة الدائمة تعدّل إلى حد كبير بفعل دليل مباشر.",
+      plan: "الوقاية من الانتكاس: علامة إنذار مبكرة (تفقّد الهاتف في السرير) وخطة استجابة. تثبيت المكاسب في الجلسات القادمة ومراجعة عبء العمل قبل إغلاق الربع.",
     },
-    summary:
-      "جلسة متابعة تتناول انتكاسة أرق منتصف الليل لمدة أسبوع مرتبطة بقلق ترقّب متعلق بالعمل. الالتزام الجزئي بالتدخل الخاص بالنوم أنتج تحسنًا قابلًا للقياس لم ينتبه إليه المريض.",
-    talkingPoints: [
-      "عودة أرق منتصف الليل، الاستيقاظ قرابة الثالثة مع اجترار",
-      "تقييم الأداء الوشيك بوصفه الضاغط المحدد",
-      "الإرهاق والقلق يعملان كحلقة متبادلة",
-      "روتين ما قبل النوم استُخدم ليلتين من سبع، وكانت الليلتان أفضل",
-    ],
-    observations:
-      "متفاعل ومتعاون. استجاب جيدًا حين عُرضت عليه الفجوة بين النتيجة التي يرويها وبين بياناته الفعلية.",
-    impressions:
-      "متسق مع الصياغة القائمة لاضطراب نوم يديمه القلق. مبدئي، لمراجعة المعالج.",
-    recommendations: [
-      "رفع هدف روتين ما قبل النوم إلى أربع ليالٍ أسبوعيًا مع تسجيل مكتوب بسيط",
-      "مواصلة إعادة البناء المعرفي حول تهويل مراجعة الأداء",
-    ],
-    followUp: "أسبوع واحد",
+    summary: "اتفقت مع مديرتها على مواعيد للرد؛ تنام دون انقطاع خمس ليالٍ من سبع؛ كُتبت خطة للوقاية من الانتكاس.",
+    talkingPoints: ["إغلاق الربع وعبء العمل", "الحفاظ على المكاسب دون الاعتماد على التدوين"],
+    observations: "مسترخية، مبتسمة، مع دعابة تلقائية. الكلام والوجدان أكثر إشراقًا بوضوح مقارنة بالجلسة الأولى.",
+    impressions: "استجابة جيدة لنهج سلوكي ومعرفي قصير. المآل جيد.",
+    recommendations: ["خطة الوقاية من الانتكاس جاهزة", "المباعدة بين الجلسات بعد إغلاق الربع إن استقرت الحالة"],
+    followUp: "أسبوع واحد، ثم مراجعة المباعدة.",
     patientBrief:
-      "قعدنا النهاردة نتكلم عن الليالي اللي بتعدي عليك صعبة، وعن قد إيه اليوم بيروح وإنت مستعد للّي جاي. وصّفت ده بوضوح فعلًا.\n\nالحاجة اللي تستاهل تمسك فيها: الليلتين اللي عملت فيهم الروتين قبل النوم، نمت أحسن. إنت كنت حاسبهم صدفة لحد ما حطينهم جنب بعض.",
+      "عملتي الكلام اللي كنتي خايفة منه، وطلع إن مديرتك عمرها ما كانت مستنية منك رد بالليل. خمس ليالي من سبعة نمتي من غير ما تصحي، والاستبيانين نزلوا حوالي خمس نقط عن أول أسبوع.",
     patientSteps: [
-      "الموبايل بعيد ساعة قبل النوم، أربع ليالي الأسبوع ده، واختار الليالي دلوقتي مش كل ليلة لوحدها.",
-      "اصحى في نفس الميعاد حتى بعد ليلة وحشة. دي اللي بتعمل أكتر شغل وهي أكتر حاجة حاسس إنها ملهاش لازمة.",
-      "اكتب تقريبًا نمت امتى وصحيت امتى. مش مفكرة، ميعادين بس.",
+      "علامتك المبكرة إنك تمسكي الموبايل وإنتي في السرير",
+      "لو لاحظتيها: الموبايل يرجع المطبخ، واحجزي جلسة بدري",
     ],
-    patientNext:
-      "نفس الميعاد الأسبوع الجاي، وهات معاك المواعيد اللي كتبتها. لو التقييم اتقدّم عن المتوقع والليالي تقلت، ابعتلي نقرّب الجلسة.",
+    patientNext: "الجلسة الجاية: نخطط لقفلة الربع قبل ما تيجي.",
   },
   copilot: [
-    { kind: "اسأل", text: "ليلتين من سبع كانوا أحسن، تستاهل تتقال له." },
-    { kind: "ملاحظة", text: "الإرهاق والقلق موصوفين كحلقة واحدة، مش مشكلتين." },
-    { kind: "اسأل", text: "قالت على الروتين إنه «ملوش لازمة» في فبراير، ودلوقتي ماشية عليه." },
-    { kind: "نمط", text: "تالت مرة يتذكر فيها التقييم في أربع جلسات." },
-    { kind: "ملاحظة", text: "بتقول «دي طبيعة الشغل» لما الشغل ييجي في السيرة. نفس الجملة بتاعة ٢٠ فبراير." },
+    { kind: "اسأل", text: "خمس ليالي من سبعة نامت فيهم كويس. تستاهل تتقال لها." },
+    { kind: "ملاحظة", text: "ضحكت وهي بتحكي رد مديرتها. أفتح بكتير من أول جلسة." },
+    { kind: "اسأل", text: "اسألها إيه أول حاجة هتلاحظها لو ابتدى يرجع." },
+    { kind: "نمط", text: "قفلة الربع اتذكرت على إنها الشهر اللي ممكن يرجع فيه." },
+    { kind: "ملاحظة", text: "الاستبيانين أقل بحوالي خمس نقط من أول أسبوع." },
   ],
   copilotAsks: [
     {
-      q: "هي جابت سيرة التقييم قبل كده؟",
-      a: "تلات مرات في آخر أربع جلسات. يوم ٢٠ فبراير سمّته «الحكاية اللي في مارس» وعدّت عليها، ويوم ١٢ مارس بقت بتقول إنه السبب اللي بيصحّيها. والنمط إنه بييجي في آخر الجلسة، مش لما تسألي عن الشغل.",
+      q: "إيه اللي بيصحّيها الساعة تلاتة: حجم الشغل، ولا المديرة؟",
+      a: "الرسايل المتأخرة غالبًا، مش حجم الشغل. في الجلسة التانية قالت إنها صحيت الساعة تلاتة في الخمس ليالي اللي ردت فيهم بعد عشرة، ونامت لحد سبعة في الليلتين اللي الموبايل فضل فيهم في المطبخ. ومن ساعة ما اتفقت مع مديرتها على مواعيد الرد بتنام كويس خمس ليالي من سبعة.",
       cites: [
         {
-          on: "٢٠ فبراير",
-          at: "31:04",
+          on: "5 سبتمبر",
+          at: "00:19",
           who: "patient",
-          quote: "في الحكاية اللي في مارس بس دي لسه بدري أوي، عادي.",
-        },
-        {
-          on: "١٢ مارس",
-          at: "08:20",
-          who: "patient",
-          quote: "بصحى الساعة تلاتة ودماغي تبتدي تلف على التقييم.",
+          quote: "الليلتين اللي سبت فيهم الموبايل في المطبخ نمت لحد سبعة. الاتنين.",
         },
       ],
     },
     {
-      q: "جرّبنا إيه للنوم؟",
-      a: "حاجة واحدة: روتين التهدئة اللي اتفقتوا عليه يوم ٢٠ فبراير. ساعتها قالت عليه إنه ملوش لازمة. الالتزام طلع من صفر لليلتين من سبع، وفي الليلتين دول قالت إنها رجعت نامت أسرع. مفيش حاجة تانية اتجرّبت، يعني دي أول محاولة مش محاولة فشلت.",
+      q: "القاعدة بتاعة إنها لازم ترد دايمًا جاية منين؟",
+      a: "بترجّعها لأبوها، اللي كان بيقول إن الشغل الأول وإنك ترد لما حد يطلبك. وقالت في الجلسة التانية إنها ما كانتش واخدة بالها إنها جابتها معاها.",
       cites: [
         {
-          on: "٢٠ فبراير",
-          at: "44:12",
+          on: "5 سبتمبر",
+          at: "00:48",
           who: "patient",
-          quote: "هجرّب بس بصراحة شكله ملوش لازمة.",
-        },
-        {
-          on: "١٢ مارس",
-          at: "14:55",
-          who: "patient",
-          quote: "عملته مرتين. المرتين رجعت نمت أسرع، وده أنا أصلًا ما كنتش واخدة بالي منه.",
+          quote: "بابا، على ما أظن. كان دايمًا يقول الشغل الأول، وترد لما حد يطلبك.",
         },
       ],
     },
     {
-      q: "في حاجة لازم أخد بالي منها النهارده؟",
-      a: "مفيش أي مؤشر خطر اتسجّل في الجلسة دي ولا في الأربعة اللي قبلها. حاجة واحدة خدي بالك منها من غير ما تبني عليها: بتقفل لما الشغل يتقال بشكل مباشر، وبتتفتح لما ييجي من ناحية النوم. دي ملاحظة على جلستين، مش قاعدة.",
+      q: "في حاجة لازم آخد بالي منها النهارده؟",
+      a: "مفيش حاجة تخص الخطر ظهرت في جلساتها الأربعة، وجاوبت صفر المرتين على سؤال PHQ-9 عن إيذاء النفس. الحاجة الوحيدة اللي محتاجة تخطيط هي قفلة الربع، وهي اللي سمّتها بنفسها الشهر اللي ممكن يرجع فيه.",
       cites: [
         {
-          on: "٢٦ فبراير",
-          at: "19:41",
-          who: "therapist",
-          quote: "ممكن نقعد شوية على موضوع الشغل؟",
+          on: "19 سبتمبر",
+          at: "00:52",
+          who: "patient",
+          quote: "خايفة يرجع تاني لما الربع يقفل. ده دايمًا شهر وحش.",
         },
       ],
     },

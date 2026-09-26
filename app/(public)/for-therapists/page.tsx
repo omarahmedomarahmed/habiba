@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 import { ComponentShowcase } from "@/components/demo/component-showcase";
-import { SessionDemo } from "@/components/demo/session-demo";
 import { AlsoIncluded, AudienceClose, FeatureBands } from "@/components/public/audience-page";
 import { AudienceHero } from "@/components/public/audience-hero";
+import { TherapistDemo } from "@/components/public/audience-demos";
 import { PricingTiers } from "@/components/public/pricing-tiers";
 import { getDemoContent } from "@/lib/content/demo";
 import { getI18n } from "@/lib/i18n/server";
@@ -55,31 +55,15 @@ export default async function ForTherapistsPage() {
         body={t("ft.lede")}
         cta={{ label: t("ft.cta"), href: "/signup" }}
         secondary={{ label: t("ft.secondary"), href: "#cost" }}
-        demo={
-          /*
-            🔴 Strings, not `t` itself. `SessionDemo` is a client component and
-            `verify:boundary` refuses a function crossing that line. Same call
-            shape as the homepage hero, deliberately: one demo, one set of
-            labels, two places that cannot drift.
-          */
-          <SessionDemo
-            content={demo}
-            labels={{
-              inProgress: t("hdemo.inProgress"),
-              ended: t("hdemo.ended"),
-              meta: t("hdemo.meta"),
-              play: t("hdemo.play"),
-              pause: t("hdemo.pause"),
-              replay: t("hdemo.replay"),
-              recording: t("hdemo.recording"),
-              endSession: t("hdemo.endSession"),
-              waiting: t("hdemo.waiting"),
-              generated: t("hdemo.generated"),
-              disclaimer: t("hdemo.disclaimer"),
-              patientLabel: t("hdemo.patientLabel"),
-            }}
-          />
-        }
+        /*
+          🔴 DR KARIM NABIL'S OWN DESK (founder, 26 Sep): the portal as the seeded
+          therapist signs into it, the navy sidebar with New session, his sessions
+          with Mariam Hassan, her chart and the copilot's answer with its source,
+          and what each EGP 1,200 session left him. Every section in the rail
+          opens. The room itself is still the homepage's hero.
+        */
+        demo={<TherapistDemo />}
+        note={t("public.demoNote")}
       />
 
       <FeatureBands

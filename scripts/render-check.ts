@@ -246,8 +246,8 @@ async function main() {
   );
   check(
     "18.9 …and the live patient-app component, with its demo rows",
-    patients.includes("When you needed someone") ||
-      patients.includes("Dr Nadia Farouk"),
+    /* The phone is Mariam's now, and her therapist is the video's (founder, 26 Sep). */
+    patients.includes("Dr Karim Nabil"),
   );
 
   const contact = html["contact.en-x-staging"] ?? "";

@@ -3430,6 +3430,13 @@ export const CONTENT_DEMOS = [
    */
   "patient-app",
   /*
+   * 🔴 Two more of her screens, as the unified `/for-patients` bands open them
+   * (founder, 26 Sep): Therapists, where the areas filter the list and a page
+   * can be booked, and who can read her history, where access can be stopped.
+   */
+  "patient-therapists",
+  "patient-access",
+  /*
    * 🔴 Task 137 — THE FOUR THE HERO KEPT TO ITSELF.
    *
    * These four existed, and were reachable only from a `hero` block, because
@@ -3571,6 +3578,12 @@ export type ContentBlock =
   | {
       type: "features";
       heading?: string;
+      /**
+       * 🔴 The audience pages' "Also included": each item one line with a tick
+       * beside it, drawn by `AlsoIncluded` as `/for-therapists` draws it, rather
+       * than a grid of icon cards. For facts with no screen behind them.
+       */
+      ticks?: boolean;
       items: { title: string; body: string; icon?: ContentIcon }[];
     }
   | {
@@ -3596,7 +3609,18 @@ export type ContentBlock =
        * two screens read as two screens and the section is half as tall.
        */
       side?: boolean;
-      items: { title: string; body: string; icon?: ContentIcon; demo?: ContentDemo }[];
+      /**
+       * 🔴 THE AUDIENCE PAGES' BANDS (founder, 26 Sep: "the therapist page is the
+       * reference for all other pages to look like").
+       *
+       * Each item becomes one numbered band of `FeatureBands`, the component
+       * `/for-therapists` renders: a short `label`, the `title` as the heading,
+       * the `body`, and the demo beside it, alternating sides and grounds. A CMS
+       * page gets the same rhythm as the hand-built ones rather than a look of
+       * its own.
+       */
+      bands?: boolean;
+      items: { title: string; body: string; icon?: ContentIcon; demo?: ContentDemo; label?: string }[];
     }
   | { type: "faq"; heading?: string; items: { q: string; a: string }[] }
   /*
@@ -3793,6 +3817,12 @@ export type ContentBlock =
       ctaLabel: string;
       ctaHref: string;
       backgroundImage?: string;
+      /**
+       * 🔴 Whose page this closes. Set, the block draws `AudienceClose`, the
+       * closing band of the four audience pages, with the sign-in beside the
+       * button and the row of links to the other three pages under it.
+       */
+      audience?: "therapist" | "patient" | "company" | "clinic";
     };
 
 /**

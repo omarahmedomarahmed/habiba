@@ -209,7 +209,8 @@ function main() {
 
   check(
     "🔴 …and every screen says its own name at the top",
-    /SCREEN_TITLE/.test(app) && /truncate text-\[15px\] font-bold/.test(app),
+    /* The app's own h1 now, `ScreenTitle`, at phone scale (founder, 26 Sep: "exactly the same as the actual app"). */
+    /SCREEN_TITLE/.test(app) && /function ScreenTitle/.test(app) && /<ScreenTitle>/.test(app),
     "a list of dated cards under no heading is a screen nobody could have navigated to",
   );
 

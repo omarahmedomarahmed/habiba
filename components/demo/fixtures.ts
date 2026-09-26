@@ -4,61 +4,63 @@ import type { NoteContent } from "@/lib/db/schema";
 /**
  * Synthetic demo data for the public site.
  *
- * Every value here is invented. It is a composite of nothing — no real session,
- * no real person, no real transcript. The marketing site renders the real
- * portal components against *these* objects and has no code path to anything
- * else, which is what makes "a live product component on a public page" safe
- * rather than terrifying.
+ * Every value here is invented. No real session, no real person, no real
+ * transcript. The marketing site renders the real portal components against
+ * *these* objects and has no code path to anything else, which is what makes
+ * "a live product component on a public page" safe rather than terrifying.
+ *
+ * 🔴 AND IT IS THE VIDEO'S SESSION NOW (founder, 26 Sep): Mariam Hassan's fourth
+ * session with Dr Karim Nabil, the one where she reports the conversation with
+ * her manager, typed out of `scripts/_event-story.ts` by hand. The room on the
+ * homepage, the transcript and the note on `/for-therapists`, and the portal
+ * mockups all tell the one story a visitor can then sign into.
  */
 
 export const DEMO_TRANSCRIPT: TranscriptLine[] = [
-  { id: "d1", speaker: "therapist", text: "Good to see you. How has the week been?" },
-  { id: "d2", speaker: "patient", text: "Harder than I expected, honestly. The sleep thing came back." },
-  { id: "d3", speaker: "therapist", text: "Tell me about the sleep, falling asleep, or staying asleep?" },
-  { id: "d4", speaker: "patient", text: "Staying asleep. I wake around three and my head just starts going." },
-  { id: "d5", speaker: "patient", text: "It is mostly work. There's a review coming up and I keep rehearsing it." },
-  { id: "d6", speaker: "therapist", text: "So the rehearsing starts once you're already awake." },
-  { id: "d7", speaker: "patient", text: "Right. And then I'm exhausted all day, which makes the worrying worse." },
-  { id: "d8", speaker: "therapist", text: "Did you get a chance to try the wind-down routine?" },
-  { id: "d9", speaker: "patient", text: "Twice. The nights I did it I got back to sleep faster, actually." },
-  { id: "d10", speaker: "therapist", text: "That's worth noticing. Two nights out of seven, and both were better." },
-  { id: "d11", speaker: "patient", text: "I hadn't connected those. I assumed nothing was working." },
+  { id: "d1", speaker: "therapist", text: "You look different today. How did the conversation with Sherine go?" },
+  { id: "d2", speaker: "patient", text: "I did it on Tuesday. كنت خايفة جدًا بس الموضوع طلع أبسط بكتير." },
+  { id: "d3", speaker: "therapist", text: "What did you agree?" },
+  {
+    id: "d4",
+    speaker: "patient",
+    text: "If it is urgent she calls. Everything else I answer in the morning. She said she did not expect me to answer at night at all.",
+  },
+  { id: "d5", speaker: "therapist", text: "She did not expect it. How did that land?" },
+  { id: "d6", speaker: "patient", text: "I laughed. Two years of answering at midnight and she never needed it." },
+  { id: "d7", speaker: "therapist", text: "And the sleep this week?" },
+  {
+    id: "d8",
+    speaker: "patient",
+    text: "Five nights of seven I slept through. The questionnaires felt different too, I noticed when I filled them in.",
+  },
+  { id: "d9", speaker: "therapist", text: "They are. Both scores came down by about five points since the first week." },
+  { id: "d10", speaker: "patient", text: "I am worried it will come back when the quarter closes. That is always a bad month." },
+  { id: "d11", speaker: "therapist", text: "That is a good thing to plan for. What would you notice first if it started coming back?" },
+  { id: "d12", speaker: "patient", text: "Checking my phone in bed. That is always the first thing." },
+  { id: "d13", speaker: "therapist", text: "Then that is your early sign. Let us write down what you would do if you notice it." },
+  { id: "d14", speaker: "patient", text: "Phone back to the kitchen, and book a session before it gets bad, not after." },
 ];
 
 export const DEMO_NOTE: NoteContent = {
   soap: {
     subjective:
-      "Patient reports a return of middle-insomnia over the past week, waking around 03:00 with ruminative thinking focused on an upcoming performance review. Describes a reinforcing loop between daytime fatigue and anticipatory worry. Reports partial adherence to the agreed wind-down routine (2 of 7 nights), with subjectively faster return to sleep on both occasions.",
-    objective:
-      "Alert, oriented and engaged throughout. Affect mildly constricted and congruent with reported mood. Speech normal in rate and volume. Insight intact, patient revised an initial global appraisal when presented with their own data.",
+      "Held a one-to-one with her manager and agreed that urgent matters come by phone call and everything else waits until morning. Manager said she never expected night replies. Slept through five of seven nights. Anticipates pressure at quarter close.",
+    objective: "Relaxed, smiling, spontaneous humour. Speech and affect markedly brighter than at intake.",
     assessment:
-      "Recurrence of anxiety-driven sleep disruption in the context of an identifiable, time-limited stressor. Consistent with the existing formulation rather than a new process. Adherence, not strategy, appears to be the limiting factor. No risk indicators elicited or observed.",
-    plan: "Increase wind-down routine target to four nights before next session, with a written record of which nights were completed. Continue cognitive work on catastrophic appraisal of the review. Reassess sleep pattern at next session.",
+      "Significant improvement in sleep and anxiety. PHQ-9 7 (from 12), GAD-7 8 (from 13). Belief about availability substantially revised by direct evidence.",
+    plan: "Relapse prevention: early warning sign (checking phone in bed) and response plan. Consolidate over the next sessions and review workload before quarter close.",
   },
-  summary:
-    "Follow-up session addressing a one-week recurrence of middle-insomnia linked to anticipatory work anxiety. Partial adherence to the sleep intervention produced a measurable improvement the patient had not registered.",
-  talkingPoints: [
-    "Middle-insomnia recurrence, waking ~03:00 with rumination",
-    "Upcoming performance review as the identifiable stressor",
-    "Fatigue and worry operating as a reinforcing loop",
-    "Wind-down routine used 2 of 7 nights, both nights better",
-  ],
-  observations:
-    "Engaged and collaborative. Responded well to being shown the gap between reported outcome and actual data.",
-  impressions:
-    "Consistent with the existing formulation of anxiety-maintained sleep disruption. Provisional, for clinician review.",
-  recommendations: [
-    "Raise wind-down routine target to four nights per week with a simple written record",
-    "Continue cognitive restructuring around performance-review catastrophising",
-  ],
-  followUp: "One week",
+  summary: "Agreed response times with her manager; sleeping through five of seven nights; relapse plan written.",
+  talkingPoints: ["Quarter close and workload", "Keeping the gains without the notes"],
+  observations: "Relaxed, smiling, spontaneous humour. Speech and affect markedly brighter than at intake.",
+  impressions: "Good response to a brief behavioural and cognitive approach. Prognosis good.",
+  recommendations: ["Relapse prevention plan in place", "Space sessions out after the quarter close if stable"],
+  followUp: "One week, then review spacing.",
   patientBrief:
-    "We spent most of today on the nights you have been having, and on how much of the day gets spent bracing for the next bad one. You put it into words really clearly.\n\nThe part worth holding on to: on the two nights you did the wind-down, you slept better. You had written both of those off as flukes until we lined them up.",
+    "You had the conversation you were dreading, and it turned out your manager never expected a reply at night. Five nights of seven slept through, and both questionnaires are about five points lower than in the first week.",
   patientSteps: [
-    "Screens down an hour before bed, four nights this week, pick the nights now rather than deciding each evening.",
-    "Get up at the same time even after a bad night. This is the one that does the most work and feels the most pointless.",
-    "Jot down roughly when you fell asleep and when you woke. Not a diary, just two times.",
+    "Your early sign is checking the phone in bed",
+    "If you notice it: phone back to the kitchen, and book a session early",
   ],
-  patientNext:
-    "Same time next week, and bring the times you wrote down. If the review lands earlier than expected and the nights get heavier, message to move it sooner.",
+  patientNext: "Next session: planning for the quarter close before it arrives.",
 };
