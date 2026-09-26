@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 
-import { Card } from "@/components/ui";
+import { buttonClass, Card } from "@/components/clinician/kit";
+import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
 import { Money } from "@/components/ui/money";
 import { rich, slot } from "@/lib/i18n/rich";
@@ -32,27 +33,27 @@ export function TopUpForm({
   const t = useT();
 
   return (
-    <Card className="p-5">
-      <p className="text-base font-bold tracking-tight text-slate-900">{t("sponsor.topUp")}</p>
-      <p className="mt-1 text-sm leading-relaxed text-slate-600">
+    <Card className="p-5 sm:p-6">
+      <h2 className="text-[17px] font-bold text-navy-700">{t("sponsor.topUp")}</h2>
+      <p className="mt-1 text-sm leading-relaxed text-navy-400">
         {rich(t("sponsor.topUpBody", { min: slot(0) }), [<Money cents={minimumCents} />])}
       </p>
-      <p className="mt-2 text-sm leading-relaxed text-slate-600">{t("sponsor.potCardOff")}</p>
+      <p className="mt-2 text-sm leading-relaxed text-navy-400">{t("sponsor.potCardOff")}</p>
 
       {/* 🔴 C233: beside the way in. Not a link, not a tooltip, not a footer. */}
-      <div className="mt-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
-        <p className="text-xs font-semibold text-slate-700">{t("sponsor.refundTerms")}</p>
-        <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-slate-600">
+      <div className="mt-4 rounded-2xl bg-navy-50 p-4 ring-1 ring-navy-100">
+        <p className="text-xs font-semibold text-navy-600">{t("sponsor.refundTerms")}</p>
+        <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-navy-400">
           {terms.refundPolicy}
         </p>
-        <p className="mt-2 text-xs leading-relaxed text-slate-600">
+        <p className="mt-2 text-xs leading-relaxed text-navy-400">
           {t("sponsor.expiresOn", { date: terms.expiresLabel })}
         </p>
       </div>
 
       <Link
         href="/contact"
-        className="mt-4 inline-block text-sm font-semibold text-slate-900 underline"
+        className={cn(buttonClass("primary", "md"), "mt-4")}
       >
         {t("sponsor.potAskUs")}
       </Link>

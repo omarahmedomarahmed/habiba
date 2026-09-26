@@ -19,9 +19,10 @@ export function ExpiryNotice({ text }: { text: string }) {
   return (
     <p
       role="status"
-      className="rounded-xl bg-amber-50 p-3 text-sm font-medium leading-relaxed text-amber-900"
+      className="flex items-start gap-3 rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3.5 text-sm font-semibold leading-relaxed text-amber-900"
     >
-      {text}
+      <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
+      <span className="min-w-0">{text}</span>
     </p>
   );
 }

@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 
 import { askForReceipt, type ReturnAskState } from "@/app/(sponsor)/sponsor/pot/actions";
-import { Button } from "@/components/ui";
+import { Button } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 
