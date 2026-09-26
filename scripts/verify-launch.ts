@@ -354,6 +354,8 @@ async function main() {
     "(sponsor)": ["(sponsor)/sponsor/loading.tsx"],
     "(partner)": ["(partner)/partner/loading.tsx"],
     "(admin)": ["(admin)/admin/loading.tsx"],
+    /* 🔴 Board 902: the sign-in doors too; the console's first sign-in hung under a group-root one. */
+    "(auth)": ["login", "signup", "forgot-password", "reset-password", "staff"].map((door) => `(auth)/${door}/loading.tsx`),
   };
   const missing = groups.flatMap((group) =>
     ["loading.tsx", "error.tsx"]
@@ -365,7 +367,7 @@ async function main() {
     missing.length === 0,
     missing.length === 0 ? `${groups.length} groups` : `missing: ${missing.join(", ")}`,
   );
-  const rootLoaders = ["(app)", "(clinic)", "(patient)", "(sponsor)", "(partner)", "(admin)"]
+  const rootLoaders = ["(app)", "(clinic)", "(patient)", "(sponsor)", "(partner)", "(admin)", "(auth)"]
     .map((group) => `${group}/loading.tsx`)
     .filter((file) => existsSync(join("app", file)));
   check(
