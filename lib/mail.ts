@@ -4,6 +4,7 @@ import { Resend } from "resend";
 
 import { env, features } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
+import { htmlToText } from "@/lib/mail-text";
 import { RTL_LANGUAGES, type NoteContent } from "@/lib/db/schema";
 import { formatCalendarDate, resolveZone } from "@/lib/scheduling/tz";
 import type { Words } from "@/lib/i18n/message-words";
@@ -100,6 +101,12 @@ async function send(opts: {
     return false;
   }
   try {
+    /*
+     * 🔴 Board 641: the text part, with the entities `esc` wrote turned back
+     * into characters. Left to the provider or to a reader, "Helio Health's"
+     * came out as "Helio Health&#39;s".
+     */
+    const text = htmlToText(opts.html);
     const { error } = await mailer.emails.send({
       from: env.emailFrom,
       to: opts.to,
@@ -107,6 +114,7 @@ async function send(opts: {
       ...(opts.attachments ? { attachments: opts.attachments } : {}),
       subject: opts.subject,
       html: opts.html,
+      text,
     });
     if (error) {
       log.warn("email send rejected", { reason: String(error.message ?? "unknown") });

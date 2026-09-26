@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { PartnerManagerList } from "@/components/admin/partner-manager";
 import { requireRole } from "@/lib/auth/guard";
-import { allPartners, keyCountFor, partnerUsersFor } from "@/lib/data/partner-admin";
+import { allPartners, keyCountFor, partnerUsersFor, practicesFor } from "@/lib/data/partner-admin";
 import { getI18n } from "@/lib/i18n/server";
 import { closedMonthBill } from "@/lib/partner/billing";
 
@@ -26,9 +26,11 @@ export default async function AdminPartnersPage() {
 
   const rows = await Promise.all(
     partners.map(async (partner) => {
-      const [keyCount, users] = await Promise.all([
+      const [keyCount, users, practices] = await Promise.all([
         keyCountFor(partner.id),
         partnerUsersFor(partner.id),
+        /* Board 611: the practices on their bill, which their live key can reach. */
+        practicesFor(partner.id),
       ]);
 
       return {
@@ -44,6 +46,7 @@ export default async function AdminPartnersPage() {
         approvedAt: partner.approvedAt?.toISOString() ?? null,
         keyCount,
         users,
+        practices,
       };
     }),
   );

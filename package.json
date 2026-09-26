@@ -238,6 +238,8 @@
     "test:support-thread": "node --env-file-if-exists=.env.local --import tsx --test tests/support-thread.test.ts",
     "test:partner-consent": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/partner-consent.test.ts",
     "test:partner-webhooks": "node --env-file-if-exists=.env.local --import tsx --test tests/partner-webhooks.test.ts",
+    "test:partner-console": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/partner-console.test.ts",
+    "test:partner-doors": "node --import tsx --test tests/partner-doors.test.ts",
     "test:admin-access": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/admin-access.test.ts",
     "test:staff-2fa": "node --env-file-if-exists=.env.local --import tsx --test tests/staff-2fa.test.ts",
     "verify:staff-2fa": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-staff-2fa.ts",

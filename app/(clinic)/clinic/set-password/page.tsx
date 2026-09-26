@@ -43,8 +43,16 @@ export default async function ClinicSetPasswordPage({
   }
 
   return (
-    <QuietAuthShell title={t("tauth.chooseNew")} subtitle={`${view.clinicName} · ${view.email}`}>
-      <ClinicSetPasswordForm token={token} />
+    /*
+     * 🔴 Board ORG CL8.3: an invitation is a FIRST password, and a new member
+     * asked to choose a "new" one wonders what the old one was. The words
+     * follow the link's purpose, as `/welcome`'s do.
+     */
+    <QuietAuthShell
+      title={t(view.purpose === "invite" ? "welcome.firstTitle" : "tauth.chooseNew")}
+      subtitle={`${view.clinicName} · ${view.email}`}
+    >
+      <ClinicSetPasswordForm token={token} first={view.purpose === "invite"} />
     </QuietAuthShell>
   );
 }

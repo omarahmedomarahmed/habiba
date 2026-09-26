@@ -10,6 +10,7 @@
  */
 import { sql } from "drizzle-orm";
 
+import { decodeEntities, htmlToText } from "../lib/mail-text";
 import { connect } from "./db";
 
 async function main() {
@@ -29,8 +30,9 @@ async function main() {
   }[];
   if (rows.length === 0) console.log(`nothing for ${who}`);
   for (const r of rows) {
-    const text = r.body.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
-    const links = [...new Set([...r.body.matchAll(/https?:\/\/[^\s"'<>]+/g)].map((m) => m[0].replace(/&amp;/g, "&")))];
+    /* Board 641: the text a reader sees, entities decoded, as the mail's own text part is. */
+    const text = htmlToText(r.body).replace(/\s+/g, " ");
+    const links = [...new Set([...r.body.matchAll(/https?:\/\/[^\s"'<>]+/g)].map((m) => decodeEntities(m[0])))];
     const codes = [...new Set([...text.matchAll(/\b\d{6}\b/g)].map((m) => m[0]))];
     console.log(`\n${new Date(r.created_at).toISOString()}  ${r.channel}  ${r.kind ?? ""}`);
     console.log(`  subject: ${r.subject ?? ""}`);
