@@ -41,6 +41,7 @@ export function DocumentPanel({
       ) : null}
 
       <DocumentList
+        reader="clinician"
         zone={zone}
         documents={documents}
         watermark={watermark}

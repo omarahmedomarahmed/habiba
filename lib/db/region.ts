@@ -147,6 +147,28 @@ export function regionPins(): { where: string; reason: string }[] {
 }
 
 /**
+ * 🔴 Board 569: WHERE THIS PERSON'S HOME IS, FROM WHAT WE KNOW, OR NULL.
+ *
+ * `people.region` defaults to "us" and nothing sets it yet, so an Egyptian
+ * patient (+20) read "In the United States, where it belongs. Nothing crosses
+ * a border." The column is only evidence when it says something other than
+ * its default. Otherwise the country they pay from and their phone's calling
+ * code decide, and with neither we do not know, and the page must not claim to.
+ */
+export function homeRegionOf(input: {
+  stored: string | null | undefined;
+  phone: string | null | undefined;
+  country: string | null | undefined;
+}): Region | null {
+  if (isRegion(input.stored) && input.stored !== DEFAULT_REGION) return input.stored;
+  const country = input.country?.trim().toUpperCase() ?? "";
+  const phone = input.phone?.replace(/[^\d+]/g, "") ?? "";
+  if (country === "EG" || phone.startsWith("+20")) return "eg";
+  if (country === "US" || phone.startsWith("+1")) return "us";
+  return null;
+}
+
+/**
  * Does serving `homeRegion` from where it is actually served cross a border?
  *
  * The question the consent screen asks, in one function, so the screen and the

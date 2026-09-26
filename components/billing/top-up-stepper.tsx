@@ -35,6 +35,7 @@ export function TopUpStepper({
   steps,
   onConfirm,
   onChoose,
+  onStep,
 }: {
   steps: PotStep[];
   /** Rendered under the summary. Receives the chosen credit, in USD cents. */
@@ -52,6 +53,8 @@ export function TopUpStepper({
    * means it once.
    */
   onChoose?: (creditCents: number) => Promise<void>;
+  /** 🔴 Board 475: the rung on screen, so the sheet's header can say the same figure. */
+  onStep?: (step: PotStep, index: number) => void;
 }) {
   const t = useT();
   const [i, setI] = useState(0);
@@ -74,6 +77,9 @@ export function TopUpStepper({
    * the payment: the sheet in front of them still works.
    */
   const chosen = steps[Math.min(i, Math.max(0, steps.length - 1))];
+  useEffect(() => {
+    if (chosen) onStep?.(chosen, i);
+  }, [chosen, i, onStep]);
   useEffect(() => {
     if (!onChoose || !chosen || !moved) return;
     const timer = setTimeout(() => void onChoose(chosen.creditCents).catch(() => undefined), 700);

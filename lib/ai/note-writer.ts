@@ -31,7 +31,7 @@ import { MODELS, openai, parseJson } from "./client";
  * it silently, with an eval suite reporting a number about code nobody runs.
  */
 
-const SYSTEM_PROMPT = `RULE THAT OVERRIDES EVERYTHING BELOW: the note describes THIS SESSION. Anything under "KNOWN BEFORE THIS SESSION" is background, not evidence: it may not go in the note on its own authority, and you must not name a diagnosis it implies. Where the transcript disagrees with it, the transcript is what happened and the background is out of date - follow the transcript and note the change in "assessment". Where the transcript says the same thing, write it from the transcript: background must never make you leave out what the session covered.
+const SYSTEM_PROMPT = `RULE THAT OVERRIDES EVERYTHING BELOW: the note describes THIS SESSION. Anything under "KNOWN BEFORE THIS SESSION" is background, not evidence: it may not go in the note on its own authority, and you must not name a diagnosis it implies. Where the transcript disagrees with it, the transcript is what happened and the background is out of date - follow the transcript and note the change in "assessment". When there is no such section, there is no previous record: never mention one, never say what would differ from one, and never write a sentence that depends on history you were not given. Where the transcript says the same thing, write it from the transcript: background must never make you leave out what the session covered.
 
 You are a clinical documentation assistant for a licensed psychotherapist.
 
@@ -44,7 +44,7 @@ Rules:
 - Never address the patient. Never include advice written to the patient.
 - Refer to the person as "the patient". Do not use any name, even if one appears in the transcript.
 - If the transcript contains language suggesting risk of harm to self or others, say so plainly in "assessment" and in "impressions".
-- 🔴 A section headed "KNOWN BEFORE THIS SESSION" is BACKGROUND, not evidence. Nothing in it may be written into the note as something observed, said or agreed today. If the transcript does not support it, it does not go in the note. Where the transcript contradicts it, follow the transcript and say in "assessment" that it differs from what was on record.
+- 🔴 A section headed "KNOWN BEFORE THIS SESSION" is BACKGROUND, not evidence. Nothing in it may be written into the note as something observed, said or agreed today. If the transcript does not support it, it does not go in the note. Where the transcript contradicts a specific item in it, follow the transcript and say in "assessment" that it differs from what was on record. If that section is absent, or nothing in it is contradicted, say nothing about previous records at all: no hedge, no conditional, no "if it did not mention".
 - Lines marked "Speaker" come from a single microphone in a shared room and are not attributed. Work out from context who is speaking, the clinician asks, reflects and summarises; the patient discloses and describes their own experience, and attribute correctly in your write-up. Where a line is genuinely ambiguous, do not guess in a way that changes clinical meaning.
 
 LANGUAGE
@@ -152,7 +152,16 @@ export async function noteFromTranscript(input: {
     "note-generation",
   );
 
-  const content = normaliseNote(raw, input.format);
+  const normalised = normaliseNote(raw, input.format);
+  /*
+   * 🔴 Board 462: a first session's Assessment read "This differs from any
+   * previous record if it did not mention work-related stress". With no
+   * background in the context there is no record to differ from, so a sentence
+   * about one is the prompt's rule leaking into the note, and it goes.
+   */
+  const content = input.context.includes(BACKGROUND_HEADING)
+    ? normalised
+    : withoutAbsentHistory(normalised);
 
   return {
     content,
@@ -162,6 +171,50 @@ export async function noteFromTranscript(input: {
     model: MODELS.note,
     inputTokens: completion.usage?.prompt_tokens ?? 0,
     outputTokens: completion.usage?.completion_tokens ?? 0,
+  };
+}
+
+/** The heading `lib/clinical/context.ts` puts over what was known before. */
+const BACKGROUND_HEADING = "KNOWN BEFORE THIS SESSION";
+
+/**
+ * A sentence about a record the model was never given: "differs from any
+ * previous record", "if it did not mention", "no prior record", and the Arabic
+ * of the same. Narrow on purpose: a patient's own "my last therapist" is
+ * content, a note hedging about our record is not.
+ */
+const ABSENT_HISTORY =
+  /\b(?:previous|prior|earlier|any)\s+(?:clinical\s+)?records?\b|\bon record\b|\bif it did not mention\b|السجل السابق|سجل سابق|السجلات السابقة|ما هو مسجل سابق/i;
+
+/** Board 462: the note with every sentence about an absent record removed. */
+export function withoutAbsentHistory(note: NoteContent): NoteContent {
+  const clean = (text: string): string => {
+    if (!ABSENT_HISTORY.test(text)) return text;
+    const sentences = text.match(/[^.!?؟\n]+[.!?؟]*\s*|\n/g) ?? [text];
+    return sentences
+      .filter((sentence) => !ABSENT_HISTORY.test(sentence))
+      .join("")
+      .replace(/[ \t]+\n/g, "\n")
+      .trim();
+  };
+  const list = (items: string[]) => items.map(clean).filter(Boolean);
+  return {
+    ...note,
+    soap: {
+      subjective: clean(note.soap.subjective),
+      objective: clean(note.soap.objective),
+      assessment: clean(note.soap.assessment),
+      plan: clean(note.soap.plan),
+    },
+    ...(note.sections
+      ? { sections: note.sections.map((section) => ({ ...section, text: clean(section.text) })) }
+      : {}),
+    summary: clean(note.summary),
+    talkingPoints: list(note.talkingPoints),
+    observations: clean(note.observations),
+    impressions: clean(note.impressions),
+    recommendations: list(note.recommendations),
+    followUp: clean(note.followUp),
   };
 }
 

@@ -24,6 +24,7 @@ import { wordsFor } from "@/lib/i18n/message-words";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
+import { ticketAudience } from "@/lib/data/ticket-audience";
 import { callerKey, consume, globalCeiling } from "@/lib/rate-limit";
 
 /*
@@ -98,6 +99,18 @@ export type TicketInput = {
 export type TicketResult =
   | { ok: true; reference: string; dueAt: Date; id: string }
   | { ok: false; error: string };
+
+/** Whether an address belongs to a clinician, a partner developer, a practice manager or a company user. */
+async function professionalSender(email: string | null): Promise<boolean> {
+  if (!email) return false;
+  const found = await controlDb.execute<{ hit: number }>(sql`
+    SELECT 1 AS hit FROM users WHERE lower(email) = ${email} AND role = 'therapist'
+    UNION ALL SELECT 1 FROM partner_users WHERE lower(email) = ${email} AND deleted_at IS NULL
+    UNION ALL SELECT 1 FROM clinic_managers WHERE lower(email) = ${email}
+    UNION ALL SELECT 1 FROM sponsor_users WHERE lower(email) = ${email} AND deleted_at IS NULL
+    LIMIT 1`);
+  return found.rows.length > 0;
+}
 
 /**
  * A short reference a person can quote back. Not a UUID.
@@ -192,7 +205,7 @@ export async function fileTicket(input: TicketInput): Promise<TicketResult> {
       name: name.slice(0, 120),
       email,
       phone,
-      audience: input.audience ?? "patient",
+      audience: input.audience ?? ticketAudience(topic, await professionalSender(email)),
       patientAccountId: input.patientAccountId ?? null,
       userId: input.userId ?? null,
       relatedSessionId: input.relatedSessionId ?? null,

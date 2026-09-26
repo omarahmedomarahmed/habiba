@@ -231,3 +231,27 @@ test("W2-T04 a draft can be written again from the transcript after corrections"
   const review = readFileSync("components/session/note-review.tsx", "utf8");
   assert.match(review, /props\.canRedraft/, "the editor offers it on a draft, not only after a failure");
 });
+
+/* ---------------------------------------------------------------- board 462 -- */
+
+test("board 462 a first session's note says nothing about a previous record it was never given", async () => {
+  const { withoutAbsentHistory } = await writer();
+  const note = emptyContent(SOAP);
+  note.soap.assessment =
+    "The patient presented with work-related stress and poor sleep. This differs from any previous record if it did not mention work-related stress or sleep issues. Mood appeared low.";
+  note.impressions = "Provisional: stress response.";
+  const cleaned = withoutAbsentHistory(note);
+  assert.equal(
+    cleaned.soap.assessment,
+    "The patient presented with work-related stress and poor sleep. Mood appeared low.",
+  );
+  assert.equal(cleaned.impressions, "Provisional: stress response.");
+
+  const arabic = emptyContent(SOAP);
+  arabic.soap.assessment = "أفاد المريض بضغط في العمل. يختلف هذا عن السجل السابق إن وجد. بدا المزاج منخفضًا.";
+  assert.equal(withoutAbsentHistory(arabic).soap.assessment, "أفاد المريض بضغط في العمل. بدا المزاج منخفضًا.");
+
+  const source = readFileSync("lib/ai/note-writer.ts", "utf8");
+  assert.match(source, /When there is no such section, there is no previous record/);
+  assert.match(source, /input\.context\.includes\(BACKGROUND_HEADING\)/);
+});

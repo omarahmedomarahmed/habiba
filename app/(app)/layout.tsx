@@ -62,15 +62,27 @@ export default async function AppLayout({
    */
   const { orgKindOf } = await import("@/lib/data/org-kind");
   const { mayRunOrgAccount } = await import("@/lib/auth/org-authority");
-  const pending = mayRunOrgAccount(await orgKindOf(actor.organizationId))
-    ? await pendingPaymentFor(
-        { kind: "organization", organizationId: actor.organizationId },
-        t,
-        localeTag(locale),
-      )
-    : null;
+  /*
+   * 🔴 Board 464 (B40 class): one round of reads, not four in a row. The bill in
+   * flight, the four below and the practice link each waited for the one before,
+   * on every clinician page, before the page itself started.
+   */
+  const pendingFor = async () =>
+    mayRunOrgAccount(await orgKindOf(actor.organizationId))
+      ? pendingPaymentFor(
+          { kind: "organization", organizationId: actor.organizationId },
+          t,
+          localeTag(locale),
+        )
+      : null;
 
-  const [radar, [me], state, licence] = await Promise.all([
+  const [pending, [linked], radar, [me], state, licence] = await Promise.all([
+    pendingFor(),
+    db
+      .select({ id: clinicManagers.id })
+      .from(clinicManagers)
+      .where(and(eq(clinicManagers.linkedUserId, actor.userId), isNull(clinicManagers.deletedAt)))
+      .limit(1),
     getRadarProfile(actor.userId),
     db
       .select({
@@ -94,11 +106,6 @@ export default async function AppLayout({
    * `lib/data/clinic-team.ts` without pulling the permission writer into every
    * clinician page render.
    */
-  const [linked] = await db
-    .select({ id: clinicManagers.id })
-    .from(clinicManagers)
-    .where(and(eq(clinicManagers.linkedUserId, actor.userId), isNull(clinicManagers.deletedAt)))
-    .limit(1);
   const clinicManagerId = linked?.id ?? null;
 
   const cleared = isCleared(actor, state);

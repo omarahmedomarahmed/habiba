@@ -30,6 +30,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
+import { stripComments } from "./_dashes";
 
 const { check, finish } = reporter();
 
@@ -576,6 +577,25 @@ async function main() {
     "56.9 …and the band exists for the clinician's screen, reached on purpose",
     bandFor({ bands: phq9.bands } as never, 19) === "Moderately severe",
     "bandFor(19) on PHQ-9",
+  );
+
+  /*
+   * 🔴 Board 503: production had no published instrument, so no questionnaire
+   * could be sent. The settings seed (prebuild, and `settings:seed` by hand)
+   * seeds and publishes the shipped free English instruments now.
+   */
+  const settingsSource = stripComments(readSource("scripts/settings.ts"));
+  const seedBody = settingsSource.slice(settingsSource.indexOf("async function seed("));
+  check(
+    "🔴 Board 503 the settings seed, which prebuild runs on every deploy, seeds and publishes the shipped questionnaires",
+    /await seedShippedInstruments\(db\)/.test(seedBody.slice(0, seedBody.indexOf("\n}"))) &&
+      /settings\.ts seed/.test(readSource("package.json").match(/"prebuild": "[^"]+"/)?.[0] ?? ""),
+    "they were only ever made by the capture seed, which never runs on production",
+  );
+  check(
+    "Board 503 …and it publishes only what publishInstrument would: free, and English or a reviewed translation",
+    /row\.licence === "public_domain" \|\| row\.licence === "free_with_attribution"/.test(settingsSource) &&
+      /locales\.every\(\(locale\) => locale === "en"\) \|\| Boolean\(row\.reviewedBy\)/.test(settingsSource),
   );
 
   finish("sprint 56");

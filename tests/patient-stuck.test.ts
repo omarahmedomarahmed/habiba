@@ -329,3 +329,41 @@ test("W2-P04 every self-booking door hands the signed-in person to the data laye
     assert.doesNotMatch(code(file), /formData\.get\("personId"\)|input\.personId/);
   }
 });
+
+/*
+ * Board 480: the Arabic consent page read "Asked on" in English, "أوقفته" named
+ * a woman clinician as a man, and Stop ended access on the first press.
+ * Board 463: the clinician's speaker buttons were colloquial and assumed a man.
+ */
+test("board 480 / 463 consent and speaker wording is translated, formal and gender-neutral, and Stop asks first", async () => {
+  const source = readFileSync("components/patient/consent-list.tsx", "utf8");
+  assert.doesNotMatch(source, />\s*Asked on /);
+  assert.match(source, /setConfirming\(true\)/);
+  assert.match(source, /t\("consent\.stopConfirm"/);
+  const { translator } = await import("../lib/i18n/server");
+  const ar = translator("ar");
+  assert.equal(ar("consent.askedOn", { date: "x" }), "طُلب في x");
+  assert.doesNotMatch(ar("consent.youEnded", { date: "x" }), /أوقفته/);
+  for (const key of ["tattr.you", "tattr.them", "tattr.unsure", "tattr.blurb", "tattr.oneMic"] as const) {
+    assert.doesNotMatch(ar(key), /إنت|مش |مين اللي|إحنا|بنسيب|بنستنتج|^هو$/, key);
+  }
+});
+
+/* Board 504: the clinician's documents page told the clinician "Documents your therapist adds...". */
+test("board 504 the clinician's empty documents list speaks to the clinician", () => {
+  assert.match(readFileSync("components/documents/document-panel.tsx", "utf8"), /reader="clinician"/);
+  assert.match(readFileSync("components/documents/document-list.tsx", "utf8"), /reader === "clinician" \? "tdocs\.empty"/);
+});
+
+/*
+ * Board 567: on the Arabic patient home, pressing English disabled both buttons
+ * for 20 seconds and the page stayed Arabic. The switch was a cookie-setting
+ * server action (which re-renders the page by itself) and then a refresh, so a
+ * slow page rendered twice with both buttons locked.
+ */
+test("board 567 the language switch writes its cookie in the browser, renders once, and never locks its buttons", () => {
+  const source = readFileSync("components/i18n/language-switch.tsx", "utf8");
+  assert.doesNotMatch(source, /await setLocale\(/, "no server action round trip before the refresh");
+  assert.match(source, /document\.cookie = `\$\{LOCALE_COOKIE\}=/);
+  assert.doesNotMatch(source, /disabled=\{pending\}/, "a slow page must not leave nothing to press");
+});

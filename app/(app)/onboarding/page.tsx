@@ -163,6 +163,7 @@ export default async function OnboardingPage() {
           state={verification.state}
           missing={missing}
           reviewNote={verification.reviewNote}
+          documentsCleared={Boolean(verification.documentsClearedAt)}
           initial={{
             country: verification.country ?? "",
             licenseBody: verification.licenseBody ?? "",

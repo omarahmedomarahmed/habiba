@@ -468,6 +468,43 @@ async function main() {
       "K18 CONTROL: a person with no account is not addressed as if they had an app",
       !told18.some((row) => row.personId === f!.q),
     );
+    /* Board 500 / 518: a drafted step pressed twice reached the patient twice. */
+    {
+      const { assignStep } = await import("../lib/data/homework");
+      const { homeworkItems } = await import("../lib/db/schema");
+      const draftedFrom = await session(f.t1, f.t1p);
+      const actor = { userId: f.t1, organizationId: f.orgId, role: "owner" } as unknown as Parameters<
+        typeof assignStep
+      >[0]["actor"];
+      const step = { actor, personId: f.p, sessionId: draftedFrom, title: "Phone charges outside the bedroom", source: "drafted" as const };
+      const first = await assignStep(step);
+      const second = await assignStep({ ...step, title: " Phone charges outside the bedroom " });
+      const typedA = await assignStep({ actor, personId: f.p, title: "Write down one worry" });
+      const typedB = await assignStep({ actor, personId: f.p, title: "Write down one worry" });
+      const rows = await db
+        .select({ title: homeworkItems.title })
+        .from(homeworkItems)
+        .where(eq(homeworkItems.personId, f.p));
+      const count = (title: string) => rows.filter((row) => row.title === title).length;
+      check(
+        "🔴 Board 500 a drafted step set twice from the same note is one step, and the second press says it is set",
+        first.ok && second.ok && second.already === true && count("Phone charges outside the bedroom") === 1,
+        `${count("Phone charges outside the bedroom")} rows; second ${JSON.stringify(second)}`,
+      );
+      check(
+        "Board 518 …and a typed step pressed twice while open is one step too",
+        typedA.ok && typedB.ok && count("Write down one worry") === 1,
+        `${count("Write down one worry")} rows`,
+      );
+      const sourceHw = stripComments(readSource("components/homework/clinician-homework.tsx"));
+      check(
+        "Board 500 / 518 the clinician's panel sends the drafted step's session and reads the list again after Set it",
+        /sessionId: input\.fromDraft \? \(draftSessionId/.test(sourceHw) && /router\.refresh\(\)/.test(sourceHw),
+        "a drafted step was set with no session, so it never read as set",
+      );
+      await db.delete(homeworkItems).where(eq(homeworkItems.personId, f.p));
+    }
+
     const { existsSync } = await import("node:fs");
     const stale: string[] = [];
     for (const file of [

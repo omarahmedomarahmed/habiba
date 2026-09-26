@@ -231,7 +231,9 @@ export async function listHomework(personId: string): Promise<HomeworkItem[]> {
     .limit(100);
 }
 
-export type AssignResult = { ok: true; itemId: string } | { ok: false; error: string };
+export type AssignResult =
+  | { ok: true; itemId: string; already?: boolean }
+  | { ok: false; error: string };
 
 /**
  * A clinician sets a step. 9.5.
@@ -253,6 +255,30 @@ export async function assignStep(input: {
   const title = input.title.trim();
   if (!title) return { ok: false, error: "Write the step itself." };
   if (title.length > 200) return { ok: false, error: "Keep the step to a sentence." };
+
+  /*
+   * 🔴 Board 500 / 518: THE SAME STEP IS NEVER SET TWICE.
+   *
+   * A drafted step pressed twice (the list had not refreshed, so the clinician
+   * pressed again) reached the patient twice. A drafted step is one per session
+   * and title, whatever became of the first; a typed one is one per open title,
+   * so a double press cannot put the same open task on somebody's screen twice.
+   * The second press answers with the step already set, and nothing is written.
+   */
+  const [existing] = await db
+    .select({ id: homeworkItems.id })
+    .from(homeworkItems)
+    .where(
+      and(
+        eq(homeworkItems.personId, input.personId),
+        sql`btrim(${homeworkItems.title}) = ${title}`,
+        input.source === "drafted" && input.sessionId
+          ? eq(homeworkItems.sessionId, input.sessionId)
+          : eq(homeworkItems.status, "open"),
+      ),
+    )
+    .limit(1);
+  if (existing) return { ok: true, itemId: existing.id, already: true };
 
   const [item] = await db
     .insert(homeworkItems)

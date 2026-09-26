@@ -4,7 +4,16 @@ import { and, desc, eq, ne, sql } from "drizzle-orm";
 
 /* Operator records about money, on the control plane like the transfer queue. */
 import { controlDb as db } from "@/lib/db";
-import { pendingApprovals, users, type PendingApprovalKind } from "@/lib/db/schema";
+import {
+  LEDGER_ACCOUNTS,
+  pendingApprovals,
+  users,
+  type LedgerAccount,
+  type PendingApprovalKind,
+} from "@/lib/db/schema";
+import type { EffectRow } from "@/lib/billing/adjust-effect";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * 🔴 0161 / ruling 13c — THE TWO ACTS THAT KEEP TWO PEOPLE.
@@ -181,6 +190,45 @@ export async function approvalViews(kind: PendingApprovalKind, readerUserId: str
       : [];
   const money = (minor: number, currency: string) =>
     `${currency.toUpperCase()} ${(minor / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  /*
+   * 🔴 Board 593: the second person saw "therapist_payable USD 2.00" and
+   * completed it; nothing said the $2 would come OFF the clinician's balance.
+   * A hand adjustment now carries its balances before and after, and the names
+   * they belong to, so the card states the effect in words.
+   */
+  const adjustments = new Map<string, { effect: EffectRow[]; clinician: string | null; org: string | null }>();
+  if (kind === "ledger_adjustment") {
+    const { adjustmentSums } = await import("@/lib/billing/ledger");
+    const { adjustmentEffect } = await import("@/lib/billing/adjust-effect");
+    const { organizations } = await import("@/lib/db/schema");
+    for (const r of rows) {
+      const account = String(r.payload.account ?? "") as LedgerAccount;
+      const organizationId = String(r.payload.organizationId ?? "");
+      const therapistId = typeof r.payload.therapistId === "string" ? r.payload.therapistId : null;
+      if (!LEDGER_ACCOUNTS.includes(account) || !UUID.test(organizationId)) continue;
+      const [org] = await db
+        .select({ name: organizations.name })
+        .from(organizations)
+        .where(eq(organizations.id, organizationId))
+        .limit(1);
+      const [who] = therapistId && UUID.test(therapistId)
+        ? await db
+            .select({ f: users.firstName, l: users.lastName })
+            .from(users)
+            .where(eq(users.id, therapistId))
+            .limit(1)
+        : [];
+      adjustments.set(r.id, {
+        effect: adjustmentEffect({
+          account,
+          ledgerCents: Number(r.payload.amountCents ?? 0),
+          sums: await adjustmentSums({ organizationId, therapistId, account }),
+        }),
+        clinician: who ? `${who.f} ${who.l}`.trim() : null,
+        org: org?.name ?? null,
+      });
+    }
+  }
   return rows.map((r) => {
     const payment = payments.find((p) => p.id === r.subjectId);
     const what =
@@ -198,6 +246,7 @@ export async function approvalViews(kind: PendingApprovalKind, readerUserId: str
       reason: r.reason,
       askedByName: r.askedByName?.trim() || "Another admin",
       mine: r.askedBy === readerUserId,
+      adjustment: adjustments.get(r.id) ?? null,
     };
   });
 }

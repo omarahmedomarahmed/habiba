@@ -5,13 +5,16 @@ import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
 import { requireRole, requireStaff } from "@/lib/auth/guard";
 import type { LedgerAccount } from "@/lib/db/schema";
+import type { EffectRow } from "@/lib/billing/adjust-effect";
 
 /**
  * 🔴 0161 / ruling 13c — a second person completes or declines what a first
  * person asked. Completing re-runs the same action, which finds the open
  * request and carries out its stored act; nothing is read from this form.
  */
-export async function completeApproval(id: string): Promise<{ error?: string; ok?: string }> {
+export async function completeApproval(
+  id: string,
+): Promise<{ error?: string; ok?: string; effect?: EffectRow[] }> {
   const { approvalById } = await import("@/lib/billing/approvals");
   const row = await approvalById(id);
   if (!row || row.state !== "asked") return { error: "That request has already been decided." };
@@ -46,7 +49,8 @@ export async function completeApproval(id: string): Promise<{ error?: string; ok
     reason: row.reason,
     idempotencyKey: String(p.idempotencyKey ?? ""),
   });
-  return result.error ? { error: result.error } : { ok: "Posted." };
+  /* 🔴 Board 593: what moved, so the card can say so after the row has gone. */
+  return result.error ? { error: result.error } : { ok: "Posted.", effect: result.effect };
 }
 
 export async function declineApproval(id: string): Promise<{ error?: string; ok?: string }> {

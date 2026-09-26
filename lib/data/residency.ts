@@ -5,7 +5,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { controlDb } from "@/lib/db";
 import { crossBorderConsents, people } from "@/lib/db/schema";
 import {
-  crossesBorder,
+  homeRegionOf,
   DEFAULT_REGION,
   isRegion,
   regionLabel,
@@ -50,8 +50,11 @@ import {
  * Cairo went live, and somebody would agree to a transfer that was no longer
  * happening.
  */
-export function consentWording(home: Region, locale: string): string {
-  const serving = regionStatus(home).servedFrom;
+export function consentWording(
+  home: Region,
+  locale: string,
+  serving: Region = regionStatus(home).servedFrom,
+): string {
   /* C150 — the locale is a parameter, all the way down to the country name. */
   const here = regionLabel(home, locale);
   const there = regionLabel(serving, locale);
@@ -75,7 +78,8 @@ export function consentWording(home: Region, locale: string): string {
 }
 
 export type ResidencyState = {
-  homeRegion: Region;
+  /** Null when nothing we hold says which country they live in. */
+  homeRegion: Region | null;
   servingRegion: Region;
   /** True when the record is not in the country it belongs to. */
   crosses: boolean;
@@ -86,16 +90,23 @@ export type ResidencyState = {
 
 export async function residencyFor(personId: string, locale: string): Promise<ResidencyState> {
   const [person] = await controlDb
-    .select({ region: people.region })
+    .select({ region: people.region, phone: people.phone, country: people.preferredCountry })
     .from(people)
     .where(eq(people.id, personId))
     .limit(1);
 
-  const homeRegion = isRegion(person?.region) ? person.region : DEFAULT_REGION;
-  const servingRegion = regionStatus(homeRegion).servedFrom;
-  const crosses = crossesBorder(homeRegion);
+  /*
+   * 🔴 Board 569: the serving region is where the record IS (its stored region's
+   * database), and the home is what we know about the person, which may be
+   * nothing. An Egyptian patient whose row still carries the column's default
+   * was told her record sat in the United States "where it belongs".
+   */
+  const stored = isRegion(person?.region) ? person.region : DEFAULT_REGION;
+  const servingRegion = regionStatus(stored).servedFrom;
+  const homeRegion = homeRegionOf({ stored, phone: person?.phone, country: person?.country });
+  const crosses = homeRegion !== null && homeRegion !== servingRegion;
 
-  if (!crosses) {
+  if (!crosses || homeRegion === null) {
     return { homeRegion, servingRegion, crosses, agreedAt: null, wording: null };
   }
 
@@ -126,7 +137,7 @@ export async function residencyFor(personId: string, locale: string): Promise<Re
     servingRegion,
     crosses,
     agreedAt: agreed?.agreedAt ?? null,
-    wording: consentWording(homeRegion, locale),
+    wording: consentWording(homeRegion, locale, servingRegion),
   };
 }
 
@@ -157,7 +168,7 @@ export async function recordCrossBorderConsent(input: {
 
   await controlDb.insert(crossBorderConsents).values({
     personId: input.personId,
-    homeRegion: state.homeRegion,
+    homeRegion: state.homeRegion!,
     servingRegion: state.servingRegion,
     wording: state.wording!,
     locale: input.locale,

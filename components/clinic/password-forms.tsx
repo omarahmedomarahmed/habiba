@@ -74,14 +74,18 @@ export function ClinicForgotForm() {
 }
 
 /** 🔴 W2-C04 / W2-C05: choose your own password, from an invitation or a reset. */
-export function ClinicSetPasswordForm({ token }: { token: string }) {
+export function ClinicSetPasswordForm({ token, first = false }: { token: string; first?: boolean }) {
   const t = useT();
   const [state, action] = useActionState(setPassword, {});
 
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="token" value={token} />
-      <Field label={t("tauth.newPassword")} htmlFor="clinic-new-password" hint={t("tauth.passwordHint")}>
+      <Field
+        label={t(first ? "welcome.password" : "tauth.newPassword")}
+        htmlFor="clinic-new-password"
+        hint={t("tauth.passwordHint")}
+      >
         <Input
           id="clinic-new-password"
           name="password"
@@ -95,7 +99,7 @@ export function ClinicSetPasswordForm({ token }: { token: string }) {
           {state.error}
         </p>
       ) : null}
-      <Submit label={t("tauth.updatePassword")} />
+      <Submit label={t(first ? "welcome.save" : "tauth.updatePassword")} />
     </form>
   );
 }

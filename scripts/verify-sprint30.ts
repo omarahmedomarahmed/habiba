@@ -19,7 +19,7 @@
  */
 import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 
 import { controlDb, dbFor } from "../lib/db";
 import { crossBorderConsents, organizations, patients, people, users } from "../lib/db/schema";
@@ -347,6 +347,39 @@ async function main() {
     );
 
     await controlDb.delete(people).where(eq(people.id, local!.id));
+
+    /*
+     * 🔴 Board 569: an Egyptian (+20) whose row still carries the column's default
+     * "us" was told her record was in the United States "where it belongs".
+     */
+    const [layla] = await controlDb
+      .insert(people)
+      .values({ firstName: `${TAG}-Layla`, phone: "+201555000569" })
+      .returning({ id: people.id });
+    const [unknown] = await controlDb
+      .insert(people)
+      .values({ firstName: `${TAG}-Nobody` })
+      .returning({ id: people.id });
+    const egyptian = await residencyFor(layla!.id, "ar");
+    const nobody = await residencyFor(unknown!.id, "en");
+    check(
+      "🔴 Board 569 an Egyptian number on a default-region row is an Egyptian record, and crossing to the United States is said and asked",
+      egyptian.homeRegion === "eg" &&
+        egyptian.crosses === (egyptian.servingRegion !== "eg") &&
+        (egyptian.servingRegion === "eg" || (egyptian.wording ?? "").includes("مصر")),
+      `${egyptian.homeRegion} served from ${egyptian.servingRegion}`,
+    );
+    check(
+      "Board 569 …and somebody whose country we do not know is claimed to be home nowhere",
+      nobody.homeRegion === null && nobody.crosses === false,
+      `${nobody.homeRegion}`,
+    );
+    const residencyCopy = readSource("lib/i18n/messages.ts");
+    check(
+      "Board 569 no residency sentence says the record is where it belongs or that nothing crosses a border",
+      !/where it belongs|Nothing crosses a border|حيث ينبغي|ولا شيء يعبر/.test(residencyCopy),
+    );
+    await controlDb.delete(people).where(inArray(people.id, [layla!.id, unknown!.id]));
   } finally {
     if (patientId) await controlDb.delete(patients).where(eq(patients.id, patientId));
     if (personId) {

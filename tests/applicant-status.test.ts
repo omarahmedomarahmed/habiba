@@ -38,3 +38,11 @@ test("CONTROL: an approved clinician updates a renewed licence through review (W
   const page = readFileSync("app/(app)/onboarding/page.tsx", "utf8");
   assert.match(page, /<LicenceChangeForm/);
 });
+
+/* Board 562: after the second rejection the red card said only "Fix what is above", over four empty slots. */
+test("board 562 the rejection card says the documents were deleted when they were", () => {
+  const form = readFileSync("components/onboarding/verification-form.tsx", "utf8");
+  const page = readFileSync("app/(app)/onboarding/page.tsx", "utf8");
+  assert.match(form, /documentsCleared \? "tver\.rejectedCleared" : "tver\.rejectedBody"/);
+  assert.match(page, /documentsCleared=\{Boolean\(verification\.documentsClearedAt\)\}/);
+});

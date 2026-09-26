@@ -4,8 +4,7 @@ import { useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Languages } from "lucide-react";
 
-import { setLocale } from "@/app/actions/locale";
-import { LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/config";
+import { LOCALE_COOKIE, LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/config";
 import { useLocale } from "@/lib/i18n/client";
 import { isLocalisable, localisedPath } from "@/lib/i18n/paths";
 import { cn } from "@/lib/utils";
@@ -69,14 +68,24 @@ export function LanguageSwitch({
 
   const here = pathname ?? routerPath ?? "/";
 
-  const choose = (next: Locale) =>
-    startTransition(async () => {
-      /* The cookie is still the preference, and it is set either way: a reader
-         who chose Arabic on a public page stays in Arabic when they sign in. */
-      await setLocale(next);
+  /*
+   * 🔴 Board 567: the cookie is written HERE, in the browser, and the page is
+   * rendered once. It was a server action and then a refresh: a server action
+   * that sets a cookie already re-renders the page it was called from, so the
+   * refresh rendered the patient home a second time, and both buttons sat
+   * disabled for twenty seconds while a slow page rendered twice. The cookie is
+   * not httpOnly (the server only reads it), so the browser may write it. It is
+   * still the preference either way: a reader who chose Arabic on a public page
+   * stays in Arabic when they sign in.
+   */
+  const choose = (next: Locale) => {
+    if (next === current && !isLocalisable(here)) return;
+    writeLocaleCookie(next);
+    startTransition(() => {
       if (isLocalisable(here)) router.push(localisedPath(here, next));
       else router.refresh();
     });
+  };
 
   return (
     <div
@@ -93,7 +102,8 @@ export function LanguageSwitch({
         <button
           key={locale}
           type="button"
-          disabled={pending}
+          /* Board 567: never disabled, so a slow page cannot leave nothing to press. */
+          aria-busy={pending}
           onClick={() => choose(locale)}
           aria-pressed={locale === current}
           lang={locale}
@@ -115,4 +125,10 @@ export function LanguageSwitch({
       ))}
     </div>
   );
+}
+
+/** The cookie `app/actions/locale.ts` writes, with the same name and lifetime. */
+function writeLocaleCookie(locale: Locale): void {
+  const secure = window.location.protocol === "https:" ? "; secure" : "";
+  document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax${secure}`;
 }

@@ -28,6 +28,7 @@ export default async function SupportPage() {
     manager ? queueHealth() : Promise.resolve({ byAudience: [], byOwner: [] }),
   ]);
 
+  const renderedAt = Date.now();
   const shape = (rows: Awaited<ReturnType<typeof queueFor>>) =>
     rows.map((row) => ({
       id: row.id,
@@ -39,6 +40,8 @@ export default async function SupportPage() {
       ownerName: row.ownerName,
       ageHours: row.ageHours,
       overdue: row.overdue,
+      /* 🔴 Board 590: how far past the 24-hour promise, said on the row. */
+      lateHours: row.overdue ? Math.round((renderedAt - row.dueAt.getTime()) / 360_000) / 10 : 0,
       waiting: row.status === "waiting_on_them",
       extended: row.extendedAt !== null,
       movedToWhatsapp: row.movedToWhatsappAt !== null,

@@ -211,6 +211,44 @@ export async function stampSuccess(keyId: string): Promise<void> {
     .where(eq(partnerApiKeys.id, keyId));
 }
 
+/**
+ * 🔴 Board 612: WHEN THIS KEY WAS LAST USED, AT MOST ONE WRITE A MINUTE.
+ *
+ * The update was fired with the `void` operator, and a drizzle query is lazy: it runs
+ * only when something awaits it or calls `then`. `void` did neither, so the
+ * update was built and dropped on every call and the key list said "Never used"
+ * after thirty good calls. Now it is awaited, and skipped when the column is
+ * already under a minute old, so a busy key costs one small write a minute
+ * rather than one per call. The WHERE repeats the minute so two calls in the
+ * same second write once.
+ */
+export const LAST_USED_EVERY_MS = 60_000;
+
+export function lastUsedIsStale(lastUsedAt: Date | null, now: Date = new Date()): boolean {
+  return !lastUsedAt || now.getTime() - lastUsedAt.getTime() >= LAST_USED_EVERY_MS;
+}
+
+async function stampLastUsed(keyId: string, lastUsedAt: Date | null): Promise<void> {
+  if (!lastUsedIsStale(lastUsedAt)) return;
+  try {
+    await controlDb
+      .update(partnerApiKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(
+        and(
+          eq(partnerApiKeys.id, keyId),
+          or(
+            isNull(partnerApiKeys.lastUsedAt),
+            sql`${partnerApiKeys.lastUsedAt} < now() - interval '1 minute'`,
+          ),
+        ),
+      );
+  } catch (error) {
+    /* A missed stamp must never fail the partner's call. */
+    log.warn("api key last-used stamp failed", { error: String(error) });
+  }
+}
+
 export type AuthedKey = {
   keyId: string;
   /**
@@ -277,6 +315,8 @@ export async function authenticateKey(
       sponsorId: partnerApiKeys.sponsorId,
       /* The raw column, to tell a sponsor's key from a held partner's. */
       partnerIdColumn: partnerApiKeys.partnerId,
+      /* Board 612: read so the stamp below writes at most once a minute. */
+      lastUsedAt: partnerApiKeys.lastUsedAt,
     })
     .from(partnerApiKeys)
     /*
@@ -404,11 +444,7 @@ export async function authenticateKey(
     return { failure: { status: 403, error: `This key does not hold ${required}.` } };
   }
 
-  /* Best effort, and deliberately not awaited into the response's critical path. */
-  void controlDb
-    .update(partnerApiKeys)
-    .set({ lastUsedAt: new Date() })
-    .where(eq(partnerApiKeys.id, row.keyId));
+  await stampLastUsed(row.keyId, row.lastUsedAt);
 
   return {
     key: {

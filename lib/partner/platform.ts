@@ -6,7 +6,7 @@ import { controlDb } from "@/lib/db";
 import { partnerClinicians, partnerSessions } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 
-import { coverageSentence, recordingFrom } from "./consent";
+import { boundaryAfterAnswer, coverageSentence, recordingFrom } from "./consent";
 import { markStopped, mayRun } from "./usage";
 
 /**
@@ -86,7 +86,11 @@ export async function openSession(input: {
    * audio used up, and the CHECK refusing a billed session a stop would throw.
    */
   const [existing] = await controlDb
-    .select({ billable: partnerSessions.billable })
+    .select({
+      billable: partnerSessions.billable,
+      endedAt: partnerSessions.endedAt,
+      recordingFromSeconds: partnerSessions.recordingFromSeconds,
+    })
     .from(partnerSessions)
     .where(
       and(
@@ -109,11 +113,23 @@ export async function openSession(input: {
   if (!permitted.allowed) await markStopped(input.partnerId, now);
 
   /* 2 — their patient's answer. Not asked at all when we are stopped. */
-  const fromSeconds = stoppedReason
+  const consented = stoppedReason
     ? null
     : await recordingFrom({
         partnerId: input.partnerId,
         externalSessionRef: input.externalSessionRef,
+      });
+
+  /*
+   * 🔴 Board 606: a withdrawal after the session ended keeps the boundary, so what
+   * was already read, approved and delivered still answers. See `boundaryAfterAnswer`.
+   */
+  const fromSeconds = stoppedReason
+    ? null
+    : boundaryAfterAnswer({
+        consented,
+        previous: existing?.recordingFromSeconds ?? null,
+        ended: Boolean(existing?.endedAt),
       });
 
   /*
@@ -305,6 +321,20 @@ export async function mayAnswer(input: {
   }
 
   return { ok: true, session };
+}
+
+/**
+ * 🔴 Board 606: MAY THIS SESSION HAVE ANYTHING NEW WRITTEN FROM IT?
+ *
+ * `mayAnswer` says whether what we hold may be read. After a withdrawal on an ended
+ * session it still says yes, because the record stays. New work (a draft, a patient
+ * summary, a delivery) also needs the patient's answer to be yes NOW.
+ */
+export async function mayWriteNew(input: {
+  partnerId: string;
+  externalSessionRef: string;
+}): Promise<boolean> {
+  return (await recordingFrom(input)) !== null;
 }
 
 /**
