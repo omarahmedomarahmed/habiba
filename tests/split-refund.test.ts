@@ -5,6 +5,7 @@ import { readSource } from "../scripts/_verify";
 import {
   fundingLegs,
   moneyEntryFigures,
+  potRowForPatient,
   refundOwedCents,
   splitRefundPlan,
 } from "../lib/billing/split-refund";
@@ -157,4 +158,29 @@ test("W2-M01 at 95% cover the employee's charge carries only its own fee, never 
   });
   assert.equal(legs.employee.feeCents, 75);
   assert.ok(legs.employee.feeCents < legs.employee.grossCents);
+});
+
+test("Board 807/808 a pot row is the patient's payment only once their share arrived", () => {
+  assert.equal(potRowForPatient({ ...split(10_000), shareArrived: false }), "covered");
+  assert.equal(potRowForPatient({ ...split(1_000), shareArrived: false }), "share_unpaid");
+  assert.equal(potRowForPatient({ ...split(1_000), shareArrived: true }), "share_paid");
+  /* A pot row from before the split: the pot paid all of it. */
+  assert.equal(
+    potRowForPatient({ grossCents: 10_000, coverageBps: 0, sponsorShareCents: 0, patientShareCents: 0, shareArrived: false }),
+    "covered",
+  );
+});
+
+test("Board 807/808 billing, receipts and the change page read the pot row through the share", () => {
+  const billing = readSource("app/(patient)/patient/billing/page.tsx");
+  assert.match(billing, /potRowForPatient\(/);
+  assert.match(billing, /employeeShareArrived\(/);
+  assert.match(billing, /filter\(\(row\) => row\.kind !== "share_unpaid"\)/, "an unpaid share is no paid line");
+  assert.match(billing, /row\.kind === "share_paid"/, "a paid share shows the split");
+  assert.match(billing, /preceipt\.covered/);
+  assert.match(billing, /walletOnly\.map\(/, "Board 793: a transfer credited for a cancelled booking has a line");
+  assert.match(readSource("lib/data/receipts.ts"), /employeeShareArrived\(row\)/);
+  const change = readSource("lib/data/booking-change.ts");
+  assert.match(change, /if \(await shareUnpaid\(booking\.id\)\)/, "on a reload");
+  assert.match(change, /nothingOfTheirs && refund !== "covered"/, "on the press");
 });

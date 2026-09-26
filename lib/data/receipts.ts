@@ -11,6 +11,7 @@ import {
   sessions,
   users,
 } from "@/lib/db/schema";
+import { receiptInChargedCurrency } from "@/lib/billing/receipt-figures";
 
 /**
  * 🔴 Task 40: A PATIENT'S RECEIPT FOR ONE PAYMENT, AND ONLY THEIR OWN.
@@ -93,6 +94,15 @@ export async function receiptFor(personId: string, paymentId: string): Promise<R
   const ownShare = pot ? (fullyCoveredLegacy ? 0 : row.patientShareCents) : row.grossCents;
   /* Covered in full: the patient paid nothing, so there is nothing to receipt. */
   if (ownShare <= 0) return null;
+  /*
+   * 🔴 Board 807: nor before their share arrived. `payFromPot` writes this row
+   * `paid` at booking with the company's share alone, and it offered "Paid on
+   * 26 Sept / You paid $10.80" while the same session sat under "Still open".
+   */
+  if (pot) {
+    const { employeeShareArrived } = await import("@/lib/billing/refunds");
+    if (!(await employeeShareArrived(row))) return null;
+  }
 
   const [card] = await controlDb
     .select({
@@ -125,6 +135,27 @@ export async function receiptFor(personId: string, paymentId: string): Promise<R
 
   const cardFeeCents = card?.cardFeeCents ?? 0;
   const vatCents = Math.max(0, row.vatCents);
+  const charged = card
+    ? { minor: card.amountMinor, currency: card.currency }
+    : transfer
+      ? { minor: transfer.amountCents, currency: transfer.currency }
+      : row.presentedCents !== null && row.presentedCurrency
+        ? { minor: row.presentedCents, currency: row.presentedCurrency }
+        : null;
+  const booked = {
+    currency: row.currency,
+    priceCents: row.grossCents,
+    coveredCents: pot ? row.grossCents - ownShare : 0,
+    vatCents,
+    cardFeeCents,
+    totalCents: ownShare + vatCents + cardFeeCents,
+  };
+  /*
+   * 🔴 Board 807: in what they sent, when that is on record. Not when part of
+   * it came from their wallet: the money taken is then only some of the total.
+   */
+  const { walletSpentOn } = await import("@/lib/billing/wallet");
+  const figures = (await walletSpentOn(row.sessionId)) > 0 ? booked : receiptInChargedCurrency(booked, charged);
 
   return {
     paymentId: row.id,
@@ -138,19 +169,8 @@ export async function receiptFor(personId: string, paymentId: string): Promise<R
       "",
     therapistName: [row.therapistFirst, row.therapistLast].filter(Boolean).join(" "),
     sessionAt: row.scheduledAt ?? row.startedAt,
-    currency: row.currency,
-    priceCents: row.grossCents,
-    coveredCents: pot ? row.grossCents - ownShare : 0,
-    vatCents,
-    cardFeeCents,
-    totalCents: ownShare + vatCents + cardFeeCents,
-    charged: card
-      ? { minor: card.amountMinor, currency: card.currency }
-      : transfer
-        ? { minor: transfer.amountCents, currency: transfer.currency }
-        : row.presentedCents !== null && row.presentedCurrency
-          ? { minor: row.presentedCents, currency: row.presentedCurrency }
-          : null,
+    ...figures,
+    charged,
     method: card || row.stripePaymentIntentId
       ? { kind: "card", last4: row.last4 }
       : transfer
