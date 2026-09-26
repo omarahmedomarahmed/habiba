@@ -34,7 +34,7 @@ import { useT } from "@/lib/i18n/client";
  * changes it into the real one and says what will happen, and clicking
  * anywhere else disarms it.
  */
-export function CancelSession({ sessionId }: { sessionId: string }) {
+export function CancelSession({ sessionId, paid = false }: { sessionId: string; paid?: boolean }) {
   const [armed, setArmed] = useState(false);
   /* 🔴 W1-13: the patient is told why, so the second click needs a reason. */
   const [reason, setReason] = useState("");
@@ -56,7 +56,10 @@ export function CancelSession({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <p className="text-sm text-navy-400">{t("portal.session.cancelConfirm")}</p>
+      {/* 🔴 Board 429: a paid session says what happens to the patient's money, not "nothing is charged". */}
+      <p className="text-sm text-navy-400">
+        {t(paid ? "portal.session.cancelConfirmPaid" : "portal.session.cancelConfirm")}
+      </p>
       <Input
         aria-label={t("tcancel.reason")}
         placeholder={t("tcancel.reason")}

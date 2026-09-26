@@ -291,7 +291,7 @@ export default async function SessionDetailPage({
               session opened by mistake was complete it and be billed.
             */}
             <div className="px-5 py-3.5">
-              <CancelSession sessionId={id} />
+              <CancelSession sessionId={id} paid={row.session.paymentStatus === "paid"} />
             </div>
           </Card>
         ) : (

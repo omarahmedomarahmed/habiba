@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { and, asc, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { Card } from "@/components/patient/kit";
 import { Money } from "@/components/ui/money";
@@ -58,7 +58,7 @@ export default async function PatientBillingPage() {
   const { locale } = await getI18n();
   const tag = localeTag(locale);
 
-  const [paid, credits] = await Promise.all([
+  const [paid, credits, walletBack] = await Promise.all([
     db
       .select({
         sessionId: sessions.id,
@@ -125,7 +125,17 @@ export default async function PatientBillingPage() {
       )
       /* Soonest first, so the one date printed is the earliest that lapses. */
       .orderBy(asc(patientCredits.expiresAt)),
+
+    /*
+     * 🔴 Board 430, ruling 18: the sessions whose money went back into the
+     * wallet rather than to the bank, so the row says where it went.
+     */
+    db
+      .select({ sessionId: patientCredits.fromSessionId })
+      .from(patientCredits)
+      .where(and(eq(patientCredits.personId, actor.personId), isNotNull(patientCredits.fromSessionId))),
   ]);
+  const backInWallet = new Set(walletBack.map((row) => row.sessionId));
 
   const creditCents = credits.reduce((sum, c) => sum + (c.amount - c.spent), 0);
 
@@ -209,7 +219,7 @@ export default async function PatientBillingPage() {
                     {[row.therapistFirst, row.therapistLast].filter(Boolean).join(" ")}
                     {row.status === "refunded" ? (
                       <span className="ms-2 rounded-full bg-navy-50 px-2 py-0.5 text-xs font-medium text-navy-400">
-                        {t("pbilling.refunded")}
+                        {backInWallet.has(row.sessionId) ? t("pbilling.toWallet") : t("pbilling.refunded")}
                       </span>
                     ) : null}
                   </p>
@@ -288,12 +298,18 @@ export default async function PatientBillingPage() {
         under a list in which both numbers appear. A reader comparing two figures does not
         want a paragraph about the comparison, they want the comparison.
       */}
-      <BeforeAfter
-        beforeLabel={t("pbilling.youPaidLabel")}
-        before={t("pbilling.youPaidBody")}
-        afterLabel={t("pbilling.theyGetLabel")}
-        after={t("pbilling.theyGetBody")}
-      />
+      {/*
+        🔴 Board 418: only where there are two currencies to tell apart. Under a
+        list of covered sessions the two headings read as figures left blank.
+      */}
+      {paid.some((row) => row.fundingSource !== "pot" && row.presented !== null && row.presentedCurrency) ? (
+        <BeforeAfter
+          beforeLabel={t("pbilling.youPaidLabel")}
+          before={t("pbilling.youPaidBody")}
+          afterLabel={t("pbilling.theyGetLabel")}
+          after={t("pbilling.theyGetBody")}
+        />
+      ) : null}
     </main>
   );
 }

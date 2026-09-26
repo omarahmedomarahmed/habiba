@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { patientCancel, rescheduleBooking } from "@/lib/data/booking-change";
+import { patientCancel, rescheduleBooking, type MoneyAfterCancel } from "@/lib/data/booking-change";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { callerKey, consume } from "@/lib/rate-limit";
@@ -17,7 +17,7 @@ import { callerKey, consume } from "@/lib/rate-limit";
 export type ChangeState = {
   error?: MessageKey;
   done?: "moved" | "cancelled";
-  refund?: "refunded" | "queued" | "none" | "held";
+  refund?: MoneyAfterCancel;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

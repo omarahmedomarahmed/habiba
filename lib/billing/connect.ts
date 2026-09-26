@@ -1256,6 +1256,46 @@ export async function refundSessionToWallet(opts: {
 }
 
 /**
+ * 🔴 Board 430, ruling 18: a cancelled session paid by bank transfer goes to
+ * the patient's wallet by default. `cancelledPaymentRoute` decides; a payment
+ * that is not a transfer we hold answers `fallback` and takes the ordinary
+ * refund (`refundSessionPayment`).
+ */
+export async function refundTransferToWallet(opts: {
+  paymentId: string;
+  reason: string;
+}): Promise<{ ok?: true; fallback?: true; toWalletCents?: number }> {
+  const [payment] = await db
+    .select()
+    .from(sessionPayments)
+    .where(eq(sessionPayments.id, opts.paymentId))
+    .limit(1);
+  if (!payment || payment.status !== "paid") return { fallback: true };
+
+  const [[who], attempt, settings] = await Promise.all([
+    db
+      .select({ personId: patients.personId })
+      .from(sessions)
+      .innerJoin(patients, eq(patients.id, sessions.patientId))
+      .where(eq(sessions.id, payment.sessionId))
+      .limit(1),
+    import("./gateway/session").then((m) => m.paidAttemptFor(payment.id)),
+    getSettings(),
+  ]);
+  const { cancelledPaymentRoute } = await import("./split-refund");
+  const route = cancelledPaymentRoute({
+    fundingSource: payment.fundingSource,
+    capture: payment.capture,
+    stripePaymentIntentId: payment.stripePaymentIntentId,
+    gatewayPaid: Boolean(attempt),
+    hasPerson: Boolean(who?.personId),
+    walletEnabled: settings.rules.wallet.enabled,
+  });
+  if (route !== "wallet") return { fallback: true };
+  return refundSessionToWallet(opts);
+}
+
+/**
  * Refund a patient.
  *
  * The gap this closes: a clinician goes on the radar, someone in distress pays

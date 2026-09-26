@@ -8,7 +8,7 @@ import { wordsFor } from "@/lib/i18n/message-words";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 
-export type ClinicianCancelOutcome = "notified" | "refunded" | "refund_owed";
+export type ClinicianCancelOutcome = "notified" | "refunded" | "refund_owed" | "wallet";
 
 /**
  * 🔴 W1-13: what follows a clinician cancelling a session they had booked.
@@ -20,9 +20,11 @@ export type ClinicianCancelOutcome = "notified" | "refunded" | "refund_owed";
  *
  *   - Paid by card or from a pot: refunded through `refundSessionPayment`,
  *     each payer from their own rail when a company covered part (W2-S12).
- *   - Paid by bank transfer: that refuses (no charge to reverse), so the
- *     payment stays `paid` and the patient is told a refund is owed and to
- *     contact us. Never called refunded when it was not (W1-12).
+ *   - Paid by bank transfer: 🔴 board 430, ruling 18: the money we hold goes
+ *     to the patient's wallet by default (`refundTransferToWallet`), and the
+ *     patient is told it is there and that they can ask for it back. Only
+ *     where that cannot happen (a guest with no wallet, the wallet off) is it
+ *     queued as a refund owed. Never called refunded when it was not (W1-12).
  *   - Never paid: the message alone.
  *
  * In the patient's own language (ruling 8); the words live in the
@@ -54,8 +56,16 @@ export async function afterClinicianCancel(input: {
     .limit(1);
 
   let outcome: ClinicianCancelOutcome = "notified";
-  if (payment) {
-    const { refundSessionPayment } = await import("@/lib/billing/connect");
+  const { refundSessionPayment, refundTransferToWallet } = await import("@/lib/billing/connect");
+  const toWallet = payment
+    ? await refundTransferToWallet({
+        paymentId: payment.id,
+        reason: `Cancelled by the clinician: ${input.reason}`.slice(0, 200),
+      })
+    : null;
+  if (toWallet?.ok) {
+    outcome = "wallet";
+  } else if (payment) {
     const result = await refundSessionPayment({
       paymentId: payment.id,
       reason: `Cancelled by the clinician: ${input.reason}`.slice(0, 200),
@@ -111,7 +121,9 @@ export async function afterClinicianCancel(input: {
       ? t("tshow.refundedBody")
       : outcome === "refund_owed"
         ? t("w1a.refundOwedBody")
-        : "";
+        : outcome === "wallet"
+          ? t("w1a.walletCreditBody")
+          : "";
 
   if (to) {
     await notify(

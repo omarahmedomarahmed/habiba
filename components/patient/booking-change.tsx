@@ -10,6 +10,37 @@ import {
 } from "@/app/(patient)/patient/sessions/[id]/change/actions";
 import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
+import type { MessageKey } from "@/lib/i18n/messages";
+import type { MoneyAfterCancel } from "@/lib/data/booking-change";
+
+/**
+ * 🔴 Board 407/430/419: what became of the money, one sentence for each
+ * outcome. `none` says nothing: nothing was paid and nothing is waiting.
+ */
+export const MONEY_LINE: Record<MoneyAfterCancel, MessageKey | null> = {
+  refunded: "pchange.refunded",
+  queued: "pchange.refundQueued",
+  wallet: "pchange.refundWallet",
+  held: "pchange.held",
+  waiting: "pchange.transferWaitingDone",
+  covered: "pchange.coveredDone",
+  none: null,
+};
+
+/** The cancelled booking, and where the money went. Shown after the press and on a reload. */
+export function CancelledCard({ money, windowHours }: { money: MoneyAfterCancel | undefined; windowHours: number }) {
+  const t = useT();
+  const line = money ? MONEY_LINE[money] : null;
+  return (
+    <Card className="p-4" role="status">
+      <p className="text-sm font-semibold text-navy-700">{t("pchange.cancelled")}</p>
+      {line ? <p className="mt-1 text-sm text-navy-400">{t(line, { hours: windowHours })}</p> : null}
+      <Link href="/patient/sessions" className="mt-3 inline-flex text-sm font-semibold text-brand-700">
+        {t("psessions.title")}
+      </Link>
+    </Card>
+  );
+}
 
 /**
  * 🔴 Ruling 16: the two things a patient can do to a booking. Cancel asks
@@ -33,6 +64,7 @@ export function BookingChange({
   const [slot, setSlot] = useState(slots[0]?.id ?? "");
   const [pending, startTransition] = useTransition();
 
+  if (state.done === "cancelled") return <CancelledCard money={state.refund} windowHours={windowHours} />;
   if (state.done) {
     return (
       <Card className="p-4" role="status">
