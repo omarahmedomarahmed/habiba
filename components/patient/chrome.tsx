@@ -2,6 +2,7 @@ import { PatientBottomNav } from "@/components/patient/bottom-nav";
 import { SessionOrb } from "@/components/patient/session-orb";
 import { SosOrb } from "@/components/patient/sos-orb";
 import { sosCountries } from "@/components/patient/sos-orb-server";
+import type { OrbSession } from "@/lib/data/patient-view";
 
 /**
  * The app chrome, in one place. PLAN.md 25.2, C129.
@@ -38,7 +39,7 @@ export async function PatientChrome({
    * app and found nothing at all, because the payment sheet lives on its own
    * route and the join link lives in an email.
    */
-  openSession?: { href: string; state: "owes" | "ready"; live: boolean } | null;
+  openSession?: OrbSession | null;
   liveSession?: { href: string } | null;
   /**
    * A visitor who is not signed in gets the orb and no navigation, because

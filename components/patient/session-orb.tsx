@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Banknote, Video } from "lucide-react";
+import { Banknote, CalendarPlus, Video } from "lucide-react";
 
+import type { OrbSession } from "@/lib/data/patient-view";
 import { getI18n } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
 
@@ -35,20 +36,24 @@ import { cn } from "@/lib/utils";
  * names the clinician, because it only appears once a session is live and the
  * person is seconds from seeing them anyway.
  */
-export async function SessionOrb({
-  session,
-}: {
-  session: { href: string; state: "owes" | "ready"; live: boolean } | null;
-}) {
+export async function SessionOrb({ session }: { session: OrbSession | null }) {
+  /*
+   * 🔴 Founder, 26 Sep: A SIGNED-IN PATIENT ALWAYS HAS AN ORB. With nothing
+   * booked it is the `none` state, drawn quieter, and it opens the sessions
+   * list, whose first card offers to book one. Null is only for a screen with
+   * nobody signed in (a guest in a room), where there is no list to open.
+   */
   if (!session) return null;
 
   const { t } = await getI18n();
   const label =
-    session.state === "owes"
-      ? t("porb.pay")
-      : session.live
-        ? t("porb.joinNow")
-        : t("porb.ready");
+    session.state === "none"
+      ? t("porb.none")
+      : session.state === "owes"
+        ? t("porb.pay")
+        : session.live
+          ? t("porb.joinNow")
+          : t("porb.ready");
 
   return (
     <Link
@@ -62,7 +67,11 @@ export async function SessionOrb({
          * number is how they stay agreeing.
          */
         "fixed end-3 bottom-24 z-[60] flex h-12 w-12 items-center justify-center rounded-full shadow-[0_10px_24px_-8px_rgba(10,35,66,0.45)] ring-4 ring-white/80",
-        session.state === "owes" ? "bg-amber-400 text-navy-600" : "bg-brand-500 text-navy-600",
+        session.state === "owes"
+          ? "bg-amber-400 text-navy-600"
+          : session.state === "none"
+            ? "bg-navy-900 text-brand-300"
+            : "bg-brand-500 text-navy-600",
       )}
     >
       {/*
@@ -74,6 +83,8 @@ export async function SessionOrb({
       */}
       {session.state === "owes" ? (
         <Banknote aria-hidden className="h-5 w-5" strokeWidth={2.25} />
+      ) : session.state === "none" ? (
+        <CalendarPlus aria-hidden className="h-5 w-5" strokeWidth={2.25} />
       ) : (
         <Video aria-hidden className="h-5 w-5" strokeWidth={2.25} />
       )}

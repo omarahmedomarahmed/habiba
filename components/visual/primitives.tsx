@@ -461,9 +461,36 @@ export function SplitBar({ parts, note }: { parts: SplitPart[]; note?: React.Rea
  */
 export function IconGrid({
   items,
+  dense = false,
 }: {
   items: { key: string; label: string; icon: ReactNode; href: string }[];
+  /**
+   * Three across on a phone, icon over a centred label (founder, 26 Sep: the
+   * patient home's areas, three columns on mobile and closer to the top).
+   */
+  dense?: boolean;
 }) {
+  if (dense) {
+    return (
+      <ul className="grid grid-cols-3 gap-2">
+        {items.map((item) => (
+          <li key={item.key}>
+            <a
+              href={item.href}
+              className="flex h-full min-h-[92px] flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-1.5 py-3 text-center transition-colors hover:bg-slate-50 active:scale-[0.98]"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                {item.icon}
+              </span>
+              <span className="line-clamp-2 text-[12.5px] leading-tight font-medium break-words text-slate-900">
+                {item.label}
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    );
+  }
   return (
     <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
       {items.map((item) => (

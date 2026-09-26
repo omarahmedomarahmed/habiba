@@ -78,7 +78,15 @@ export default async function PatientLayout({ children }: { children: React.Reac
     : [null, null, 0];
 
   return (
-    <PatientChrome nav={actor !== null} phone={actor?.phone ?? null} openSession={open}>
+    <PatientChrome
+      nav={actor !== null}
+      phone={actor?.phone ?? null}
+      /*
+       * 🔴 Founder, 26 Sep: with nothing booked the orb still shows, and opens
+       * the sessions list, whose first card books one on the radar.
+       */
+      openSession={actor?.personId ? (open ?? { href: "/patient/sessions", state: "none", live: false }) : null}
+    >
       {/* 🔴 75.3 — the language switch, in the same corner of every screen. */}
       {/* 🔴 W2-P09: and beside it, for somebody signed in, what the app has told them. */}
       <LanguageCorner

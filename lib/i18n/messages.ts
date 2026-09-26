@@ -885,8 +885,6 @@ export const en = {
   "precord.addEmail": "Add an email to get your record",
   "precord.send": "Send it to {email}",
   "precord.sending": "Sending…",
-  "precord.sent": "On its way. Check your email.",
-
   /* --------------------------------------------------------------- profile */
   "pprofile.title": "Your profile",
   "pprofile.body": "Letters, prescriptions and reports. It travels with you, and you decide who reads it.",
@@ -926,12 +924,9 @@ export const en = {
 
   /* --------------------------------------------------------------- account */
   "paccount.title": "Your account",
-  "paccount.body": "Your account and who can see your record.",
   "paccount.addPhoto": "Add a photo",
   "paccount.signOut": "Sign out",
   "paccount.language": "Language",
-  "paccount.languageBody": "The app and everything we send you.",
-
   /* ------------------------------------------------------------- residency */
   "residency.title": "Where your record is kept",
   "residency.home": "Your record is kept in {country}, where you live.",
@@ -950,9 +945,6 @@ export const en = {
   "pclaim.sentByEmail": "Your code went to your email.",
   "pclaim.allYoursTitle": "Your records are already yours",
   "pclaim.allYoursBody": "They are linked to your account. Nothing else is waiting.",
-  "pclaim.nothingFound": "We could not find a record under that number.",
-  "pclaim.nothingFoundBody": "Normal. An invite link from your therapist works straight away.",
-
   /* ---------------------------------------------------------------- invite */
   "pinvite.title": "Your therapist sent you this",
   "pinvite.body": "{name} has invited you to take ownership of the record they keep for you.",
@@ -965,9 +957,6 @@ export const en = {
   "pinvite.keepAccess": "Let this therapist keep seeing my profile",
   "pinvite.claimIt": "This is me, claim it",
   "pinvite.claiming": "Claiming…",
-  "pinvite.dead": "This link is no longer valid.",
-  "pinvite.deadBody": "Ask your therapist for a new one.",
-
   /* ------------------------------------------------- 🔴 the crisis sheet */
   "crisis.sheetTitle": "Help now",
   "crisis.sheetBody": "These are phone numbers, not a chat.",
@@ -1063,7 +1052,6 @@ export const en = {
   "browse.searchAria": "What do you need help with?",
   "browse.nothingMatched": "Nobody has listed that yet. Try an area below, or open the radar.",
   "browse.areas": "What do you want help with?",
-  "browse.areasBody": "Only areas a verified therapist has actually listed. The number is how many.",
   "paccount.phone": "Phone",
   "paccount.email": "Email",
   "paccount.timezone": "Time zone",
@@ -1071,8 +1059,6 @@ export const en = {
   "paccount.whoCanSee": "Who can see your record",
   "paccount.whoCanSeeBody": "Give access, take it back, and see what you were asked.",
   "paccount.billing": "What you have paid",
-  "paccount.billingBody":
-    "Every session you paid for, and anything still open. You pay your therapist, never us.",
   "paccount.ownDocuments": "Your own documents",
   "paccount.ownDocumentsBody": "Your documents, and anything you have written down about yourself.",
   "paccount.notAdded": "Not added",
@@ -1153,7 +1139,6 @@ export const en = {
   "residency.keptIn": "Your record is kept in {serving}, not {home}",
   "residency.agreedOn": "You agreed to this on {date}.",
   "pidentity.removePhoto": "Remove it",
-  "pidentity.photoPrivate": "Shown only to you and the therapist in your session.",
   "pauth.invitePhoneNote": "The number your therapist has for you.",
   "pauth.phonePlaceholder": "Phone or WhatsApp",
   "pauth.phoneNote": "This is how you sign in and how your therapist finds you.",
@@ -1263,7 +1248,6 @@ export const en = {
 
   "pbill.inCredit": "in credit",
   /* 🔴 P3: what is true of an old credit row. Nothing spends one, so nothing here says it does. */
-  "pbill.creditBody": "We owe you this: your replacement clinician charged less. Kept for you until {date}.",
   "pbill.chargedAt": "at {rate} {from} per {to}",
   "pbill.therapistFee": "Your therapist's fee",
   "pbill.vat": "VAT, paid to the government",
@@ -1800,7 +1784,6 @@ export const en = {
   "pnotice.homeworkSet": "Your therapist set you something to try. It is in your homework.",
   "pnotice.assessmentSent": "Your therapist sent you a few questions. They are in your questionnaires.",
   "pnotice.walletCredited": "Your transfer for a cancelled booking is in your wallet. Ask us if you want it refunded.",
-  "pnotice.accessRequested": "A clinician has asked to see your record.",
   "pnotice.sessionBooked": "Your session is booked.",
   "pnotice.accessGranted": "A clinician can now read your history.",
   "pnotice.historyAnswered": "Your old therapist has answered your request.",
@@ -5557,6 +5540,47 @@ export const en = {
   "tchange.patientCancelledLate": "Cancelled late: the payment stays with you. You can refund it in your bookings.",
   "tchange.patientMoved": "A patient moved a booking",
   "tchange.patientMovedBody": "The old hour is open again. Nothing charged twice.",
+  /* Founder, 26 Sep: the orb with nothing booked, one session's page, the full list. */
+  "porb.none": "Book a session",
+  "home.nextSession": "Your next session",
+  "browse.allChip": "All",
+  "browse.allTitle": "All therapists",
+  "browse.resultsFor": "Results for \"{q}\"",
+  "pyou.yoursTitle": "Your things",
+  "psessions.now": "Happening now",
+  "psessions.backIn": "Back to the room",
+  "psessions.enterRoom": "Enter the room",
+  "psessions.details": "Details",
+  "psessions.bookCtaTitle": "Nothing booked yet",
+  "psessions.bookCtaBody": "Find someone on the radar.",
+  "psessions.bookCta": "Schedule a session",
+  "psession.meta": "Your session",
+  "psession.startsIn": "Starting {when}",
+  "psession.ended": "Ended",
+  "psession.with": "With",
+  "psession.when": "When",
+  "psession.how": "How",
+  "psession.video": "Video",
+  "psession.inPerson": "In person",
+  "psession.paidBy": "Paid by",
+  "psession.bookedHow": "Booked",
+  "psession.payBenefit": "Your company benefit",
+  "psession.payBenefitPart": "Your company benefit and you",
+  "psession.payWallet": "Your wallet",
+  "psession.payTransfer": "Bank transfer",
+  "psession.payCard": "Card",
+  "psession.payCardEnding": "Card ending {last4}",
+  "psession.payUnpaid": "Not paid yet",
+  "psession.payRefunded": "Refunded",
+  "psession.srcScheduled": "On {name}'s page",
+  "psession.srcRadar": "On the radar",
+  "psession.srcPaidLink": "A payment link from {name}",
+  "psession.srcDirect": "{name} invited you",
+  "psession.rescheduled": "Rescheduled",
+  "psession.roomOpens": "The room opens 5 minutes before.",
+  "psession.change": "Reschedule or cancel",
+  "psession.cancelledByYou": "You cancelled it.",
+  "psession.cancelledByThem": "Your therapist cancelled it.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -6255,8 +6279,6 @@ export const ar: Record<MessageKey, string> = {
   "precord.addEmail": "أضف بريدًا إلكترونيًا لتصلك نسختك",
   "precord.send": "أرسلها إلى {email}",
   "precord.sending": "جارٍ الإرسال…",
-  "precord.sent": "في طريقها إليك. تفقد بريدك.",
-
   /* ------------------------------------------------------- الملف الشخصي */
   "pprofile.title": "ملفك الشخصي",
   "pprofile.body": "الخطابات والروشتات والتقارير. تسافر معك، وأنت من يقرر من يقرؤها.",
@@ -6295,12 +6317,9 @@ export const ar: Record<MessageKey, string> = {
 
   /* -------------------------------------------------------------- حسابك */
   "paccount.title": "حسابك",
-  "paccount.body": "حسابك ومن يستطيع رؤية سجلك.",
   "paccount.addPhoto": "أضف صورة",
   "paccount.signOut": "تسجيل الخروج",
   "paccount.language": "اللغة",
-  "paccount.languageBody": "لغة التطبيق وكل ما نرسله إليك.",
-
   /* --------------------------------------------------- مكان حفظ السجل */
   "residency.title": "أين يُحفظ سجلك",
   "residency.home": "سجلك محفوظ في {country}، البلد الذي تعيش فيه.",
@@ -6319,9 +6338,6 @@ export const ar: Record<MessageKey, string> = {
   "pclaim.sentByEmail": "الرمز وصل على إيميلك.",
   "pclaim.allYoursTitle": "سجلاتك صارت لك بالفعل",
   "pclaim.allYoursBody": "إنها مرتبطة بحسابك، ولا شيء آخر في الانتظار.",
-  "pclaim.nothingFound": "لم نجد سجلًا تحت هذا الرقم.",
-  "pclaim.nothingFoundBody": "طبيعي. ورابط دعوة من معالجك يعمل فورًا.",
-
   /* -------------------------------------------------------------- الدعوة */
   "pinvite.title": "معالجك أرسل لك هذا",
   "pinvite.body": "وصلتك دعوة من {name} لتستلم ملكية السجل المحفوظ عنك.",
@@ -6334,9 +6350,6 @@ export const ar: Record<MessageKey, string> = {
   "pinvite.keepAccess": "اسمح لهذا المعالج بمواصلة رؤية ملفي",
   "pinvite.claimIt": "هذا أنا، استلمه",
   "pinvite.claiming": "جارٍ الاستلام…",
-  "pinvite.dead": "هذا الرابط لم يعد صالحًا.",
-  "pinvite.deadBody": "اطلب من معالجك رابطًا جديدًا.",
-
   /* ------------------------------------------------- 🔴 شاشة المساعدة الآن */
   "crisis.sheetTitle": "مساعدة الآن",
   "crisis.sheetBody": "هذه أرقام هاتف، لا محادثة.",
@@ -6419,7 +6432,6 @@ export const ar: Record<MessageKey, string> = {
   "browse.searchAria": "ما الذي تحتاج مساعدة فيه؟",
   "browse.nothingMatched": "لم يدرجه أحد بعد. جرّب مجالًا بالأسفل، أو افتح الرادار.",
   "browse.areas": "ما الذي تحتاج مساعدة فيه؟",
-  "browse.areasBody": "المجالات التي أدرجها معالجون موثّقون فقط. الرقم هو عددهم.",
   "paccount.phone": "الهاتف",
   "paccount.email": "البريد الإلكتروني",
   "paccount.timezone": "المنطقة الزمنية",
@@ -6427,8 +6439,6 @@ export const ar: Record<MessageKey, string> = {
   "paccount.whoCanSee": "من يستطيع رؤية سجلك",
   "paccount.whoCanSeeBody": "امنح الإذن، أو اسحبه، وشاهد ما طُلب منك.",
   "paccount.billing": "ما دفعته",
-  "paccount.billingBody":
-    "كل جلسة دفعت ثمنها، وأي مبلغ ما زال مفتوحًا. أنت تدفع لمعالجك، لا لنا.",
   "paccount.ownDocuments": "مستنداتك أنت",
   "paccount.ownDocumentsBody": "مستنداتك، وكل ما كتبته عن نفسك.",
   "paccount.notAdded": "غير مضاف",
@@ -6501,7 +6511,6 @@ export const ar: Record<MessageKey, string> = {
   "residency.keptIn": "سجلك محفوظ في {serving}، لا في {home}",
   "residency.agreedOn": "وافقت على هذا في {date}.",
   "pidentity.removePhoto": "احذفها",
-  "pidentity.photoPrivate": "تظهر لك وللمعالج في جلستك فقط.",
   "pauth.invitePhoneNote": "الرقم الذي لدى معالجك لك.",
   "pauth.phonePlaceholder": "هاتف أو واتساب",
   "pauth.phoneNote": "بهذا تسجّل الدخول، وبه يجدك معالجك.",
@@ -6582,7 +6591,6 @@ export const ar: Record<MessageKey, string> = {
   "pban.example": "أستعد لجلستنا يوم الخميس وأود الاطلاع على تاريخك.",
 
   "pbill.inCredit": "رصيد لك",
-  "pbill.creditBody": "نحن مدينون لك بهذا المبلغ: المعالج البديل كان أقل سعرًا. نحفظه لك حتى {date}.",
   "pbill.chargedAt": "بسعر {rate} {from} لكل {to}",
   "pbill.therapistFee": "أتعاب معالجك",
   "pbill.vat": "ضريبة القيمة المضافة، تُدفع للدولة",
@@ -7006,7 +7014,6 @@ export const ar: Record<MessageKey, string> = {
   "pnotice.homeworkSet": "ترك لك معالجك شيئًا تجربه. تجده في واجباتك.",
   "pnotice.assessmentSent": "أرسل لك معالجك بعض الأسئلة. تجدها في استبياناتك.",
   "pnotice.walletCredited": "تحويلك لحجز أُلغي موجود في محفظتك. اطلب منا استرداده إن أردت.",
-  "pnotice.accessRequested": "طلب معالج الاطلاع على ملفك.",
   "pnotice.sessionBooked": "تم حجز جلستك.",
   "pnotice.accessGranted": "صار بإمكان معالج قراءة تاريخك.",
   "pnotice.historyAnswered": "ردّ معالجك السابق على طلبك.",
@@ -10266,6 +10273,46 @@ export const ar: Record<MessageKey, string> = {
   "tchange.patientCancelledLate": "أُلغي متأخرًا: المبلغ يبقى لك، ويمكنك ردّه من حجوزاتك.",
   "tchange.patientMoved": "نقل مريض حجزًا",
   "tchange.patientMovedBody": "الساعة القديمة متاحة من جديد. لا شيء يُحصَّل مرتين.",
+  "porb.none": "احجز جلسة",
+  "home.nextSession": "جلستك القادمة",
+  "browse.allChip": "الكل",
+  "browse.allTitle": "كل المعالجين",
+  "browse.resultsFor": "نتائج «{q}»",
+  "pyou.yoursTitle": "ما يخصك",
+  "psessions.now": "تجري الآن",
+  "psessions.backIn": "ارجع إلى الغرفة",
+  "psessions.enterRoom": "ادخل الغرفة",
+  "psessions.details": "التفاصيل",
+  "psessions.bookCtaTitle": "لا شيء محجوز بعد",
+  "psessions.bookCtaBody": "اعثر على معالج على الرادار.",
+  "psessions.bookCta": "احجز جلسة",
+  "psession.meta": "جلستك",
+  "psession.startsIn": "تبدأ {when}",
+  "psession.ended": "انتهت",
+  "psession.with": "مع",
+  "psession.when": "الموعد",
+  "psession.how": "الطريقة",
+  "psession.video": "فيديو",
+  "psession.inPerson": "حضوريًا",
+  "psession.paidBy": "الدفع",
+  "psession.bookedHow": "الحجز",
+  "psession.payBenefit": "ميزة شركتك",
+  "psession.payBenefitPart": "ميزة شركتك وأنت",
+  "psession.payWallet": "محفظتك",
+  "psession.payTransfer": "تحويل بنكي",
+  "psession.payCard": "بطاقة",
+  "psession.payCardEnding": "بطاقة تنتهي بـ {last4}",
+  "psession.payUnpaid": "لم تُدفع بعد",
+  "psession.payRefunded": "مُستردة",
+  "psession.srcScheduled": "من صفحة {name}",
+  "psession.srcRadar": "من الرادار",
+  "psession.srcPaidLink": "رابط دفع من {name}",
+  "psession.srcDirect": "دعاك {name}",
+  "psession.rescheduled": "أُعيدت جدولتها",
+  "psession.roomOpens": "تُفتح الغرفة قبل البداية بخمس دقائق.",
+  "psession.change": "إعادة جدولة أو إلغاء",
+  "psession.cancelledByYou": "ألغيتها أنت.",
+  "psession.cancelledByThem": "ألغاها معالجك.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

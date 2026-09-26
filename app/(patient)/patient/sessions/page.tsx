@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { CalendarPlus, Globe2 } from "lucide-react";
+
+import { Glow, primaryButton } from "@/components/patient/kit";
 import { PatientSessionList } from "@/components/patient/session-list";
 import { PatientBack } from "@/components/patient/back";
 import { sessionDoors, sessionsForPatient } from "@/lib/data/patient-view";
@@ -58,12 +61,25 @@ export default async function PatientSessionsPage({
   ]);
 
   const shown = sessions.filter((session) => {
-    if (active === "upcoming") return session.group === "today" || session.group === "upcoming";
+    if (active === "upcoming") {
+      return session.live || ((session.group === "today" || session.group === "upcoming") && !session.cancelled);
+    }
     if (active === "past") {
-      return session.group === "past_scheduled" || session.group === "past_instant";
+      return !session.live && (session.group === "past_scheduled" || session.group === "past_instant");
     }
     return true;
   });
+
+  /*
+   * 🔴 Founder, 26 Sep: with nothing under way and nothing booked, the page
+   * leads with the way to book one. The session orb opens this page in that
+   * state, so this card is what the orb promises.
+   */
+  const nothingAhead = !sessions.some(
+    (session) =>
+      session.live ||
+      ((session.group === "today" || session.group === "upcoming") && !session.cancelled),
+  );
 
   return (
     <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
@@ -90,11 +106,32 @@ export default async function PatientSessionsPage({
         </ul>
       </nav>
 
-      <PatientSessionList
-        sessions={shown}
-        zone={actor.timezone}
-        doors={Object.fromEntries(doors.map((row) => [row.sessionId, row.door]))}
-      />
+      {nothingAhead ? (
+        <section className="relative overflow-hidden rounded-[28px] bg-navy-900 p-5 text-white">
+          <Glow className="-end-20 -top-20 h-56 w-56" />
+          <div className="relative">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-brand-300 ring-1 ring-white/15">
+              <CalendarPlus className="h-5 w-5" aria-hidden />
+            </span>
+            <p className="mt-3 text-[19px] font-bold tracking-tight">{t("psessions.bookCtaTitle")}</p>
+            <p className="mt-1 text-[14px] leading-relaxed text-white/75">{t("psessions.bookCtaBody")}</p>
+            <Link href="/patient/radar" className={`${primaryButton} mt-4 w-full`}>
+              <Globe2 className="h-4 w-4" aria-hidden />
+              {t("psessions.bookCta")}
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
+      {/* When the CTA above says "nothing booked", the empty card below would say it twice. */}
+      {shown.length > 0 || !nothingAhead ? (
+        <PatientSessionList
+          sessions={shown}
+          zone={actor.timezone}
+          doors={Object.fromEntries(doors.map((row) => [row.sessionId, row.door]))}
+          now={Date.now()}
+        />
+      ) : null}
     </main>
   );
 }

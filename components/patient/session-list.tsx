@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarClock, FileText, Zap } from "lucide-react";
+import { CalendarClock, ChevronRight, FileText, Zap } from "lucide-react";
 
 import { Card } from "@/components/patient/kit";
 import type { PatientSession, SessionDoor, SessionGroup } from "@/lib/data/patient-view";
@@ -53,12 +53,21 @@ const DOOR_LABEL: Record<SessionDoor["kind"], MessageKey> = {
   summary: "home.summary",
 };
 
+/** 🔴 Founder, 26 Sep: the room is offered from five minutes before the start. */
+const ROOM_OPENS_MS = 5 * 60_000;
+
 export function PatientSessionList({
   sessions,
   zone,
   doors = {},
+  now,
 }: {
   sessions: PatientSession[];
+  /**
+   * The server's clock, so a join door ahead of its five minutes is held back
+   * the same way on the server render and in the browser.
+   */
+  now?: number;
   /**
    * 🔴 W2-P06: what each card opens, by session id, from `sessionDoors`. A card
    * with nothing on it was a card a patient could read and do nothing with.
@@ -91,37 +100,78 @@ export function PatientSessionList({
 
   const resolved = resolveZone(zone);
 
+  /*
+   * 🔴 Founder, 26 Sep: A SESSION UNDER WAY IS ITS OWN SECTION, AT THE TOP.
+   * Its booked hour has begun, so by the clock it sorted under "Past
+   * appointments", the last place somebody in the middle of it would look.
+   */
+  const sections: { key: string; title: MessageKey; blurb: MessageKey | null; group: SessionGroup | "live"; rows: PatientSession[] }[] = [
+    {
+      key: "live",
+      title: "psessions.now",
+      blurb: null,
+      group: "live",
+      rows: sessions.filter((s) => s.live),
+    },
+    ...ORDER.map((group) => ({
+      key: group,
+      title: HEADINGS[group].title,
+      blurb: HEADINGS[group].blurb,
+      group,
+      rows: sortForGroup(
+        group,
+        sessions.filter((s) => s.group === group && !s.live),
+      ),
+    })),
+  ];
+
   return (
     <div className="space-y-5">
-      {ORDER.map((group) => {
-        const rows = sortForGroup(
-          group,
-          sessions.filter((s) => s.group === group),
-        );
+      {sections.map(({ key, title, blurb, group, rows }) => {
         if (rows.length === 0) return null;
 
         return (
-          <section key={group}>
-            <h2 className="text-[17px] font-bold text-navy-700">{t(HEADINGS[group].title)}</h2>
-            <p className="mt-0.5 text-[13px] text-navy-400">{t(HEADINGS[group].blurb)}</p>
+          <section key={key}>
+            <h2 className="flex items-center gap-2 text-[17px] font-bold text-navy-700">
+              {group === "live" ? <span className="live-dot h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden /> : null}
+              {t(title)}
+            </h2>
+            {blurb ? <p className="mt-0.5 text-[13px] text-navy-400">{t(blurb)}</p> : null}
 
             <ul className="mt-3 space-y-2.5">
-              {rows.map((session) => (
+              {rows.map((session) => {
+                const door = doors[session.id] ?? null;
+                /* 🔴 Founder, 26 Sep: the room from five minutes before, or while it runs. */
+                const shownDoor =
+                  door &&
+                  !(door.kind === "join" && !session.live && now !== undefined && session.at.getTime() - now > ROOM_OPENS_MS)
+                    ? door
+                    : null;
+                return (
                 <li key={session.id}>
-                  <Card className="p-4">
-                    <p className="flex items-center gap-2 text-[15px] font-bold text-navy-700">
+                  <Card className={group === "live" ? "p-4 ring-2 ring-red-400" : "p-4"}>
+                    {/* 🔴 Founder, 26 Sep: every card opens the session's own page. */}
+                    <Link
+                      href={`/patient/sessions/${session.id}`}
+                      aria-label={`${t("psessions.details")}: ${session.therapistName}`}
+                      className="-m-1 flex items-start gap-2 rounded-2xl p-1 hover:bg-navy-50/60"
+                    >
+                    <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2 text-[15px] font-bold text-navy-700">
                       {group === "past_instant" ? (
                         <Zap className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
                       ) : (
                         <CalendarClock className="h-4 w-4 shrink-0 text-navy-400" aria-hidden />
                       )}
+                      <span className="min-w-0">
                       {session.therapistName}
                       {/* 🔴 W3 / P3: the summary below carries its signer's credentials. */}
                       {session.therapistCredentials ? (
                         <span className="font-normal text-navy-400">, {session.therapistCredentials}</span>
                       ) : null}
-                    </p>
-                    <p className="mt-0.5 text-xs text-navy-400">
+                      </span>
+                    </span>
+                    <span className="mt-0.5 block text-xs text-navy-400">
                       {formatWhen(session.at, resolved, locale)}
                       {session.covered
                         ? /* 🔴 Board 418: the benefit paid it; the price printed alone read as money they paid. */
@@ -146,7 +196,10 @@ export function PatientSessionList({
                       {session.cancelled ? (
                         <span className="ms-1 font-semibold text-rose-600">· {t("psessions.cancelled")}</span>
                       ) : null}
-                    </p>
+                    </span>
+                    </span>
+                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-navy-300 rtl:rotate-180" aria-hidden />
+                    </Link>
 
                     {/*
                       🔴 47.4 — the patient sees which of their own sessions
@@ -191,12 +244,14 @@ export function PatientSessionList({
                       </p>
                     ) : null}
 
-                    {doors[session.id] ? (
+                    {shownDoor ? (
                       <Link
-                        href={doors[session.id]!.href}
-                        className="mt-3 inline-flex h-11 items-center rounded-2xl bg-brand-500 px-4 text-sm font-semibold text-navy-700 shadow-[0_8px_24px_-10px_rgba(46,196,182,0.7)] hover:bg-brand-400"
+                        href={shownDoor.href}
+                        className="me-2 mt-3 inline-flex h-11 items-center rounded-2xl bg-brand-500 px-4 text-sm font-semibold text-navy-700 shadow-[0_8px_24px_-10px_rgba(46,196,182,0.7)] hover:bg-brand-400"
                       >
-                        {t(DOOR_LABEL[doors[session.id]!.kind])}
+                        {session.live && shownDoor.kind === "join"
+                          ? t("psessions.backIn")
+                          : t(DOOR_LABEL[shownDoor.kind])}
                       </Link>
                     ) : null}
 
@@ -204,7 +259,7 @@ export function PatientSessionList({
                     {session.changeable ? (
                       <Link
                         href={`/patient/sessions/${session.id}/change`}
-                        className="ms-2 mt-3 inline-flex h-11 items-center rounded-2xl border border-navy-200 bg-white px-4 text-sm font-semibold text-navy-600 hover:bg-navy-50"
+                        className="mt-3 inline-flex h-11 items-center rounded-2xl border border-navy-200 bg-white px-4 text-sm font-semibold text-navy-600 hover:bg-navy-50"
                       >
                         {t("pchange.open")}
                       </Link>
@@ -221,7 +276,8 @@ export function PatientSessionList({
                     ) : null}
                   </Card>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </section>
         );

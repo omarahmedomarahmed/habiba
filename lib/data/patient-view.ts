@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { dbFor } from "@/lib/db";
 import { regionOfPerson } from "@/lib/db/directory";
@@ -13,7 +13,9 @@ import {
   sessionNotes,
   sessionPayments,
   sessions,
+  therapistRadar,
   users,
+  walletHolds,
   type NoteProvenance,
 } from "@/lib/db/schema";
 
@@ -110,6 +112,13 @@ export type PatientSession = {
   covered: boolean;
   /** 🔴 Ruling 16: a booking still ahead, which they may cancel or move. */
   changeable: boolean;
+  /**
+   * 🔴 Founder, 26 Sep: a session under way right now (started, not ended).
+   * A boolean, so it cannot hold a sentence. A live session booked for an hour
+   * that has begun sorted under "Past appointments", which is the one place a
+   * person in the middle of it would not look.
+   */
+  live: boolean;
 };
 
 /**
@@ -242,6 +251,7 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
         !missedBooking(row, now) &&
         (row.startedAt !== null || row.status === "completed" || row.endedAt !== null),
       missed: missedBooking(row, now),
+      live: row.status === "in_progress" && row.startedAt !== null && row.endedAt === null,
       briefAddenda: signed
         ? addenda
             .filter((line) => line.sessionId === row.id)
@@ -305,14 +315,19 @@ export async function sessionsForPatient(personId: string): Promise<PatientSessi
  * could mean either is worse than an orb that means the most recent. The
  * sessions tab is the list.
  */
-export async function openSessionForPatient(
-  personId: string,
-): Promise<{ href: string; state: "owes" | "ready"; live: boolean } | null> {
+export type OrbSession = {
+  href: string;
+  /** `none`: nothing booked; the orb opens the sessions list, which offers to book one. */
+  state: "owes" | "ready" | "none";
+  live: boolean;
+};
+
+export async function openSessionForPatient(personId: string): Promise<OrbSession | null> {
   const db = dbFor(await regionOfPerson(personId));
 
   const [row] = await db
     .select({
-      joinToken: sessions.joinToken,
+      id: sessions.id,
       status: sessions.status,
       paymentStatus: sessions.paymentStatus,
       priceCents: sessions.priceCents,
@@ -330,23 +345,152 @@ export async function openSessionForPatient(
          */
         inArray(sessions.status, ["scheduled", "in_progress"]),
         isNull(sessions.endedAt),
-        isNotNull(sessions.joinToken),
         /* 🔴 Board 729: not a booking whose hour passed with nobody starting it. */
         sql`(${sessions.startedAt} IS NOT NULL OR ${sessions.scheduledAt} IS NULL
              OR ${sessions.scheduledAt} > ${new Date(Date.now() - BOOKED_HOUR_MS).toISOString()}::timestamptz)`,
       ),
     )
-    .orderBy(desc(sessions.createdAt))
+    /*
+     * 🔴 Founder, 26 Sep: THE NEXT ONE, not the newest. A session under way
+     * first, then the soonest. Ordered by creation, a booking made today for
+     * next month took the orb from the one starting in an hour.
+     */
+    .orderBy(
+      desc(sql`(${sessions.status} = 'in_progress')`),
+      asc(sql`COALESCE(${sessions.scheduledAt}, ${sessions.createdAt})`),
+    )
     .limit(1);
 
-  if (!row?.joinToken) return null;
+  if (!row) return null;
 
   const owes = row.priceCents > 0 && row.paymentStatus === "pending";
 
+  /*
+   * 🔴 Founder, 26 Sep: the orb opens the session's own page, which says when,
+   * with whom, who paid and how it was booked, and carries the door, the
+   * payment and the change. It used to open the room or the payment sheet
+   * directly, so a patient three days early met a waiting room with no word
+   * about what they had booked. The page offers the room once it is open.
+   */
   return {
-    href: `/join/${row.joinToken}`,
+    href: `/patient/sessions/${row.id}`,
     state: owes ? "owes" : "ready",
     live: row.status === "in_progress",
+  };
+}
+
+/**
+ * 🔴 Founder, 26 Sep: THE FACTS ON ONE SESSION'S PAGE that the list row does
+ * not carry: how it came to exist, where it stands, and who paid for it.
+ *
+ * Kept apart from `sessionsForPatient` for the reason `sessionDoors` is: that
+ * select list is §6's enforcement and its shape is frozen. Nothing here can
+ * hold a sentence. Every field is an enum, a date, a boolean, a card's brand
+ * and last four, or the clinician's public photo.
+ */
+export type PaidBy =
+  | "free"
+  | "benefit"
+  | "benefit_part"
+  | "wallet"
+  | "transfer"
+  | "card"
+  | "checking"
+  | "unpaid"
+  | "refunded";
+
+export type SessionFacts = {
+  sessionType: "direct" | "paid_link" | "radar" | "scheduled";
+  status: string;
+  startedAt: Date | null;
+  endedAt: Date | null;
+  scheduled: boolean;
+  rescheduled: boolean;
+  cancelledBy: "patient" | "therapist" | "us" | null;
+  paidBy: PaidBy;
+  cardBrand: string | null;
+  cardLast4: string | null;
+  therapistPhoto: string | null;
+};
+
+export async function sessionFactsForPatient(
+  personId: string,
+  sessionId: string,
+): Promise<SessionFacts | null> {
+  const db = dbFor(await regionOfPerson(personId));
+
+  const [row] = await db
+    .select({
+      sessionType: sessions.sessionType,
+      status: sessions.status,
+      scheduledAt: sessions.scheduledAt,
+      startedAt: sessions.startedAt,
+      endedAt: sessions.endedAt,
+      rescheduledAt: sessions.rescheduledAt,
+      cancelledBy: sessions.cancelledBy,
+      priceCents: sessions.priceCents,
+      paymentStatus: sessions.paymentStatus,
+      therapistPhoto: therapistRadar.photoUrl,
+      transferSubmitted: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${manualPayments}
+         WHERE ${manualPayments.purpose} IN ('session', 'payg_session')
+           AND ${manualPayments.refId} = ${qualified(sessions.id)}
+           AND ${manualPayments.state} = 'submitted')`,
+      transferConfirmed: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${manualPayments}
+         WHERE ${manualPayments.purpose} IN ('session', 'payg_session')
+           AND ${manualPayments.refId} = ${qualified(sessions.id)}
+           AND ${manualPayments.state} = 'confirmed')`,
+      fromWallet: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${walletHolds}
+         WHERE ${walletHolds.sessionId} = ${qualified(sessions.id)}
+           AND ${walletHolds.state} = 'spent')`,
+    })
+    .from(sessions)
+    .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .leftJoin(therapistRadar, eq(therapistRadar.userId, sessions.therapistId))
+    .where(and(eq(sessions.id, sessionId), eq(patients.personId, personId), isNull(patients.deletedAt)))
+    .limit(1);
+
+  if (!row) return null;
+
+  const [payment] = await db
+    .select({
+      status: sessionPayments.status,
+      fundingSource: sessionPayments.fundingSource,
+      patientShareCents: sessionPayments.patientShareCents,
+      brand: sessionPayments.paymentBrand,
+      last4: sessionPayments.paymentLast4,
+    })
+    .from(sessionPayments)
+    .where(and(eq(sessionPayments.sessionId, sessionId), inArray(sessionPayments.status, ["paid", "refunded"])))
+    .orderBy(desc(sessionPayments.createdAt))
+    .limit(1);
+
+  const paidBy: PaidBy = (() => {
+    /* Board 418/808: the benefit first, and said as the benefit, never as a price they paid. */
+    if (payment?.fundingSource === "pot") return payment.patientShareCents === 0 ? "benefit" : "benefit_part";
+    if (payment?.status === "refunded") return "refunded";
+    /* Board 793: a session the wallet paid says so. */
+    if (row.fromWallet) return "wallet";
+    if (row.transferConfirmed) return "transfer";
+    if (payment?.status === "paid" || row.paymentStatus === "paid") return "card";
+    if (row.priceCents === 0 || row.paymentStatus === "not_required") return "free";
+    return row.transferSubmitted ? "checking" : "unpaid";
+  })();
+
+  return {
+    sessionType: row.sessionType,
+    status: row.status,
+    startedAt: row.startedAt,
+    endedAt: row.endedAt,
+    scheduled: row.scheduledAt !== null,
+    rescheduled: row.rescheduledAt !== null,
+    cancelledBy: row.cancelledBy ?? null,
+    paidBy,
+    cardBrand: paidBy === "card" ? (payment?.brand ?? null) : null,
+    cardLast4: paidBy === "card" ? (payment?.last4 ?? null) : null,
+    therapistPhoto: row.therapistPhoto ?? null,
   };
 }
 
