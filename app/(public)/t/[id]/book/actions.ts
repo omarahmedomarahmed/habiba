@@ -22,10 +22,10 @@ const BOOK_ERRORS: Record<string, MessageKey> = {
   "Too many attempts. Wait a moment and try again.": "bookerr.tooMany",
   "That time is getting a lot of attempts right now. Try another.": "bookerr.crowded",
   "That time is no longer on the calendar.": "bookerr.gone",
-  "This calendar is busy right now. Try again shortly, or use the crisis radar.": "bookerr.busy",
+  "This calendar is busy. Try again shortly, or use the crisis radar.": "bookerr.busy",
   "Please enter your first name.": "bookerr.name",
   "That name is a little long.": "bookerr.nameLong",
-  "We need an email or a phone number, otherwise we cannot send you the link or tell you if anything changes.": "bookerr.contact",
+  "Add an email or a phone number so we can send you the link.": "bookerr.contact",
   "Check that phone number.": "bookerr.phone",
   "Somebody just took that time. Pick another.": "bookerr.taken",
   "That time has already passed.": "bookerr.passed",
@@ -103,7 +103,7 @@ export async function book(input: {
   const perTherapist = await consume(subjectKey("book:therapist", owner), 40, 60 * 60);
   if (!perTherapist.allowed) {
     return {
-      error: await said("This calendar is busy right now. Try again shortly, or use the crisis radar."),
+      error: await said("This calendar is busy. Try again shortly, or use the crisis radar."),
     };
   }
 
@@ -126,7 +126,7 @@ export async function book(input: {
   if (!email && !rawPhone) {
     return {
       error: await said(
-        "We need an email or a phone number, otherwise we cannot send you the link or tell you if anything changes.",
+        "Add an email or a phone number so we can send you the link.",
       ),
     };
   }
