@@ -939,6 +939,9 @@ export const en = {
   "pclaim.codeLabel": "Six-digit code",
   "pclaim.checkCode": "Check the code",
   "pclaim.channelDown": "WhatsApp codes are not on yet. Ask your therapist for an invite link.",
+  "pclaim.sentByEmail": "We sent your code to your email. Check your inbox.",
+  "pclaim.allYoursTitle": "Your records are already yours",
+  "pclaim.allYoursBody": "What your therapist keeps about you is linked to your account. Nothing else is waiting under this number or address.",
   "pclaim.nothingFound": "We could not find a record under that number.",
   "pclaim.nothingFoundBody": "Normal. An invite link from your therapist works straight away.",
 
@@ -6109,6 +6112,9 @@ export const ar: Record<MessageKey, string> = {
   "pclaim.codeLabel": "رمز من ستة أرقام",
   "pclaim.checkCode": "تحقق من الرمز",
   "pclaim.channelDown": "رموز واتساب غير مفعّلة بعد. اطلب من معالجك رابط دعوة.",
+  "pclaim.sentByEmail": "بعتنا الرمز على إيميلك. بص على صندوق الوارد.",
+  "pclaim.allYoursTitle": "سجلاتك بقت بتاعتك بالفعل",
+  "pclaim.allYoursBody": "اللي معالجك بيحتفظ بيه عنك مربوط بحسابك. مفيش حاجة تانية مستنية على الرقم أو العنوان ده.",
   "pclaim.nothingFound": "لم نجد سجلًا تحت هذا الرقم.",
   "pclaim.nothingFoundBody": "طبيعي. ورابط دعوة من معالجك يعمل فورًا.",
 

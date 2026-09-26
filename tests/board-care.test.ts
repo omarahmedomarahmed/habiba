@@ -5,6 +5,7 @@ import { readSource } from "../scripts/_verify";
 import { cancelledPaymentRoute } from "../lib/billing/split-refund";
 import { sortForGroup } from "../lib/sessions/order";
 import { uncoveredStretches } from "../lib/transcript/gaps";
+import { handleDelivery } from "../lib/patient-auth/handle-delivery";
 
 /**
  * Round 2 board, patient app and therapist portal (fix2/care). Each test names
@@ -82,6 +83,19 @@ test("board 334/344: two tracks stored interleaved are one covered session, not 
   /* A real stretch neither track covers still counts, once. */
   const gap = uncoveredStretches([chunk(1), chunk(2), { startMs: 60_000, endMs: 68_000 }, chunk(3)], 20_000);
   assert.deepEqual(gap, [{ fromMs: 24_000, toMs: 60_000, seconds: 36 }]);
+});
+
+test("board 276: the claim page's warning comes from where the code went", () => {
+  assert.deepEqual(handleDelivery("whatsapp", ["email"]), { channel: "email", channelDown: false });
+  assert.deepEqual(handleDelivery("whatsapp", ["whatsapp"]), { channel: "whatsapp", channelDown: false });
+  assert.deepEqual(handleDelivery("whatsapp", []), { channel: "whatsapp", channelDown: true });
+  assert.match(readSource("lib/patient-auth/handle.ts"), /handleDelivery\(channel, delivery\.channels\)/);
+});
+
+test("board 274: a person whose record is already claimed is not told nobody wrote them down", () => {
+  const page = readSource("app/(patient)/patient/claim/page.tsx");
+  assert.match(page, /alreadyTheirs \?/);
+  assert.match(page, /pclaim\.allYoursBody/);
 });
 
 test("board 334: a session held in our own room names its source", () => {
