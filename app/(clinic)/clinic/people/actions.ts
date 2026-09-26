@@ -9,7 +9,8 @@ import { env } from "@/lib/env";
 import { notify } from "@/lib/notify";
 import { CLINIC_JOIN } from "@/lib/routing";
 
-export type PeopleState = { error?: string; ok?: boolean; link?: string };
+/** `invitationId` so the screen can stop showing a link once it is cancelled (board 308). */
+export type PeopleState = { error?: string; ok?: boolean; link?: string; invitationId?: string };
 
 /**
  * The clinic's people. PLAN.md 54.4, 54.5, 54.11, C261, C266, C267.
@@ -146,7 +147,7 @@ export async function invite(_prev: PeopleState, formData: FormData): Promise<Pe
 
   revalidatePath("/clinic/people");
   revalidatePath("/clinic/seats");
-  return { ok: true, link, ...(seatError ? { error: seatError } : {}) };
+  return { ok: true, link, invitationId: result.invitationId, ...(seatError ? { error: seatError } : {}) };
 }
 
 /**

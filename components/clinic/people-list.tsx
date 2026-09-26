@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 
 import { cancelInvitation, invite, remove } from "@/app/(clinic)/clinic/people/actions";
+import { liveLink } from "./live-link";
 import { BadgeCheck, CheckCircle2, ChevronDown, Mail, ShieldCheck, UserMinus, UserPlus, Users } from "lucide-react";
 
 import { ClinicHead } from "@/components/clinic/ui";
@@ -104,6 +105,12 @@ export function ClinicPeopleList({
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /*
+   * 🔴 Board 308: the link just sent is shown only while its invitation is still
+   * live. Cancelling it left "Invitation sent" and the dead link on screen, for a
+   * manager to copy and send.
+   */
+  const sentLink = liveLink(state, invitations);
 
   return (
     <div>
@@ -322,7 +329,7 @@ export function ClinicPeopleList({
                 </p>
               ) : null}
 
-              {state.ok && state.link ? (
+              {sentLink ? (
                 <div className="rounded-2xl bg-brand-50 p-3 ring-1 ring-brand-100">
                   <p className="flex items-center gap-1.5 text-[13px] font-semibold text-brand-800">
                     <CheckCircle2 className="h-4 w-4" aria-hidden />
@@ -335,7 +342,7 @@ export function ClinicPeopleList({
                     needs a way through that does not depend on us.
                   */}
                   <p className="mt-1 text-[13px] text-brand-800">{t("clinic.inviteLink")}</p>
-                  <p className="mt-1 break-all font-mono text-xs text-navy-700" dir="ltr">{state.link}</p>
+                  <p className="mt-1 break-all font-mono text-xs text-navy-700" dir="ltr">{sentLink}</p>
                 </div>
               ) : null}
 
