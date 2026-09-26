@@ -4,13 +4,13 @@ import { headers } from "next/headers";
 import { Logo } from "@/components/brand/logo";
 import { BRAND } from "@/lib/brand";
 import { LanguageSwitch } from "@/components/i18n/language-switch";
+import { HeaderNav } from "@/components/public/header-nav";
 import { MobileNav } from "@/components/public/mobile-nav";
 import { SignInMenu } from "@/components/public/sign-in-menu";
 import { getFooterLinks, getPublicNav } from "@/lib/content/service";
 import { getI18n } from "@/lib/i18n/server";
 import { localisedPath, splitLocale } from "@/lib/i18n/paths";
 import { publicLanguages } from "@/lib/i18n/strings";
-import { cn } from "@/lib/utils";
 
 /**
  * The site's header and footer, in one place so every page can carry them.
@@ -106,26 +106,16 @@ export async function SiteHeader() {
           <Logo ink="white" height={28} />
         </Link>
 
-        <nav aria-label={t("nav.mainNav")} className="ms-3 hidden flex-1 items-center gap-1 lg:flex">
-          {AUDIENCES.map((item) => {
-            const on = here === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={href(item.href)}
-                aria-current={on ? "page" : undefined}
-                className={cn(
-                  "rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors",
-                  on
-                    ? "bg-brand-500 text-navy-700"
-                    : "text-white/85 hover:bg-white/10 hover:text-white",
-                )}
-              >
-                {t(item.key)}
-              </Link>
-            );
-          })}
-        </nav>
+        {/*
+          The highlight is decided in the browser: this header lives in a
+          layout, which a client-side navigation does not re-render, so a
+          server-side answer went stale on the first click (founder, 26 Sep).
+        */}
+        <HeaderNav
+          label={t("nav.mainNav")}
+          initial={here}
+          items={AUDIENCES.map((item) => ({ href: href(item.href), path: item.href, label: t(item.key) }))}
+        />
 
         <div className="flex shrink-0 items-center gap-2">
           <LanguageSwitch
