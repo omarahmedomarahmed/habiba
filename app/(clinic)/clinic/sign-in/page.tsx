@@ -52,7 +52,7 @@ export default async function ClinicSignInPage({
 /** 🔴 B29 / B43: `/welcome` lands here with `set=1` once the password is chosen. */
 function PasswordSet({ text }: { text: string }) {
   return (
-    <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
+    <p role="status" className="mb-4 rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm font-medium text-brand-800 ring-1 ring-brand-100">
       {text}
     </p>
   );

@@ -5,14 +5,15 @@ import { useFormStatus } from "react-dom";
 import Link from "next/link";
 
 import { apply } from "@/app/(clinic)/clinic/apply/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button full size="lg" type="submit" disabled={pending}>
-      {pending ? "Working…" : label}
+      {pending ? t("common.working") : label}
     </Button>
   );
 }
@@ -31,21 +32,21 @@ export function ClinicApplyForm() {
 
   if (state.sent) {
     return (
-      <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("clinic.apply.sent")}</p>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+      <div>
+        <p className="text-sm font-semibold text-navy-700">{t("clinic.apply.sent")}</p>
+        <p className="mt-2 text-sm leading-relaxed text-navy-500">
           {t("clinic.apply.sentBody")}
         </p>
         {/* 🔴 W2-C07: a way on from "we will call you". */}
         <Link href="/for-clinics" className="mt-3 inline-flex text-sm font-semibold text-brand-700">
           {t("nav.forClinics")}
         </Link>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="p-5">
+    <div>
       <form action={formAction} className="space-y-4">
         <Field label={t("clinic.apply.name")} htmlFor="clinic-apply-name">
           <Input id="clinic-apply-name" name="name" required />
@@ -89,7 +90,7 @@ export function ClinicApplyForm() {
             id="clinic-apply-clinicians"
             name="intendedClinicians"
             rows={4}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+            className="w-full rounded-2xl border border-navy-100 bg-white px-4 py-3 text-sm leading-relaxed text-navy-700 placeholder:text-navy-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
           />
         </Field>
 
@@ -101,18 +102,18 @@ export function ClinicApplyForm() {
           the kind of surprise that arrives three weeks into an onboarding. The
           sentence is here instead.
         */}
-        <p className="text-xs leading-relaxed text-slate-500">
+        <p className="text-xs leading-relaxed text-navy-400">
           {t("clinic.apply.cliniciansWhy")}
         </p>
 
         {state.error ? (
-          <p role="alert" className="text-xs text-red-600">
+          <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
             {state.error}
           </p>
         ) : null}
 
         <Submit label={t("clinic.apply.submit")} />
       </form>
-    </Card>
+    </div>
   );
 }

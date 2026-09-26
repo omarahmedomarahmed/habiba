@@ -5,15 +5,16 @@ import { useFormStatus } from "react-dom";
 import Link from "next/link";
 
 import { accept, joinWithAccount } from "@/app/(clinic)/clinic/join/[token]/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/clinician/kit";
 import { SeesWhat } from "@/components/visual/primitives";
 import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button full size="lg" type="submit" disabled={pending}>
-      {pending ? "Working…" : label}
+      {pending ? t("common.working") : label}
     </Button>
   );
 }
@@ -70,7 +71,7 @@ function WhatTheySee({ clinicName }: { clinicName: string }) {
       />
 
       {/* 🔴 63.10 — and the invitation does nothing until they are verified. */}
-      <p className="text-xs leading-relaxed text-slate-500">{t("clinic.join.verifyFirst")}</p>
+      <p className="text-xs leading-relaxed text-navy-400">{t("clinic.join.verifyFirst")}</p>
     </div>
   );
 }
@@ -117,12 +118,12 @@ export function ClinicJoinForm({
    */
   if (state.ok || existingState.ok) {
     return (
-      <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("clinic.join.done")}</p>
+      <div>
+        <p className="text-sm font-semibold text-navy-700">{t("clinic.join.done")}</p>
         <Link href="/onboarding" className="mt-3 inline-flex text-sm font-semibold text-brand-700">
           {t("portal.nav.finishVerification")}
         </Link>
-      </Card>
+      </div>
     );
   }
 
@@ -138,11 +139,11 @@ export function ClinicJoinForm({
    */
   if (existing) {
     return (
-      <Card className="p-5">
+      <div>
         <form action={existingAction} className="space-y-4">
           <input type="hidden" name="token" value={token} />
 
-          <p className="text-sm leading-relaxed text-slate-600">
+          <p className="text-sm leading-relaxed text-navy-500">
             {t("clinic.join.signInBody", { name: clinicName })}
           </p>
 
@@ -173,7 +174,7 @@ export function ClinicJoinForm({
           </div>
 
           {existingState.error ? (
-            <p role="alert" className="text-xs text-red-600">
+            <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
               {existingState.error}
             </p>
           ) : null}
@@ -188,16 +189,16 @@ export function ClinicJoinForm({
             {t("clinic.join.newHere")}
           </button>
         </form>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="p-5">
+    <div>
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="token" value={token} />
 
-        <p className="text-sm leading-relaxed text-slate-600">{t("clinic.join.body")}</p>
+        <p className="text-sm leading-relaxed text-navy-500">{t("clinic.join.body")}</p>
 
         <Field label={t("clinic.firstName")} htmlFor="join-first">
           <Input id="join-first" name="firstName" defaultValue={firstName ?? ""} required />
@@ -228,7 +229,7 @@ export function ClinicJoinForm({
         </div>
 
         {state.error ? (
-          <p role="alert" className="text-xs text-red-600">
+          <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
             {state.error}
           </p>
         ) : null}
@@ -243,6 +244,6 @@ export function ClinicJoinForm({
           {t("clinic.join.haveAccount")}
         </button>
       </form>
-    </Card>
+    </div>
   );
 }

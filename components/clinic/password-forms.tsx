@@ -6,7 +6,7 @@ import { useFormStatus } from "react-dom";
 
 import { requestReset } from "@/app/(clinic)/clinic/forgot-password/actions";
 import { setPassword } from "@/app/(clinic)/clinic/set-password/actions";
-import { Button, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import { CLINIC_SIGN_IN } from "@/lib/routing";
 
@@ -24,7 +24,7 @@ function Back() {
   const t = useT();
   return (
     <p className="pt-1 text-center text-sm">
-      <Link href={CLINIC_SIGN_IN} className="text-slate-500 hover:text-slate-800">
+      <Link href={CLINIC_SIGN_IN} className="text-navy-400 hover:text-navy-700">
         {t("tauth.backToSignIn")}
       </Link>
     </p>
@@ -43,8 +43,8 @@ export function ClinicForgotForm() {
   if (state.sent) {
     return (
       <div className="space-y-2">
-        <p className="text-sm font-semibold text-slate-900">{t("tauth.checkInbox")}</p>
-        <p className="text-sm text-slate-600">{t("tauth.checkInboxBody")}</p>
+        <p className="text-sm font-semibold text-navy-700">{t("tauth.checkInbox")}</p>
+        <p className="text-sm text-navy-500">{t("tauth.checkInboxBody")}</p>
         <Back />
       </div>
     );
@@ -63,7 +63,7 @@ export function ClinicForgotForm() {
         />
       </Field>
       {state.error ? (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
           {state.error}
         </p>
       ) : null}
@@ -91,7 +91,7 @@ export function ClinicSetPasswordForm({ token }: { token: string }) {
         />
       </Field>
       {state.error ? (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
           {state.error}
         </p>
       ) : null}

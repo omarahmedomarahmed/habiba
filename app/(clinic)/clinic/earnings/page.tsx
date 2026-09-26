@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
-import { Card } from "@/components/ui";
+import { ShieldCheck, Wallet } from "lucide-react";
+
+import { ClinicHead, Share } from "@/components/clinic/ui";
+import { Avatar, Badge, Card, EmptyState, Stat } from "@/components/clinician/kit";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { clinicEarnings } from "@/lib/data/clinic";
 import type { PayoutStatus } from "@/lib/db/schema";
@@ -59,6 +62,16 @@ const PAYOUT_LABEL: Record<PayoutStatus, MessageKey> = {
   returned: "clinic.payout.rejected",
 };
 
+/* The same states as colours: waiting is amber, arrived is teal, not processed is grey. */
+const PAYOUT_TONE: Record<PayoutStatus, "amber" | "green" | "slate"> = {
+  requested: "amber",
+  approved: "amber",
+  sent: "green",
+  confirmed: "green",
+  rejected: "slate",
+  returned: "slate",
+};
+
 export default async function ClinicEarningsPage() {
   const actor = await requireClinicCapability("earnings.read");
   const { t, locale } = await getI18n();
@@ -66,72 +79,65 @@ export default async function ClinicEarningsPage() {
   const rows = await clinicEarnings(actor);
 
   const money = (cents: number) => <Money cents={cents} />;
+  /* The largest earner sets the length of every share bar. */
+  const top = Math.max(1, ...rows.map((row) => row.earnedCents));
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          {t("clinic.earn.title")}
-        </h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("clinic.earn.body")}</p>
-      </div>
+    <div>
+      <ClinicHead title={t("clinic.earn.title")} subtitle={t("clinic.earn.body")} />
 
       {rows.length === 0 ? (
-        <Card className="p-5">
-          <p className="text-sm leading-relaxed text-slate-600">{t("clinic.earn.empty")}</p>
+        <Card>
+          <EmptyState icon={<Wallet className="h-6 w-6" aria-hidden />} title={t("clinic.earn.empty")} />
         </Card>
       ) : (
-        <>
+        <div className="space-y-4">
           {/* 🔴 63.15 — combined, and it is a sum of what is on this page rather
               than a second query that could disagree with the rows under it. */}
-          <Card className="p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              {t("clinic.earn.combined")}
-            </p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
-              {money(rows.reduce((sum, row) => sum + row.earnedCents, 0))}
-            </p>
-          </Card>
+          <Stat tone="dark" label={t("clinic.earn.combined")} className="sm:max-w-sm">
+            {money(rows.reduce((sum, row) => sum + row.earnedCents, 0))}
+          </Stat>
 
-          {rows.map((row) => (
-            <Card key={row.userId} className="p-5">
-              <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <p className="text-sm font-semibold text-slate-900">{row.name}</p>
-                <p className="text-sm font-bold tabular-nums text-slate-900">
-                  {money(row.earnedCents)}
-                </p>
-              </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {rows.map((row) => (
+              <Card key={row.userId} className="p-5">
+                <div className="flex items-center gap-3">
+                  <Avatar name={row.name} size={44} />
+                  <p className="min-w-0 flex-1 truncate text-[15px] font-bold text-navy-700">{row.name}</p>
+                  <p className="shrink-0 text-[20px] font-bold tabular-nums text-navy-700">{money(row.earnedCents)}</p>
+                </div>
+                <Share value={row.earnedCents / top} className="mt-3" />
 
-              {row.withdrawals.length > 0 ? (
-                <ul className="mt-3 divide-y divide-slate-100 border-t border-slate-100 pt-1">
-                  {row.withdrawals.map((withdrawal) => (
-                    <li
-                      key={`${withdrawal.requestedAt.toISOString()}-${withdrawal.amountCents}`}
-                      className="flex flex-wrap items-baseline justify-between gap-2 py-2 text-sm"
-                    >
-                      <span className="text-slate-600">
-                        {/* 🔴 T8: the day in the reader's zone, as on the rota. */}
-                        {formatDate(withdrawal.requestedAt, actor.zone.name, locale)}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {t(PAYOUT_LABEL[withdrawal.status])}
-                      </span>
-                      <span className="tabular-nums text-slate-800">
-                        {money(withdrawal.amountCents)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-xs text-slate-500">{t("clinic.earn.noWithdrawals")}</p>
-              )}
-            </Card>
-          ))}
+                {row.withdrawals.length > 0 ? (
+                  <ul className="mt-4 divide-y divide-navy-100/70 border-t border-navy-100 pt-1">
+                    {row.withdrawals.map((withdrawal) => (
+                      <li
+                        key={`${withdrawal.requestedAt.toISOString()}-${withdrawal.amountCents}`}
+                        className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm"
+                      >
+                        <span className="text-navy-500">
+                          {/* 🔴 T8: the day in the reader's zone, as on the rota. */}
+                          {formatDate(withdrawal.requestedAt, actor.zone.name, locale)}
+                        </span>
+                        <Badge tone={PAYOUT_TONE[withdrawal.status]}>{t(PAYOUT_LABEL[withdrawal.status])}</Badge>
+                        <span className="font-semibold tabular-nums text-navy-700">{money(withdrawal.amountCents)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-[13px] text-navy-400">{t("clinic.earn.noWithdrawals")}</p>
+                )}
+              </Card>
+            ))}
+          </div>
 
           {/* 🔴 63.14 — said on the screen, because a practice that assumes it can
               move a colleague's money will ask us to, and the answer is no. */}
-          <p className="text-xs leading-relaxed text-slate-500">{t("clinic.earn.theirsOnly")}</p>
-        </>
+          <p className="flex items-start gap-2 text-[13px] leading-relaxed text-navy-400">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden />
+            {t("clinic.earn.theirsOnly")}
+          </p>
+        </div>
       )}
     </div>
   );
