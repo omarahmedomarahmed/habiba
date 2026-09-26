@@ -48,6 +48,11 @@ async function main() {
       shiftFor(clock, 3, new Date("2026-09-25T12:00:00Z")) === 2 * 86_400 - 7_200,
       String(shiftFor(clock, 3, new Date("2026-09-25T12:00:00Z"))),
     );
+    check(
+      "🔴 …rounded down to whole hours, so slots that start on the hour still do",
+      shiftFor(clock, 3, new Date("2026-09-25T12:21:30Z")) === 2 * 86_400 - 3 * 3_600,
+      String(shiftFor(clock, 3, new Date("2026-09-25T12:21:30Z"))),
+    );
   } finally {
     await db.execute(sql.raw(`DROP TABLE IF EXISTS "${T}"; DROP FUNCTION IF EXISTS "${T}_touch"();`));
     await pool.end();
