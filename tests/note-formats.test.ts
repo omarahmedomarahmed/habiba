@@ -255,3 +255,26 @@ test("board 462 a first session's note says nothing about a previous record it w
   assert.match(source, /When there is no such section, there is no previous record/);
   assert.match(source, /input\.context\.includes\(BACKGROUND_HEADING\)/);
 });
+
+/* ---------------------------------------------------------------- board 869 -- */
+
+test("board 869 the writer is never left to default an Arabic note to the masculine", async () => {
+  const { noteFromTranscript, PATIENT_GENDER_UNRECORDED } = await writer();
+  const before = mock.state.chatRequests.length;
+  await noteFromTranscript({ context: `Session type: video\n${PATIENT_GENDER_UNRECORDED}`, transcript: TRANSCRIPT });
+  await noteFromTranscript({ context: "", transcript: TRANSCRIPT, format: dap });
+  for (const index of [before, before + 1]) {
+    const prompt = systemOf(index);
+    assert.match(prompt, /GRAMMATICAL GENDER/, "every format carries the rule");
+    assert.match(prompt, /Never default to the masculine/);
+    assert.match(prompt, /أنا تعبانة/, "the transcript's own feminine forms are named as evidence");
+    assert.match(prompt, /no gender is assumed/);
+    assert.ok(prompt.indexOf("GRAMMATICAL GENDER") < prompt.indexOf("Respond with a single JSON object"));
+  }
+  const user = (JSON.parse(mock.state.chatRequests[before]!.body) as { messages: { content: string }[] })
+    .messages[1]!.content;
+  assert.ok(user.includes(PATIENT_GENDER_UNRECORDED), "the context says the gender is not recorded");
+
+  const notes = readFileSync("lib/ai/notes.ts", "utf8");
+  assert.match(notes, /PATIENT_GENDER_UNRECORDED,\n\s*\);/, "the session note's context carries the line");
+});

@@ -53,6 +53,12 @@ LANGUAGE
 - Report the language you wrote in as a two-letter ISO 639-1 code in "language".
 - If the session mixes languages, use the one the patient mostly spoke in, the record should read naturally to the clinician who was in the room.
 
+GRAMMATICAL GENDER
+- Languages such as Arabic mark the patient's gender in almost every sentence ("المريضة تشعر" or "المريض يشعر"). Never default to the masculine.
+- Use the patient's gender or pronouns when the context gives them. When it does not, take them from the transcript: how the patient speaks of themself (in Arabic, feminine forms such as "أنا تعبانة" or "عارفة") and how the therapist addresses them ("عليكي", "إنتِ" for a woman).
+- Keep that one gender in every field, the clinical record and the patient's copy alike.
+- When neither the context nor the transcript shows it, write so that no gender is assumed: in Arabic, refer to them as "الحالة", which clinical Arabic uses for anyone, and build sentences around nouns and verbal nouns ("أفادت الحالة بشعور بالإرهاق", "وَصفُ الإرهاق") rather than "المريض" with a masculine verb or pronoun, and in the patient's copy address them without gendered endings where you can.
+
 THE PATIENT'S COPY
 Three fields, "patientBrief", "patientSteps", "patientNext", are the only part the patient ever reads, and they are written *to them*: second person, plain words, no clinical vocabulary, no diagnosis, no impressions, no risk language, no labels. Write them in the same language as the rest of the note. All three must be true to the session, and must be something the person could read alone at midnight without feeling described.
 - "patientBrief": two or three short paragraphs. What you talked about, and what you worked out together. Not a transcript and not a compliment. The point is that they recognise their own session in it.
@@ -73,6 +79,14 @@ Respond with a single JSON object with exactly these keys:
   "patientSteps": string[],
   "patientNext": string
 }`;
+
+/**
+ * 🔴 Board 869: the context line for a patient whose gender nobody recorded,
+ * which today is every patient. It points the writer at the GRAMMATICAL GENDER
+ * rule rather than leaving it to default to the masculine.
+ */
+export const PATIENT_GENDER_UNRECORDED =
+  "Patient's gender and pronouns: not recorded. Follow the GRAMMATICAL GENDER rules: take them from the transcript, and where it does not show them, assume none.";
 
 const SOAP_SCHEMA_LINE =
   '  "soap": { "subjective": string, "objective": string, "assessment": string, "plan": string },';

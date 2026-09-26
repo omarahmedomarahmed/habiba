@@ -32,6 +32,7 @@ import {
   noteFromTranscript,
   normaliseLanguage,
   normaliseNote,
+  PATIENT_GENDER_UNRECORDED,
 } from "./note-writer";
 
 export { noteFromTranscript, normaliseLanguage, normaliseNote };
@@ -102,6 +103,13 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
     contextParts.push(
       `Session type: ${row.modality === "video" ? "video" : "in person"}`,
       `Duration: ${row.durationMinutes ?? "unknown"} minutes`,
+      /*
+       * 🔴 Board 869: an Arabic note called a woman المريض throughout while her
+       * own lines were feminine. Nothing in the record holds a gender, and the
+       * writer is told so in as many words, so it follows the GRAMMATICAL
+       * GENDER rule: the transcript's evidence, else no gender assumed.
+       */
+      PATIENT_GENDER_UNRECORDED,
     );
     const diagnoses = row.clinical?.diagnoses ?? [];
     const goals = row.clinical?.goals ?? [];
