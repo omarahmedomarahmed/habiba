@@ -49,13 +49,20 @@ export default async function TransfersPage({
   const q = searchTerm(params.q);
   const { page, offset, fetch } = paging(params);
 
-  const { walletCreditedTransfers } = await import("@/lib/billing/transfer-wallet");
-  const [fetched, carts, open, inWallet] = await Promise.all([
+  const { shownResolution, walletCreditedTransfers } = await import("@/lib/billing/transfer-wallet");
+  /*
+   * 🔴 Board 484 (AD7.7): the page took 10.4 s for Amal. It asked the database
+   * seven times one after another; the second-person card is independent of
+   * everything else and the five name lookups depend only on the queue, so it
+   * is now three rounds: the queue, the names, the rosters.
+   */
+  const [fetched, carts, open, inWallet, approvals] = await Promise.all([
     queue({ q, offset, limit: fetch }),
     openCarts(),
     openExceptions(),
     /* K20: cancelled bookings' transfers now in a wallet, which staff may still refund instead. */
     walletCreditedTransfers(),
+    approvalViews("transfer_without_proof", actor.userId),
   ]);
   const walletIds = new Set(inWallet.map((row) => row.id));
   const exceptions = [...open, ...inWallet];
@@ -92,27 +99,6 @@ export default async function TransfersPage({
   const sessionIds = everyRow
     .filter((r) => r.payerKind === "session" && r.refId)
     .map((r) => r.refId as string);
-  const sessionPayers =
-    sessionIds.length > 0
-      ? await db
-          .select({
-            id: sessions.id,
-            guestName: sessions.guestName,
-            firstName: patients.firstName,
-            lastName: patients.lastName,
-          })
-          .from(sessions)
-          .leftJoin(patients, eq(patients.id, sessions.patientId))
-          .where(inArray(sessions.id, sessionIds))
-      : [];
-  const practices =
-    practiceIds.length > 0
-      ? await db
-          .select({ id: organizations.id, name: organizations.name })
-          .from(organizations)
-          .where(inArray(organizations.id, practiceIds))
-      : [];
-
   /*
    * ⚠️ 76.11 — THESE THREE HAD NO `WHERE` AND READ THE WHOLE TABLE.
    *
@@ -121,7 +107,7 @@ export default async function TransfersPage({
    * database, and `nameFor` searched the result in memory. Correct output,
    * and a query that grows with the product rather than with the queue.
    */
-  const [people, accounts, orgs] = await Promise.all([
+  const [people, accounts, orgs, sessionPayers, practices] = await Promise.all([
     userIds.length > 0
       ? db
           .select({
@@ -144,6 +130,25 @@ export default async function TransfersPage({
           .select({ id: sponsors.id, name: sponsors.name })
           .from(sponsors)
           .where(inArray(sponsors.id, sponsorIds))
+      : Promise.resolve([]),
+    /* A guest's or patient's session, and a practice paying its own bill. */
+    sessionIds.length > 0
+      ? db
+          .select({
+            id: sessions.id,
+            guestName: sessions.guestName,
+            firstName: patients.firstName,
+            lastName: patients.lastName,
+          })
+          .from(sessions)
+          .leftJoin(patients, eq(patients.id, sessions.patientId))
+          .where(inArray(sessions.id, sessionIds))
+      : Promise.resolve([]),
+    practiceIds.length > 0
+      ? db
+          .select({ id: organizations.id, name: organizations.name })
+          .from(organizations)
+          .where(inArray(organizations.id, practiceIds))
       : Promise.resolve([]),
   ]);
 
@@ -243,7 +248,7 @@ export default async function TransfersPage({
         subtitle="Bank transfers waiting to be checked."
       />
       {/* 🔴 0161 / ruling 13c: a transfer confirmed without proof waits here for a second person. */}
-      <PendingApprovals rows={await approvalViews("transfer_without_proof", actor.userId)} />
+      <PendingApprovals rows={approvals} />
       {/*
         🔴 76.15 — under the queue, collapsed, and never above it. The queue is
         people waiting on us; this is a reference an operator opens when a bank
@@ -302,7 +307,8 @@ export default async function TransfersPage({
           amountLabel: formatMoney(e.amountCents, e.currency.toUpperCase(), "en-US"),
           settlesCents: e.settlesCents,
           kind: e.exception!,
-          detail: walletIds.has(e.id) ? e.exceptionResolution : e.exceptionDetail,
+          /* 🔴 Board 497: the credit in words, without its id. */
+          detail: walletIds.has(e.id) ? shownResolution(e.exceptionResolution) : e.exceptionDetail,
           raisedAt: e.exceptionAt?.toISOString() ?? null,
           walletCredit: walletIds.has(e.id),
         }))}

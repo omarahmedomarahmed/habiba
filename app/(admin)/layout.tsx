@@ -45,6 +45,8 @@ import { waitingCount } from "@/lib/billing/manual";
 import { LanguageCorner } from "@/components/i18n/language-corner";
 import { features } from "@/lib/env";
 import { whatsappConfigured } from "@/lib/notify/whatsapp";
+import { StaffOpsAlerts } from "@/components/admin/ops-alerts";
+import { opsAlertBoard } from "@/lib/observability/heartbeat";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   /*
@@ -65,12 +67,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
    */
   const { t } = await getI18n();
 
-  const [waiting, reports, tickets, changes, transfers] = await Promise.all([
+  /*
+   * 🔴 Board 543 / 544: somebody who cannot open the overview is shown the
+   * open operations alerts here, on every page they can open.
+   */
+  const ownsOverview = mayOpen(actor.role, "/admin");
+  const [waiting, reports, tickets, changes, transfers, alerts] = await Promise.all([
     pendingReviewCount(),
     countOpenReports(),
     ticketCounts(),
     openChanges(200).then((rows) => rows.length),
     waitingCount(),
+    ownsOverview ? Promise.resolve([]) : opsAlertBoard().catch(() => []),
   ]);
 
   /*
@@ -237,6 +245,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </div>
         </div>
       ) : null}
+
+      <StaffOpsAlerts rows={alerts} t={t} />
 
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">{children}</main>
     </div>

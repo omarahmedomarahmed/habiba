@@ -31,6 +31,7 @@ import {
 import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
 import { sendTherapistMessage } from "@/lib/mail";
+import type { EffectRow } from "@/lib/billing/adjust-effect";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -43,7 +44,13 @@ import { sendTherapistMessage } from "@/lib/mail";
 const db = dbFor(pinnedToDefaultRegion("app/(admin)/admin/actions.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
 
 
-export type AdminActionState = { error?: string; ok?: boolean; proposed?: boolean };
+export type AdminActionState = {
+  error?: string;
+  ok?: boolean;
+  proposed?: boolean;
+  /** 🔴 Board 593: a posted hand adjustment's balances, before and after. */
+  effect?: EffectRow[];
+};
 
 /**
  * 🔴 W2-A05: one reason rule for every destructive or customer-visible act
@@ -692,7 +699,14 @@ export async function adjustLedger(input: {
    * ours, and only one of this practice) and the post-once rule are both in
    * `postAdjustment`, not here, so no other caller can skip them.
    */
-  const { postAdjustment } = await import("@/lib/billing/ledger");
+  const { adjustmentSums, postAdjustment } = await import("@/lib/billing/ledger");
+  const { adjustmentEffect } = await import("@/lib/billing/adjust-effect");
+  /* 🔴 Board 593: read before posting, so the audit row and the answer say what moved. */
+  const effect = adjustmentEffect({
+    account: entry.account,
+    ledgerCents: entry.amountCents,
+    sums: await adjustmentSums(entry),
+  });
   const result = await postAdjustment({
     organizationId: entry.organizationId,
     therapistId: entry.therapistId,
@@ -709,17 +723,66 @@ export async function adjustLedger(input: {
   /* The same form again: its adjustment and its audit row are already written. */
   if (result.replayed) return { ok: true };
 
+  /*
+   * 🔴 Board 593: the row names the practice whose books moved (not the
+   * operator's own 24Therapy), the clinician by name, and each balance before
+   * and after in the words the screens use, so the log reads as what happened.
+   */
+  const [clinician] = entry.therapistId
+    ? await db
+        .select({ firstName: users.firstName, lastName: users.lastName })
+        .from(users)
+        .where(eq(users.id, entry.therapistId))
+        .limit(1)
+    : [];
+  const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  const moved = effect
+    .map((row) => `${ACCOUNT_WORDS[row.account]} ${usd(row.beforeCents)} to ${usd(row.afterCents)}`)
+    .join("; ");
   await audit({
     actor,
+    organizationId: entry.organizationId,
     category: "billing",
     action: "ledger.adjust",
     resourceType: "organization",
     resourceId: entry.organizationId,
-    reason: `${entry.account} ${entry.amountCents}${entry.therapistId ? ` clinician ${entry.therapistId}` : ""} txn ${entry.idempotencyKey}, ${gate.reason.trim()}${gate.askedBy ? ` (asked by ${gate.askedBy})` : ""}`,
+    reason: `${moved}${clinician ? `, for ${`${clinician.firstName} ${clinician.lastName}`.trim()}` : ""}, txn ${entry.idempotencyKey}, ${gate.reason.trim()}${gate.askedBy ? ` (asked by ${gate.askedBy})` : ""}`,
   });
 
   revalidatePath("/admin/vault");
-  return { ok: true };
+  return { ok: true, effect };
+}
+
+/** 🔴 Board 593: the audit log's words for each account, as the screens say them. */
+const ACCOUNT_WORDS: Record<LedgerAccount, string> = {
+  cash: "Money in our bank",
+  therapist_payable: "Held for the clinician",
+  therapist_receivable: "Owed to us by the practice",
+  platform_revenue: "Our income",
+  platform_expense: "Our costs",
+  sponsor_pot: "Company pots",
+  patient_wallet: "Patient wallets",
+  vat_payable: "VAT owed to the tax office",
+  fx_difference: "Currency differences",
+  partner_receivable: "Owed to us by a partner",
+};
+
+/**
+ * 🔴 Board 593: the balances a hand adjustment would move, read before anyone
+ * presses Post, so the form can show each one before and after.
+ */
+export async function adjustmentPreview(input: {
+  organizationId: string;
+  therapistId: string | null;
+  account: LedgerAccount;
+}): Promise<{ sums?: Partial<Record<LedgerAccount, number>>; error?: string }> {
+  await requireRole("super_admin");
+  if (!LEDGER_ACCOUNTS.includes(input.account)) return { error: "Unknown account." };
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuid.test(input.organizationId)) return { error: "Unknown organisation." };
+  const therapistId = input.therapistId && uuid.test(input.therapistId) ? input.therapistId : null;
+  const { adjustmentSums } = await import("@/lib/billing/ledger");
+  return { sums: await adjustmentSums({ organizationId: input.organizationId, therapistId, account: input.account }) };
 }
 
 /** Credit applied to a subscriber's next renewal, consumed once. */

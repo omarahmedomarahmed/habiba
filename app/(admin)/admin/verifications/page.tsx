@@ -145,7 +145,15 @@ export default async function VerificationsPage({
               decided={bucket !== "submitted"}
               /* 🔴 C351 — a reviewer sees which number of no this one is. */
               rejectionCount={row.rejectionCount}
-              documentsCleared={row.documentsClearedAt !== null}
+              /*
+               * 🔴 Board 564 (TH2.10): cleared AND still empty. `documents_cleared_at`
+               * records that we once deleted them and stays set after the
+               * clinician uploads new ones, so Omar's resubmitted card said
+               * "Documents not kept." over four documents that opened.
+               */
+              documentsCleared={
+                row.documentsClearedAt !== null && !IDENTITY_KINDS.some((kind) => URL_OF[kind](row) !== null)
+              }
               finalAt={REJECTIONS_BEFORE_REAPPLYING}
             />
           ))}

@@ -40,6 +40,17 @@ import { log, ref } from "@/lib/logger";
 /** The start of the resolution a wallet credit writes, and what "Refund instead" reads. */
 export const WALLET_RESOLUTION = "Credited to the patient's wallet as credit ";
 
+/**
+ * 🔴 Board 497 (AD7.7): the resolution as a person reads it. The stored line
+ * carries the credit's id because "Refund instead" finds the credit by it,
+ * and the Needs a decision card printed it whole: "…as credit a5acbfd8-…".
+ */
+export function shownResolution(resolution: string | null): string | null {
+  if (!resolution?.startsWith(WALLET_RESOLUTION)) return resolution;
+  const rest = resolution.slice(WALLET_RESOLUTION.length).replace(/^[0-9a-f-]{36}\.?\s*/, "");
+  return `Credited to the patient's wallet.${rest ? ` ${rest}` : ""}`;
+}
+
 function creditIdIn(resolution: string | null): string | null {
   if (!resolution?.startsWith(WALLET_RESOLUTION)) return null;
   const match = resolution.slice(WALLET_RESOLUTION.length).match(/^[0-9a-f-]{36}/);

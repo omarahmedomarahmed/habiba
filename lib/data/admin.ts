@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 
 import { likePattern } from "@/lib/admin/paging";
 
@@ -15,6 +15,8 @@ import {
   copilotThreads,
   organizations,
   patients,
+  payoutMethods,
+  type PayoutMethod,
   invoices,
   sessions,
   sponsorUsers,
@@ -470,6 +472,25 @@ export async function adjustableClinicians(): Promise<
     name: `${row.firstName} ${row.lastName}`.trim(),
     organizationId: row.organizationId,
   }));
+}
+
+/**
+ * 🔴 Board 506: each clinician's default payout method, for the held balances
+ * on the vault. Egypt pays by InstaPay or a wallet while Stripe is off.
+ */
+export async function defaultPayoutMethods(therapistIds: string[]): Promise<Map<string, PayoutMethod>> {
+  if (therapistIds.length === 0) return new Map();
+  const rows = await db
+    .select({ therapistId: payoutMethods.therapistId, method: payoutMethods.method })
+    .from(payoutMethods)
+    .where(
+      and(
+        inArray(payoutMethods.therapistId, therapistIds),
+        eq(payoutMethods.isDefault, true),
+        isNull(payoutMethods.deletedAt),
+      ),
+    );
+  return new Map(rows.map((row) => [row.therapistId, row.method]));
 }
 
 /**

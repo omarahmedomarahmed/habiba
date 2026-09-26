@@ -43,6 +43,7 @@ export function CoverageForm({
   pendingCoverageBps,
   pendingFromLabel,
   noticeDays,
+  noticeApplies = true,
   balanceUsd,
   fundedUsd,
   sessionPriceUsd,
@@ -51,6 +52,11 @@ export function CoverageForm({
   pendingCoverageBps: number | null;
   pendingFromLabel: string | null;
   noticeDays: number;
+  /**
+   * 🔴 Board 454: false while nobody is enrolled and nothing was ever paid
+   * from the pot, when `setCoverage` applies a cut at once as well.
+   */
+  noticeApplies?: boolean;
   /**
    * The published balance, so the slider can say what it buys. Null when it is
    * held back by a floor, and null is not zero (B18).
@@ -193,10 +199,16 @@ export function CoverageForm({
       )}
 
       <div className="mt-4 space-y-2 text-xs leading-relaxed text-navy-400">
-        <p>
-          <strong className="font-semibold text-navy-600">{t("sponsor.cov.raiseNow")}</strong>{" "}
-          {t("sponsor.cov.lowerTakes", { days: noticeDays })}
-        </p>
+        {noticeApplies ? (
+          <p>
+            <strong className="font-semibold text-navy-600">{t("sponsor.cov.raiseNow")}</strong>{" "}
+            {t("sponsor.cov.lowerTakes", { days: noticeDays })}
+          </p>
+        ) : (
+          <p>
+            <strong className="font-semibold text-navy-600">{t("sponsor.cov.anyNow")}</strong>
+          </p>
+        )}
         <p>
           <strong className="font-semibold text-navy-600">{t("sponsor.cov.zeroAllowed")}</strong>{" "}
           {t("sponsor.cov.zeroBody")}

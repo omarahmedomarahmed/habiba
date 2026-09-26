@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { useT } from "@/lib/i18n/client";
+import { PAY_OPEN_EVENT } from "@/components/billing/pay-open";
 
 /**
  * 🔴 76.4 — THE PAYMENT THEY MINIMISED, FOLLOWING THEM AROUND THE PRODUCT.
@@ -102,6 +103,12 @@ export function PendingBar({
     } catch {
       /* They arrive at the page and tap once more. */
     }
+    /*
+     * 🔴 Board 475: tapped on the page the sheet already lives on, the link
+     * navigates nowhere, the mounted sheet never read the key, and it opened
+     * "by itself" on the next visit. Telling it directly spends the key now.
+     */
+    window.dispatchEvent(new CustomEvent(PAY_OPEN_EVENT, { detail: storageKey }));
   };
 
   const dismiss = () => {
