@@ -78,7 +78,8 @@ export const FOOTING_OF_KIND: Record<MessageKind, Footing> = {
   "assessment.sent": { reader: "patient", occasion: "therapist" },
   "history.answered": { reader: "patient", occasion: "account" },
   "benefit.verify_code": { reader: "patient", occasion: "asked" },
-  "sponsor.domain_confirm": { reader: "company", occasion: "account" },
+  /* Board 389: sent to the mailbox at the domain, which holds no account here. */
+  "sponsor.domain_confirm": { reader: "company", occasion: "asked" },
   "sponsor.enquiry_received": { reader: "company", occasion: "asked" },
   "sponsor.enquiry": { reader: "staff", occasion: "account" },
   "sponsor.invite": { reader: "company", occasion: "account" },
