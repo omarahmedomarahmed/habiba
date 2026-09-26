@@ -771,7 +771,7 @@ npm run on:production -- seed:demo   -- --scenario=live
 npm run on:production -- verify:demo -- --scenario=live
 ```
 
-`live` is the everyday position and the one `docs/DEMO-LOGINS.md` describes. Leaving the
+`live` is the everyday position and the one `docs/DEMO-CAST.md` describes. Leaving the
 database on `growth`, with a dry pot and a released seat, means the next person to open a
 portal finds a product that looks broken and is not.
 
