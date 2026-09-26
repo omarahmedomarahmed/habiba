@@ -10,6 +10,7 @@ import {
   sponsorCodes,
   sponsorIdentifierFields,
   rateLimits,
+  sponsorMoneyEntries,
   sponsorPots,
   sponsors,
   type RemovalReason,
@@ -808,7 +809,16 @@ export async function setCoverage(input: {
    * good news for no reason, or asking a patient for money on a session they
    * have already agreed to, and only one of those is a real cost.
    */
-  if (wanted > pot.coverageBps) {
+  /*
+   * 🔴 Board 454 (CO8.1): THE NOTICE PROTECTS PEOPLE, SO IT NEEDS SOMEBODY TO PROTECT.
+   *
+   * A company activated minutes earlier, with nobody enrolled and nothing ever
+   * paid from its pot, starts at 100% and could not set its agreed 10%: the cut
+   * was scheduled a month out, and every session meanwhile would have been paid
+   * in full from the pot. With nobody enrolled and no booking behind it, there
+   * is nobody a lower percentage can surprise, so it applies now.
+   */
+  if (wanted > pot.coverageBps || !(await coverageHasAudience(input.sponsorId))) {
     await controlDb
       .update(sponsorPots)
       .set({
@@ -819,7 +829,9 @@ export async function setCoverage(input: {
       })
       .where(eq(sponsorPots.id, pot.id));
 
-    log.info("sponsor coverage raised", { bps: wanted });
+    log.info(wanted > pot.coverageBps ? "sponsor coverage raised" : "sponsor coverage set before anyone joined", {
+      bps: wanted,
+    });
     return { ok: true, effectiveFrom: new Date() };
   }
 
@@ -837,6 +849,26 @@ export async function setCoverage(input: {
 
   log.info("sponsor coverage reduction scheduled", { bps: wanted, days });
   return { ok: true, effectiveFrom: from };
+}
+
+/**
+ * 🔴 Board 454: is there anybody a lower percentage could surprise? Somebody
+ * enrolled (in any state but removed), or a session ever paid from the pot,
+ * which is how a booking reaches this sponsor's books without naming anyone.
+ */
+export async function coverageHasAudience(sponsorId: string): Promise<boolean> {
+  const [enrolled] = await controlDb
+    .select({ id: enrolments.id })
+    .from(enrolments)
+    .where(and(eq(enrolments.sponsorId, sponsorId), sql`${enrolments.state} <> 'removed'`))
+    .limit(1);
+  if (enrolled) return true;
+  const [spent] = await controlDb
+    .select({ id: sponsorMoneyEntries.id })
+    .from(sponsorMoneyEntries)
+    .where(eq(sponsorMoneyEntries.sponsorId, sponsorId))
+    .limit(1);
+  return Boolean(spent);
 }
 
 /**

@@ -1947,8 +1947,10 @@ export const en = {
   "sponsor.cov.edit": "Edit what you cover",
   "sponsor.cov.raiseNow": "Raising it happens now.",
   "sponsor.cov.lowerTakes": "Lowering it takes {days} days, so nobody pays more on a session already booked.",
+  /* 🔴 Board 454: before anybody joins, a lower percentage is not delayed. */
+  "sponsor.cov.anyNow": "Nobody has joined yet, so changes apply now.",
   "sponsor.cov.zeroAllowed": "0% is allowed.",
-  "sponsor.cov.zeroBody": "They stay on your list and keep access; you stop paying. Removing someone is done on your people page.",
+  "sponsor.cov.zeroBody": "They stay on your list and keep access; you stop paying.",
   "sponsor.cov.quoted": "You cover the price your people are quoted. Nothing else is charged, and we never say who used it.",
   /* 🔴 What a saved coverage change says. It was two English template literals
      in the action itself, so the Arabic portal answered in English. */
@@ -7008,8 +7010,10 @@ export const ar: Record<MessageKey, string> = {
   "sponsor.cov.edit": "عدّل ما تغطّيه",
   "sponsor.cov.raiseNow": "الزيادة تسري فورًا.",
   "sponsor.cov.lowerTakes": "أما التخفيض فيستغرق {days} يومًا، فلا يدفع أحد أكثر في جلسة حجزها بالفعل.",
+  /* 🔴 Board 454: before anybody joins, a lower percentage is not delayed. */
+  "sponsor.cov.anyNow": "لم ينضم أحد بعد، فأي تغيير يسري فورًا.",
   "sponsor.cov.zeroAllowed": "نسبة 0% مسموحة.",
-  "sponsor.cov.zeroBody": "يبقون على قائمتك ويحتفظون بالوصول، وأنت تتوقف عن الدفع فقط. أما إزالة أحد فمن صفحة موظفيك.",
+  "sponsor.cov.zeroBody": "يبقون في قائمتك ويحتفظون بالوصول، وتتوقف أنت عن الدفع.",
   "sponsor.cov.quoted": "تغطي السعر الذي يُعرض على موظفيك. لا يُحتسب شيء آخر، ولا نقول أبدًا من استخدمها.",
   "sponsor.coverageNow": "يدفع موظفوك الآن {percent}% من قيمة الجلسة.",
   "sponsor.coverageFrom": "تم الحفظ. يسري في {date}؛ ومن حجز بالفعل يحتفظ بنسبته.",

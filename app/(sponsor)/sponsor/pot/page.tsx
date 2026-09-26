@@ -17,7 +17,7 @@ import { Meter } from "@/components/visual/primitives";
 import { topUpHistory } from "@/lib/billing/invoice";
 
 import { potTerms } from "@/lib/data/sponsor-admin";
-import { coverageFor, reportablePot } from "@/lib/data/sponsors";
+import { coverageFor, coverageHasAudience, reportablePot } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { AskMoneyBack } from "@/components/sponsor/ask-money-back";
 import { formatDate } from "@/lib/utils";
@@ -92,7 +92,7 @@ export default async function SponsorPotPage() {
     locale: localeTag(locale),
   });
 
-  const [pot, terms, history, coverage, tax, etaDocs, returns] = await Promise.all([
+  const [pot, terms, history, coverage, tax, etaDocs, returns, noticeApplies] = await Promise.all([
     /* K6: behind the headcount floor as well as the session floor. */
     reportablePot(actor.sponsorId),
     potTerms(actor.sponsorId),
@@ -104,6 +104,8 @@ export default async function SponsorPotPage() {
     documentsFor(actor.sponsorId),
     /* 🔴 C8 — money we are sending back, or sent, which they never saw. */
     potReturnsFor(actor.sponsorId),
+    /* 🔴 Board 454: with nobody enrolled and nothing booked, a cut is not delayed. */
+    coverageHasAudience(actor.sponsorId),
   ]);
   const egp = (minor: number) => <Money cents={minor} currency={"EGP"} />;
 
@@ -214,6 +216,7 @@ export default async function SponsorPotPage() {
               : null
           }
           noticeDays={settings.sponsor.coverageNoticeDays}
+          noticeApplies={noticeApplies}
           /*
             🔴 B18 — null is not zero. This passed `balanceCents ?? 0`, so a pot
             holding $100 read "your balance of EGP 0 covers about 0 sessions".
