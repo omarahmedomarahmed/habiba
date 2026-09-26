@@ -18,6 +18,8 @@ import { getI18n } from "@/lib/i18n/server";
 import { formatDate } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
 import { rich, slot } from "@/lib/i18n/rich";
+import { countKey } from "@/lib/i18n/count-form";
+import { parseSeatBill } from "@/lib/billing/seat-label";
 
 /** W3: the tab title in the reader's language. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -129,6 +131,25 @@ export default async function ClinicBillsPage({
    */
   const month = (at: Date) => formatDate(at, "UTC", locale);
 
+  /*
+   * 🔴 Board 268: a seat line in the reader's language, each count in its own
+   * form. "1 seats from 0" was the stored English printed as it was.
+   */
+  const seats = (n: number) => t(countKey("clinic.seatBill.seats", n), { count: n });
+  const seatLine = (description: string) => {
+    const parsed = parseSeatBill(description);
+    if (!parsed) return description;
+    if (parsed.kind === "change") {
+      return t("clinic.seatBill.change", {
+        seats: seats(parsed.toSeats),
+        from: parsed.fromSeats,
+        days: t(countKey("clinic.seatBill.days", parsed.days), { count: parsed.days }),
+      });
+    }
+    if (parsed.kind === "month") return t("clinic.seatBill.month", { seats: seats(parsed.seats) });
+    return t("clinic.seatBill.planMonth", { plan: parsed.plan, seats: seats(parsed.seats) });
+  };
+
   return (
     <div className="space-y-4">
       {/* 🔴 C263 — why there is no itemised breakdown, where they look for it. */}
@@ -231,7 +252,7 @@ export default async function ClinicBillsPage({
             {seatBills.map((row, index) => (
               <li key={index} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5">
                 <span className="min-w-0 text-navy-500">
-                  {month(row.issuedAt)} · {row.description}
+                  {month(row.issuedAt)} · {seatLine(row.description)}
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="font-semibold tabular-nums text-navy-700">{money(row.amountCents)}</span>
@@ -247,11 +268,12 @@ export default async function ClinicBillsPage({
         </Card>
       ) : null}
 
-      {bills.length === 0 ? (
+      {/* 🔴 Board 268: "Nothing billed yet" under a seat bill was false. */}
+      {bills.length === 0 && seatBills.length === 0 ? (
         <Card>
           <EmptyState icon={<Building2 className="h-6 w-6" aria-hidden />} title={t("clinic.billsEmpty")} />
         </Card>
-      ) : (
+      ) : bills.length === 0 ? null : (
         <div className="space-y-3">
           {bills.map((bill) => (
             <Card key={bill.periodStart.toISOString()} className="p-5">
@@ -269,7 +291,7 @@ export default async function ClinicBillsPage({
                   <p className="text-[13px] text-navy-400">
                     {bill.sessions === null
                       ? t("clinic.suppressed")
-                      : t("clinic.sessionCount", { count: bill.sessions })}
+                      : t(countKey("clinic.sessionCount", bill.sessions), { count: bill.sessions })}
                   </p>
                 </div>
                 {/* 🔴 W2-C03: settled or not, said on the month itself. */}

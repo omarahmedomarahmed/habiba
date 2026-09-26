@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 
 import { ConfirmAct } from "./confirm-act";
 import { useT } from "@/lib/i18n/client";
+import { countKey } from "@/lib/i18n/count-form";
 
 /**
  * The printable code. PLAN.md 53.2, 53.9, C237.
@@ -77,7 +78,7 @@ export function CodeCard({
         to put on a wall.
       */}
       <div className="mt-4 border-t border-navy-100 pt-4 print:hidden">
-        <p className="text-[13px] font-semibold text-navy-400">{t("sponsor.attempts", { count: attempts })}</p>
+        <p className="text-[13px] font-semibold text-navy-400">{t("sponsor.attempts", { attempts: t(countKey("sponsor.attemptsCount", attempts), { count: attempts }) })}</p>
         {spike ? (
           <p className="mt-1 rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
             {t("sponsor.attemptsHigh")}

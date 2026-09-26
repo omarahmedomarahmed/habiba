@@ -9,6 +9,7 @@ import { Button, Card, Field, Input } from "@/components/ui";
 import { CLINIC_STATES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { countKey } from "@/lib/i18n/count-form";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -101,7 +102,7 @@ function ClinicRow({ clinic, regions }: { clinic: AdminClinicRow; regions: reado
         </span>
         {/* 🔴 A COUNT, never a list. */}
         <span className="text-xs text-slate-500">
-          {t("aclinic.clinicians", { count: clinic.clinicianCount })}
+          {t(countKey("aclinic.clinicians", clinic.clinicianCount), { count: clinic.clinicianCount })}
         </span>
         <button
           type="button"

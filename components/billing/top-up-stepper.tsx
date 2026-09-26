@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useT } from "@/lib/i18n/client";
 import type { PotStep } from "@/lib/billing/manual-entry";
+import { countKey } from "@/lib/i18n/count-form";
 
 /**
  * 🔴 76.1 — HOW MUCH A COMPANY IS PUTTING IN, CHOSEN WITHOUT A KEYBOARD.
@@ -136,7 +137,7 @@ export function TopUpStepper({
         is their OWN coverage rate, read from their pot, not an average.
       */}
       <p className="mt-4 rounded-xl bg-brand-50 p-3 text-center text-sm font-medium text-brand-900">
-        {t("topup.covers", { count: String(step.sessions) })}
+        {t("topup.covers", { sessions: t(countKey("sponsor.cov.sessions", step.sessions), { count: step.sessions }) })}
       </p>
 
       {/* ------------------------------------------------- what they send -- */}

@@ -18,6 +18,7 @@ import {
 import type { WholeBoard } from "@/lib/console/board";
 import { useT } from "@/lib/i18n/client";
 import { Money } from "@/components/ui/money";
+import { countKey } from "@/lib/i18n/count-form";
 
 /**
  * 🔴 76.1 — THE BOARD. "I run the company by sitting back and watching TV."
@@ -259,7 +260,7 @@ export function Board({ initial }: { initial: WholeBoard }) {
             with more money than it has.
           */}
           <Stat
-            label={`Owed to us, ${b.money.dueCount} invoices`}
+            label={t(countKey("admin.board.owed", b.money.dueCount), { count: b.money.dueCount })}
             value={usd(b.money.dueCents)}
             tone={b.money.dueCents > 0 ? "warn" : undefined}
           />
@@ -416,7 +417,7 @@ export function Board({ initial }: { initial: WholeBoard }) {
         </Row>
         {(b.sessions.awaiting ?? 0) > 0 ? (
           <p className="mt-2 text-xs font-semibold text-rose-600">
-            {b.sessions.awaiting} sessions waiting on a payment. Somebody is on a screen for each.
+            {t("admin.board.awaiting", { sessions: t(countKey("clinic.sessionCount", b.sessions.awaiting ?? 0), { count: b.sessions.awaiting ?? 0 }) })}
           </p>
         ) : null}
       </Section>

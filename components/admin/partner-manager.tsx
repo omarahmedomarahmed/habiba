@@ -14,6 +14,7 @@ import {
 import { Button, Card, Field, Input } from "@/components/ui";
 import { PARTNER_STATES } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
+import { countKey } from "@/lib/i18n/count-form";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -100,7 +101,7 @@ function PartnerRow({ partner }: { partner: AdminPartnerRow }) {
         </span>
         {/* 🔴 A COUNT, never the prefixes. */}
         <span className="text-xs text-slate-500">
-          {t("apartner.keys", { count: partner.keyCount })}
+          {t(countKey("apartner.keys", partner.keyCount), { count: partner.keyCount })}
         </span>
         <button
           type="button"

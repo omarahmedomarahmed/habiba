@@ -6,6 +6,7 @@ import { roster } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { requireSponsor } from "@/lib/sponsor-auth/guard";
+import { countKey } from "@/lib/i18n/count-form";
 
 /** W3: the tab title in the reader's language. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -40,7 +41,7 @@ export default async function SponsorPeoplePage() {
       <SponsorHeading
         title={t("sponsor.roster")}
         subtitle={t("sponsor.rosterBody")}
-        note={t("sponsor.rosterCount", { count: people.length })}
+        note={t(countKey("sponsor.rosterCount", people.length), { count: people.length })}
       />
 
       <RosterList

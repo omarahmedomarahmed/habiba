@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
 import { useT } from "@/lib/i18n/client";
 import { rich, slot } from "@/lib/i18n/rich";
+import { countKey } from "@/lib/i18n/count-form";
 
 const INITIAL: CoverageState = {};
 
@@ -65,6 +66,8 @@ export function CoverageForm({
   const current = Math.round(coverageBps / 100);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(current);
+  /* Board 420 class: the sentence takes the form of its count. */
+  const buys = draft === 0 ? 0 : Math.floor((balanceUsd ?? fundedUsd) / ((sessionPriceUsd * draft) / 100));
 
   return (
     <Card className="p-5 sm:p-6">
@@ -155,7 +158,7 @@ export function CoverageForm({
                     share: slot(0),
                     price: slot(1),
                     balance: slot(2),
-                    count: Math.floor((balanceUsd ?? fundedUsd) / ((sessionPriceUsd * draft) / 100)),
+                    sessions: t(countKey("sponsor.cov.sessions", buys), { count: buys }),
                   }),
                   [
                     <strong key="share" className="text-navy-700"><Money cents={Math.round(((sessionPriceUsd * draft) / 100) * 100)} /></strong>,

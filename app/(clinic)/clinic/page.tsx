@@ -12,6 +12,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { zoneLabel } from "@/lib/scheduling/tz";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
+import { countKey } from "@/lib/i18n/count-form";
 
 /** W3: the tab title in the reader's language. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -279,7 +280,7 @@ export default async function ClinicOverviewPage({
                       <span className="text-xs text-navy-400">{t("clinic.suppressed")}</span>
                     ) : (
                       <span className="font-semibold tabular-nums text-navy-700">
-                        {t("clinic.sessionCount", { count: row.sessions })} ·{" "}
+                        {t(countKey("clinic.sessionCount", row.sessions), { count: row.sessions })} ·{" "}
                         {/*
                           🔴 A BARE "$0.00" BESIDE FIVE SESSIONS READS AS A BROKEN PAGE.
 
