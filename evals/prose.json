@@ -12,15 +12,16 @@
     "legal": 1377
   },
   "baseline": {
-    "shared": 1941,
-    "patient": 6707,
+    "shared": 1974,
+    "patient": 6840,
     "public": 6152,
-    "clinician": 8507,
+    "clinician": 8513,
     "sponsor": 1594,
-    "admin": 3682,
+    "admin": 3689,
     "clinic": 1125,
     "partner": 1643,
-    "legal": 1377
+    "legal": 1377,
+    "other": 90
   },
   "measuredOn": "2026-09-26",
   "translated": {
@@ -169,5 +170,16 @@
   "walkthrough0926": {
     "patient": 13,
     "why": "Board 932, the night walkthrough: a platform's patient can now link their record to the partner at /patient/link/<token>, confirming it themselves, so write-back and readers answer for a real person. A new page a patient must read, not a longer one; the rest of the round's patient copy was held level by trimming."
+  },
+  "event0926": {
+    "patient": 133,
+    "why": "Founder's 26 Sep list: a page for each session (who, when, what paid, how booked, reschedule, cancel, back to the room), a sessions list that leads with what is happening now, radar filter chips and zoom labels in the patient app, and the room's wait for the clinician before the 50 minutes start. New pages a patient must read; the rest was held level by deleting twelve unused keys."
+  },
+  "event0926b": {
+    "admin": 7,
+    "clinician": 6,
+    "shared": 33,
+    "other": 90,
+    "why": "Founder's 26 Sep list, the rest of it: the loader's one shared line, the room telling a clinician who started early that the 50 minutes wait for the patient, the session reminder watchdog's alert words, and the public booking page's refusals (bookerr.*, rendered from a server action the sweep files under no portal) now counted where they were not before."
   }
 }
