@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { Button } from "@/components/ui";
 import { doors } from "@/lib/auth/doors";
 import { useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -72,12 +71,12 @@ export function SignInMenu({ className }: { className?: string }) {
 
   return (
     <div ref={root} className={cn("relative", className)}>
-      <Button
-        variant="ghost"
-        size="sm"
+      <button
+        type="button"
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((v) => !v)}
+        className="inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold text-white/85 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400"
       >
         {t("nav.signIn")}
         <svg
@@ -94,7 +93,7 @@ export function SignInMenu({ className }: { className?: string }) {
             strokeLinejoin="round"
           />
         </svg>
-      </Button>
+      </button>
 
       {open ? (
         /*
@@ -105,7 +104,7 @@ export function SignInMenu({ className }: { className?: string }) {
         <div
           role="menu"
           aria-label={t("nav.whichAreYou")}
-          className="absolute end-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-navy-900/10"
+          className="absolute end-0 z-50 mt-2 w-72 overflow-hidden rounded-3xl bg-white text-navy-700 shadow-[0_30px_80px_-30px_rgba(3,11,23,0.6)] ring-1 ring-navy-100"
         >
           <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
             {t("nav.whichAreYou")}

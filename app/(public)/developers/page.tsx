@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { DarkBand, Glow, btn } from "@/components/public/site-ui";
 import { Card } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { PARTNER_LAUNCH_TARGETS } from "@/lib/partner/launch";
 import { PARTNER_APPLY, PARTNER_SIGN_IN } from "@/lib/routing";
@@ -47,9 +49,26 @@ export default async function DevelopersPage() {
   const { t } = await getI18n();
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t("devs.title")}</h1>
-      <p className="mt-3 leading-relaxed text-slate-600">{t("devs.body")}</p>
+    <main>
+      <DarkBand className="px-5 pt-12 pb-16 sm:px-6 sm:pt-20 sm:pb-20">
+        <Glow className="-start-40 top-10 h-[480px] w-[480px] opacity-50" />
+        <div className="mx-auto max-w-3xl">
+          <h1 className="text-balance text-[38px] font-bold leading-[1.04] tracking-tight text-white sm:text-[56px]">
+            {t("devs.title")}
+          </h1>
+          <p className="mt-6 max-w-2xl text-pretty text-[18px] leading-relaxed text-white/85">{t("devs.body")}</p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link href={PARTNER_APPLY} className={cn(btn.primary, btn.lg)}>
+              {t("devs.getStarted")}
+            </Link>
+            <Link href={PARTNER_SIGN_IN} className={cn(btn.light, btn.lg)}>
+              {t("dev.signIn")}
+            </Link>
+          </div>
+        </div>
+      </DarkBand>
+
+      <div className="mx-auto max-w-3xl px-5 py-14 sm:px-6 sm:py-20">
 
       <div className="mt-10 space-y-8">
         {/*
@@ -135,10 +154,10 @@ GET /api/partner/v1/notes/<sessionId>
         So the steps come first, numbered, because this one genuinely is a sequence
         and a numbered marker here encodes something true rather than decorating.
       */}
-      <h2 className="mt-14 text-lg font-bold tracking-tight text-slate-900">
+      <h2 className="mt-14 text-[22px] font-bold tracking-tight text-navy-700">
         {t("devs.flow.title")}
       </h2>
-      <p className="mt-2 leading-relaxed text-slate-600">{t("devs.flow.body")}</p>
+      <p className="mt-2 leading-relaxed text-navy-500">{t("devs.flow.body")}</p>
 
       <ol className="mt-6 space-y-4">
         {(
@@ -160,12 +179,12 @@ GET /api/partner/v1/notes/<sessionId>
           ] as const
         ).map(([title, body, route], i) => (
           <li key={route} className="flex gap-4">
-            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy-900 text-xs font-bold text-brand-300">
               {i + 1}
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">{t(title)}</p>
-              <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{t(body)}</p>
+              <p className="text-sm font-semibold text-navy-700">{t(title)}</p>
+              <p className="mt-0.5 text-[15px] leading-relaxed text-navy-500">{t(body)}</p>
               <p className="mt-1 overflow-x-auto whitespace-nowrap font-mono text-xs text-slate-600">
                 {route}
               </p>
@@ -181,10 +200,10 @@ GET /api/partner/v1/notes/<sessionId>
         obvious build is a boolean. The offset is the whole difference and it is
         explained here rather than as a field description in a table.
       */}
-      <Card className="mt-8 border-slate-200 p-5">
-        <p className="font-semibold text-slate-900">{t("devs.midConsent")}</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("devs.midConsentBody")}</p>
-        <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+      <Card className="mt-8 rounded-[24px] border-navy-100 p-6">
+        <p className="font-semibold text-navy-700">{t("devs.midConsent")}</p>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-500">{t("devs.midConsentBody")}</p>
+        <pre className="mt-3 overflow-x-auto rounded-2xl bg-navy-900 p-5 font-mono text-[13px] leading-relaxed text-brand-100 ring-1 ring-navy-700">
 {`POST /api/partner/v1/consent
 { "session": "S-1024", "subject": "P-77",
   "state": "given", "answered_at": "2026-09-14T10:40:00Z",
@@ -209,10 +228,10 @@ GET /api/partner/v1/notes/<sessionId>
         🔴 W2-X02: the end call leads the example, because both read only sessions
         their platform has said are over, and without it they read nothing.
       */}
-      <Card className="mt-6 border-slate-200 p-5">
-        <p className="font-semibold text-slate-900">{t("devs.copilot")}</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("devs.copilotBody")}</p>
-        <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+      <Card className="mt-6 rounded-[24px] border-navy-100 p-6">
+        <p className="font-semibold text-navy-700">{t("devs.copilot")}</p>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-500">{t("devs.copilotBody")}</p>
+        <pre className="mt-3 overflow-x-auto rounded-2xl bg-navy-900 p-5 font-mono text-[13px] leading-relaxed text-brand-100 ring-1 ring-navy-700">
 {`POST /api/partner/v1/sessions/<ref>/end
 200 { "session": "S-1024", "ended_at": "..." }
 
@@ -238,7 +257,7 @@ GET /api/partner/v1/subjects/<ref>/memory
         the docs page rather than discovered in a month where their therapists lost
         the copilot.
       */}
-      <Card className="mt-6 border-amber-200 bg-amber-50 p-5">
+      <Card className="mt-6 rounded-[24px] border-amber-200 bg-amber-50 p-6">
         <p className="font-semibold text-amber-900">{t("devs.limit")}</p>
         <p className="mt-1.5 text-sm leading-relaxed text-amber-900">{t("devs.limitBody")}</p>
         <pre className="mt-3 overflow-x-auto rounded-xl bg-amber-900/90 p-4 text-xs leading-relaxed text-amber-50">
@@ -258,11 +277,11 @@ GET /api/partner/v1/subjects/<ref>/memory
         our session id, which the notes route takes as it is. Four fields, never
         content (42.4): `lib/partner/webhooks.ts` builds the body as a literal.
       */}
-      <Card className="mt-6 border-slate-200 p-5">
-        <p className="font-semibold text-slate-900">{t("devs.hooks")}</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("devs.hooksBody")}</p>
+      <Card className="mt-6 rounded-[24px] border-navy-100 p-6">
+        <p className="font-semibold text-navy-700">{t("devs.hooks")}</p>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-500">{t("devs.hooksBody")}</p>
         <NeedsLink text={t("devs.needsLink")} />
-        <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+        <pre className="mt-3 overflow-x-auto rounded-2xl bg-navy-900 p-5 font-mono text-[13px] leading-relaxed text-brand-100 ring-1 ring-navy-700">
 {`POST <your endpoint>
 x-24t-signature: t=<unix time>,v1=<hex HMAC-SHA256 of "t.body">
 x-24t-delivery: <the same on every retry>
@@ -280,20 +299,20 @@ grant.revoked, record.claimed, subject.unlinked
       </Card>
 
       {/* 🔴 42.5 — the widget, and the sentence about video. */}
-      <h2 className="mt-12 text-lg font-bold tracking-tight text-slate-900">{t("devs.widget")}</h2>
-      <p className="mt-2 leading-relaxed text-slate-600">{t("devs.widgetBody")}</p>
+      <h2 className="mt-12 text-[22px] font-bold tracking-tight text-navy-700">{t("devs.widget")}</h2>
+      <p className="mt-2 leading-relaxed text-navy-500">{t("devs.widgetBody")}</p>
       <NeedsLink text={t("devs.needsLink")} />
 
       {/* 🔴 The absences, on the same page as the five use cases. */}
-      <Card className="mt-10 border-slate-200 p-5">
-        <p className="font-semibold text-slate-900">{t("devs.limits")}</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{t("devs.limitsBody")}</p>
+      <Card className="mt-10 rounded-[24px] border-navy-100 p-6">
+        <p className="font-semibold text-navy-700">{t("devs.limits")}</p>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-500">{t("devs.limitsBody")}</p>
       </Card>
 
-      <h2 className="mt-12 text-lg font-bold tracking-tight text-slate-900">
+      <h2 className="mt-12 text-[22px] font-bold tracking-tight text-navy-700">
         {t("devs.promises")}
       </h2>
-      <p className="mt-2 leading-relaxed text-slate-600">{t("devs.promisesBody")}</p>
+      <p className="mt-2 leading-relaxed text-navy-500">{t("devs.promisesBody")}</p>
       <ul className="mt-4 space-y-4">
         <Kept title={t("devs.promise1")} body={t("devs.promise1Body")} />
         <Kept title={t("devs.promise2")} body={t("devs.promise2Body")} />
@@ -301,7 +320,7 @@ grant.revoked, record.claimed, subject.unlinked
         <Kept title={t("devs.promise4")} body={t("devs.promise4Body")} />
       </ul>
 
-      <Card className="mt-10 border-amber-200 bg-amber-50 p-5">
+      <Card className="mt-10 rounded-[24px] border-amber-200 bg-amber-50 p-6">
         <p className="text-sm leading-relaxed text-amber-900/90">{t("devs.keysNote")}</p>
         {/* 🔴 C265 — said to an integrator before they design their retry loop. */}
         <p className="mt-2 text-sm leading-relaxed text-amber-900/90">{t("devs.rateNote")}</p>
@@ -310,7 +329,7 @@ grant.revoked, record.claimed, subject.unlinked
       <p className="mt-10 flex flex-wrap items-center gap-4">
         <Link
           href={PARTNER_APPLY}
-          className="inline-flex h-12 items-center rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800"
+          className={btn.dark}
         >
           {t("devs.getStarted")}
         </Link>
@@ -322,6 +341,7 @@ grant.revoked, record.claimed, subject.unlinked
           {t("dev.signIn")}
         </Link>
       </p>
+      </div>
     </main>
   );
 }
@@ -352,18 +372,18 @@ function UseCase({
   example: string;
 }) {
   return (
-    <section className="border-s-2 border-slate-200 ps-4">
-      <h2 className="text-lg font-bold tracking-tight text-slate-900">{title}</h2>
-      <p className="mt-1.5 leading-relaxed text-slate-600">{body}</p>
+    <section className="rounded-[24px] bg-navy-50 p-5 ring-1 ring-navy-100 sm:p-6">
+      <h2 className="text-[22px] font-bold tracking-tight text-navy-700">{title}</h2>
+      <p className="mt-1.5 leading-relaxed text-navy-500">{body}</p>
       {needsLink ? <NeedsLink text={needsLink} /> : null}
-      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+      <p className="mt-3 text-[12px] font-bold uppercase tracking-[0.14em] text-navy-400 rtl:tracking-normal">
         {exampleLabel}
       </p>
       {/*
        * 🔴 `overflow-x-auto` on the block rather than wrapping, because a wrapped request
        * line is a request line somebody copies wrong. The page body still never scrolls.
        */}
-      <pre className="mt-1 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+      <pre className="mt-1 overflow-x-auto rounded-2xl bg-navy-900 p-5 font-mono text-[13px] leading-relaxed text-brand-100 ring-1 ring-navy-700">
         <code>{example}</code>
       </pre>
     </section>
@@ -372,9 +392,9 @@ function UseCase({
 
 function Kept({ title, body }: { title: string; body: string }) {
   return (
-    <li className="border-s-2 border-brand-300 ps-4">
-      <p className="font-semibold text-slate-900">{title}</p>
-      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{body}</p>
+    <li className="rounded-2xl bg-white p-4 ring-1 ring-navy-100 border-s-4 border-brand-500">
+      <p className="font-semibold text-navy-700">{title}</p>
+      <p className="mt-0.5 text-[15px] leading-relaxed text-navy-500">{body}</p>
     </li>
   );
 }

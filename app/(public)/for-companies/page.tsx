@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CompanyDemo } from "@/components/public/audience-demos";
+import { ArrowRight } from "lucide-react";
+
 import { AudienceHero } from "@/components/public/audience-hero";
-import { Button } from "@/components/ui";
+import { SiteCard, btn } from "@/components/public/site-ui";
+import { cn } from "@/lib/utils";
 import { FlowStrip, SeesWhat } from "@/components/visual/primitives";
 import { getI18n } from "@/lib/i18n/server";
 
@@ -65,8 +68,14 @@ export default async function ForCompaniesPage() {
         demo={<CompanyDemo />}
       />
 
-      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-        <div className="grid gap-10 lg:grid-cols-2 lg:items-start lg:gap-14">
+      {/*
+        The wall and the steps, side by side on the mockups' tinted ground:
+        what the company sees and does not, then how it starts.
+      */}
+      <section className="bg-navy-50 px-5 py-16 sm:px-6 sm:py-24">
+      <div className="mx-auto max-w-6xl">
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
+          <div className="overflow-hidden rounded-[18px] bg-white shadow-[0_20px_50px_-40px_rgba(10,35,66,0.5)]">
           <SeesWhat
             who={t("sponsor.apply.seesWho")}
             can={[
@@ -80,7 +89,9 @@ export default async function ForCompaniesPage() {
               t("sponsor.neverClinical"),
             ]}
           />
+          </div>
 
+          <SiteCard>
           <FlowStrip
             steps={[
               {
@@ -97,19 +108,20 @@ export default async function ForCompaniesPage() {
               },
             ]}
           />
+          </SiteCard>
         </div>
 
-        <div className="mt-10 flex flex-wrap gap-3">
-          <Link href="/sponsor/apply">
-            <Button size="lg">{t("marketing.companies.cta")}</Button>
+        <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+          <Link href="/sponsor/apply" className={cn(btn.dark, btn.lg)}>
+            {t("marketing.companies.cta")}
+            <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
           </Link>
-          <Link href="/contact">
-            <Button size="lg" variant="secondary">
-              {t("nav.contact")}
-            </Button>
+          <Link href="/contact" className={cn(btn.ghost, btn.lg)}>
+            {t("nav.contact")}
           </Link>
         </div>
       </div>
+      </section>
     </main>
   );
 }

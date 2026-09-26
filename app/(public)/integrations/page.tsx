@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DocsNav } from "@/components/public/docs-nav";
+import { DarkBand, Glow } from "@/components/public/site-ui";
 import { Card } from "@/components/ui";
 import { StateDot } from "@/components/marketing/state-dot";
 import {
@@ -96,18 +97,27 @@ export default async function IntegrationsPage() {
 
   return (
     /* A div: the public layout already holds the page's one `<main>`. */
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+    <div>
+      <DarkBand className="px-5 pt-12 pb-14 sm:px-6 sm:pt-20 sm:pb-20">
+        <Glow className="-start-40 top-10 h-[480px] w-[480px] opacity-50" />
+        <div className="mx-auto max-w-6xl">
+          <h1 className="max-w-3xl text-balance text-[38px] font-bold leading-[1.04] tracking-tight text-white sm:text-[56px]">
+            {t("integ.title")}
+          </h1>
+          <p className="mt-6 max-w-2xl text-pretty text-[18px] leading-relaxed text-white/85">{t("integ.lede")}</p>
+          {locale !== "en" ? (
+            <p className="mt-5 max-w-2xl rounded-2xl bg-amber-50 px-4 py-3 text-[15px] text-amber-900 ring-1 ring-amber-200">
+              {t("integ.englishNote")}
+            </p>
+          ) : null}
+        </div>
+      </DarkBand>
+
+    <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 sm:py-14">
       <div className="lg:grid lg:grid-cols-[13rem_1fr] lg:gap-12">
         <DocsNav sections={sections} />
 
         <div className="min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t("integ.title")}</h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-slate-600">{t("integ.lede")}</p>
-          {locale !== "en" ? (
-            <p className="mt-3 max-w-2xl rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200">
-              {t("integ.englishNote")}
-            </p>
-          ) : null}
 
           {/* ─────────────────────────────────────────── what connects today ── */}
           <Section id="today" title={title("today")}>
@@ -124,7 +134,7 @@ export default async function IntegrationsPage() {
                     {rows.map((entry) => (
                       <li key={entry.slug}>
                         <Link href={`/integrations/${entry.slug}`}>
-                          <Card className="p-4 transition hover:border-slate-300">
+                          <Card className="rounded-[20px] border-navy-100 p-5 transition hover:-translate-y-0.5 hover:border-navy-200">
                             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                               <p className="font-semibold text-slate-900">{entry.name}</p>
                               <p className="text-xs text-slate-600">{entry.category}</p>
@@ -181,7 +191,7 @@ export default async function IntegrationsPage() {
                 ["Read the draft, approve it as a clinician", "A note is a draft until a named clinician approves it, and the name goes on the record."],
               ].map(([title, body], i) => (
                 <li key={title} className="flex gap-3.5">
-                  <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-navy-500 text-[11px] font-bold text-white">
+                  <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-navy-900 text-[11px] font-bold text-brand-300">
                     {i + 1}
                   </span>
                   <span className="min-w-0">
@@ -305,7 +315,7 @@ Content-Type: application/json`}</Code>
                 ["A platform runs its own sessions", "Hold the session on your side, send us the audio, get the transcript and the draft note. The clinician who approves it is named."],
                 ["A telehealth product wants the copilot", "Ask about a patient you already hold consent for, and every answer comes back with the sessions it was built from."],
               ].map(([title, body]) => (
-                <div key={title} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div key={title} className="rounded-[20px] bg-navy-50 p-5 ring-1 ring-navy-100">
                   <p className="text-[15px] font-semibold text-slate-900">{title}</p>
                   <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{body}</p>
                 </div>
@@ -314,6 +324,7 @@ Content-Type: application/json`}</Code>
           </Section>
         </div>
       </div>
+    </div>
     </div>
   );
 }
@@ -331,8 +342,8 @@ function Section({
 }) {
   return (
     /* `scroll-mt` so an anchor does not land the heading under the sticky header. */
-    <section id={id} className="mt-14 scroll-mt-24 border-t border-slate-200 pt-8 first:border-0">
-      <h2 className="text-xl font-bold tracking-tight text-slate-900">{title}</h2>
+    <section id={id} className="mt-14 scroll-mt-24 border-t border-navy-100 pt-10 first:mt-0 first:border-0 first:pt-0">
+      <h2 className="text-[26px] font-bold tracking-tight text-navy-700 sm:text-[30px]">{title}</h2>
       {note ? (
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">{note}</p>
       ) : null}
@@ -353,7 +364,7 @@ function VendorGrid({ vendors, labels }: { vendors: Vendor[]; labels: Record<str
       {vendors.map((vendor) => (
         <li
           key={vendor.name}
-          className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5"
+          className="flex items-start gap-3 rounded-[20px] bg-white p-4 ring-1 ring-navy-100"
         >
           {/* A lettermark, not a logo. Somebody else's trademark on our page is
               a thing they can ask us to take down, and a grid of them is what
@@ -381,7 +392,7 @@ function VendorGrid({ vendors, labels }: { vendors: Vendor[]; labels: Record<str
 
 function Code({ children }: { children: string }) {
   return (
-    <pre className="overflow-x-auto rounded-2xl bg-navy-600 px-4 py-3.5 font-mono text-[12px] leading-relaxed text-slate-100">
+    <pre className="overflow-x-auto rounded-2xl bg-navy-900 px-5 py-4 font-mono text-[13px] leading-relaxed text-brand-100 ring-1 ring-navy-700">
       {children}
     </pre>
   );

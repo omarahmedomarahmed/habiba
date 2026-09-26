@@ -1,3 +1,4 @@
+import { Lede, Rise, SiteTitle } from "@/components/public/site-ui";
 import { cn } from "@/lib/utils";
 
 /**
@@ -10,7 +11,7 @@ import { cn } from "@/lib/utils";
  * Two real screens each, two per row, every one of them the component the
  * product renders rather than a picture of it.
  *
- * ## Why the audience name is a mono eyebrow and not a coloured chip
+ * ## Why the audience name is an eyebrow and not a coloured chip
  *
  * Four colours of chip is a legend, and a legend is a thing the reader has to
  * learn before the section starts working. A word above the tile is read
@@ -33,42 +34,34 @@ export function HowItWorks({
   items: { audience: string; title: string; body?: string; demo: React.ReactNode }[];
 }) {
   return (
-    <section className="bg-white px-4 py-14 sm:px-6 sm:py-20">
-      <div className="mx-auto max-w-6xl">
-        <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-700">
-          [ 02 ] {heading}
-        </p>
-        {body ? (
-          <p className="mt-3 max-w-[60ch] text-[17px] leading-relaxed text-slate-700">{body}</p>
-        ) : null}
+    <section className="bg-white px-5 py-16 sm:px-6 sm:py-24">
+      <div className="mx-auto max-w-7xl">
+        {heading ? <SiteTitle className="max-w-3xl">{heading}</SiteTitle> : null}
+        {body ? <Lede className="mt-4">{body}</Lede> : null}
 
-        <div className="mt-10 grid gap-x-10 gap-y-12 lg:grid-cols-2">
+        <div className="mt-12 grid items-start gap-x-8 gap-y-14 lg:grid-cols-2">
           {items.map((item, i) => (
-            <div key={`${item.audience}-${item.title}`} className="min-w-0">
+            <Rise key={`${item.audience}-${item.title}`} delay={(i % 2) * 0.06} className="min-w-0">
               <p
                 className={cn(
-                  "font-mono text-[11px] font-semibold uppercase tracking-[0.16em]",
+                  "text-[13px] font-bold uppercase tracking-[0.16em] rtl:tracking-normal",
                   /*
                     The audience name changes every two tiles, so the pair
                     reads as a pair. The second of each pair is quieter,
                     because repeating the word at full weight makes the eye
                     read it as a new section rather than the same one.
                   */
-                  i % 2 === 0 ? "text-navy-500" : "text-slate-600",
+                  i % 2 === 0 ? "text-brand-700" : "text-navy-400",
                 )}
               >
                 {item.audience}
               </p>
-              <h3 className="mt-1.5 text-lg font-bold leading-snug tracking-tight text-navy-500">
-                {item.title}
-              </h3>
+              <h3 className="mt-2 text-[22px] font-bold leading-snug tracking-tight text-navy-700">{item.title}</h3>
               {item.body ? (
-                <p className="mt-1.5 max-w-[52ch] text-sm leading-relaxed text-slate-700">
-                  {item.body}
-                </p>
+                <p className="mt-2 max-w-[52ch] text-[15px] leading-relaxed text-navy-500">{item.body}</p>
               ) : null}
-              <div className="mt-4">{item.demo}</div>
-            </div>
+              <div className="mt-5 rounded-[28px] bg-navy-50 p-3 ring-1 ring-navy-100 sm:p-4">{item.demo}</div>
+            </Rise>
           ))}
         </div>
       </div>
