@@ -52,6 +52,20 @@ export type Notice = {
 };
 
 /**
+ * 🔴 Board 432: THE REASON BELONGS TO THE CANCELLATION, NOT TO THE SESSION.
+ *
+ * The reason is read from the session a notice points at, and every notice
+ * about that session (the transfer arriving, the booking itself) repeated
+ * "Their reason: I am unwell on Monday" under it. Only the notice that says
+ * the clinician cancelled carries the clinician's reason.
+ */
+const REASON_NOTICES = new Set<string>(["w1a.cancelledByClinician"]);
+
+export function noticeCarriesReason(messageKey: string): boolean {
+  return REASON_NOTICES.has(messageKey);
+}
+
+/**
  * Every notice this person has, dismissed ones included, newest first.
  *
  * Scoped on `person_id` from the session and nothing else. A `people` row is
@@ -77,7 +91,7 @@ export async function noticesFor(personId: string): Promise<Notice[]> {
   return rows.map((row) => ({
     id: row.id,
     messageKey: row.messageKey as MessageKey,
-    reason: row.reason,
+    reason: noticeCarriesReason(row.messageKey) ? row.reason : null,
     dismissedAt: row.dismissedAt,
     createdAt: row.createdAt,
   }));

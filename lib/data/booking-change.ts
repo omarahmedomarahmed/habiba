@@ -188,7 +188,11 @@ async function refundPatient(input: {
 }): Promise<"refunded" | "queued" | "none" | "wallet"> {
   const { refundSessionPayment, refundTransferToWallet } = await import("@/lib/billing/connect");
   /* 🔴 Board 430, ruling 18: a transfer we hold goes to their wallet by default. */
-  const toWallet = await refundTransferToWallet({ paymentId: input.paymentId, reason: input.reason.slice(0, 200) });
+  const toWallet = await refundTransferToWallet({
+    paymentId: input.paymentId,
+    reason: input.reason.slice(0, 200),
+    byUserId: input.by,
+  });
   if (toWallet.ok) return "wallet";
   const result = await refundSessionPayment({
     paymentId: input.paymentId,

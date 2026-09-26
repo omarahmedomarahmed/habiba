@@ -61,6 +61,7 @@ export async function afterClinicianCancel(input: {
     ? await refundTransferToWallet({
         paymentId: payment.id,
         reason: `Cancelled by the clinician: ${input.reason}`.slice(0, 200),
+        byUserId: input.actorUserId,
       })
     : null;
   if (toWallet?.ok) {

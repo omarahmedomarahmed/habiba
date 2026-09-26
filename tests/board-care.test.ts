@@ -143,6 +143,12 @@ test("board 364: a regulator line carries its Arabic name after a bar, and keeps
   assert.deepEqual(parseCountry({ ...parsed, regulators: parsed.regulators }).regulatorNamesAr, parsed.regulatorNamesAr);
 });
 
+test("board 432: only the clinician's cancellation notice carries the clinician's reason", () => {
+  const source = readSource("lib/data/notices.ts");
+  assert.match(source, /reason: noticeCarriesReason\(row\.messageKey\) \? row\.reason : null/);
+  assert.match(source, /new Set<string>\(\["w1a\.cancelledByClinician"\]\)/);
+});
+
 test("board 334: a session held in our own room names its source", () => {
   assert.match(readSource("app/(app)/sessions/[id]/page.tsx"), /impliedKind=/);
 });

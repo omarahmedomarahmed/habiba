@@ -1193,7 +1193,7 @@ async function recordPaymentMethod(paymentId: string, paymentIntentId: string | 
 export async function refundSessionToWallet(opts: {
   paymentId: string;
   reason: string;
-}): Promise<{ ok?: true; fallback?: true; toWalletCents?: number }> {
+}): Promise<{ ok?: true; fallback?: true; toWalletCents?: number; creditId?: string }> {
   const [payment] = await db
     .select()
     .from(sessionPayments)
@@ -1238,7 +1238,7 @@ export async function refundSessionToWallet(opts: {
     therapistNetCents: payment.therapistNetCents,
   });
   /* The reversal took the cash out; it stays with us as the patient's wallet. */
-  await creditWallet({
+  const credit = await creditWallet({
     personId: who.personId,
     cents,
     reason: opts.reason,
@@ -1252,7 +1252,7 @@ export async function refundSessionToWallet(opts: {
     .where(eq(sessions.id, payment.sessionId));
   await returnSpentHold(payment.sessionId, opts.reason);
   log.info("session refunded to the wallet", { payment: ref(payment.id), cents });
-  return { ok: true, toWalletCents: cents };
+  return { ok: true, toWalletCents: cents, ...(credit ? { creditId: credit.creditId } : {}) };
 }
 
 /**
@@ -1264,6 +1264,8 @@ export async function refundSessionToWallet(opts: {
 export async function refundTransferToWallet(opts: {
   paymentId: string;
   reason: string;
+  /** Who cancelled, for the transfer's record; null when the patient did. */
+  byUserId?: string | null;
 }): Promise<{ ok?: true; fallback?: true; toWalletCents?: number }> {
   const [payment] = await db
     .select()
@@ -1292,7 +1294,22 @@ export async function refundTransferToWallet(opts: {
     walletEnabled: settings.rules.wallet.enabled,
   });
   if (route !== "wallet") return { fallback: true };
-  return refundSessionToWallet(opts);
+  const result = await refundSessionToWallet({ paymentId: opts.paymentId, reason: opts.reason });
+  /*
+   * Ruling 18's other half: staff keep "Refund instead" while the credit is
+   * unspent. The transfer that paid it is marked as sitting in the wallet, the
+   * same record a transfer that arrived after the cancellation gets, so it is
+   * listed where that button is.
+   */
+  if (result.ok && result.creditId) {
+    const { recordTransferInWallet } = await import("./transfer-wallet");
+    await recordTransferInWallet({
+      sessionId: payment.sessionId,
+      creditId: result.creditId,
+      byUserId: opts.byUserId ?? null,
+    });
+  }
+  return result;
 }
 
 /**
