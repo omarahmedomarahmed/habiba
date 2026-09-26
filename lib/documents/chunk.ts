@@ -125,6 +125,32 @@ export function parseCitations(answer: string): DocumentRef[] {
   return refs;
 }
 
+const SESSION_REF = /\s*[Ss]\s*\d{1,4}\s*:\s*\d{1,5}\s*/;
+const BRACKETED = /\s*[[(]([^\][()]*)[\])]/g;
+
+/**
+ * 🔴 Board 718: THE SESSION CODES COME OUT OF THE WORDS.
+ *
+ * The model cites a session line as [S1:12] so the server can resolve it into
+ * a chip; left in the text it printed "[S1:12, S1:18, S2:12, S2:17]", codes a
+ * clinician cannot open or read. The chips under the answer are the citations.
+ * A bracket holding only session codes goes; a document reference beside them
+ * stays, because it is rendered from the text.
+ */
+export function withoutSessionRefs(answer: string): string {
+  return answer
+    .replace(BRACKETED, (whole, inside: string) => {
+      const items = inside.split(/[,;]/);
+      if (!items.some((item) => SESSION_REF.test(item) && item.replace(SESSION_REF, "").trim() === "")) return whole;
+      const kept = items.map((i) => i.trim()).filter((i) => i && !(SESSION_REF.test(i) && i.replace(SESSION_REF, "").trim() === ""));
+      return kept.length ? ` [${kept.join(", ")}]` : "";
+    })
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+([.,;:!?،؛])/g, "$1")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+}
+
 export function formatCitation(ref: DocumentRef): string {
   return `[D${ref.ordinal}:${ref.sequence}]`;
 }
