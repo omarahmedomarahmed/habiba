@@ -119,7 +119,7 @@ export function BookingCalendar({
         */}
         {done.covered ? (
           <p className="mt-2 rounded-xl bg-brand-50 px-3 py-2 text-sm font-medium text-brand-900">
-            {t(done.covered === "full" ? "pbook.coveredFull" : "pbook.coveredPart")}
+            {t(done.covered === "full" ? "psessions.coveredByBenefit" : "pbook.coveredPart")}
           </p>
         ) : null}
         <p className="mt-2 text-sm leading-relaxed text-slate-600">

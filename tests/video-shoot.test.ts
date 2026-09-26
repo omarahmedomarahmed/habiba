@@ -95,13 +95,13 @@ test("shoot P19: nothing scrolled under the phone's corner reads through it", ()
 
 test("shoot P11: the booking confirmation says the benefit covers it", () => {
   const cal = readSource("components/scheduling/booking-calendar.tsx");
-  assert.match(cal, /pbook\.coveredFull/);
+  assert.match(cal, /psessions\.coveredByBenefit/, "the list's own words for a covered session");
   assert.match(cal, /pbook\.coveredPart/);
   assert.match(readSource("app/(public)/t/[id]/book/actions.ts"), /covered: result\.covered/);
   const sched = readSource("lib/data/scheduling.ts");
   assert.match(sched, /const pot = await payFromPot\(created\.id\)/);
   assert.match(sched, /covered,\n/);
-  for (const key of ["pbook.coveredFull", "pbook.coveredPart"] as const) {
+  for (const key of ["pbook.coveredPart"] as const) {
     assert.ok(en[key] && ar[key], key);
     assert.doesNotMatch(ar[key], /[A-Za-z]/, `${key} has English left in`);
   }
