@@ -66,7 +66,7 @@ test("idempotent: a mark already claimed is never due again", () => {
   assert.ok(claim > 0 && send > claim, "claim, then send");
   assert.match(source, /if \(!claimed\) continue;/);
   /* A booking moved to another hour is reminded afresh: the booked instant is in the key. */
-  assert.match(source, /r\."scheduled_for" = \$\{sessions\.scheduledAt\}/);
+  assert.match(source, /r\."scheduled_for" = \$\{qualified\(sessions\.scheduledAt\)\}/);
   const migration = readFileSync("drizzle/0183_the_hour_before_and_the_clock_that_waits.sql", "utf8");
   assert.match(migration, /PRIMARY KEY \("session_id", "mark", "scheduled_for"\)/);
 });

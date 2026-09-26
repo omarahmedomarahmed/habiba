@@ -3,6 +3,7 @@ import "server-only";
 import { and, eq, gt, isNotNull, isNull, lte, sql } from "drizzle-orm";
 
 import { controlDb as db } from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import { patients, sessionReminders, sessions, users } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { whenFor, wordsFor } from "@/lib/i18n/message-words";
@@ -72,8 +73,8 @@ export async function sweepSessionReminders(now: Date = new Date()): Promise<{
       /* The marks already claimed for THIS booked instant; a moved booking starts afresh. */
       sent: sql<number[]>`COALESCE((
         SELECT array_agg(r."mark") FROM ${sessionReminders} r
-         WHERE r."session_id" = ${sessions.id}
-           AND r."scheduled_for" = ${sessions.scheduledAt}
+         WHERE r."session_id" = ${qualified(sessions.id)}
+           AND r."scheduled_for" = ${qualified(sessions.scheduledAt)}
       ), ARRAY[]::integer[])`,
     })
     .from(sessions)
@@ -204,7 +205,7 @@ async function sendReminder(
           kind: "booking.reminder",
           subject:
             mark === 60
-              ? t("pmsg.soon.subjectHour", { therapist })
+              ? t("pmsg.soon.subjectHour", { therapist, when })
               : t("pmsg.soon.subjectMinutes", { therapist, minutes: mark }),
           body: t("pmsg.soon.body", vars),
           link: { label: t("pmsg.openSession"), url },

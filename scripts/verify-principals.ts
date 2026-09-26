@@ -215,6 +215,9 @@ const SCOPE: Record<string, Scope> = {
   // attributed, so the read is an aggregate.
   feedback: { who: ["clinician", "patient", "admin"], clinical: true },
   scheduling: { who: ["clinician", "patient", "admin"], clinical: true },
+  // The per-minute reminder job behind `/api/cron/[job]` (CRON_SECRET). It reads
+  // a booked session's time and the patient's own contact to remind them, nothing more.
+  "session-reminders": { who: ["admin"], clinical: true },
   "meeting-connections": { who: ["clinician", "admin"], clinical: true },
   challenge: { who: ["clinician", "patient", "admin"], clinical: true },
   // B6: the claim refusals, translated for the patient screens that show them. No query of its own.

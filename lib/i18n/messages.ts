@@ -5421,7 +5421,7 @@ export const en = {
   "pmsg.bookedSelf.body": "Your session with {therapist} is booked for {when}.\n\nJoin from the link below a few minutes before. To cancel, tell your therapist early.",
   "pmsg.reminder.body": "A reminder: your session with {therapist} is {when}.\n\nIf you cannot make it, tell them early so the hour goes to somebody else.",
   /* 🔴 0183: the 60, 30 and 15 minute reminders, and the "go in now" at 5. */
-  "pmsg.soon.subjectHour": "Your session with {therapist} starts in 1 hour",
+  "pmsg.soon.subjectHour": "Coming up: your session with {therapist} at {when}",
   "pmsg.soon.subjectMinutes": "Your session with {therapist} starts in {minutes} minutes",
   "pmsg.soon.body": "Your session with {therapist} starts at {when}.\n\nFrom {early} minutes before, you can open the room from the link below. Your {length} minutes start when {therapist} joins, not before.",
   "pmsg.openNow.subject": "You can go into your session now",
@@ -10224,7 +10224,7 @@ export const ar: Record<MessageKey, string> = {
   "pmsg.booked.body": "لديك موعد مع {therapist} في {when}.\n\nإن لم يناسبك، أخبر معالجك مبكرًا لتذهب الساعة لغيرك.",
   "pmsg.bookedSelf.body": "حُجزت جلستك مع {therapist} في {when}.\n\nادخل من الرابط أدناه قبل الموعد ببضع دقائق. وللإلغاء، أخبر معالجك مبكرًا.",
   "pmsg.reminder.body": "تذكير بأن جلستك مع {therapist} في {when}.\n\nإن لم تستطع الحضور، أخبر معالجك مبكرًا لتذهب الساعة لغيرك.",
-  "pmsg.soon.subjectHour": "جلستك مع {therapist} تبدأ بعد ساعة",
+  "pmsg.soon.subjectHour": "قريبًا: جلستك مع {therapist} في {when}",
   "pmsg.soon.subjectMinutes": "جلستك مع {therapist} تبدأ بعد {minutes} دقيقة",
   "pmsg.soon.body": "تبدأ جلستك مع {therapist} في {when}.\n\nيمكنك فتح الغرفة من الرابط أدناه قبل الموعد بـ{early} دقائق. تبدأ دقائقك الـ{length} عندما ينضم {therapist}، وليس قبل ذلك.",
   "pmsg.openNow.subject": "يمكنك دخول جلستك الآن",
