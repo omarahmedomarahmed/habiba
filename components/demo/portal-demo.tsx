@@ -34,7 +34,6 @@ import { Avatar, Badge, Card, Glow, Stat } from "@/components/clinician/kit";
 import { PotRing } from "@/components/sponsor/ring";
 import { SpendHeatmap } from "@/components/sponsor/spend-heatmap";
 import { Meter, NeverBar } from "@/components/visual/primitives";
-import { dateTag } from "@/lib/i18n/config";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 import {
@@ -49,6 +48,7 @@ import {
   SPEND_CURVE,
 } from "@/lib/marketing/fixtures";
 import { egp, egpFrom } from "@/lib/marketing/prices";
+import { formatCalendarDate, formatDay, formatWeekday } from "@/lib/scheduling/tz";
 import { cn } from "@/lib/utils";
 
 /**
@@ -75,9 +75,7 @@ function useMoney() {
 
 /** The pot's expiry, written in the page's language. */
 function potDate(locale: "en" | "ar"): string {
-  return new Intl.DateTimeFormat(dateTag(locale), { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(
-    new Date(`${POT.expiresOn}T00:00:00Z`),
-  );
+  return formatCalendarDate(new Date(`${POT.expiresOn}T00:00:00Z`), "UTC", locale);
 }
 
 /* --------------------------------------------------------------- the desk -- */
@@ -266,18 +264,14 @@ const WEEK_OF = Date.UTC(2026, 2, 9);
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function rotaWhen(day: string, time: string, locale: "en" | "ar"): string {
-  const weekday = new Intl.DateTimeFormat(dateTag(locale), { weekday: "short", timeZone: "UTC" }).format(
-    new Date(WEEK_OF + Math.max(0, DAYS.indexOf(day)) * 86_400_000),
-  );
+  const weekday = formatWeekday(new Date(WEEK_OF + Math.max(0, DAYS.indexOf(day)) * 86_400_000), "UTC", locale);
   return `${weekday} ${time}`;
 }
 
 function ClinicWeek() {
   const t = useT();
   const locale = useLocale();
-  const monday = new Intl.DateTimeFormat(dateTag(locale), { day: "numeric", month: "long", timeZone: "UTC" }).format(
-    new Date(WEEK_OF),
-  );
+  const monday = formatDay(new Date(WEEK_OF), "UTC", locale);
   const clinicians = new Set(CLINIC_WEEK.map((row) => row.clinician)).size;
   return (
     <>
