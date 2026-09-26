@@ -8,6 +8,8 @@ import { LanguageSwitch } from "@/components/i18n/language-switch";
 import { NeverBar } from "@/components/visual/primitives";
 import { cn } from "@/lib/utils";
 
+import { NavyDesk } from "./desk-navy";
+
 /**
  * 🔴 THE DESK. One shell, both admin portals. Option A, /design/company/sample.
  *
@@ -74,6 +76,8 @@ export type DeskSection = {
   exact?: boolean;
   /** 🔴 Ruling 14b: the other pages this section holds, so it reads as active on them too. */
   also?: readonly string[];
+  /** Drawn beside the label in the navy rail (`look="navy"`); ignored otherwise. */
+  icon?: React.ReactNode;
 };
 
 export function Desk({
@@ -85,6 +89,7 @@ export function Desk({
   sections,
   actions,
   never,
+  look = "light",
   children,
 }: {
   /** Signed out gets the door and no rail: every link would bounce them. */
@@ -117,6 +122,12 @@ export function Desk({
   /** Sign out, and anything else that ends a session. Rendered in both layouts. */
   actions?: React.ReactNode;
   never: { label: string; items: string[] };
+  /**
+   * The approved navy look (`components/portal/desk-navy.tsx`), for a chrome
+   * that has moved across. Everything above holds there too: the wall in the
+   * rail, the switch within reach, the chrome out of the print.
+   */
+  look?: "light" | "navy";
   children: React.ReactNode;
 }) {
   /*
@@ -139,6 +150,24 @@ export function Desk({
   const current = (section: DeskSection) =>
     (section.exact ? pathname === section.href : pathname.startsWith(section.href)) ||
     (section.also ?? []).some((href) => pathname.startsWith(href));
+
+  if (look === "navy") {
+    return (
+      <NavyDesk
+        nav={nav}
+        bare={bare}
+        name={name}
+        badge={badge}
+        sections={sections}
+        current={current}
+        actions={actions}
+        never={never}
+        routed={routed !== null}
+      >
+        {children}
+      </NavyDesk>
+    );
+  }
 
   const wall = <NeverBar label={never.label} items={never.items} />;
   const switcher = routed === null ? null : <LanguageSwitch />;

@@ -335,7 +335,35 @@ export function BeforeAfter({
  * No `open` prop, no chevron, no "why?". A regulator or a payer would expect this person
  * to have seen it, so there is nothing here that could make it not so.
  */
-export function NeverBar({ label, items }: { label: string; items: string[] }) {
+export function NeverBar({
+  label,
+  items,
+  tone = "light",
+}: {
+  label: string;
+  items: string[];
+  /**
+   * The ground it sits on. `dark` is the navy rail of the redesigned desk: the
+   * same three crosses, white ink, in a card of their own so they read as a
+   * fixture of the rail rather than a footnote to it.
+   */
+  tone?: "light" | "dark";
+}) {
+  if (tone === "dark") {
+    return (
+      <div className="rounded-2xl bg-white/5 p-3.5 ring-1 ring-white/10">
+        <p className="text-xs font-bold text-white">{label}</p>
+        <ul className="mt-2.5 flex flex-col gap-2">
+          {items.map((item) => (
+            <li key={item} className="flex items-start gap-2 text-xs leading-relaxed text-white/80">
+              <X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400" aria-hidden />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
   return (
     <div className="border-t border-slate-200 pt-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">{label}</p>
