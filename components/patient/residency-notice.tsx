@@ -33,7 +33,8 @@ export function ResidencyNotice({
   crosses: boolean;
   agreedAt: string | null;
   wording: string | null;
-  homeLabel: string;
+  /** Null when we do not know which country they live in. */
+  homeLabel: string | null;
   servingLabel: string;
 }) {
   const t = useT();
@@ -46,7 +47,14 @@ export function ResidencyNotice({
       <Card className="p-5">
         <p className="text-sm font-semibold text-navy-700">{t("residency.title")}</p>
         <p className="mt-1.5 text-sm leading-relaxed text-navy-400">
-          {t("residency.home", { country: homeLabel })}
+          {/*
+            🔴 Board 569: "where you live" only when we know that. With no
+            evidence of their country, the page names where the record is and
+            claims nothing about borders.
+          */}
+          {homeLabel
+            ? t("residency.home", { country: homeLabel })
+            : t("residency.keptOnly", { country: servingLabel })}
         </p>
       </Card>
     );
@@ -55,7 +63,7 @@ export function ResidencyNotice({
   return (
     <Card className={agreedAt ? "p-5" : "border-amber-200 bg-amber-50 p-5"}>
       <p className="text-sm font-semibold text-navy-700">
-        {t("residency.keptIn", { serving: servingLabel, home: homeLabel })}
+        {t("residency.keptIn", { serving: servingLabel, home: homeLabel ?? "" })}
       </p>
       <p className="mt-1.5 text-sm leading-relaxed text-navy-600">{wording}</p>
 

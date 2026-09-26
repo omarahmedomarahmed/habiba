@@ -929,7 +929,8 @@ export const en = {
 
   /* ------------------------------------------------------------- residency */
   "residency.title": "Where your record is kept",
-  "residency.home": "In {country}, where it belongs. Nothing crosses a border.",
+  "residency.home": "Your record is kept in {country}, the country you live in, so it does not leave your country.",
+  "residency.keptOnly": "Your record is kept on servers in {country}.",
 
   /* ----------------------------------------------------------------- claim */
   "pclaim.title": "Have you seen a therapist before?",
@@ -6159,7 +6160,8 @@ export const ar: Record<MessageKey, string> = {
 
   /* --------------------------------------------------- مكان حفظ السجل */
   "residency.title": "أين يُحفظ سجلك",
-  "residency.home": "في {country}، حيث ينبغي. ولا شيء يعبر حدودًا.",
+  "residency.home": "سجلك محفوظ في {country}، البلد الذي تعيش فيه، فلا يخرج من بلدك.",
+  "residency.keptOnly": "سجلك محفوظ على خوادم في {country}.",
 
   /* ------------------------------------------------------------- الاستلام */
   "pclaim.title": "هل زرت معالجًا من قبل؟",

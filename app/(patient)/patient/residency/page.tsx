@@ -41,7 +41,7 @@ export default async function ResidencyPage() {
         crosses={state.crosses}
         agreedAt={state.agreedAt ? formatDate(state.agreedAt, actor.timezone, locale) : null}
         wording={state.wording}
-        homeLabel={regionLabel(state.homeRegion, locale)}
+        homeLabel={state.homeRegion ? regionLabel(state.homeRegion, locale) : null}
         servingLabel={regionLabel(state.servingRegion, locale)}
       />
     </main>
