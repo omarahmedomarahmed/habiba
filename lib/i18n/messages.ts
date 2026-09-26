@@ -133,7 +133,7 @@ export const en = {
   "meta.yourClinicians": "Your clinicians",
   "phone.country": "Country",
   "phone.placeholder": "Phone or WhatsApp number",
-  "phone.readAs": "We will read this as a {country} number.",
+  "phone.readAs": "We read this as a number in {country}.",
   "phone.timezone": "Time zone",
   "phone.detecting": "Detecting…",
   "phone.zoneShown": "We will show your appointments and reminders in {zone} time. Change it if that is wrong.",

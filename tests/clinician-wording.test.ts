@@ -125,3 +125,11 @@ test("K22 a clinic seat's region change is refused before the rate is saved", ()
   assert.ok(refuse > 0 && write > 0, "the refusal or the write is missing");
   assert.ok(refuse < write, "the rate is written before the region is checked");
 });
+
+test("board 879 no English line puts 'a' before a name it cannot see ('a Egypt number')", () => {
+  const offenders = Object.entries(en).filter(([, text]) =>
+    /\b[Aa] \{(?:country|name|who|title|place|city|clinic|org|practice)\}/.test(text),
+  );
+  assert.deepEqual(offenders, []);
+  assert.equal(en["phone.readAs"], "We read this as a number in {country}.");
+});
