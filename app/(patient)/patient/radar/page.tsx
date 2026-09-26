@@ -44,7 +44,12 @@ export default async function PatientRadarPage() {
 
   return (
     <div className="bg-[#04101f]">
-      <RadarConsole initial={therapists} initialOffline={offline} firstHours={firstHours} />
+      <RadarConsole
+        initial={therapists}
+        initialOffline={offline}
+        firstHours={firstHours}
+        profileBase="/patient/t"
+      />
       <RadarSafetyLine />
     </div>
   );

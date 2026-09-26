@@ -27,9 +27,12 @@ import { fullName } from "@/lib/utils";
 export function OfflineCard({
   entry,
   onClose,
+  profileBase = "/t",
 }: {
   entry: RadarOfflineEntry;
   onClose: () => void;
+  /** `/patient/t` inside the patient app, so a patient stays in their chrome. */
+  profileBase?: string;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -71,7 +74,7 @@ export function OfflineCard({
         </button>
       </div>
       <Link
-        href={`/t/${entry.userId}`}
+        href={`${profileBase}/${entry.userId}`}
         className="mt-3 flex h-10 items-center justify-center gap-2 rounded-xl bg-white/10 text-sm font-semibold text-white hover:bg-white/15"
       >
         <CalendarClock className="h-4 w-4" aria-hidden />

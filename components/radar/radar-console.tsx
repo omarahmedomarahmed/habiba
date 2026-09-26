@@ -65,7 +65,10 @@ export function RadarConsole({
   initial,
   initialOffline = NO_OFFLINE,
   firstHours = [],
+  profileBase = "/t",
 }: {
+  /** Where a clinician's profile lives for this reader: `/patient/t` in the app. */
+  profileBase?: string;
   initial: RadarEntry[];
   /**
    * 🔴 Verified clinicians who are not on shift: dim dots on the globe that
@@ -400,7 +403,11 @@ export function RadarConsole({
 
       {selected ? <BookingSheet entry={selected} onClose={() => setSelectedId(null)} /> : null}
       {offlinePicked && !selected ? (
-        <OfflineCard entry={offlinePicked} onClose={() => setOfflineId(null)} />
+        <OfflineCard
+          entry={offlinePicked}
+          profileBase={profileBase}
+          onClose={() => setOfflineId(null)}
+        />
       ) : null}
     </div>
   );
