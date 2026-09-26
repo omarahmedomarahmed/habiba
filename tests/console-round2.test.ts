@@ -79,3 +79,23 @@ test("593: the form posts the direction's sign, previews, and the audit row name
   assert.match(card, /adj\.posted/);
   assert.match(card, /setDecided/);
 });
+
+test("489: an operator's reason ending in a full stop gets no second one", async () => {
+  const { asSentence } = await import("../lib/i18n/sentence");
+  assert.equal(asSentence("Please attach the receipt and submit again."), "Please attach the receipt and submit again.");
+  assert.equal(asSentence("wrong reference"), "wrong reference.");
+  assert.equal(asSentence("هل أرسلته؟"), "هل أرسلته؟");
+  for (const dict of [en, ar]) assert.doesNotMatch(dict["pmsg.pay.rejected"], /\{reason\}\./);
+  const notices = readFileSync("lib/billing/payment-notices.ts", "utf8");
+  assert.match(notices, /reason: asSentence\(/);
+});
+
+test("490: a rejected top-up shows on the page, with what was sent, before anything is pressed", () => {
+  const popup = readFileSync("components/billing/payment-popup.tsx", "utf8");
+  const closed = popup.slice(popup.indexOf("if (!open) {"));
+  assert.match(closed, /live\.state === "rejected" \? <RejectedTransfer live=\{live\} \/>/);
+  assert.match(closed, /pop\.sendAgain/);
+  const entry = readFileSync("lib/billing/manual-entry.ts", "utf8");
+  assert.match(entry, /latest\?\.state === "rejected"/, "only a rejection that is still the last word");
+  assert.match(entry, /sentLabel: formatMoney\(/);
+});

@@ -17,6 +17,7 @@ import { env } from "@/lib/env";
 import { log, ref } from "@/lib/logger";
 import { localeTag, type Locale } from "@/lib/i18n/config";
 import { wordsFor, type Words } from "@/lib/i18n/message-words";
+import { asSentence } from "@/lib/i18n/sentence";
 import type { Who } from "@/lib/i18n/preference";
 import { notify, type Recipient } from "@/lib/notify";
 
@@ -400,7 +401,8 @@ export async function noticePaymentRejected(paymentId: string): Promise<void> {
     await notify(who.to, {
       kind: "payment.rejected",
       subject: t("pmsg.pay.rejectedSubject"),
-      body: `${who.hi}\n\n${t("pmsg.pay.rejected", { reason: payment.rejectReason ?? t("pmsg.pay.noReason") })}`,
+      /* 🔴 Board 489: the stop is the reason's own, or one added, never two. */
+      body: `${who.hi}\n\n${t("pmsg.pay.rejected", { reason: asSentence(payment.rejectReason || t("pmsg.pay.noReason")) })}`,
       link: join
         ? { label: t("pmsg.pay.page"), url: join }
         : { label: t("pmsg.pay.account"), url: who.portal },

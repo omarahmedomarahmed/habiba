@@ -8,7 +8,7 @@ import { Card } from "@/components/ui";
 import { TopUpStepper } from "@/components/billing/top-up-stepper";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { transferFieldWords } from "@/lib/billing/transfer-words";
-import type { PotStep } from "@/lib/billing/manual-entry";
+import type { PotStep, RejectedLive } from "@/lib/billing/manual-entry";
 import { Money } from "@/components/ui/money";
 import { rich, slot } from "@/lib/i18n/rich";
 
@@ -60,7 +60,7 @@ export type LiveState =
   | { state: "none" }
   | { state: "awaiting_proof"; paymentId: string }
   | { state: "submitted"; paymentId: string; submittedAt: string | null; hasProof?: boolean }
-  | { state: "rejected"; reason: string };
+  | RejectedLive;
 
 export type TransferFormState = { error?: string; ok?: boolean };
 
@@ -261,21 +261,7 @@ export function PayByTransfer({
    * reference again below" over a page with nothing below it, so a payer who
    * had been told exactly what to fix had nowhere to fix it.
    */
-  const rejectedBanner =
-    live.state === "rejected" ? (
-      <Card className="border-rose-200 bg-rose-50 p-5">
-          <p className="text-sm font-semibold text-rose-900">{t("transfer.rejected")}</p>
-          {/*
-            🔴 THEIR WORDS, VERBATIM. The operator wrote a reason the payer can act
-            on, and paraphrasing it here or replacing it with a generic sentence
-            would throw away the only thing that makes a rejection survivable.
-          */}
-          <p className="mt-2 rounded-xl bg-white/70 p-3 text-sm leading-relaxed text-rose-900">
-            {live.reason}
-          </p>
-          <p className="mt-3 text-sm text-rose-900/90">{t("transfer.rejectedBody")}</p>
-        </Card>
-    ) : null;
+  const rejectedBanner = live.state === "rejected" ? <RejectedTransfer live={live} /> : null;
 
   /* ------------------------------------------------------- not set up yet -- */
 
@@ -478,5 +464,37 @@ function Declare() {
       */}
       {pending ? t("transfer.sending") : t("pop.submitCta")}
     </button>
+  );
+}
+
+/**
+ * 🔴 TURNED DOWN: what was sent, the operator's reason, and what to do next.
+ *
+ * Board 490: shared by the open sheet and the closed entry, because a company
+ * whose top-up was rejected met only a plain "Pay now" on /sponsor/pot, while
+ * the email told them to "send the reference again from the same page".
+ */
+export function RejectedTransfer({ live }: { live: RejectedLive }) {
+  const t = useT();
+  return (
+    <Card className="border-rose-200 bg-rose-50 p-5" role="status">
+      <p className="text-sm font-semibold text-rose-900">{t("transfer.rejected")}</p>
+      {live.sentLabel ? (
+        <p className="mt-1 text-sm text-rose-900/90">
+          {live.reference
+            ? t("transfer.rejectedWhat", { amount: live.sentLabel, reference: live.reference })
+            : live.sentLabel}
+        </p>
+      ) : null}
+      {/*
+        🔴 THEIR WORDS, VERBATIM. The operator wrote a reason the payer can act
+        on, and paraphrasing it here or replacing it with a generic sentence
+        would throw away the only thing that makes a rejection survivable.
+      */}
+      {live.reason ? (
+        <p className="mt-2 rounded-xl bg-white/70 p-3 text-sm leading-relaxed text-rose-900">{live.reason}</p>
+      ) : null}
+      <p className="mt-3 text-sm text-rose-900/90">{t("transfer.rejectedBody")}</p>
+    </Card>
   );
 }

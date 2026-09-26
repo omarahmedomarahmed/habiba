@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { PayByTransfer } from "@/components/billing/pay-by-transfer";
+import { PayByTransfer, RejectedTransfer } from "@/components/billing/pay-by-transfer";
 import { useT } from "@/lib/i18n/client";
 import type { PotStep } from "@/lib/billing/manual-entry";
 import type {
@@ -317,7 +317,8 @@ export function PaymentPopup({
     ) : null;
 
   if (!open) {
-    const label = live.state === "submitted" ? t("pop.track") : t("pop.open");
+    const label =
+      live.state === "submitted" ? t("pop.track") : live.state === "rejected" ? t("pop.sendAgain") : t("pop.open");
 
     if (minimised === "orb") {
       return (
@@ -359,6 +360,12 @@ export function PaymentPopup({
     */
     return (
       <div className="flex flex-col gap-2">
+        {/*
+          🔴 Board 490: a rejection is shown on the page, not only inside the
+          sheet, so the payer sees what was turned down and why before
+          pressing anything.
+        */}
+        {live.state === "rejected" ? <RejectedTransfer live={live} /> : null}
         <button
           type="button"
           onClick={() => remember(true)}

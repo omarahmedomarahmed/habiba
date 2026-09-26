@@ -2385,7 +2385,10 @@ export const en = {
   "transfer.labelBank": "Bank transfer",
   "transfer.closePage": "You can close this page and come back.",
   "transfer.rejected": "We could not confirm that transfer",
-  "transfer.rejectedBody": "Send the reference again below, or reply to us.",
+  "transfer.rejectedBody": "Send it again below, or reply to us.",
+  /* 🔴 Board 490: the rejected transfer, on the page, with what was sent. */
+  "transfer.rejectedWhat": "{amount} sent, reference {reference}",
+  "pop.sendAgain": "Send it again",
   "transfer.unset": "Payment is not set up yet",
   "transfer.unsetBody": "Tell us and we will send them to you.",
   "transfer.send": "Send",
@@ -2403,7 +2406,7 @@ export const en = {
   "transfer.taxNote": "Includes {tax} of VAT.",
 
   /* -------------------------------- 🔴 76.4 one payment screen, every payer */
-  "pop.submitAlert": "Send the money, then add your reference, the number or InstaPay you sent from, or a screenshot, and press Submit so we can match it to your account.",
+  "pop.submitAlert": "Send the money, then add your reference, the number or InstaPay you sent from, or a screenshot, and press Submit.",
   "pop.submitCta": "Submit",
   "pop.for.patient": "Patient payment",
   "pop.for.therapist": "Therapist payment",
@@ -5299,7 +5302,7 @@ export const en = {
   "pmsg.pay.join": "Join your session",
   "pmsg.pay.account": "Open your account",
   "pmsg.pay.rejectedSubject": "We could not match your transfer",
-  "pmsg.pay.rejected": "We could not match your transfer to our account. The reason: {reason}.\n\nNothing was taken from you by us. Check the details and send the reference again from the same page.",
+  "pmsg.pay.rejected": "We could not match your transfer to our account. The reason: {reason}\n\nNothing was taken from you by us. Check the details and send the reference again from the same page.",
   "pmsg.pay.noReason": "not given",
   "pmsg.pay.page": "Open the payment page",
   "pmsg.started.subject": "Your session has started",
@@ -7364,7 +7367,10 @@ export const ar: Record<MessageKey, string> = {
   "transfer.labelBank": "تحويل بنكي",
   "transfer.closePage": "يمكنك إغلاق الصفحة والعودة إليها.",
   "transfer.rejected": "لم نتمكن من تأكيد هذا التحويل",
-  "transfer.rejectedBody": "أرسل الرقم المرجعي مرة أخرى بالأسفل، أو راسلنا.",
+  "transfer.rejectedBody": "أرسله مرة أخرى بالأسفل، أو راسلنا.",
+  /* 🔴 Board 490: the rejected transfer, on the page, with what was sent. */
+  "transfer.rejectedWhat": "أُرسل {amount}، الرقم المرجعي {reference}",
+  "pop.sendAgain": "أرسله مرة أخرى",
   "transfer.unset": "طريقة الدفع غير مُعدّة بعد",
   "transfer.unsetBody": "أخبرنا وسنرسلها إليك.",
   "transfer.send": "حوّل",
@@ -7379,7 +7385,7 @@ export const ar: Record<MessageKey, string> = {
   "transfer.taxNote": "يشمل {tax} ضريبة القيمة المضافة.",
 
   /* -------------------------------- 🔴 76.4 one payment screen, every payer */
-  "pop.submitAlert": "حوّل المبلغ أولًا. ثم اكتب هنا رقم العملية أو الرقم أو حساب إنستاباي الذي حوّلت منه، أو أرفق صورة، واضغط إرسال حتى نتمكن من مطابقة تحويلك بحسابك.",
+  "pop.submitAlert": "حوّل المبلغ أولًا. ثم اكتب هنا رقم العملية أو الرقم أو حساب إنستاباي الذي حوّلت منه، أو أرفق صورة، واضغط إرسال.",
   "pop.submitCta": "إرسال",
   "pop.for.patient": "دفعة مريض",
   "pop.for.therapist": "دفعة معالج",
@@ -9908,7 +9914,7 @@ export const ar: Record<MessageKey, string> = {
   "pmsg.pay.join": "انضم إلى جلستك",
   "pmsg.pay.account": "افتح حسابك",
   "pmsg.pay.rejectedSubject": "لم نتمكن من مطابقة تحويلك",
-  "pmsg.pay.rejected": "لم نتمكن من مطابقة تحويلك مع حسابنا. السبب: {reason}.\n\nلم نأخذ منك شيئًا. راجع التفاصيل وأرسل رقم المرجع مرة أخرى من الصفحة نفسها.",
+  "pmsg.pay.rejected": "لم نتمكن من مطابقة تحويلك مع حسابنا. السبب: {reason}\n\nلم نأخذ منك شيئًا. راجع التفاصيل وأرسل رقم المرجع مرة أخرى من الصفحة نفسها.",
   "pmsg.pay.noReason": "لم يُذكر",
   "pmsg.pay.page": "افتح صفحة الدفع",
   "pmsg.started.subject": "بدأت جلستك",
