@@ -23,6 +23,7 @@ import { and, eq } from "drizzle-orm";
 import { callerKey, releaseHold } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
 import { formatDateTime } from "@/lib/utils";
+import { missedBooking } from "@/lib/sessions/doors";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -169,6 +170,44 @@ export default async function JoinPage({
    * whatever the page shows. The time is written here, in the reader's zone:
    * their own, then the one this record keeps, then their clinician's (13.13).
    */
+  /*
+   * 🔴 Board 729: a booked hour that passed with nobody starting it is over.
+   * The link lives on for a late clinician, and this page kept saying
+   * "Joining shortly… This page opens the moment they do" hours afterwards.
+   */
+  if (
+    missedBooking(
+      { status: session.status, scheduledAt: session.scheduledAt ?? null, startedAt: session.startedAt ?? null },
+      Date.now(),
+    )
+  ) {
+    const zone = signedIn?.timezone || clinician?.timezone || null;
+    return (
+      <Shell>
+        <h1 className="text-xl font-bold text-navy-700">{t("psessions.missed")}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-navy-400">
+          {t("join.missedBody", { when: formatDateTime(session.scheduledAt, zone, locale) })}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/contact"
+            className="inline-flex h-11 items-center rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600"
+          >
+            {t("join.missedWrite")}
+          </Link>
+          {signedIn ? (
+            <Link
+              href="/patient/sessions"
+              className="inline-flex h-11 items-center rounded-xl bg-navy-50 px-4 text-sm font-semibold text-navy-600"
+            >
+              {t("psessions.title")}
+            </Link>
+          ) : null}
+        </div>
+      </Shell>
+    );
+  }
+
   let booking: React.ComponentProps<typeof JoinFlow>["booking"] = null;
   if (session.status === "scheduled" && session.scheduledAt) {
     const [record] = session.patientId

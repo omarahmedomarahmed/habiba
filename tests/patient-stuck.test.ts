@@ -159,6 +159,26 @@ test("W2-P06 a session card opens what it is waiting on: join, pay, the transfer
   assert.equal(doorFor({ ...base, joinTokenExpiresAt: new Date(now - 1) }), null);
   assert.equal(doorFor({ ...base, status: "completed", endedAt: new Date(now - 1) }), null);
 
+  /* 🔴 Board 729: a booked hour over with nobody starting it opens nothing, link or not. */
+  const booked = new Date(now - 2 * 3_600_000 - 26 * 60_000);
+  assert.equal(doorFor({ ...base, scheduledAt: booked, startedAt: null, joinTokenExpiresAt: new Date(now + 3_600_000) }), null);
+  assert.equal(
+    doorFor({ ...base, priceCents: 2000, paymentStatus: "pending", scheduledAt: booked, startedAt: null }),
+    null,
+    "nor asks to be paid for",
+  );
+  /* CONTROL: inside the hour it still opens, and a session under way is never missed. */
+  assert.deepEqual(doorFor({ ...base, scheduledAt: new Date(now - 30 * 60_000), startedAt: null }), {
+    kind: "join",
+    href: "/join/tok",
+  });
+  assert.deepEqual(doorFor({ ...base, status: "in_progress", scheduledAt: booked, startedAt: booked }), {
+    kind: "join",
+    href: "/join/tok",
+  });
+  assert.match(code("lib/data/patient-view.ts"), /!missedBooking\(row, now\)/, "no summary is being written");
+  assert.match(code("app/join/[token]/page.tsx"), /missedBooking\(/);
+
   assert.match(code("components/patient/session-list.tsx"), /doors\[session\.id\]/);
   assert.match(code("app/(patient)/patient/sessions/page.tsx"), /sessionDoors\(/);
 });
