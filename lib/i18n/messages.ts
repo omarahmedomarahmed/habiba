@@ -1389,6 +1389,7 @@ export const en = {
   "passess.doneTitle": "That is all of them",
   "passess.doneBody": "Thank you. Your therapist will see your answers before your next session.",
   "passess.period": "Over the last two weeks, how often have you been bothered by the following?",
+  "passess.englishForm": "Shown in its validated English form.",
   "passess.sourceLabel": "Where these questions come from",
   "passess.historyTitle": "What you have answered before",
   /*
@@ -6608,6 +6609,7 @@ export const ar: Record<MessageKey, string> = {
   "passess.doneTitle": "هذا كل شيء",
   "passess.doneBody": "شكرًا لك. سيرى معالجك إجاباتك قبل جلستك القادمة.",
   "passess.period": "خلال الأسبوعين الماضيين، كم مرة أزعجك أي مما يلي؟",
+  "passess.englishForm": "يُعرض هذا الاستبيان بصيغته الإنجليزية المعتمدة.",
   "passess.sourceLabel": "مصدر هذه الأسئلة",
   "passess.historyTitle": "ما أجبت عنه سابقًا",
   "passess.historyBody": "هذه إجاباتك أنت، مجموعة، في اليوم الذي أجبت فيه.",

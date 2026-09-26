@@ -106,18 +106,31 @@ export function PatientQuestionnaire({
    * falls back to the English it was translated from.
    */
   const say = (text: Record<string, string>) => text[locale] ?? text.en ?? "";
+  /*
+   * 🔴 Board 744: an instrument not published in the reader's language is
+   * shown in its validated English, marked as English, and SAID so, in their
+   * language, once. A reviewed Arabic PHQ-9 or GAD-7 reaches this screen the
+   * day a named reviewer signs it (`instruments_translation_reviewed`), and
+   * this line then disappears by itself.
+   */
+  const inEnglish = locale !== "en" && questions.some((q) => !q.text[locale]);
+  const english = inEnglish ? ({ lang: "en", dir: "ltr" } as const) : {};
 
   if (done) {
     return (
       <Card className="p-6 text-center">
         <p className="text-lg font-semibold text-navy-700">{t("passess.doneTitle")}</p>
         <p className="mt-2 text-sm leading-relaxed text-navy-400">{t("passess.doneBody")}</p>
-        {/* 🔴 W2-P16: the last question ended on a page with no way off it. */}
+        {/*
+          🔴 W2-P16: the last question ended on a page with no way off it.
+          🔴 Board 744: to their answers, not "Home" a second time above the
+          bottom bar's own Home.
+        */}
         <Link
-          href="/patient"
+          href="/patient/assessments"
           className="mt-4 inline-flex h-11 items-center rounded-xl bg-navy-50 px-4 text-sm font-semibold text-navy-600"
         >
-          {t("tab.home")}
+          {t("passess.historyTitle")}
         </Link>
       </Card>
     );
@@ -268,9 +281,15 @@ export function PatientQuestionnaire({
         </div>
       </div>
 
+      {inEnglish ? (
+        <p className="rounded-xl bg-navy-50 px-3.5 py-2.5 text-sm leading-relaxed text-navy-600">
+          {t("passess.englishForm")}
+        </p>
+      ) : null}
+
       <Card className="p-5">
         <p className="text-xs leading-relaxed text-navy-400">{t("passess.period")}</p>
-        <p className="mt-2 text-lg leading-relaxed font-medium text-navy-700">
+        <p {...english} className="mt-2 text-lg leading-relaxed font-medium text-navy-700">
           {say(question.text)}
         </p>
 
@@ -290,7 +309,7 @@ export function PatientQuestionnaire({
                     : "tap-target flex min-h-12 w-full items-center rounded-xl border border-navy-100 px-4 py-3 text-start text-sm font-medium text-navy-600 hover:border-navy-200 hover:bg-navy-50 disabled:opacity-60"
                 }
               >
-                {say(option.label)}
+                <span {...english}>{say(option.label)}</span>
               </button>
             );
           })}
@@ -322,7 +341,7 @@ export function PatientQuestionnaire({
       */}
       <div>
         <p className="text-xs font-medium text-navy-400">{t("passess.sourceLabel")}</p>
-        <p className="mt-1 text-xs leading-relaxed text-navy-400">
+        <p {...english} className="mt-1 text-xs leading-relaxed text-navy-400">
           {say(name)}. {attribution}
         </p>
       </div>

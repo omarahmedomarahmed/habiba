@@ -319,7 +319,13 @@ test("W2-P16 the dead ends have a way back", () => {
   assert.match(dead, /href="\/radar"/);
 
   assert.match(code("app/feedback/[token]/page.tsx"), /href="\/patient\/summary"/);
-  assert.match(code("components/assessments/patient-questionnaire.tsx"), /href="\/patient"/);
+  /* Board 744: to their answers, not a second Home above the bottom bar's. */
+  const questionnaire = code("components/assessments/patient-questionnaire.tsx");
+  assert.match(questionnaire, /href="\/patient\/assessments"/);
+  assert.doesNotMatch(questionnaire, /tab\.home/);
+  /* Board 744: an instrument not published in Arabic says so in Arabic, once, and is marked English. */
+  assert.match(questionnaire, /passess\.englishForm/);
+  assert.match(questionnaire, /lang: "en", dir: "ltr"/);
   for (const flow of ["components/patient/invite-flow.tsx", "components/patient/claim-flow.tsx"]) {
     assert.match(
       code(flow),
