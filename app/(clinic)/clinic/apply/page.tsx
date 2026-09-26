@@ -42,7 +42,7 @@ export default async function ClinicApplyPage() {
           practice manager most needs before signing is what the portal will and will not
           show them, and it was the third paragraph of four.
         */}
-        <div className="space-y-4 rounded-3xl bg-navy-50 p-5 ring-1 ring-navy-100">
+        <div className="space-y-3 border-t border-navy-100 pt-5">
           <SeesWhat
             who={t("clinic.apply.seesWho")}
             can={[t("clinic.apply.seesSchedule"), t("clinic.apply.seesBills"), t("clinic.apply.seesTeam")]}

@@ -160,12 +160,12 @@ export default async function ClinicOverviewPage({
 
       {seesSchedule ? (
         <div className="space-y-4">
-          <Card className="flex items-center gap-2 p-2">
+          <Card className="flex flex-wrap items-center justify-between gap-2 p-2">
             <Link href={`/clinic?week=${prevKey}`} className={buttonClass("ghost", "sm")}>
               <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
               {t("clinic.prevWeek")}
             </Link>
-            <div className="flex min-w-0 flex-1 flex-col items-center text-center">
+            <div className="order-first flex basis-full flex-col items-center pt-2 text-center sm:order-none sm:min-w-0 sm:flex-1 sm:basis-auto sm:pt-0">
               <span className="text-[15px] font-bold text-navy-700">{t("clinic.week", { date: day(monday) })}</span>
               {/*
                 🔴 T8: the zone every time on this page is in, named whether or not
@@ -197,7 +197,7 @@ export default async function ClinicOverviewPage({
             summarise, and the empty state below says the whole truth on its own.
           */}
           {rows.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <Stat tone="dark" label={t("clinic.hoursBooked")}>
                 {booked.length}
               </Stat>
