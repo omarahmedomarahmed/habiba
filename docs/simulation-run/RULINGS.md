@@ -18,6 +18,8 @@ with the reason, so any of them can be reversed in the morning.
 | N11 | A clinic's part-month seat price shows EGP 666.50 rather than 666.67 (board 252), left as it is for launch | Bills are stored in USD cents and shown in EGP at 50, so every EGP figure is a multiple of 0.50 and the one shown is exactly what is charged; storing EGP on each bill changes the bank-transfer path the night before launch |
 | N12 | The first sign-in after the site sat idle can hang once (board 255); left for launch, retried by the person | A cold database connection; the documented fix is a package not yet installed, and adding a dependency at night is riskier than a retry |
 | N13 | Round 2 closes with what ran: ORG complete, CARE and OPS-WEB stopped by a usage limit after about 400 rows between them; their unwalked steps join the post-redesign walkthrough (S5) instead of a re-run | The redesign changes every screen those steps would walk, so walking them twice costs time and proves the old screens |
+| N14 | Every portal's loading screen moves one level below its route group (the therapist's into each section) | On the production build a group-root loading boundary left a patient's sign-in on "Working" and a move back to a parent page doing nothing, in about two tries of three; it is the likely cause of B53 and board 255 |
+| N15 | G2 counts the console login in the full contrast run as the checker's, not the product's | The console asks for an emailed second step, and the machine's agents share the per-address sign-in limit; every console page was measured in the served run |
 
 ## Needs the founder
 
