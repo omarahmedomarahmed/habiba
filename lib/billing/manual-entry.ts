@@ -312,9 +312,18 @@ export async function manualEntry(input: {
    * is: C84 bans `Intl` inside a client component, and these are figures a payer
    * checks their total against.
    */
+  /*
+   * 🔴 Board 706: a seat line is stored English arithmetic ("1 seats from 0,
+   * for the 5 days left of this month"), frozen on the payment when it opened.
+   * It is said in the reader's language here, from its parts; any other label
+   * is shown as stored.
+   */
+  const { translator } = await import("@/lib/i18n/server");
+  const { seatBillText } = await import("./seat-label");
+  const tr = translator(input.locale.toLowerCase().startsWith("ar") ? "ar" : "en");
   const asLines = (items: PaymentLine[] | null | undefined) =>
     (items ?? []).map((item) => ({
-      label: item.label,
+      label: seatBillText(item.label, tr),
       amountLabel: formatMoney(egpMinorFor(item.cents, rateMicro), "EGP", input.locale),
       /*
        * 🔴 76.27 — THE SIGN IS DECIDED HERE, on the server, and travels as a
