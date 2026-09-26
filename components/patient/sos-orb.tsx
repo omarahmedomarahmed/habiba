@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Phone, X } from "lucide-react";
 
 import { sosLinesFor, type SosCountry } from "@/lib/crisis/sos";
@@ -39,7 +39,42 @@ import { cn } from "@/lib/utils";
  * case it exists for. It is also, inevitably, over the button somebody is
  * trying to press, so it can be moved and it snaps to whichever side is
  * nearer, which is where a thumb rests anyway.
+ *
+ * 🔴 2026-09-26, the rules of the drag, each one about staying reachable:
+ *
+ *   - **A tap is still a tap.** Movement under `TAP_SLOP` pixels opens the
+ *     sheet exactly as before; only more than that is a drag, and a drag never
+ *     opens it. Enter and Space open it too: it is a real `<button>`.
+ *   - **It snaps to the nearer edge**, in logical terms (`start`/`end`), so a
+ *     position saved in Arabic is the same thumb position in English.
+ *   - **It is always fully on screen and never over the bottom navigation.**
+ *     The floor is the top of anything marked `data-bottom-nav`, measured, so
+ *     it cannot be dropped under the tab bar or left there by a rotation.
+ *   - **Remembered per device** in `localStorage`, every access in try/catch:
+ *     private mode forgets, and the orb works the same.
  */
+
+/** Pixels of movement below which a press is a tap, not a drag. */
+const TAP_SLOP = 6;
+/** Half the orb (h-14 is 56px), plus the ring and a margin. */
+const HALF = 28;
+const MARGIN = 12;
+
+/**
+ * The band the orb's centre may sit in, in pixels: below the top edge and
+ * above the bottom navigation, whichever is higher on screen.
+ */
+function band(): { min: number; max: number; height: number } {
+  const height = window.innerHeight;
+  let floor = height;
+  for (const node of document.querySelectorAll<HTMLElement>("[data-bottom-nav]")) {
+    const rect = node.getBoundingClientRect();
+    if (rect.height > 0 && rect.top > height / 2) floor = Math.min(floor, rect.top);
+  }
+  const min = HALF + MARGIN;
+  const max = Math.max(min, floor - HALF - MARGIN);
+  return { min, max, height };
+}
 
 type Props = {
   /** The practice's own number, when a clinician has set one. Never invented. */
@@ -101,7 +136,38 @@ export function SosOrb({
    * phone field on a phone (live walkthrough); at 0.82 it sat on that orb.
    */
   const [top, setTop] = useState(0.72);
-  const dragging = useRef(false);
+  /*
+   * The measured band, or null before the first client render. The server
+   * render places the orb by percentage; the client clamps it into the band,
+   * so a remembered position from a taller screen is never off this one.
+   */
+  const [limits, setLimits] = useState<{ min: number; max: number; height: number } | null>(null);
+  /* Where the finger is while dragging, in viewport pixels. Null when not dragging. */
+  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
+  const press = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null);
+  /* Set by a drag, read by the click that the browser fires after it. */
+  const swallowClick = useRef(false);
+
+  const measure = useCallback(() => {
+    try {
+      setLimits(band());
+    } catch {
+      /* Measuring is a nicety; the percentage position still works. */
+    }
+  }, []);
+
+  useEffect(() => {
+    measure();
+    /* The tab bar can mount a moment after the orb, and a rotation moves both. */
+    const later = window.setTimeout(measure, 400);
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => {
+      window.clearTimeout(later);
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+    };
+  }, [measure]);
 
   /* Remembered per device, so it stays where somebody put it. */
   useEffect(() => {
@@ -109,8 +175,10 @@ export function SosOrb({
       const stored = window.localStorage.getItem("24t_sos");
       if (stored) {
         const parsed = JSON.parse(stored) as { side?: "start" | "end"; top?: number };
-        if (parsed.side) setSide(parsed.side);
-        if (typeof parsed.top === "number") setTop(parsed.top);
+        if (parsed.side === "start" || parsed.side === "end") setSide(parsed.side);
+        if (typeof parsed.top === "number" && Number.isFinite(parsed.top)) {
+          setTop(Math.min(1, Math.max(0, parsed.top)));
+        }
       }
     } catch {
       /* A stored position is a convenience, never a requirement. */
@@ -134,31 +202,97 @@ export function SosOrb({
    */
   const lines = sosLinesFor({ phone, country, countries });
 
+  /* The centre, in pixels, clamped into the band. */
+  const clampY = (y: number, box: { min: number; max: number }) =>
+    Math.min(box.max, Math.max(box.min, y));
+
+  const restingTop = limits ? `${clampY(top * limits.height, limits)}px` : `${top * 100}%`;
+
+  const onPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    press.current = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+    swallowClick.current = false;
+    measure();
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* Capture is a nicety: without it a fast drag may drop, never break. */
+    }
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const current = press.current;
+    if (!current || current.id !== event.pointerId) return;
+    if (!current.moved) {
+      const dx = event.clientX - current.x;
+      const dy = event.clientY - current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance < TAP_SLOP) return;
+      current.moved = true;
+    }
+    const box = limits ?? band();
+    const x = Math.min(window.innerWidth - HALF - MARGIN, Math.max(HALF + MARGIN, event.clientX));
+    setDrag({ x, y: clampY(event.clientY, box) });
+  };
+
+  const onPointerEnd = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const current = press.current;
+    if (!current || current.id !== event.pointerId) return;
+    press.current = null;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      /* Already released. */
+    }
+    if (!current.moved || !drag) {
+      setDrag(null);
+      return;
+    }
+
+    /* A drag: snap to the nearer edge, in logical terms, and remember it. */
+    swallowClick.current = true;
+    const box = band();
+    setLimits(box);
+    const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
+    const right = drag.x > window.innerWidth / 2;
+    const nextSide: "start" | "end" = right !== rtl ? "end" : "start";
+    const nextTop = clampY(drag.y, box) / box.height;
+    setSide(nextSide);
+    setTop(nextTop);
+    setDrag(null);
+    remember({ side: nextSide, top: nextTop });
+  };
+
   return (
     <>
       <button
         type="button"
         aria-label={t("crisis.orbLabel")}
-        onPointerDown={() => {
-          dragging.current = false;
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerEnd}
+        onPointerCancel={onPointerEnd}
+        /*
+         * 🔴 One door for every way of opening it: a tap, Enter and Space all
+         * arrive as a click. The only click refused is the one a drag leaves
+         * behind, so moving the orb never also opens it.
+         */
+        onClick={() => {
+          if (swallowClick.current) {
+            swallowClick.current = false;
+            return;
+          }
+          setOpen(true);
         }}
-        onPointerMove={(event) => {
-          if (event.buttons !== 1) return;
-          dragging.current = true;
-          const nextSide = event.clientX > window.innerWidth / 2 ? "end" : "start";
-          const nextTop = Math.min(0.92, Math.max(0.08, event.clientY / window.innerHeight));
-          setSide(nextSide);
-          setTop(nextTop);
-        }}
-        onPointerUp={() => {
-          if (dragging.current) remember({ side, top });
-          else setOpen(true);
-        }}
-        style={{ top: `${top * 100}%` }}
+        style={
+          drag
+            ? { top: `${drag.y}px`, left: `${drag.x - HALF}px`, insetInlineStart: "auto", insetInlineEnd: "auto" }
+            : { top: restingTop }
+        }
         className={cn(
-          "fixed z-[300] flex h-14 w-14 -translate-y-1/2 touch-none items-center justify-center rounded-full bg-red-600 text-white shadow-[0_8px_20px_-6px_rgba(220,38,38,0.7)] ring-4 ring-white/80",
-          side === "end" ? "end-3" : "start-3",
-          dimmed && !open ? "opacity-55" : "opacity-100",
+          "fixed z-[300] flex h-14 w-14 -translate-y-1/2 touch-none items-center justify-center rounded-full bg-red-600 text-white shadow-[0_8px_20px_-6px_rgba(220,38,38,0.7)] ring-4 ring-white/80 select-none focus-visible:outline-none focus-visible:ring-red-300",
+          drag ? "cursor-grabbing" : side === "end" ? "end-3 cursor-grab" : "start-3 cursor-grab",
+          dimmed && !open && !drag ? "opacity-55" : "opacity-100",
         )}
       >
         <span className="text-[11px] font-bold tracking-wider">SOS</span>

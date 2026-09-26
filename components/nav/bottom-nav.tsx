@@ -67,6 +67,7 @@ export function BottomNav({
     return (
       <nav
         aria-label={t("portal.nav.primary")}
+        data-bottom-nav
         className="safe-bottom fixed inset-x-0 bottom-0 z-40 px-3 lg:hidden"
       >
         <div className="mx-auto flex max-w-lg items-center justify-around rounded-[26px] bg-navy-900/95 px-2 py-1 shadow-[0_20px_40px_-16px_rgba(3,11,23,0.6)] ring-1 ring-white/10 backdrop-blur-xl">
@@ -162,6 +163,7 @@ export function BottomNav({
 
       <nav
         aria-label={t("portal.nav.primary")}
+        data-bottom-nav
         className="safe-bottom fixed inset-x-0 bottom-0 z-40 px-3 lg:hidden"
       >
         <div className="mx-auto flex max-w-lg items-center justify-around rounded-[26px] bg-navy-900/95 px-2 py-1 shadow-[0_20px_40px_-16px_rgba(3,11,23,0.6)] ring-1 ring-white/10 backdrop-blur-xl">
