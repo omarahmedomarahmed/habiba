@@ -889,7 +889,7 @@ export const en = {
   "pprofile.sayInstead": "Want to say how things have been?",
   "pprofile.sayInsteadBody": "Write a journal instead. Readable by a therapist you allow, and far less work.",
   "pprofile.empty": "Nothing here yet. Documents your therapist adds to your record appear here.",
-  "tdocs.empty": "No documents on this record yet.",
+  "tdocs.empty": "No documents yet.",
 
   /* ---------------------------------------------------------------- browse */
   "browse.title": "Find a therapist",
@@ -930,8 +930,8 @@ export const en = {
 
   /* ------------------------------------------------------------- residency */
   "residency.title": "Where your record is kept",
-  "residency.home": "Your record is kept in {country}, the country you live in, so it does not leave your country.",
-  "residency.keptOnly": "Your record is kept on servers in {country}.",
+  "residency.home": "Your record is kept in {country}, where you live.",
+  "residency.keptOnly": "Your record is kept in {country}.",
 
   /* ----------------------------------------------------------------- claim */
   "pclaim.title": "Have you seen a therapist before?",
@@ -1004,7 +1004,7 @@ export const en = {
   "consent.yesUntil": "Yes, until I change my mind",
   "consent.no": "No thanks",
   "consent.stop": "Stop their access",
-  "consent.stopConfirm": "Stop {name} reading your history? What they already read, and the notes they wrote, stay in their record.",
+  "consent.stopConfirm": "Stop {name} reading your history? They keep what they read.",
   "consent.stopYes": "Yes, stop it",
   "consent.canRead": "Can read",
   "consent.cannotRead": "Cannot read",
@@ -1480,7 +1480,7 @@ export const en = {
   "prating.sessionUse": "Whether this session was any use to you, a different question from whether {name} was the right person.",
   "prating.reportTitle": "Tell us what happened",
   "prating.noShowTitle": "They did not join",
-  "prating.reportIntro": "This goes to 24Therapy, not to your therapist or their practice. If it is about what was said or done in the session, say so: we can check the session record, including any paused stretch.",
+  "prating.reportIntro": "This goes to 24Therapy, not to your therapist. If it is about the session, say so and we will check its record.",
   "prating.reportSend": "Send to 24Therapy",
   "prating.reportSent": "This has gone straight to 24Therapy, not to your therapist. Someone will read it today and will contact you if you left an address.",
   "prating.andApp": "And 24Therapy itself?",
@@ -1753,7 +1753,7 @@ export const en = {
    */
   "pclose.title": "Delete my account",
   "pclose.goes": "You are signed out everywhere, your email is freed for a new sign-up, check-in messages stop, and every clinician you let read your history loses that access.",
-  "pclose.stays": "What your clinicians already hold stays with them: their notes, your sessions and their files are part of their clinical record. Booked sessions are not cancelled; cancel them first if you want to.",
+  "pclose.stays": "Your clinicians keep their notes, your sessions and their files; they are their clinical record. Booked sessions are not cancelled; cancel them first if you want to.",
   "pclose.word": "DELETE",
   "pclose.typeWord": "Type {word} to confirm",
   "pclose.wrongWord": "Type {word} exactly to confirm.",
@@ -3383,7 +3383,7 @@ export const en = {
   "tver.underReviewBody": "We check your documents, usually within a working day. Sessions unlock on approval.",
   "tver.rejected": "We could not verify you yet",
   "tver.rejectedBody": "Fix what is above and submit again; it goes to the front of the queue.",
-  "tver.rejectedCleared": "This was the second review, so we deleted the documents you sent; that is why the upload slots below are empty. Upload them again, fix what is above, and submit; it goes to the front of the queue.",
+  "tver.rejectedCleared": "After a second review we deleted the documents, so the slots are empty. Upload them again and submit.",
   "tver.noUploads":
     "File storage is not configured on this deployment, so uploads will fail. Set BLOB_READ_WRITE_TOKEN.",
   "tver.aboutPractice": "About your practice",
@@ -4312,7 +4312,7 @@ export const en = {
   "tsup.yourTickets": "Your tickets",
   "ttk.whatYouWrote": "What you wrote",
   "ttk.title": "Your message to us",
-  "ttk.body": "Enter the code we sent you. We keep the conversation here rather than in an email, because an email is not a safe place for what people tell us.",
+  "ttk.body": "Enter the code we sent you. We keep the conversation here, not in email, because email is not safe for what people tell us.",
   "ttk.code": "Your six-digit code",
   "ttk.checking": "Checking…",
   "ttk.readReply": "Read the reply",
@@ -5376,7 +5376,7 @@ export const en = {
   "tmsg.waiting.subject": "A patient was waiting for you",
   "tmsg.waiting.bodyBooked": "A patient joined the room for a session booked with you and waited {minutes} minutes. It never started, so they left unseen.\n\nThis is a warning, not a suspension. Please check that notifications and sound are on in the browser you keep open. If it happens again you will be off the Crisis Radar for 24 hours, then longer.",
   "tmsg.radarOff.abandonedBooked": "A patient joined the room for a session booked with you and waited {minutes} minutes. It never started.\n\nThis has happened before, so you are off the Crisis Radar {period}. Your patients and your portal are unaffected. If you believe this is wrong, reply to this email.",
-  "tmsg.waiting.body": "A patient booked you on the Crisis Radar, joined the room, and waited {minutes} minutes. You never started the session, so they left without being seen.\n\nThis is a warning, not a suspension. The first time is usually a laptop asleep or a notification that did not arrive. Please allow notifications and sound in your browser on the device you keep open.\n\nIf it happens again you will be off the radar for 24 hours, then longer. Being on the radar is a promise that you are there; if you cannot be, switch yourself off.",
+  "tmsg.waiting.body": "A patient booked you on the Crisis Radar, joined the room, and waited {minutes} minutes. You never started the session, so they left without being seen.\n\nThis is a warning, not a suspension. Usually it is a laptop asleep or a missed notification: allow notifications and sound on the device you keep open.\n\nIf it happens again you will be off the radar for 24 hours, then longer. If you cannot be there, switch yourself off.",
   "tmsg.period.day": "for 24 hours",
   "tmsg.period.days": "for 3 days",
   "tmsg.period.review": "indefinitely, pending review",
@@ -6125,7 +6125,7 @@ export const ar: Record<MessageKey, string> = {
   "pprofile.sayInstead": "تريد أن تحكي كيف كانت الأيام؟",
   "pprofile.sayInsteadBody": "اكتب في مذكراتك بدلًا من ذلك. يقرؤها معالج تسمح له، وأسهل كثيرًا.",
   "pprofile.empty": "لا شيء هنا بعد. المستندات التي يضيفها معالجك إلى سجلك تظهر هنا.",
-  "tdocs.empty": "لا توجد مستندات في هذا السجل بعد.",
+  "tdocs.empty": "لا توجد مستندات بعد.",
 
   /* --------------------------------------------------------------- البحث */
   "browse.title": "ابحث عن معالج",
@@ -6165,8 +6165,8 @@ export const ar: Record<MessageKey, string> = {
 
   /* --------------------------------------------------- مكان حفظ السجل */
   "residency.title": "أين يُحفظ سجلك",
-  "residency.home": "سجلك محفوظ في {country}، البلد الذي تعيش فيه، فلا يخرج من بلدك.",
-  "residency.keptOnly": "سجلك محفوظ على خوادم في {country}.",
+  "residency.home": "سجلك محفوظ في {country}، البلد الذي تعيش فيه.",
+  "residency.keptOnly": "سجلك محفوظ في {country}.",
 
   /* ------------------------------------------------------------- الاستلام */
   "pclaim.title": "هل زرت معالجًا من قبل؟",
@@ -6228,7 +6228,7 @@ export const ar: Record<MessageKey, string> = {
   "consent.yesUntil": "نعم، حتى أغيّر رأيي",
   "consent.no": "لا، شكرًا",
   "consent.stop": "أوقف الإذن",
-  "consent.stopConfirm": "هل تريد إيقاف إذن {name} بقراءة تاريخك؟ ما قُرئ بالفعل والملاحظات المكتوبة تبقى في سجل المعالج.",
+  "consent.stopConfirm": "هل تريد إيقاف إذن {name} بقراءة تاريخك؟ يبقى ما قُرئ بالفعل في سجل المعالج.",
   "consent.stopYes": "نعم، أوقف الإذن",
   "consent.canRead": "يستطيع القراءة",
   "consent.cannotRead": "لا يستطيع القراءة",
@@ -6621,7 +6621,7 @@ export const ar: Record<MessageKey, string> = {
   "prating.sessionUse": "هل أفادتك هذه الجلسة؟ وهذا سؤال مختلف عن كون {name} الشخص المناسب.",
   "prating.reportTitle": "أخبرنا بما حدث",
   "prating.noShowTitle": "لم ينضم",
-  "prating.reportIntro": "يصل هذا إلى 24Therapy لا إلى معالجك أو عيادته. إن كان يتعلق بما قيل أو حدث في الجلسة فاذكر ذلك: يمكننا مراجعة سجل الجلسة، بما فيه أي فترة توقف فيها التسجيل.",
+  "prating.reportIntro": "يصل هذا إلى 24Therapy لا إلى معالجك. إن كان يتعلق بالجلسة فاذكر ذلك وسنراجع سجلها.",
   "prating.reportSend": "أرسل إلى 24Therapy",
   "prating.reportSent": "وصل هذا إلى 24Therapy مباشرة لا إلى معالجك. سيقرؤه أحدنا اليوم ويتواصل معك إن تركت عنوانًا.",
   "prating.andApp": "و24Therapy نفسه؟",
@@ -6826,7 +6826,7 @@ export const ar: Record<MessageKey, string> = {
   "pnotice.paymentSubmitted": "وصلتنا تفاصيل تحويلك. نطابقها مع البنك ونخبرك عندما يصل.",
   "pclose.title": "حذف حسابي",
   "pclose.goes": "ستُسجَّل خارجًا من كل الأجهزة، ويُحرَّر بريدك لتسجيل جديد، وتتوقف رسائل السؤال عن حالك، ويفقد كل معالج سمحت له بقراءة تاريخك هذا الإذن.",
-  "pclose.stays": "ما لدى معالجيك يبقى معهم: ملاحظاتهم وجلساتك والملفات جزء من سجلهم السريري. الجلسات المحجوزة لا تُلغى؛ ألغها أولًا إن أردت.",
+  "pclose.stays": "يحتفظ معالجوك بملاحظاتهم وجلساتك وملفاتهم؛ فهي سجلهم السريري. الجلسات المحجوزة لا تُلغى؛ ألغها أولًا إن أردت.",
   "pclose.word": "حذف",
   "pclose.typeWord": "اكتب {word} للتأكيد",
   "pclose.wrongWord": "اكتب {word} كما هي للتأكيد.",
@@ -8158,7 +8158,7 @@ export const ar: Record<MessageKey, string> = {
   "tver.underReviewBody": "يفحص شخص مستنداتك، عادة خلال يوم عمل. وتُفتح الجلسات فور اعتمادك.",
   "tver.rejected": "لم نتمكّن من التحقّق منك بعد",
   "tver.rejectedBody": "صحّح ما ذُكر أعلاه وأعد الإرسال. ويعود إلى مقدمة الطابور.",
-  "tver.rejectedCleared": "كانت هذه المراجعة الثانية، لذلك حذفنا المستندات التي أرسلتها، ولهذا خانات الرفع أدناه فارغة. ارفعها من جديد، وصحّح ما ذُكر أعلاه، ثم أعد الإرسال. ويعود الطلب إلى مقدمة الطابور.",
+  "tver.rejectedCleared": "بعد المراجعة الثانية حذفنا المستندات، لذلك الخانات أدناه فارغة. ارفعها من جديد ثم أعد الإرسال.",
   "tver.noUploads":
     "تخزين الملفات غير مُهيّأ في هذه النسخة، لذا سيفشل الرفع. اضبط BLOB_READ_WRITE_TOKEN.",
   "tver.aboutPractice": "عن ممارستك",
@@ -9064,7 +9064,7 @@ export const ar: Record<MessageKey, string> = {
   "tsup.yourTickets": "تذاكرك",
   "ttk.whatYouWrote": "ما كتبته",
   "ttk.title": "رسالتك إلينا",
-  "ttk.body": "أدخل الرمز الذي أرسلناه إليك. نحفظ المحادثة هنا لا في البريد، لأن البريد ليس مكانًا آمنًا لما يخبرنا به الناس.",
+  "ttk.body": "أدخل الرمز الذي أرسلناه إليك. نحفظ المحادثة هنا لا في البريد، لأن البريد ليس آمنًا لما يخبرنا به الناس.",
   "ttk.code": "رمزك المكوّن من ستة أرقام",
   "ttk.checking": "جارٍ التحقق…",
   "ttk.readReply": "اقرأ الرد",
@@ -9956,7 +9956,7 @@ export const ar: Record<MessageKey, string> = {
   "tmsg.waiting.subject": "كان مريض ينتظرك",
   "tmsg.waiting.bodyBooked": "دخل مريض الغرفة لجلسة محجوزة معك وانتظر {minutes} دقيقة، ولم تبدأ الجلسة، فغادر دون أن يقابل أحدًا.\n\nهذا تنبيه وليس إيقافًا. تأكد من تشغيل الإشعارات والصوت في المتصفح الذي تتركه مفتوحًا. إن تكرر ذلك سيُوقف ظهورك على رادار الأزمات 24 ساعة، ثم مدة أطول.",
   "tmsg.radarOff.abandonedBooked": "دخل مريض الغرفة لجلسة محجوزة معك وانتظر {minutes} دقيقة، ولم تبدأ الجلسة.\n\nحدث هذا من قبل، لذلك أُوقف ظهورك على رادار الأزمات {period}. مرضاك وبوابتك لم يتأثروا. إن رأيت أن هذا خطأ، ردّ على هذا البريد.",
-  "tmsg.waiting.body": "حجزك مريض على رادار الأزمات، ودخل الغرفة، وانتظر {minutes} دقيقة، ولم تبدأ الجلسة، فغادر دون أن يقابل أحدًا.\n\nهذا تنبيه وليس إيقافًا. في المرة الأولى يكون السبب غالبًا حاسوبًا نائمًا أو إشعارًا لم يصل. اسمح بالإشعارات والصوت في المتصفح على الجهاز الذي تتركه مفتوحًا.\n\nإن تكرر ذلك سيُوقف ظهورك على الرادار 24 ساعة، ثم مدة أطول. الظهور على الرادار وعد بأنك موجود، فإن لم تستطع أوقف ظهورك بنفسك.",
+  "tmsg.waiting.body": "حجزك مريض على رادار الأزمات، ودخل الغرفة، وانتظر {minutes} دقيقة، ولم تبدأ الجلسة، فغادر دون أن يقابل أحدًا.\n\nهذا تنبيه وليس إيقافًا. السبب غالبًا حاسوب نائم أو إشعار لم يصل: اسمح بالإشعارات والصوت على الجهاز الذي تتركه مفتوحًا.\n\nإن تكرر ذلك سيُوقف ظهورك على الرادار 24 ساعة، ثم مدة أطول. إن لم تستطع الحضور فأوقف ظهورك بنفسك.",
   "tmsg.period.day": "لمدة 24 ساعة",
   "tmsg.period.days": "لمدة 3 أيام",
   "tmsg.period.review": "إلى أجل غير مسمى حتى تتم المراجعة",
