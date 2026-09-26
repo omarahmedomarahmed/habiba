@@ -20,6 +20,8 @@ with the reason, so any of them can be reversed in the morning.
 | N13 | Round 2 closes with what ran: ORG complete, CARE and OPS-WEB stopped by a usage limit after about 400 rows between them; their unwalked steps join the post-redesign walkthrough (S5) instead of a re-run | The redesign changes every screen those steps would walk, so walking them twice costs time and proves the old screens |
 | N14 | Every portal's loading screen moves one level below its route group (the therapist's into each section) | On the production build a group-root loading boundary left a patient's sign-in on "Working" and a move back to a parent page doing nothing, in about two tries of three; it is the likely cause of B53 and board 255 |
 | N15 | G2 counts the console login in the full contrast run as the checker's, not the product's | The console asks for an emailed second step, and the machine's agents share the per-address sign-in limit; every console page was measured in the served run |
+| N16 | The site's server functions run in Oregon (pdx1), beside the database (Neon us-west-2), instead of Vercel's default Virginia (iad1) | Every page makes several database round trips; across the country each costs about 70 ms, which is most of the 11 second first loads the walkthrough measured. One longer hop from Egypt to the page is cheaper than many from the page to the database |
+| N17 | The staff console stays English-only for launch and loses its language switch | Its readers are our own staff; half-translated screens are worse than one clear language, and translating hundreds of console strings tonight would risk the gate |
 
 ## Needs the founder
 
