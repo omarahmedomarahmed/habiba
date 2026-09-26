@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { SessionRoom } from "@/components/session/session-room";
 import { requireUser } from "@/lib/auth/guard";
+import { lineId } from "@/lib/sessions/live-lines";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
 import { ensureRoom, getSession, getTranscript, unpaidInPerson } from "@/lib/data/sessions";
 import { env, features } from "@/lib/env";
@@ -142,7 +143,7 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
           : null
       }
       initialLines={transcript.map((segment) => ({
-        id: segment.id,
+        id: lineId(segment.sequence),
         speaker: segment.speaker,
         text: segment.text,
       }))}

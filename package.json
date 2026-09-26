@@ -102,6 +102,7 @@
     "test:company-portal": "node --env-file-if-exists=.env.local --import tsx --test tests/company-portal.test.ts",
     "test:split-refund": "node --env-file-if-exists=.env.local --import tsx --test tests/split-refund.test.ts",
     "test:board-r3-patient": "node --env-file-if-exists=.env.local --import tsx --test tests/board-r3-patient.test.ts",
+    "test:video-shoot": "node --env-file-if-exists=.env.local --import tsx --test tests/video-shoot.test.ts",
     "test:receipt-figures":"node --env-file-if-exists=.env.local --import tsx --test tests/receipt-figures.test.ts",
     "test:routing": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/routing.test.ts",
     "verify:sprint6": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint6.ts",
