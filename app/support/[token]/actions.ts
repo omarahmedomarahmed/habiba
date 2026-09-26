@@ -2,6 +2,7 @@
 
 import { audit } from "@/lib/audit";
 import { readByToken } from "@/lib/data/support";
+import { senderThread } from "@/lib/support/sender-thread";
 
 export type ReaderState = {
   error?: string;
@@ -48,13 +49,12 @@ export async function openTicket(_prev: ReaderState, formData: FormData): Promis
       topic: result.ticket.topic,
       message: result.ticket.message,
       closedAtLabel: result.ticket.closedAt ? fmt(result.ticket.closedAt) : null,
-      events: (result.events ?? [])
-        .filter((event) => event.kind === "closed" || event.kind === "replied")
-        .map((event) => ({
-          kind: event.kind,
-          note: event.note,
-          atLabel: fmt(event.createdAt),
-        })),
+      /* 🔴 Board 588: what our people wrote, oldest first. See `senderThread`. */
+      events: senderThread(result.events ?? []).map((event) => ({
+        kind: event.kind,
+        note: event.note,
+        atLabel: fmt(event.createdAt),
+      })),
     },
   };
 }

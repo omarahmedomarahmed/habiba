@@ -4318,7 +4318,7 @@ export const en = {
   "ttk.readReply": "Read the reply",
   "ttk.reference": "Reference {reference}",
   "ttk.ourReply": "Our reply",
-  "ttk.update": "Update",
+  "ttk.closedNote": "When we closed this",
   "ttk.writeAgain":
     "Not answered? Write again and quote the reference above.",
   "tra.matched": "Matched:",
@@ -9070,7 +9070,7 @@ export const ar: Record<MessageKey, string> = {
   "ttk.readReply": "اقرأ الرد",
   "ttk.reference": "المرجع {reference}",
   "ttk.ourReply": "ردّنا",
-  "ttk.update": "تحديث",
+  "ttk.closedNote": "عند إغلاق الطلب",
   "ttk.writeAgain": "لم تجد إجابتك؟ راسلنا مجددًا واذكر الرقم المرجعي بالأعلى.",
   "tra.matched": "المطابق:",
   "tra.alsoSaid": "وقيل أيضًا، لأجل خطة الأمان:",
