@@ -274,6 +274,7 @@
     "verify:money-fixes": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-money-fixes.ts",
     "audit:daily-hosts": "node --import tsx scripts/audit-daily-hosts.ts",
     "verify:notices": "node --import tsx scripts/verify-notices.ts",
+    "verify:admin-sponsors": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-admin-sponsors.ts",
     "verify:message-language": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-message-language.ts",
     "prove": "node --import tsx scripts/prove.ts",
     "verify:prove": "node --import tsx scripts/verify-prove.ts",

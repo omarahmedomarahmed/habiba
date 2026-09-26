@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 
 import { SponsorManager } from "@/components/admin/sponsor-manager";
 import { requireStaff } from "@/lib/auth/guard";
-import { ledgerPotBalance, reconcilePots } from "@/lib/billing/pot";
-import { allSponsors, potTerms, sponsorUsersFor } from "@/lib/data/sponsor-admin";
-import { attemptsOnCode, liveCode, SPIKE_THRESHOLD } from "@/lib/data/sponsors";
+import { reconcilePots } from "@/lib/billing/pot";
+import { adminSponsorFacts, allSponsors } from "@/lib/data/sponsor-admin";
+import { SPIKE_THRESHOLD } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { Money } from "@/components/ui/money";
 import { rich, slot } from "@/lib/i18n/rich";
@@ -49,44 +49,38 @@ export default async function AdminSponsorsPage() {
 
   const fmt = (cents: number) => <Money cents={cents} />;
 
-  const rows = await Promise.all(
-    sponsors.map(async (sponsor) => {
-      const [code, terms, users, balance] = await Promise.all([
-        liveCode(sponsor.id),
-        potTerms(sponsor.id),
-        sponsorUsersFor(sponsor.id),
-        ledgerPotBalance(sponsor.id),
-      ]);
+  /*
+   * 🔴 Board 427: five reads for the whole list, not five per company.
+   *
+   * 🔴 53.19: `attempts` is admin's half of the spike alert. A NUMBER, never
+   * names. The sponsor sees the same figure on their own code page, where the
+   * remedy is; we see it here so a pattern across customers is visible to one
+   * person, which is the thing no individual customer can notice.
+   */
+  const facts = await adminSponsorFacts(sponsors.map((sponsor) => sponsor.id));
 
-      /*
-       * 🔴 53.19 — admin's half of the spike alert. A NUMBER, never names.
-       *
-       * The sponsor sees the same figure on their own code page, where the remedy is.
-       * We see it here so that a pattern across several customers is visible to one
-       * person, which is the thing no individual customer can notice.
-       */
-      const attempts = await attemptsOnCode(code);
+  const rows = sponsors.map((sponsor) => {
+    const { code, potOpen, balanceCents, attempts, users } = facts.get(sponsor.id)!;
 
-      return {
-        id: sponsor.id,
-        name: sponsor.name,
-        kind: sponsor.kind,
-        state: sponsor.state,
-        listedPublicly: sponsor.listedPublicly,
-        entity: sponsor.entity,
-        contactName: sponsor.contactName,
-        contactEmail: sponsor.contactEmail,
-        contactPhone: sponsor.contactPhone,
-        contactBestTime: sponsor.contactBestTime,
-        code,
-        potOpen: terms !== null,
-        potBalanceLabel: fmt(balance),
-        attempts,
-        spike: attempts >= SPIKE_THRESHOLD,
-        users: users.map((user) => ({ id: user.id, email: user.email, role: user.role })),
-      };
-    }),
-  );
+    return {
+      id: sponsor.id,
+      name: sponsor.name,
+      kind: sponsor.kind,
+      state: sponsor.state,
+      listedPublicly: sponsor.listedPublicly,
+      entity: sponsor.entity,
+      contactName: sponsor.contactName,
+      contactEmail: sponsor.contactEmail,
+      contactPhone: sponsor.contactPhone,
+      contactBestTime: sponsor.contactBestTime,
+      code,
+      potOpen,
+      potBalanceLabel: fmt(balanceCents),
+      attempts,
+      spike: attempts >= SPIKE_THRESHOLD,
+      users,
+    };
+  });
 
   return (
     <div className="space-y-4">
