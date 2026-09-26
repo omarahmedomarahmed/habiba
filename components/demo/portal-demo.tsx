@@ -43,6 +43,7 @@ import {
   CLINIC_WEEK,
   COMPANY_CODE,
   DEMO_ORGS,
+  demoName,
   PARTNER_DELIVERIES,
   PARTNER_KEYS,
   POT,
@@ -306,10 +307,10 @@ function ClinicWeek() {
         <Rows>
           {CLINIC_WEEK.map((row) => (
             <div key={`${row.day}${row.time}${row.clinician}`} className="flex items-center gap-2.5 px-3.5 py-2.5">
-              <Avatar name={row.patient} size={32} />
+              <Avatar name={demoName(row.patient, locale)} size={32} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-semibold text-navy-700">{row.patient}</p>
-                <p className="truncate text-[11.5px] text-navy-400">{row.clinician}</p>
+                <p className="truncate text-[13px] font-semibold text-navy-700">{demoName(row.patient, locale)}</p>
+                <p className="truncate text-[11.5px] text-navy-400">{demoName(row.clinician, locale)}</p>
               </div>
               <span className="flex shrink-0 items-center gap-1 text-[12px] font-semibold tabular-nums text-navy-600">
                 <Clock className="h-3 w-3 text-navy-400" aria-hidden />
@@ -337,6 +338,7 @@ const VERIFY: Record<string, { tone: "green" | "amber" | "slate"; label: Message
  */
 function ClinicPeople() {
   const t = useT();
+  const locale = useLocale();
   return (
     <>
       <Head title={t("clinic.peopleTitle")} action={<Primary icon={UserPlus}>{t("clinic.inviteTitle")}</Primary>} />
@@ -344,8 +346,8 @@ function ClinicPeople() {
         <Rows>
           {CLINIC_TEAM.map((person) => (
             <div key={person.name} className="flex items-center gap-2.5 px-3.5 py-2.5">
-              <Avatar name={person.name} size={34} />
-              <p className="min-w-0 flex-1 truncate text-[13px] font-bold text-navy-700">{person.name}</p>
+              <Avatar name={demoName(person.name, locale)} size={34} />
+              <p className="min-w-0 flex-1 truncate text-[13px] font-bold text-navy-700">{demoName(person.name, locale)}</p>
               <Badge tone={VERIFY[person.verify]?.tone ?? "slate"} className="max-w-[55%] shrink-0">
                 {person.verify === "verified" ? <BadgeCheck className="h-3 w-3 shrink-0" aria-hidden /> : null}
                 {t(VERIFY[person.verify]?.label ?? "clinic.verifyNone")}
@@ -367,6 +369,7 @@ const PAYOUT: Record<string, { tone: "green" | "amber" | "slate"; label: Message
 
 function ClinicEarnings() {
   const t = useT();
+  const locale = useLocale();
   const money = useMoney();
   /* A sum of the rows below, never a second figure that could disagree. */
   const total = CLINIC_TEAM.reduce((sum, row) => sum + row.earnedCents, 0);
@@ -381,9 +384,9 @@ function ClinicEarnings() {
         <Rows>
           {CLINIC_TEAM.filter((row) => row.earnedCents > 0).map((row) => (
             <div key={row.name} className="flex items-center gap-2.5 px-3.5 py-2.5">
-              <Avatar name={row.name} size={32} />
+              <Avatar name={demoName(row.name, locale)} size={32} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-semibold text-navy-700">{row.name}</p>
+                <p className="truncate text-[13px] font-semibold text-navy-700">{demoName(row.name, locale)}</p>
                 <Badge tone={PAYOUT[row.payout]?.tone ?? "slate"} className="mt-0.5">
                   {t(PAYOUT[row.payout]?.label ?? "dpo.payoutNone")}
                 </Badge>

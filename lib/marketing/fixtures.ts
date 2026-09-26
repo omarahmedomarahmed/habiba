@@ -248,11 +248,59 @@ export const RADAR_DEMO: {
   { name: "Dr Salma Demo", title: "Counsellor", languages: "Arabic, English, French", priceCents: 1_200, minutes: 30, free: true, country: "EG" },
 ];
 
-/** What the patient's billing tab shows: one settled session and one waiting. */
-export const PATIENT_BILLS: { what: string; when: string; cents: number; paid: boolean }[] = [
-  { what: "Session with Dr Nour Demo", when: "12 March", cents: 1_500, paid: false },
-  { what: "Session with Dr Nour Demo", when: "5 March", cents: 1_500, paid: true },
+/**
+ * What the patient's billing tab shows: one settled session and one waiting.
+ *
+ * The clinician and a date, not a sentence and a label: "Session with Dr Nour
+ * Demo, 12 March" was typed in English and so read in English on /ar. Each
+ * page writes the sentence and the date in its own language.
+ */
+export const PATIENT_BILLS: { clinician: string; on: string; cents: number; paid: boolean }[] = [
+  { clinician: "Dr Nour Demo", on: "2027-03-12", cents: 1_500, paid: false },
+  { clinician: "Dr Nour Demo", on: "2027-03-05", cents: 1_500, paid: true },
 ];
+
+/**
+ * 🔴 THE INVENTED PEOPLE, AS AN ARABIC READER MEETS THEM.
+ *
+ * The mockups printed "Dr Nour Demo" on /ar, a Latin name in a right to left
+ * sentence. Every invented name in this file has its Arabic form here, and the
+ * marker surnames stay recognisable, so an Arabic page is just as plainly about
+ * nobody. A name missing from the table falls back to itself rather than
+ * disappearing.
+ */
+const AR_NAMES: Record<string, string> = {
+  "Dr Nour Demo": "د. نور ديمو",
+  "Dr Rami Example": "د. رامي إكزامبل",
+  "Dr Salma Demo": "د. سلمى ديمو",
+  "Dr Youssef Example": "د. يوسف إكزامبل",
+  "Hana Demo": "هنا ديمو",
+  "Mariam A.": "مريم أ.",
+  "Omar S.": "عمر س.",
+  "Laila F.": "ليلى ف.",
+  "Tarek M.": "طارق م.",
+  "Dina H.": "دينا ح.",
+  "Adam R.": "آدم ر.",
+};
+
+export function demoName(name: string, locale: "en" | "ar"): string {
+  return locale === "ar" ? (AR_NAMES[name] ?? name) : name;
+}
+
+const AR_LANGUAGES: Record<string, string> = {
+  Arabic: "العربية",
+  English: "الإنجليزية",
+  French: "الفرنسية",
+};
+
+/** "Arabic, English" becomes "العربية، الإنجليزية" on an Arabic page. */
+export function demoLanguages(list: string, locale: "en" | "ar"): string {
+  if (locale !== "ar") return list;
+  return list
+    .split(", ")
+    .map((one) => AR_LANGUAGES[one] ?? one)
+    .join("، ");
+}
 
 /**
  * The invented person whose phone the website shows, by the language the page

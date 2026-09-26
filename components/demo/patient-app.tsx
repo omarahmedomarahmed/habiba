@@ -26,10 +26,11 @@ import {
 import { MotionRoot, soft } from "./motion";
 import { Avatar, Glow } from "@/components/clinician/kit";
 import type { DemoContent } from "@/lib/content/demo";
+import { dateTag } from "@/lib/i18n/config";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { WorldRadar } from "@/components/radar/world-radar";
-import { DEMO_PATIENT_NAME, PATIENT_BILLS, RADAR_DEMO } from "@/lib/marketing/fixtures";
+import { DEMO_PATIENT_NAME, demoLanguages, demoName, PATIENT_BILLS, RADAR_DEMO } from "@/lib/marketing/fixtures";
 import { DEMO_SESSION_EGP, egp } from "@/lib/marketing/prices";
 import { cn } from "@/lib/utils";
 
@@ -252,6 +253,19 @@ function Tile({
   );
 }
 
+/**
+ * The invented clinicians in the reader's language: on /ar "Dr Nour Demo" is
+ * written as an Arabic name and her languages as Arabic words.
+ */
+function useDemoCast(): typeof RADAR_DEMO {
+  const locale = useLocale();
+  return RADAR_DEMO.map((who) => ({
+    ...who,
+    name: demoName(who.name, locale),
+    languages: demoLanguages(who.languages, locale),
+  }));
+}
+
 /** A clinician as the app's card draws one: face, name, languages, price. */
 function ClinicianCard({ who, onClick }: { who: (typeof RADAR_DEMO)[number]; onClick?: () => void }) {
   const t = useT();
@@ -319,6 +333,7 @@ function HomeTab({
   onSeeSessions: () => void;
 }) {
   const t = useT();
+  const cast = useDemoCast();
   const locale = useLocale();
   const next = content?.patientSessions[0];
   const step = content?.homework[0];
@@ -345,7 +360,7 @@ function HomeTab({
             <div className="flex items-center justify-between gap-2">
               <p className="min-w-0 truncate text-[11px] font-semibold text-brand-300">{t("home.exploreTitle")}</p>
               <span className="flex shrink-0 -space-x-2 rtl:space-x-reverse">
-                {RADAR_DEMO.map((who) => (
+                {cast.map((who) => (
                   <span key={who.name} className="rounded-full ring-2 ring-navy-900">
                     <Avatar name={who.name} size={28} />
                   </span>
@@ -411,7 +426,7 @@ function HomeTab({
             <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
             {t("home.ratedHighest")}
           </p>
-          {RADAR_DEMO.slice(0, 2).map((who) => (
+          {cast.slice(0, 2).map((who) => (
             <ClinicianCard key={who.name} who={who} />
           ))}
         </div>,
@@ -444,8 +459,9 @@ function Sessions({
   onWhoCanRead: () => void;
 }) {
   const t = useT();
+  const cast = useDemoCast();
   const rows = content?.patientSessions ?? [];
-  const who = booked === null ? null : RADAR_DEMO[booked];
+  const who = booked === null ? null : cast[booked];
 
   return (
     <Stack>
@@ -615,10 +631,11 @@ function Radar({
   onSeeSessions: () => void;
 }) {
   const t = useT();
+  const cast = useDemoCast();
   const money = useMoney();
 
   if (booked !== null) {
-    const who = RADAR_DEMO[booked];
+    const who = cast[booked];
     return (
       <div className="space-y-3 pt-4 text-center">
         <motion.span
@@ -644,7 +661,7 @@ function Radar({
   }
 
   if (picked !== null) {
-    const who = RADAR_DEMO[picked];
+    const who = cast[picked];
     if (!who) return null;
     const price = DEMO_SESSION_EGP;
     /* Computed from the rule it is handed; zero under the exempt default. */
@@ -715,7 +732,7 @@ function Radar({
         */
         <div key="map" className="overflow-hidden rounded-3xl bg-navy-900 p-2">
           <WorldRadar
-            dots={RADAR_DEMO.map((who) => ({
+            dots={cast.map((who) => ({
               id: who.name,
               country: who.country,
               status: "online" as const,
@@ -723,14 +740,14 @@ function Radar({
             }))}
             selectedId={null}
             onSelect={(id) => {
-              const index = RADAR_DEMO.findIndex((who) => who.name === id);
+              const index = cast.findIndex((who) => who.name === id);
               if (index >= 0) onPick(index);
             }}
             scale={2.8}
             className="aspect-[2/1] w-full"
           />
         </div>,
-        ...RADAR_DEMO.map((who, i) => (
+        ...cast.map((who, i) => (
           <ClinicianCard key={who.name} who={who} onClick={() => { onPick(i); }} />
         )),
       ]}
@@ -742,6 +759,7 @@ function Radar({
 
 function Therapists({ onFindSomeone }: { onFindSomeone: () => void }) {
   const t = useT();
+  const cast = useDemoCast();
   return (
     <Stack>
       {[
@@ -752,7 +770,7 @@ function Therapists({ onFindSomeone }: { onFindSomeone: () => void }) {
           <Search className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
           <span className="truncate">{t("home.searchPlaceholder")}</span>
         </div>,
-        ...RADAR_DEMO.map((who) => <ClinicianCard key={who.name} who={who} />),
+        ...cast.map((who) => <ClinicianCard key={who.name} who={who} />),
         <button
           key="find"
           type="button"
@@ -770,20 +788,23 @@ function Therapists({ onFindSomeone }: { onFindSomeone: () => void }) {
 
 function Billing() {
   const t = useT();
+  const locale = useLocale();
   const money = useMoney();
   return (
     <Stack>
       {[
         ...PATIENT_BILLS.map((bill) => (
-          <Row key={`${bill.what}${bill.when}`}>
+          <Row key={`${bill.clinician}${bill.on}`}>
             <div className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-2.5">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-navy-50 text-navy-500 ring-1 ring-navy-100 ring-inset">
                   <Receipt className="h-4 w-4" aria-hidden />
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-[12.5px] font-bold text-navy-700">{bill.what}</span>
-                  <span className="block text-[10.5px] text-navy-400">{bill.when}</span>
+                  <span className="block truncate text-[12.5px] font-bold text-navy-700">{t("transfer.subjectSessionWith", { name: demoName(bill.clinician, locale) })}</span>
+                  <span className="block text-[10.5px] text-navy-400">
+                    {new Intl.DateTimeFormat(dateTag(locale), { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${bill.on}T12:00:00Z`))}
+                  </span>
                 </span>
               </span>
               <span className="shrink-0 text-end">
@@ -810,8 +831,9 @@ function Billing() {
 
 function You({ content, onScreen }: { content?: DemoContent; onScreen: (screen: Screen) => void }) {
   const t = useT();
+  const cast = useDemoCast();
   const locale = useLocale();
-  const who = content?.patientSessions[0]?.therapist ?? RADAR_DEMO[0]?.name ?? "";
+  const who = content?.patientSessions[0]?.therapist ?? cast[0]?.name ?? "";
   const name = DEMO_PATIENT_NAME[locale];
   return (
     <Stack>
