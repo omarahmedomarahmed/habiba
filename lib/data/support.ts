@@ -607,7 +607,7 @@ export async function closeTicket(input: {
     };
   }
 
-  const { token, code, set } = await freshAccess();
+  const { token, code, set } = await accessFor(ticket);
 
   await db
     .update(supportTickets)
@@ -635,7 +635,7 @@ export async function closeTicket(input: {
    * ticket**. Not the topic, not the summary, not their own message quoted
    * back. That is the rule, and this is the only place it could be broken.
    */
-  await tellAnswered(ticket, link, code);
+  if (code) await tellAnswered(ticket, link, code);
 
   return { ok: true, link };
 }
@@ -674,6 +674,55 @@ async function tellAnswered(ticket: SupportTicket, link: string, code: string): 
   );
 }
 
+/** How long a link and code just sent stand for the next answer on the same ticket. Board 957. */
+export const ACCESS_REUSE_MS = 15 * 60_000;
+const ACCESS_LIFETIME_MS = 7 * 86_400_000;
+
+/**
+ * 🔴 Board 957: ONE LINK AND ONE CODE FOR ONE CONVERSATION.
+ *
+ * A reply and then a close four seconds apart sent two "Your message to
+ * 24Therapy" emails, each with its own link and code, and the first link had
+ * already stopped working because the second replaced its token. A person could
+ * not tell which to use. When a link and code went out in the last fifteen
+ * minutes and still work, the same link stands and nothing more is sent: the
+ * page it opens shows every answer, the close included.
+ *
+ * Only an ANSWER's link stands for the next answer. The acknowledgement of a
+ * new ticket also carries a link and a code, and a reply ten minutes later must
+ * still tell them there is a reply, so `lastAnsweredAt` (the last "replied"
+ * event) has to be inside the window as well.
+ */
+export function reuseAccess(
+  ticket: { accessToken: string | null; accessCodeHash: string | null; accessCodeExpiresAt: Date | null },
+  lastAnsweredAt: Date | null,
+  now: number,
+): boolean {
+  if (!ticket.accessToken || !ticket.accessCodeHash || !ticket.accessCodeExpiresAt) return false;
+  if (!lastAnsweredAt || now - lastAnsweredAt.getTime() >= ACCESS_REUSE_MS) return false;
+  const expires = ticket.accessCodeExpiresAt.getTime();
+  const issued = expires - ACCESS_LIFETIME_MS;
+  return expires > now && now - issued < ACCESS_REUSE_MS;
+}
+
+/** The access to send with an answer; a null `code` means the last one stands and nothing is sent. */
+async function accessFor(ticket: SupportTicket): Promise<{
+  token: string;
+  code: string | null;
+  set: Partial<typeof supportTickets.$inferInsert>;
+}> {
+  const [answered] = await db
+    .select({ at: supportTicketEvents.createdAt })
+    .from(supportTicketEvents)
+    .where(and(eq(supportTicketEvents.ticketId, ticket.id), eq(supportTicketEvents.kind, "replied")))
+    .orderBy(desc(supportTicketEvents.createdAt))
+    .limit(1);
+  if (reuseAccess(ticket, answered?.at ?? null, Date.now())) {
+    return { token: ticket.accessToken!, code: null, set: {} };
+  }
+  return freshAccess();
+}
+
 /** A link token and a code for the sender's page, and the columns that hold them. */
 async function freshAccess() {
   const token = randomBytes(24).toString("base64url");
@@ -684,7 +733,7 @@ async function freshAccess() {
     set: {
       accessToken: token,
       accessCodeHash: await hashCode(code),
-      accessCodeExpiresAt: new Date(Date.now() + 7 * 86_400_000),
+      accessCodeExpiresAt: new Date(Date.now() + ACCESS_LIFETIME_MS),
     },
   };
 }
@@ -714,7 +763,7 @@ export async function replyToTicket(input: {
   if (!ticket) return { error: "That ticket no longer exists." };
   if (ticket.status === "closed") return { error: "That ticket is already closed." };
 
-  const { token, code, set } = await freshAccess();
+  const { token, code, set } = await accessFor(ticket);
   await db
     .update(supportTickets)
     .set({ ...set, status: "waiting_on_them", waitingSince: new Date(), updatedAt: new Date() })
@@ -728,7 +777,7 @@ export async function replyToTicket(input: {
   });
 
   const link = `${env.appUrl}/support/${token}`;
-  await tellAnswered(ticket, link, code);
+  if (code) await tellAnswered(ticket, link, code);
   return { ok: true };
 }
 
