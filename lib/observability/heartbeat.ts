@@ -268,19 +268,12 @@ export async function watchdog(now = new Date()): Promise<{ problems: number; al
 /**
  * 🔴 51.6: what the watchdog reads, for the operator who has to believe it.
  * Each scheduled job's last run and last clean run, whether it is overdue by
- * the same rule the watchdog emails on, and the alerts sent in the last week.
+ * the same rule the watchdog emails on. The alerts are `opsAlertBoard` below.
  */
 export async function jobHealth(now = new Date()): Promise<{
   jobs: { job: string; lastRunAt: Date | null; lastSuccessAt: Date | null; failedSteps: string | null; overdue: boolean }[];
-  alerts: { key: string; sentAt: Date }[];
 }> {
   const rows = await db.select().from(cronHeartbeats).orderBy(cronHeartbeats.job);
-  const alerts = await db
-    .select({ key: opsAlerts.key, sentAt: opsAlerts.sentAt })
-    .from(opsAlerts)
-    .where(gte(opsAlerts.sentAt, new Date(now.getTime() - 7 * 86_400_000)))
-    .orderBy(sql`${opsAlerts.sentAt} DESC`)
-    .limit(20);
   return {
     jobs: rows.map((row) => {
       const hours = CRON_INTERVAL_HOURS[row.job] ?? 24;
@@ -293,6 +286,25 @@ export async function jobHealth(now = new Date()): Promise<{
         overdue: now.getTime() - since.getTime() > hours * OVERDUE_FACTOR * 3_600_000,
       };
     }),
-    alerts,
   };
+}
+
+/**
+ * 🔴 Board 423: the alerts of the last week, one per key, each open or cleared
+ * by the same `findProblems` the watchdog emails from. The /admin overview
+ * counts the open ones and /admin/errors lists them all; see
+ * `lib/observability/alert-words.ts` for the rule.
+ */
+export async function opsAlertBoard(now = new Date()) {
+  const { alertBoard } = await import("./alert-words");
+  const [sent, problems] = await Promise.all([
+    db
+      .select({ key: opsAlerts.key, sentAt: opsAlerts.sentAt })
+      .from(opsAlerts)
+      .where(gte(opsAlerts.sentAt, new Date(now.getTime() - 7 * 86_400_000)))
+      .orderBy(sql`${opsAlerts.sentAt} DESC`)
+      .limit(50),
+    findProblems(now),
+  ]);
+  return alertBoard(sent, new Set(problems.map((problem) => problem.key)));
 }
