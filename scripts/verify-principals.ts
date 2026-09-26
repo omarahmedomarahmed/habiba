@@ -345,6 +345,8 @@ const SCOPE: Record<string, Scope> = {
    */
   "sponsor-ledger": { who: ["sponsor"] },
   support: { who: ["admin", "patient", "clinician"] },
+  /* Board 590: a pure routing rule, a topic in and a queue out; it reads nothing. Only `support` imports it. */
+  "ticket-audience": { who: ["admin", "patient", "clinician"] },
   taxonomy: { who: ["admin"] },
   "therapist-codes": { who: ["clinician", "admin"] },
   vault: { who: ["admin"] },
