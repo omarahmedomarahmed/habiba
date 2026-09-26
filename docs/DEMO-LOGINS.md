@@ -12,9 +12,9 @@ One password for every login below:
 The story is the founders' demo video. **Mariam Hassan** works at **Cairo Foundry**, which pays
 for its staff's therapy. She has seen **Dr Karim Nabil** four times about work stress, sleep
 and a manager who messages at midnight, and she is booked with him again tomorrow. Around
-them: a second company paying half, a clinic with a week of bookings, five more clinicians
-in Cairo, Giza, Alexandria and Mansoura, patients who pay for themselves, and a record that
-moved from one therapist to another.
+them: a second company paying half, a clinic with a week of bookings, ten more clinicians
+(most in Cairo, from Heliopolis to New Cairo, four in Alexandria and one in Mansoura),
+patients who pay for themselves, and a record that moved from one therapist to another.
 
 ## Who to sign in as
 
@@ -30,6 +30,11 @@ moved from one therapist to another.
 | Dr Nour El-Sayed | Therapist, Nile Practice | `nour.elsayed@example.com` | `Techne2026!` | https://24therapy.app/login | Open Sherif's chart: his record came with him from another practice, with both summaries. |
 | Dr Amira Mansour | Therapist, solo, Alexandria | `amira.mansour@example.com` | `Techne2026!` | https://24therapy.app/login | Set your opening hours and see how a patient books you. |
 | Dr Hesham Ragab | Therapist, solo, Mansoura | `hesham.ragab@example.com` | `Techne2026!` | https://24therapy.app/login | See what your patients paid by InstaPay and what reaches your account. |
+| Dr Laila Sherif | Therapist, solo, New Cairo | `laila.sherif@example.com` | `Techne2026!` | https://24therapy.app/login | Go online, then find yourself on the radar: zoom into Egypt and you are in New Cairo. |
+| Dr Tarek Fahmy | Therapist, solo, Zamalek | `tarek.fahmy@example.com` | `Techne2026!` | https://24therapy.app/login | Read the notes from your two sessions with Lobna and plan the next one. |
+| Dr Rania Khalil | Therapist, solo, Smouha, Alexandria | `rania.khalil@example.com` | `Techne2026!` | https://24therapy.app/login | Set your hours for next week and see them on your public profile. |
+| Dr Ayman Saleh | Therapist, solo, Sporting, Alexandria | `ayman.saleh@example.com` | `Techne2026!` | https://24therapy.app/login | Open Waleed's chart: two sessions in Arabic, each with a signed note. |
+| Dr Heba Gamal | Therapist, solo, Gleem, Alexandria | `heba.gamal@example.com` | `Techne2026!` | https://24therapy.app/login | See your earnings from two sessions paid by transfer, and your rating. |
 | Omar Khaled | Patient, Cairo Foundry, sees Dr Salma | `omar.khaled@example.com` | `Techne2026!` | https://24therapy.app/patient/login | A session in two days, already paid by your employer. Open it. |
 | Yara Mostafa | Patient, Nile Pharma pays half | `yara.mostafa@example.com` | `Techne2026!` | https://24therapy.app/patient/login | Your next session: the company paid its half, pay yours by InstaPay. |
 | Hazem Tawfik | Patient, Nile Pharma pays half | `hazem.tawfik@example.com` | `Techne2026!` | https://24therapy.app/patient/login | Book Dr Nour from her open hours and see the price split before you pay. |

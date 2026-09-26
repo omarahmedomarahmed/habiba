@@ -318,9 +318,30 @@ async function main() {
          AND NOT EXISTS (SELECT 1 FROM therapist_radar r WHERE r.user_id = u.id)`);
     check("no clinician on this database is missing from the directory", hidden === 0, `${String(hidden)} without a radar row`);
 
-    const cities = await num(sql`
-      SELECT count(DISTINCT city)::int AS n FROM therapist_radar WHERE city IN ('Cairo','Alexandria','Giza','Mansoura')`);
-    check("clinicians in Cairo, Alexandria, Giza and Mansoura", cities === 4, `${String(cities)} cities`);
+    /*
+     * 🔴 THE RADAR'S MAP: the zoomed globe draws each clinician at the district
+     * they name, so the cast has to name districts. Most of Greater Cairo by
+     * district, Alexandria by district, and Mansoura.
+     */
+    const cairo = ["Cairo", "Heliopolis", "Maadi", "Zamalek", "Dokki", "New Cairo"];
+    const alexandria = ["Alexandria", "Smouha", "Sporting", "Gleem"];
+    const [where] = await rows(sql`
+      SELECT count(*) FILTER (WHERE r.city = ANY(${sql.raw(`ARRAY[${cairo.map((c) => `'${c}'`).join(",")}]`)}))::int AS cairo,
+             count(DISTINCT r.city) FILTER (WHERE r.city = ANY(${sql.raw(`ARRAY[${cairo.map((c) => `'${c}'`).join(",")}]`)}))::int AS districts,
+             count(*) FILTER (WHERE r.city = ANY(${sql.raw(`ARRAY[${alexandria.map((c) => `'${c}'`).join(",")}]`)}))::int AS alexandria,
+             count(*) FILTER (WHERE r.city = 'Mansoura')::int AS mansoura,
+             count(*)::int AS total
+        FROM therapist_radar r JOIN users u ON u.id = r.user_id
+       WHERE u.email = ANY(${sql.raw(`ARRAY[${clinicians.map((e) => `'${e.replace(/'/g, "''")}'`).join(",")}]`)})`);
+    check(
+      "the radar's map: most clinicians in Cairo across five or more districts, four in Alexandria, one in Mansoura",
+      Number(where?.cairo) === 6 &&
+        Number(where?.districts) >= 5 &&
+        Number(where?.alexandria) === 4 &&
+        Number(where?.mansoura) === 1 &&
+        Number(where?.total) === 11,
+      `${String(where?.cairo)} in Cairo over ${String(where?.districts)} districts, ${String(where?.alexandria)} in Alexandria, ${String(where?.mansoura)} in Mansoura, of ${String(where?.total)}`,
+    );
 
     /* ---------------------------------------- the other stories in the cast -- */
 

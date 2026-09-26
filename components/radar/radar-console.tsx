@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Loader2, PanelLeftClose, PanelRightClose, Radio } from "lucide-react";
 
 import { BookingSheet } from "@/components/radar/booking-sheet";
-import { matches, NO_FILTER, RadarFilters, type RadarFilter } from "@/components/radar/filters";
+import { activeCount, matches, NO_FILTER, RadarChips, type RadarFilter } from "@/components/radar/filters";
+import { GlobeInfo, type GlobeHover } from "@/components/radar/globe-info";
 import { OfflineCard } from "@/components/radar/offline-card";
 import { RadarList } from "@/components/radar/radar-list";
 import { TherapistCard } from "@/components/radar/therapist-card";
@@ -20,31 +21,26 @@ import { viewerId } from "@/lib/viewer";
 /**
  * The radar, as a room rather than a page.
  *
- * The board used to be a column: a globe in a card, filters under it, a list
- * under those, all inside a 4xl measure with a white page around it. That reads
- * as an article about availability. This reads as availability — the globe is
- * the floor, the panels sit on top of it, and nothing scrolls away from the one
- * thing the page is for.
+ * The globe is the floor and everything else sits on top of it, so nothing
+ * scrolls away from the one thing the page is for. The same console is the
+ * public `/radar` and the patient app's radar; the homepage hero uses the same
+ * globe, chips and box.
  *
- * ## What is on each side, and why
+ * ## What is where, and why
  *
- * Left is *narrowing*: languages, then what someone needs help with. Those are
- * the two questions that rule a clinician out, and they are asked in that order
- * because language rules out hardest.
+ * Top, in one column: who is on shift, then the CHIPS (where, language, what
+ * somebody needs help with), then the BOX saying what the globe is pointing at.
+ * The chips are persistent and above the globe because language and specialty
+ * are the two questions that rule a clinician out; they used to sit in a side
+ * panel that collapsed out of sight. Stacking chips and box in the flow, rather
+ * than placing each absolutely, is what stops the box landing on a chip.
  *
- * Right is *choosing*: the clinicians who survived the narrowing, with the
- * booking sheet one tap away.
+ * Right (desktop) or the bottom sheet (phone) is *choosing*: the clinicians who
+ * survived the narrowing, with the booking sheet one tap away.
  *
- * The globe is the third filter and it is spatial. Tapping a country sets the
- * same filter the chips set, so all three controls write to one object and the
- * list is always the truth about all of them at once.
- *
- * ## Collapsed still says something
- *
- * A collapsed panel keeps its headline — how many filters are active, how many
- * clinicians are showing — because the reason to collapse it is to see more
- * globe, not to stop knowing. A panel that collapses to a bare chevron makes
- * you open it to find out whether you needed to.
+ * The globe is the third filter and it is spatial. Tapping a country's marker
+ * zooms in and sets the same country the chips set, so every control writes to
+ * one object and the list is always the truth about all of them at once.
  */
 const Globe = dynamicImport(() => import("@/components/radar/globe").then((m) => m.Globe), {
   ssr: false,
@@ -71,7 +67,7 @@ export function RadarConsole({
   profileBase?: string;
   initial: RadarEntry[];
   /**
-   * 🔴 Verified clinicians who are not on shift: dim dots on the globe that
+   * 🔴 Verified clinicians who are not on shift: hollow dots on the globe that
    * open "Offline, book a time". Never in the live list, never in a count,
    * never handed to the booking sheet.
    */
@@ -87,10 +83,9 @@ export function RadarConsole({
   const [filter, setFilter] = useState<RadarFilter>(NO_FILTER);
   const [refreshing, setRefreshing] = useState(false);
   const [viewer] = useState(() => viewerId());
-  const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
-  const [mobileTab, setMobileTab] = useState<"filters" | "list">("list");
   const [sheetOpen, setSheetOpen] = useState(true);
+  const [info, setInfo] = useState<GlobeHover | null>(null);
   /*
    * 🔴 65.6 — WHICH QUESTION THE FLOOR IS ANSWERING.
    *
@@ -149,19 +144,10 @@ export function RadarConsole({
     () => offline.filter((entry) => matches(entry, filter)),
     [offline, filter],
   );
+  /* Everybody on the map, live and offline: what the chips are drawn from. */
+  const everyone = useMemo(() => [...entries, ...offline], [entries, offline]);
   const offlinePicked = offline.find((entry) => entry.userId === offlineId) ?? null;
-  const activeFilters = [filter.language, filter.specialty, filter.country].filter(Boolean).length;
-
-  const filterSummary =
-    activeFilters === 0
-      ? t("radar.everyoneOnShift")
-      : activeFilters === 1
-        ? t("radar.oneFilterOn")
-        : t("radar.filtersOn", { count: activeFilters });
-
-  const filterContent = (
-    <RadarFilters entries={entries} value={filter} onChange={setFilter} tone="dark" />
-  );
+  const filtersOn = activeCount(filter);
 
   const listContent =
     onlineCount === 0 ? (
@@ -213,10 +199,16 @@ export function RadarConsole({
               setSelectedId(entry.userId);
             }}
             onPickOffline={(entry) => setOfflineId(entry.userId)}
-            className="h-full w-full"
+            onHover={setInfo}
+            showInfo={false}
+            backButton={false}
+            className={cn(
+              "h-full w-full pt-[8.5rem] pb-[34dvh] sm:pt-24 sm:pb-2",
+              rightOpen ? "sm:pe-[25rem]" : "sm:pe-0",
+            )}
           />
         ) : (
-          <div className="h-full overflow-y-auto px-3 pt-16 pb-[56dvh] sm:px-4 sm:pb-6 sm:ps-[20.5rem]">
+          <div className="h-full overflow-y-auto px-3 pt-36 pb-6 sm:px-4 sm:pt-40">
             {onlineCount === 0 ? (
               <div className="mx-auto max-w-md">
                 <FirstHours hours={firstHours} />
@@ -249,100 +241,91 @@ export function RadarConsole({
         />
       ) : null}
 
-      {/* ------------------------------------------------------------ status */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3 sm:p-4">
-        <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#04101f]/80 px-3 py-1.5 backdrop-blur">
-          <span
-            className={cn(
-              "h-2 w-2 rounded-full",
-              onlineCount > 0 ? "live-dot bg-teal-400" : "bg-slate-500",
-            )}
-          />
-          <span className="text-sm font-semibold text-white tabular-nums">
-            {onlineCount > 0 ? onlineCount : t("radar.noOne")}
-          </span>
-          <span className="text-sm text-white/85">
-            {onlineCount === 1
-              ? t("radar.oneOnShift")
-              : onlineCount > 0
-                ? t("radar.manyOnShift")
-                : t("radar.onShift")}
-          </span>
-          {refreshing ? (
-            <Loader2 className="h-3 w-3 animate-spin text-white/30" aria-hidden />
-          ) : null}
+      {/*
+        The top of the floor, in reading order: who is on shift and which view,
+        then the chips, then the box saying what the globe is pointing at.
+      */}
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2 p-3 sm:p-4",
+          view === "map" && "sm:pe-[26rem]",
+        )}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#04101f]/80 px-3 py-1.5 backdrop-blur">
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full",
+                onlineCount > 0 ? "live-dot bg-teal-400" : "bg-slate-500",
+              )}
+            />
+            <span className="text-sm font-semibold text-white tabular-nums">
+              {onlineCount > 0 ? onlineCount : t("radar.noOne")}
+            </span>
+            <span className="text-sm text-white/85">
+              {onlineCount === 1
+                ? t("radar.oneOnShift")
+                : onlineCount > 0
+                  ? t("radar.manyOnShift")
+                  : t("radar.onShift")}
+            </span>
+            {refreshing ? (
+              <Loader2 className="h-3 w-3 animate-spin text-white/30" aria-hidden />
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {view === "map" ? (
+              <p className="pointer-events-none hidden rounded-full bg-[#04101f]/70 px-3 py-1.5 text-xs text-white/85 backdrop-blur xl:block">
+                {t("radar.dragToSpin")}
+              </p>
+            ) : null}
+
+            {/*
+              🔴 65.6 — TWO VIEWS, BOTH LABELLED, NEITHER HIDDEN.
+
+              A segmented control rather than an icon that toggles: the reader can see that
+              a list exists before they have tried the button, which is the whole reason
+              this ticket is not "make the panel taller".
+            */}
+            <div className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#04101f]/80 p-1 backdrop-blur">
+              {(["map", "list"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setView(option)}
+                  aria-pressed={view === option}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                    view === option ? "bg-white/15 text-white" : "text-white/85 hover:text-white/85",
+                  )}
+                >
+                  {option === "map" ? t("radar.mapView") : t("radar.listView")}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
+
+        {/* The chips: persistent, above the globe, and they filter it and the list. */}
+        <RadarChips entries={everyone} value={filter} onChange={setFilter} className="pointer-events-auto" />
 
         {/*
-          🔴 THE LEGEND, only when there is an offline dot to explain. A bright
-          dot is live and bookable now; a hollow one is offline and books a
-          time. Without it the dim dots would read as "busy".
+          🔴 THE BOX, top-left of the globe and under the chips. With nothing
+          pointed at it is the legend: a bright dot is live and bookable now, a
+          hollow one is offline and books a time.
         */}
-        {view === "map" && offline.length > 0 ? (
-          <div className="pointer-events-none absolute top-14 start-3 flex items-center gap-3 rounded-full bg-[#04101f]/70 px-3 py-1 text-[11px] text-white/85 backdrop-blur sm:top-16 sm:start-[21rem]">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-teal-400" aria-hidden />
-              {t("radar.freeNow")}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full border border-slate-400" aria-hidden />
-              {t("radar.legendOffline")}
-            </span>
-          </div>
-        ) : null}
-
-        <div className="flex items-center gap-2">
-          {view === "map" ? (
-            <p className="pointer-events-none hidden rounded-full bg-[#04101f]/70 px-3 py-1.5 text-xs text-white/85 backdrop-blur lg:block">
-              {t("radar.dragToSpin")}
-            </p>
-          ) : null}
-
-          {/*
-            🔴 65.6 — TWO VIEWS, BOTH LABELLED, NEITHER HIDDEN.
-
-            A segmented control rather than an icon that toggles: the reader can see that
-            a list exists before they have tried the button, which is the whole reason
-            this ticket is not "make the panel taller".
-          */}
-          <div className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#04101f]/80 p-1 backdrop-blur">
-            {(["map", "list"] as const).map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setView(option)}
-                aria-pressed={view === option}
-                className={cn(
-                  "rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-                  view === option ? "bg-white/15 text-white" : "text-white/85 hover:text-white/85",
-                )}
-              >
-                {option === "map" ? t("radar.mapView") : t("radar.listView")}
-              </button>
-            ))}
-          </div>
-        </div>
+        {view === "map" ? <GlobeInfo info={info} /> : null}
       </div>
 
-      {/* --------------------------------------------------- desktop panels */}
-      <div className="hidden sm:contents">
-        <Panel
-          side="left"
-          open={leftOpen}
-          onToggle={() => setLeftOpen((v) => !v)}
-          title={t("radar.narrowDown")}
-          summary={filterSummary}
-        >
-          {filterContent}
-        </Panel>
+      {/*
+        --------------------------------------------------- the desktop panel
 
-        {/*
-          The right panel is the globe's legend, so it goes when the globe does.
-
-          In list view it would be the same people twice, in a narrower column, with
-          less about each of them.
-        */}
-        {view === "map" ? (
+        The right panel is the globe's list, so it goes when the globe does: in
+        list view it would be the same people twice, in a narrower column.
+      */}
+      {view === "map" ? (
+        <div className="hidden sm:contents">
           <Panel
             side="right"
             open={rightOpen}
@@ -352,54 +335,41 @@ export function RadarConsole({
           >
             {listContent}
           </Panel>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
-      {/* ---------------------------------------------------- mobile sheet */}
       {/*
-        One sheet with two tabs, not two stacked panels.
+        ---------------------------------------------------- the phone sheet
 
-        A phone has room for a globe or a column, not both, and two floating
-        panels on a 375px screen simply landed on top of each other. Tabs keep
-        the same two jobs — narrowing and choosing — without pretending there
-        is space to do them side by side.
+        The narrowing moved up to the chips, so the sheet does one job: who is
+        free, with the booking sheet one tap away.
       */}
-      <section className="absolute inset-x-0 bottom-0 z-10 flex max-h-[52dvh] flex-col rounded-t-2xl border-t border-white/10 bg-[#071a2e]/95 backdrop-blur-md sm:hidden">
-        <div className="flex shrink-0 items-center gap-1 border-b border-white/10 p-2">
-          {/*
-            In list view the floor already IS the list, so the sheet offers narrowing
-            only. Two copies of the same people on a 375px screen is the thing the
-            mobile sheet was built to stop.
-          */}
-          {(view === "list" ? (["filters"] as const) : (["list", "filters"] as const)).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => (sheetOpen && mobileTab === tab ? setSheetOpen(false) : (setMobileTab(tab), setSheetOpen(true)))}
-              aria-pressed={sheetOpen && mobileTab === tab}
-              className={cn(
-                "flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
-                sheetOpen && mobileTab === tab
-                  ? "bg-white/10 text-white"
-                  : "text-white/85 hover:text-white/85",
-              )}
-            >
-              {tab === "list" ? t("radar.countFree", { count: visible.length }) : filterSummary}
-            </button>
-          ))}
-          <span className="flex h-9 w-9 items-center justify-center text-white/85">
+      {view === "map" ? (
+        <section className="absolute inset-x-0 bottom-0 z-10 flex max-h-[34dvh] flex-col rounded-t-2xl border-t border-white/10 bg-[#071a2e]/95 backdrop-blur-md sm:hidden">
+          <button
+            type="button"
+            onClick={() => setSheetOpen((open) => !open)}
+            aria-expanded={sheetOpen}
+            className="flex shrink-0 items-center gap-2 border-b border-white/10 px-4 py-3 text-start"
+          >
+            <span className="flex-1 text-sm font-semibold text-white">
+              {t("radar.countFree", { count: visible.length })}
+            </span>
+            <span className="text-xs text-white/85">
+              {filtersOn === 0
+                ? t("radar.everyoneOnShift")
+                : filtersOn === 1
+                  ? t("radar.oneFilterOn")
+                  : t("radar.filtersOn", { count: filtersOn })}
+            </span>
             <ChevronDown
-              className={cn("h-4 w-4 transition-transform", sheetOpen && "rotate-180")}
+              className={cn("h-4 w-4 text-white/85 transition-transform", sheetOpen && "rotate-180")}
               aria-hidden
             />
-          </span>
-        </div>
-        {sheetOpen ? (
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            {mobileTab === "list" && view === "map" ? listContent : filterContent}
-          </div>
-        ) : null}
-      </section>
+          </button>
+          {sheetOpen ? <div className="min-h-0 flex-1 overflow-y-auto p-3">{listContent}</div> : null}
+        </section>
+      ) : null}
 
       {selected ? <BookingSheet entry={selected} onClose={() => setSelectedId(null)} /> : null}
       {offlinePicked && !selected ? (
@@ -442,7 +412,7 @@ function Panel({
         "absolute z-10 flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#071a2e]/85 backdrop-blur-md",
         side === "left"
           ? "top-16 bottom-3 left-4 w-[19rem]"
-          : "top-16 bottom-3 right-4 w-[24rem]",
+          : cn("top-4 right-4 w-[24rem]", open && "bottom-3"),
       )}
     >
       <button

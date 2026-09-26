@@ -7,6 +7,8 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 
 import { BookingSheet } from "@/components/radar/booking-sheet";
+import { matches, NO_FILTER, RadarChips, type RadarFilter } from "@/components/radar/filters";
+import { GlobeInfo, type GlobeHover } from "@/components/radar/globe-info";
 import { OfflineCard } from "@/components/radar/offline-card";
 import type { RadarEntry, RadarOfflineEntry } from "@/components/radar/types";
 import { useT } from "@/lib/i18n/client";
@@ -135,6 +137,9 @@ export function AudienceRotator({
   const [offline, setOffline] = React.useState<RadarOfflineEntry[]>([]);
   const [picked, setPicked] = React.useState<string | null>(null);
   const [pickedOffline, setPickedOffline] = React.useState<string | null>(null);
+  /* The radar's own chips and box, so the homepage globe filters the way the radar page does. */
+  const [filter, setFilter] = React.useState<RadarFilter>(NO_FILTER);
+  const [info, setInfo] = React.useState<GlobeHover | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -166,6 +171,9 @@ export function AudienceRotator({
   const selected = (entries ?? []).find((entry) => entry.userId === picked) ?? null;
   const offlineSelected = offline.find((entry) => entry.userId === pickedOffline) ?? null;
   const count = entries === null ? null : online.length;
+  const everyone = React.useMemo(() => [...(entries ?? []), ...offline], [entries, offline]);
+  const shownLive = React.useMemo(() => (entries ?? []).filter((e) => matches(e, filter)), [entries, filter]);
+  const shownOffline = React.useMemo(() => offline.filter((e) => matches(e, filter)), [offline, filter]);
   const liveText = live
     ? count === null
       ? live.checking
@@ -384,17 +392,30 @@ export function AudienceRotator({
             profile to book a time. No point is drawn that the radar does not
             have.
           */}
-          <div className="relative mx-auto aspect-square w-full max-w-[420px] sm:max-w-[560px] lg:-me-4 lg:max-w-[640px]">
+          <div className="relative mx-auto w-full max-w-[420px] min-w-0 sm:max-w-[560px] lg:-me-4 lg:max-w-[640px]">
+          {/*
+            The radar's chips, above the globe: languages and what somebody
+            needs help with, drawn from the clinicians on it, and they filter
+            the markers and dots. The box under them says what the globe is
+            pointing at.
+          */}
+          <div className="relative z-10 space-y-2">
+            <RadarChips entries={everyone} value={filter} onChange={setFilter} />
+            <GlobeInfo info={info} legend={offline.length > 0} />
+          </div>
+          <div className="relative aspect-square w-full">
             <Globe
-              entries={entries ?? []}
-              offline={offline}
-              selected={null}
-              onSelect={() => {}}
+              entries={shownLive}
+              offline={shownOffline}
+              selected={filter.country || null}
+              onSelect={(code) => setFilter((f) => ({ ...f, country: code ?? "", region: "" }))}
               onPick={(entry) => {
                 setPickedOffline(null);
                 setPicked(entry.userId);
               }}
               onPickOffline={(entry) => setPickedOffline(entry.userId)}
+              onHover={setInfo}
+              showInfo={false}
               className="h-full w-full"
             />
             {first ? (
@@ -422,6 +443,7 @@ export function AudienceRotator({
                 </span>
               </button>
             ) : null}
+          </div>
           </div>
         </div>
       </section>
