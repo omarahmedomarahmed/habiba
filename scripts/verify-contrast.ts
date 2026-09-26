@@ -605,8 +605,11 @@ async function audit(exe: string) {
      * That is why this is a `check` and not a `continue`: a verifier that
      * cannot get in has to say so, or it reports on nothing and calls it clean.
      */
+    /* The patient door holds two forms (password and code), each with a `handle`: the first is the password form. */
     await p
-      .fill(`input[name="${person.field ?? "email"}"]`, person.email)
+      .locator(`input[name="${person.field ?? "email"}"]`)
+      .first()
+      .fill(person.email)
       .catch(() => {});
     /*
      * The founder's and the console accounts no longer open with the published
@@ -618,8 +621,8 @@ async function audit(exe: string) {
     if (password === null) {
       console.log(`  ${person.who}: set DEMO_PRIVATE_PASSWORD to sign in as ${person.email}`);
     }
-    await p.fill('input[name="password"]', password ?? "").catch(() => {});
-    await p.click('form button[type="submit"]').catch(() => {});
+    await p.locator('input[name="password"]').first().fill(password ?? "").catch(() => {});
+    await p.locator('form:has(input[name="password"]) button[type="submit"]').first().click().catch(() => {});
     const inside = await p
       .waitForURL((u: URL) => !/sign-in|login/.test(u.pathname), {
         timeout: 30_000,
