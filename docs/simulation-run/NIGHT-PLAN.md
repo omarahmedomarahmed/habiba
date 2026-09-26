@@ -17,7 +17,7 @@ full gate runs at most after G0. A `send_later` check-in wakes the session every
 | G0 | Round 1 fixes, before any of this | ran: 34 of 39 passed; the 5 failed groups fixed and re-run alone (N4) |
 | G1 | After round 2 (with round 3 folded in) and its fixes, before main | merged into G2 (ruling N10) |
 | G2 | After the redesign and the round 2 fixes, before main | passed: 38 groups in the full run, the run cut off by a container restart after `rendered`; the last 7 groups and `principals` (fixed) re-run alone and passed (N4) |
-| G3 | After the post-redesign walkthrough fixes, before main | running (log scratchpad/gates-g3.log) |
+| G3 | After the post-redesign walkthrough fixes, before main | passed: 36 of 39 in the full run; claims, verifiers and runbook fixed and re-run alone (N4) |
 
 Between gates: `npx tsc --noEmit -p .`, the unit suites and the verifiers each change touches. Never a
 fourth full gate.
