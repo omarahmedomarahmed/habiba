@@ -1432,7 +1432,7 @@ async function domainProofAndChrome(db: Db) {
 
   const { en, ar } = await import("../lib/i18n/messages");
   const boundaries = ["app/(sponsor)/error.tsx", "app/(partner)/error.tsx"].map((file) => readSource(file));
-  const loaders = ["app/(sponsor)/loading.tsx", "app/(partner)/loading.tsx"].map((file) => readSource(file));
+  const loaders = ["app/(sponsor)/sponsor/loading.tsx", "app/(partner)/partner/loading.tsx"].map((file) => readSource(file));
   check(
     "🔴 C19 both desk portals have their own error screen: a client boundary with a retry, in the reader's language",
     boundaries.every((src) => /^"use client"/.test(src.trim()) && /onClick=\{reset\}/.test(src) && /t\("(sponsor|dev)\.retry"\)/.test(src)) &&
@@ -1442,7 +1442,7 @@ async function domainProofAndChrome(db: Db) {
   check(
     "C19 CONTROL …and a loading screen each, so a click on the rail answers at once",
     loaders.every((src) => /DeskLoading/.test(src)),
-    "app/(sponsor)/loading.tsx, app/(partner)/loading.tsx",
+    "app/(sponsor)/sponsor/loading.tsx, app/(partner)/partner/loading.tsx",
   );
 }
 

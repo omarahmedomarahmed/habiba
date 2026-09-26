@@ -208,7 +208,7 @@ test("🔴 A18 the console has its own error and loading boundaries, inside its 
   const error = readFileSync("app/(admin)/error.tsx", "utf8");
   assert.match(error, /^"use client";/, "an error boundary is a client component or Next refuses it");
   assert.match(error, /onClick=\{reset\}/, "it offers the retry");
-  assert.match(read("app/(admin)/loading.tsx"), /export default/);
+  assert.match(read("app/(admin)/admin/loading.tsx"), /export default/);
   // CONTROL: the global boundary is still the last resort for the layout itself.
   assert.match(read("app/global-error.tsx"), /onClick=\{reset\}/);
 });

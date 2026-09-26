@@ -954,7 +954,10 @@ async function main() {
   const boundaries = ["app/(app)", "app/(clinic)"].map((dir) => ({
     dir,
     error: readSource(`${dir}/error.tsx`),
-    loading: readSource(`${dir}/loading.tsx`),
+    /* The skeletons sit below the group root now (verify:launch says why). */
+    loading: readSource(
+      dir === "app/(app)" ? "components/portal/clinician-loading.tsx" : `${dir}/clinic/loading.tsx`,
+    ),
   }));
   check(
     "🔴 T20 the clinician and clinic portals each have a translated error boundary with a retry, and a loading state",
