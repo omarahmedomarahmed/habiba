@@ -140,7 +140,9 @@ export function PartnerChrome({
                   aria-current={on ? "page" : undefined}
                   className={cn(
                     "relative flex h-11 items-center gap-3 rounded-xl px-3 text-[14px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
-                    on ? `bg-brand-500 text-navy-700 ${SETTLE}` : "text-white/75 hover:bg-white/5 hover:text-white",
+                    on
+                      ? `bg-brand-500 text-navy-700 ${SETTLE}`
+                      : "text-white/75 hover:bg-white/5 hover:text-white",
                   )}
                 >
                   {on ? (
