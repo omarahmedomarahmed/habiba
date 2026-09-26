@@ -314,8 +314,9 @@ export default async function AppLayout({
             </div>
           </div>
         ) : null}
-        {/* Content gets bottom padding on mobile so the nav never covers a control. */}
-        <div className="pb-28 lg:pb-10">{children}</div>
+        {/* Content gets bottom padding on mobile so the nav never covers a control,
+            and (board 884) the last card scrolls clear of the radar button above it. */}
+        <div className="pb-40 lg:pb-10">{children}</div>
       </div>
 
       {/* 🔴 W2-T07: the practice switch reaches the phone too. */}

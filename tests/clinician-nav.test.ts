@@ -157,3 +157,14 @@ test("board 464 the clinician layout reads the bill, the practice link and its f
   const page = readFileSync("app/(app)/sessions/new/page.tsx", "utf8");
   assert.doesNotMatch(page, /await getCountrySettings\("eg"\)/, "the tax row is read alongside, not after");
 });
+
+test("board 884 the floating switch and bell start below the Simulation banner, and the last card clears the radar button", () => {
+  const banner = readFileSync("components/simulation-banner.tsx", "utf8");
+  const corner = readFileSync("components/i18n/language-corner.tsx", "utf8");
+  assert.match(banner, /--sim-banner-h:\$\{SIM_BANNER_HEIGHT\}/, "the banner says how tall it is");
+  assert.match(banner, /whitespace-nowrap/, "one line, so the height is the one it says");
+  assert.match(corner, /top: "var\(--sim-banner-h, 0px\)"/, "the corner starts below it");
+  assert.doesNotMatch(corner, /fixed top-0/);
+  const layout = readFileSync("app/(app)/layout.tsx", "utf8");
+  assert.match(layout, /pb-40 lg:pb-10/);
+});

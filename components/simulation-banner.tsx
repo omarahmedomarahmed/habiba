@@ -39,6 +39,9 @@ import { getI18n } from "@/lib/i18n/server";
  * not discipline: it is that every page grows a violet bar, so a deployment
  * left in this state announces itself.
  */
+/** One line of 1rem plus 0.375rem above and below. Board 884. */
+export const SIM_BANNER_HEIGHT = "1.75rem";
+
 export async function SimulationBanner() {
   /*
    * 🔴 TWO WAYS TO BE A SIMULATION, and they are different arrangements.
@@ -57,11 +60,19 @@ export async function SimulationBanner() {
   const { t } = await getI18n();
 
   return (
-    <div
-      role="note"
-      className="bg-violet-700 px-3 py-1.5 text-center text-xs font-medium text-white"
-    >
-      {t("sim.banner")}
-    </div>
+    <>
+      {/*
+        🔴 Board 884: the floating language switch and bell sat on top of this
+        line at phone width and hid it. The banner is one line of a known
+        height, and it says so to the page, so \`LanguageCorner\` starts below it.
+      */}
+      <style>{`:root{--sim-banner-h:${SIM_BANNER_HEIGHT}}`}</style>
+      <div
+        role="note"
+        className="truncate bg-violet-700 px-3 py-1.5 text-center text-xs leading-4 font-medium whitespace-nowrap text-white"
+      >
+        {t("sim.banner")}
+      </div>
+    </>
   );
 }
