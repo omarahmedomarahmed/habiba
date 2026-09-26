@@ -52,7 +52,8 @@ export const SPEND_CURVE: { week: string; cents: number }[] = [
 export const POT = {
   addedCents: 1_000_000,
   remainingCents: 412_000,
-  expiresLabel: "31 March 2027",
+  /** A date, not a label: each page writes it in its own language. */
+  expiresOn: "2027-03-31",
 };
 
 /** Seats, at the band boundary, because that is where the ladder is worth showing. */

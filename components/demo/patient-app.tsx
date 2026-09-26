@@ -342,24 +342,24 @@ function HomeTab({
             </div>
           </div>
           <div className="relative mt-3 rounded-2xl bg-white/[0.07] p-3 ring-1 ring-white/12">
-            <p className="text-[11px] font-semibold text-brand-300">{t("home.exploreTitle")}</p>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <span className="flex -space-x-2 rtl:space-x-reverse">
+            <div className="flex items-center justify-between gap-2">
+              <p className="min-w-0 truncate text-[11px] font-semibold text-brand-300">{t("home.exploreTitle")}</p>
+              <span className="flex shrink-0 -space-x-2 rtl:space-x-reverse">
                 {RADAR_DEMO.map((who) => (
                   <span key={who.name} className="rounded-full ring-2 ring-navy-900">
-                    <Avatar name={who.name} size={30} />
+                    <Avatar name={who.name} size={28} />
                   </span>
                 ))}
               </span>
-              <button
-                type="button"
-                onClick={onFindSomeone}
-                className="tap-target inline-flex h-8 min-w-0 items-center gap-1 rounded-xl bg-brand-500 px-2.5 text-[11px] font-semibold text-navy-700 shadow-[0_8px_24px_-8px_rgba(46,196,182,0.7)]"
-              >
-                <Globe2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                <span className="truncate">{t("home.findNow")}</span>
-              </button>
             </div>
+            <button
+              type="button"
+              onClick={onFindSomeone}
+              className="tap-target mt-2.5 flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-brand-500 px-3 text-[12px] font-semibold text-navy-700 shadow-[0_8px_24px_-8px_rgba(46,196,182,0.7)]"
+            >
+              <Globe2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="truncate">{t("home.findNow")}</span>
+            </button>
           </div>
         </section>,
 

@@ -206,7 +206,7 @@ function PhoneFrame({
 
         {/*
           🔴 THE SOS ORB, where the real app floats it: red, round, above the
-          bar, on every patient screen. Drawn, not pressable: the crisis sheet
+          bar's corner, on every patient screen. Drawn, not pressable: the crisis sheet
           it opens carries real numbers, and a marketing page has no country
           to pick them by (C98).
         */}
@@ -214,7 +214,7 @@ function PhoneFrame({
           <span
             role="img"
             aria-label={sos}
-            className="absolute end-2.5 bottom-[5.25rem] z-20 flex h-11 w-11 select-none items-center justify-center rounded-full bg-red-600 text-[10px] font-bold tracking-wider text-white shadow-[0_8px_20px_-6px_rgba(220,38,38,0.7)] ring-4 ring-white/80"
+            className="absolute end-3 bottom-[3.9rem] z-30 flex h-10 w-10 select-none items-center justify-center rounded-full bg-red-600 text-[10px] font-bold tracking-wider text-white shadow-[0_8px_20px_-6px_rgba(220,38,38,0.7)] ring-4 ring-white/80"
           >
             SOS
           </span>

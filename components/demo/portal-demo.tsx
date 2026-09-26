@@ -34,6 +34,7 @@ import { Avatar, Badge, Card, Glow, Stat } from "@/components/clinician/kit";
 import { PotRing } from "@/components/sponsor/ring";
 import { SpendHeatmap } from "@/components/sponsor/spend-heatmap";
 import { Meter, NeverBar } from "@/components/visual/primitives";
+import { dateTag } from "@/lib/i18n/config";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 import {
@@ -72,6 +73,13 @@ function useMoney() {
   return (usdCents: number) => egp(egpFrom(usdCents), locale);
 }
 
+/** The pot's expiry, written in the page's language. */
+function potDate(locale: "en" | "ar"): string {
+  return new Intl.DateTimeFormat(dateTag(locale), { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(`${POT.expiresOn}T00:00:00Z`),
+  );
+}
+
 /* --------------------------------------------------------------- the desk -- */
 
 type Tab = { key: string; label: string; icon: typeof Users };
@@ -82,7 +90,7 @@ function Shell({
   tabs,
   active,
   onTab,
-  never,
+  wall,
   children,
 }: {
   org: string;
@@ -90,7 +98,8 @@ function Shell({
   tabs: Tab[];
   active: string;
   onTab: (key: string) => void;
-  never: { label: string; items: string[] };
+  /** The card at the rail's foot: what this portal never shows, or for a partner, how keys are kept. */
+  wall: React.ReactNode;
   children: React.ReactNode;
 }) {
   const group = useId();
@@ -144,7 +153,7 @@ function Shell({
 
           {/* 🔴 The wall, on screen the whole time, in its own card at the rail's foot. */}
           <div className="relative hidden p-2.5 sm:block">
-            <NeverBar label={never.label} items={never.items} tone="dark" />
+            {wall}
           </div>
         </nav>
 
@@ -161,7 +170,7 @@ function Shell({
               {children}
               {/* No rail wide enough for the wall: it goes to the foot of the page, on the dark card. */}
               <div className="rounded-3xl bg-navy-900 p-1 sm:hidden">
-                <NeverBar label={never.label} items={never.items} tone="dark" />
+                {wall}
               </div>
             </motion.div>
           </AnimatePresence>
@@ -236,10 +245,9 @@ export function ClinicConsole({ initial = "week" }: { initial?: string }) {
       tabs={CLINIC_TABS.map((x) => ({ ...x, label: t(x.label) }))}
       active={tab}
       onTab={setTab}
-      never={{
-        label: t("clinic.neverLabel"),
-        items: [t("clinic.neverNote"), t("clinic.neverRisk")],
-      }}
+      wall={
+        <NeverBar label={t("clinic.neverLabel")} items={[t("clinic.neverNote"), t("clinic.neverRisk")]} tone="dark" />
+      }
     >
       {tab === "week" ? <ClinicWeek /> : null}
       {tab === "people" ? <ClinicPeople /> : null}
@@ -317,27 +325,20 @@ function ClinicPeople() {
   return (
     <>
       <Head title={t("clinic.peopleTitle")} action={<Primary icon={UserPlus}>{t("clinic.inviteTitle")}</Primary>} />
-      <div className="grid gap-2.5 sm:grid-cols-2">
-        {CLINIC_TEAM.map((person, i) => (
-          <motion.div
-            key={person.name}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...soft, delay: i * 0.05 }}
-          >
-            <Card className="flex items-center gap-2.5 p-3">
-              <Avatar name={person.name} size={36} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-bold text-navy-700">{person.name}</p>
-                <Badge tone={VERIFY[person.verify]?.tone ?? "slate"} className="mt-1">
-                  {person.verify === "verified" ? <BadgeCheck className="h-3 w-3" aria-hidden /> : null}
-                  {t(VERIFY[person.verify]?.label ?? "clinic.verifyNone")}
-                </Badge>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+      <Card className="overflow-hidden">
+        <Rows>
+          {CLINIC_TEAM.map((person) => (
+            <div key={person.name} className="flex items-center gap-2.5 px-3.5 py-2.5">
+              <Avatar name={person.name} size={34} />
+              <p className="min-w-0 flex-1 truncate text-[13px] font-bold text-navy-700">{person.name}</p>
+              <Badge tone={VERIFY[person.verify]?.tone ?? "slate"} className="max-w-[55%] shrink-0">
+                {person.verify === "verified" ? <BadgeCheck className="h-3 w-3 shrink-0" aria-hidden /> : null}
+                {t(VERIFY[person.verify]?.label ?? "clinic.verifyNone")}
+              </Badge>
+            </div>
+          ))}
+        </Rows>
+      </Card>
       <p className="text-[12px] leading-relaxed text-navy-500">{t("clinic.cannotVerify")}</p>
     </>
   );
@@ -424,7 +425,8 @@ const COMPANY_TABS: { key: string; label: MessageKey; icon: typeof Users }[] = [
 
 export function CompanyConsole({ initial = "overview" }: { initial?: string }) {
   const t = useT();
-  const [tab, setTab] = useState(initial);
+  /* A page asking for the wall (`company-wall`) gets the overview: the wall is in the rail beside it. */
+  const [tab, setTab] = useState(COMPANY_TABS.some((x) => x.key === initial) ? initial : "overview");
 
   return (
     <Shell
@@ -433,10 +435,13 @@ export function CompanyConsole({ initial = "overview" }: { initial?: string }) {
       tabs={COMPANY_TABS.map((x) => ({ ...x, label: t(x.label) }))}
       active={tab}
       onTab={setTab}
-      never={{
-        label: t("sponsor.neverLabel"),
-        items: [t("sponsor.neverIndividual"), t("sponsor.neverAttendance")],
-      }}
+      wall={
+        <NeverBar
+          label={t("sponsor.neverLabel")}
+          items={[t("sponsor.neverIndividual"), t("sponsor.neverAttendance")]}
+          tone="dark"
+        />
+      }
     >
       {tab === "overview" ? <CompanyOverview /> : null}
       {tab === "pot" ? <CompanyPot /> : null}
@@ -453,6 +458,7 @@ export function CompanyConsole({ initial = "overview" }: { initial?: string }) {
  */
 function CompanyOverview() {
   const t = useT();
+  const locale = useLocale();
   const money = useMoney();
   const left = POT.remainingCents / POT.addedCents;
   const spent = SPEND_CURVE.reduce((sum, point) => sum + point.cents, 0);
@@ -472,10 +478,10 @@ function CompanyOverview() {
             </PotRing>
             <div className="min-w-0 flex-1">
               <p className="text-[12.5px] font-semibold text-navy-400">{t("sponsor.balance")}</p>
-              <p className="mt-0.5 truncate text-[24px] leading-tight font-bold tracking-tight tabular-nums text-navy-700">
+              <p className="mt-0.5 text-[20px] leading-tight font-bold tracking-tight tabular-nums text-navy-700 sm:text-[24px]">
                 {money(POT.remainingCents)}
               </p>
-              <Badge tone="teal" className="mt-1.5">{t("sponsor.expires", { date: POT.expiresLabel })}</Badge>
+              <Badge tone="teal" className="mt-1.5">{t("sponsor.expires", { date: potDate(locale) })}</Badge>
             </div>
           </div>
         </Card>
@@ -508,6 +514,7 @@ function CompanyOverview() {
 
 function CompanyPot() {
   const t = useT();
+  const locale = useLocale();
   const money = useMoney();
 
   return (
@@ -519,7 +526,7 @@ function CompanyPot() {
           usedLabel={money(POT.remainingCents)}
           ofLabel={t("sponsor.ofLastTopUp", { amount: money(POT.addedCents) })}
           fraction={1 - POT.remainingCents / POT.addedCents}
-          note={t("sponsor.expires", { date: POT.expiresLabel })}
+          note={t("sponsor.expires", { date: potDate(locale) })}
         />
       </Card>
       <Card className="overflow-hidden">
@@ -634,7 +641,13 @@ export function PartnerConsole({ initial = "keys" }: { initial?: string }) {
       tabs={PARTNER_TABS.map((x) => ({ ...x, label: t(x.label) }))}
       active={tab}
       onTab={setTab}
-      never={{ label: t("dev.keysTitle"), items: [t("devs.keysNote")] }}
+      wall={
+        /* A promise about keys, so a shield rather than the wall's crosses. */
+        <p className="flex items-start gap-2 rounded-2xl bg-white/5 p-3.5 text-xs leading-relaxed text-white/80 ring-1 ring-white/10">
+          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-300" aria-hidden />
+          {t("devs.keysNote")}
+        </p>
+      }
     >
       {tab === "keys" ? <PartnerKeys /> : <PartnerDeliveries />}
     </Shell>
