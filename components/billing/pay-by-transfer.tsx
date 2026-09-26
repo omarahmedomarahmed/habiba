@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 
 import { Card } from "@/components/ui";
 import { TopUpStepper } from "@/components/billing/top-up-stepper";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { transferFieldWords } from "@/lib/billing/transfer-words";
 import type { PotStep } from "@/lib/billing/manual-entry";
 import { Money } from "@/components/ui/money";
 import { rich, slot } from "@/lib/i18n/rich";
@@ -187,6 +188,8 @@ export function PayByTransfer({
   onChoose?: (creditCents: number) => Promise<void>;
 }) {
   const t = useT();
+  /* 🔴 Board 364: the operator's words for each account line, in the reader's language. */
+  const locale = useLocale();
   const router = useRouter();
   const [state, submit] = useActionState(action, {} as TransferFormState);
 
@@ -339,7 +342,7 @@ export function PayByTransfer({
       <Lines lines={lines} />
 
       <dl className="mt-4 space-y-2">
-        {details.fields.map((f) => (
+        {details.fields.map((raw) => ({ ...raw, ...transferFieldWords(raw, locale) })).map((f) => (
           <div key={f.key} className="rounded-xl bg-slate-50 p-3">
             <dt className="text-xs text-slate-500">{f.label}</dt>
             {/* Selectable, because they are copying this into a banking app. */}

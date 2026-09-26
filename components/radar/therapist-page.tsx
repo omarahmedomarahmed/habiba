@@ -4,6 +4,8 @@ import { PriceTag } from "@/components/money/price-tag";
 import { egpRateMicro } from "@/lib/billing/manual";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
+import { regulatorNameFor } from "@/lib/regulators";
+import { getCountries } from "@/lib/settings";
 import { formatMonthYear } from "@/lib/utils";
 import { publicProfile } from "@/lib/data/radar";
 import { reliabilityFor } from "@/lib/data/recovery";
@@ -71,6 +73,17 @@ export async function TherapistPageBody({
     ? formatMonthYear(profile.verifiedOn, profile.timezone, locale)
     : t("radar.verifiedNoDate");
 
+  /*
+   * 🔴 Board 364 (B50): the body's name in the reader's language. An Arabic
+   * reader with no Arabic name for it gets the plain line rather than an
+   * English name inside an Arabic sentence.
+   */
+  const operatorNames =
+    locale === "ar" && profile.verifiedBy
+      ? Object.assign({}, ...(await getCountries()).map((c) => c.regulatorNamesAr ?? {}))
+      : {};
+  const licenceBody = profile.verifiedBy ? regulatorNameFor(profile.verifiedBy, locale, operatorNames) : null;
+
   return (
     <>
       <PublicProfile initial={profile} />
@@ -100,8 +113,8 @@ export async function TherapistPageBody({
       */}
       <div className="mx-auto max-w-2xl px-4 pt-3 sm:px-6">
         <p className="text-sm font-semibold text-slate-800">
-          {profile.verifiedBy
-            ? t("radar.verifiedWith", { body: profile.verifiedBy, when: approvedOn })
+          {licenceBody
+            ? t("radar.verifiedWith", { body: licenceBody, when: approvedOn })
             : t("radar.verifiedPlain", { when: approvedOn })}
         </p>
         <p className="mt-0.5 text-xs text-slate-600">{t("radar.verifiedMeans")}</p>

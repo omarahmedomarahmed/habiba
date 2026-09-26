@@ -143,7 +143,7 @@ export type TransferDetails = {
    * account details underneath; different word on top.
    */
   label: "transfer.labelBank" | "transfer.labelTransfer";
-  fields: { key: string; label: string; value: string; hint: string }[];
+  fields: { key: string; label: string; value: string; hint: string; labelAr: string; hintAr: string }[];
   cardsComingSoon: boolean;
   /** True when nobody has filled the details in. The screens must say so. */
   unconfigured: boolean;
@@ -156,7 +156,7 @@ export async function transferDetails(audience: Audience): Promise<TransferDetai
   const fields = settings.payouts.transferFields
     .filter((f) => f.audiences.includes(audience))
     .sort((a, b) => a.position - b.position)
-    .map((f) => ({ key: f.key, label: f.label, value: f.value, hint: f.hint }));
+    .map((f) => ({ key: f.key, label: f.label, value: f.value, hint: f.hint, labelAr: f.labelAr, hintAr: f.hintAr }));
 
   return {
     /*

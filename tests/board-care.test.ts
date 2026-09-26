@@ -6,6 +6,9 @@ import { cancelledPaymentRoute } from "../lib/billing/split-refund";
 import { sortForGroup } from "../lib/sessions/order";
 import { uncoveredStretches } from "../lib/transcript/gaps";
 import { handleDelivery } from "../lib/patient-auth/handle-delivery";
+import { transferFieldWords } from "../lib/billing/transfer-words";
+import { regulatorNameFor } from "../lib/regulators";
+import { parseCountry, storedRegulators } from "../lib/settings/defs";
 
 /**
  * Round 2 board, patient app and therapist portal (fix2/care). Each test names
@@ -96,6 +99,48 @@ test("board 274: a person whose record is already claimed is not told nobody wro
   const page = readSource("app/(patient)/patient/claim/page.tsx");
   assert.match(page, /alreadyTheirs \?/);
   assert.match(page, /pclaim\.allYoursBody/);
+});
+
+test("board 364: an Arabic payment screen never carries the operator's English note", () => {
+  const instapay = { label: "InstaPay", hint: "Fastest option", labelAr: "", hintAr: "" };
+  assert.deepEqual(transferFieldWords(instapay, "ar"), { label: "InstaPay", hint: "" });
+  assert.deepEqual(transferFieldWords({ ...instapay, labelAr: "إنستاباي", hintAr: "الأسرع" }, "ar"), {
+    label: "إنستاباي",
+    hint: "الأسرع",
+  });
+  assert.deepEqual(transferFieldWords(instapay, "en"), { label: "InstaPay", hint: "Fastest option" });
+  assert.match(readSource("components/billing/pay-by-transfer.tsx"), /transferFieldWords\(raw, locale\)/);
+});
+
+test("board 364: the licence body is named in Arabic, or not named at all, on an Arabic page", () => {
+  assert.equal(regulatorNameFor("Egyptian Ministry of Health and Population", "ar"), "وزارة الصحة والسكان المصرية");
+  assert.equal(regulatorNameFor("Egyptian Medical Syndicate (نقابة الأطباء)", "ar"), "نقابة الأطباء");
+  assert.equal(regulatorNameFor("Egyptian Supreme Council for Mental Health", "ar"), null);
+  assert.equal(
+    regulatorNameFor("Egyptian Supreme Council for Mental Health", "ar", {
+      "Egyptian Supreme Council for Mental Health": "المجلس الأعلى للصحة النفسية",
+    }),
+    "المجلس الأعلى للصحة النفسية",
+  );
+  assert.equal(regulatorNameFor("Egyptian Supreme Council for Mental Health", "en"), "Egyptian Supreme Council for Mental Health");
+});
+
+test("board 364: a regulator line carries its Arabic name after a bar, and keeps it through a save", () => {
+  const base = {
+    code: "eg",
+    name: "Egypt",
+    vatBps: 0,
+    currency: "egp",
+    paymentMethods: [],
+    entity: "eg",
+    enabled: true,
+  };
+  const parsed = parseCountry({ ...base, regulators: ["Supreme Council | المجلس الأعلى", "Plain Body"] });
+  assert.deepEqual(parsed.regulators, ["Supreme Council", "Plain Body"]);
+  assert.deepEqual(parsed.regulatorNamesAr, { "Supreme Council": "المجلس الأعلى" });
+  assert.deepEqual(storedRegulators(parsed), ["Supreme Council | المجلس الأعلى", "Plain Body"]);
+  /* writeCountrySettings parses what it is handed a second time: nothing is lost. */
+  assert.deepEqual(parseCountry({ ...parsed, regulators: parsed.regulators }).regulatorNamesAr, parsed.regulatorNamesAr);
 });
 
 test("board 334: a session held in our own room names its source", () => {

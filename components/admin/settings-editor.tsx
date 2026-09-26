@@ -13,6 +13,7 @@ import {
 } from "@/app/(admin)/admin/settings/actions";
 import { Badge, Button, Card, Field, Input, Textarea } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
+import { storedRegulators } from "@/lib/settings/defs";
 
 const INITIAL: SettingsFormState = {};
 
@@ -415,6 +416,7 @@ export function CountryEditor({
     payoutMethods: string[];
     entity: string;
     regulators: string[];
+    regulatorNamesAr?: Record<string, string>;
     idLabelFront: string | null;
     idLabelBack: string | null;
     licenceLabel: string | null;
@@ -553,13 +555,13 @@ export function CountryEditor({
         <Field
           label="Regulators"
           htmlFor={`reg-${country.code}`}
-          hint="One per line."
+          hint="One per line. For Arabic readers, add the Arabic name after a bar: Ministry of Health | وزارة الصحة"
         >
           <Textarea
             id={`reg-${country.code}`}
             name="regulators"
             rows={3}
-            defaultValue={country.regulators.join("\n")}
+            defaultValue={storedRegulators(country).join("\n")}
           />
         </Field>
 
