@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { agreeToCrossBorder, withdrawCrossBorder } from "@/app/(patient)/patient/residency/actions";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -43,8 +44,8 @@ export function ResidencyNotice({
   if (!crosses) {
     return (
       <Card className="p-5">
-        <p className="text-sm font-semibold text-slate-900">{t("residency.title")}</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("residency.title")}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-navy-400">
           {t("residency.home", { country: homeLabel })}
         </p>
       </Card>
@@ -53,10 +54,10 @@ export function ResidencyNotice({
 
   return (
     <Card className={agreedAt ? "p-5" : "border-amber-200 bg-amber-50 p-5"}>
-      <p className="text-sm font-semibold text-slate-900">
+      <p className="text-sm font-semibold text-navy-700">
         {t("residency.keptIn", { serving: servingLabel, home: homeLabel })}
       </p>
-      <p className="mt-1.5 text-sm leading-relaxed text-slate-700">{wording}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-navy-600">{wording}</p>
 
       {error ? (
         <p role="alert" className="mt-3 text-sm text-red-600">
@@ -66,7 +67,7 @@ export function ResidencyNotice({
 
       {agreedAt ? (
         <div className="mt-4">
-          <p className="text-sm text-slate-600">{t("residency.agreedOn", { date: agreedAt })}</p>
+          <p className="text-sm text-navy-400">{t("residency.agreedOn", { date: agreedAt })}</p>
           <button
             type="button"
             disabled={pending}
@@ -76,7 +77,7 @@ export function ResidencyNotice({
                 router.refresh();
               })
             }
-            className="mt-2 text-sm font-semibold text-slate-500"
+            className="mt-2 text-sm font-semibold text-navy-400"
           >
             {t("residency.withdraw")}
           </button>

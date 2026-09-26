@@ -105,9 +105,9 @@ export default async function PayPage({
   if (inPerson && session.paymentStatus === "paid") {
     const { t: tt } = await getI18n();
     return (
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-3 px-4 py-8 text-center">
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{tt("pay.inPersonPaid")}</h1>
-        <p className="text-sm text-slate-600">{tt("pay.inPersonPaidBody")}</p>
+      <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-3 px-5 pt-16 pb-10">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{tt("pay.inPersonPaid")}</h1>
+        <p className="text-sm text-navy-400">{tt("pay.inPersonPaidBody")}</p>
       </main>
     );
   }
@@ -246,11 +246,11 @@ export default async function PayPage({
       <>
         <SosOrbServer country={sosCountry} />
         <LanguageCorner />
-        <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-8">
+        <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-16 pb-10">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pay.title")}</h1>
+            <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("pay.title")}</h1>
             {therapist ? (
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1.5 text-[15px] font-semibold text-navy-500">
                 {[therapist.firstName, therapist.lastName].filter(Boolean).join(" ")}
               </p>
             ) : null}
@@ -259,7 +259,7 @@ export default async function PayPage({
             <Button type="submit" variant="secondary" full>
               {t("pay.useBenefit")}
             </Button>
-            {query.benefit ? <p className="mt-2 text-sm text-slate-600">{t("pay.benefitNot")}</p> : null}
+            {query.benefit ? <p className="mt-2 text-sm text-navy-400">{t("pay.benefitNot")}</p> : null}
           </form>
           {cardReady ? (
             <form action={payByCard.bind(null, token)}>
@@ -267,12 +267,12 @@ export default async function PayPage({
                 {t("pay.byCard")}
               </Button>
               {cardQuote && cardQuote.feeLabel ? (
-                <dl className="mt-2 space-y-1 text-sm text-slate-600">
+                <dl className="mt-3 space-y-1.5 rounded-2xl bg-white px-4 py-3 text-sm text-navy-400 ring-1 ring-navy-100">
                   <div className="flex justify-between gap-3">
                     <dt>{t("pay.cardFee")}</dt>
                     <dd className="tabular-nums">{cardQuote.feeLabel}</dd>
                   </div>
-                  <div className="flex justify-between gap-3 font-semibold text-slate-900">
+                  <div className="flex justify-between gap-3 border-t border-navy-100 pt-1.5 text-[15px] font-bold text-navy-700">
                     <dt>{t("pay.cardTotal")}</dt>
                     <dd className="tabular-nums">{cardQuote.totalLabel}</dd>
                   </div>
@@ -283,7 +283,7 @@ export default async function PayPage({
               ) : null}
             </form>
           ) : (
-            <p className="text-sm text-slate-600">{t("pay.inPersonNoCard")}</p>
+            <p className="text-sm text-navy-400">{t("pay.inPersonNoCard")}</p>
           )}
         </main>
       </>
@@ -297,11 +297,11 @@ export default async function PayPage({
         <SosOrbServer country={sosCountry} />
         {/* 🔴 75.3 — and the one where reading the wrong language costs money. */}
         <LanguageCorner />
-        <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-8">
+        <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-16 pb-10">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pay.title")}</h1>
+            <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("pay.title")}</h1>
             {therapist ? (
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1.5 text-[15px] font-semibold text-navy-500">
                 {[therapist.firstName, therapist.lastName].filter(Boolean).join(" ")}
               </p>
             ) : null}
@@ -316,7 +316,7 @@ export default async function PayPage({
               <Button type="submit" variant="secondary" full>
                 {t("pay.useBenefit")}
               </Button>
-              {query.benefit ? <p className="mt-2 text-sm text-slate-600">{t("pay.benefitNot")}</p> : null}
+              {query.benefit ? <p className="mt-2 text-sm text-navy-400">{t("pay.benefitNot")}</p> : null}
             </form>
           ) : null}
           {/* 🔴 64.1: by card through the Egyptian gateway, once it is contracted. */}
@@ -326,12 +326,12 @@ export default async function PayPage({
                 {t("pay.byCard")}
               </Button>
               {cardQuote && cardQuote.feeLabel ? (
-                <dl className="mt-2 space-y-1 text-sm text-slate-600">
+                <dl className="mt-3 space-y-1.5 rounded-2xl bg-white px-4 py-3 text-sm text-navy-400 ring-1 ring-navy-100">
                   <div className="flex justify-between gap-3">
                     <dt>{t("pay.cardFee")}</dt>
                     <dd className="tabular-nums">{cardQuote.feeLabel}</dd>
                   </div>
-                  <div className="flex justify-between gap-3 font-semibold text-slate-900">
+                  <div className="flex justify-between gap-3 border-t border-navy-100 pt-1.5 text-[15px] font-bold text-navy-700">
                     <dt>{t("pay.cardTotal")}</dt>
                     <dd className="tabular-nums">{cardQuote.totalLabel}</dd>
                   </div>
@@ -405,16 +405,16 @@ export default async function PayPage({
     <SosOrbServer country={sosCountry} />
     <LanguageCorner />
     {shortfall ? (
-      <div className="mx-auto max-w-md px-4 pt-8">
+      <div className="mx-auto max-w-lg px-5 pt-16">
         <BenefitNote shortfall={shortfall} />
       </div>
     ) : null}
     {inPerson ? (
-      <form action={coverWithBenefit.bind(null, token)} className="mx-auto max-w-md px-4 pt-8">
+      <form action={coverWithBenefit.bind(null, token)} className="mx-auto max-w-lg px-5 pt-16">
         <Button type="submit" variant="secondary" full>
           {t("pay.useBenefit")}
         </Button>
-        {query.benefit ? <p className="mt-2 text-sm text-slate-600">{t("pay.benefitNot")}</p> : null}
+        {query.benefit ? <p className="mt-2 text-sm text-navy-400">{t("pay.benefitNot")}</p> : null}
       </form>
     ) : null}
     <PayFlow

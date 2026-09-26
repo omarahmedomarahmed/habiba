@@ -21,7 +21,7 @@ export function DiagnosisFlag({ diagnosisId }: { diagnosisId: string }) {
   const [pending, startTransition] = useTransition();
 
   if (done) {
-    return <p className="mt-1 text-xs font-semibold text-slate-500">{t("pprofile.flagged")}</p>;
+    return <p className="mt-1 text-xs font-semibold text-navy-400">{t("pprofile.flagged")}</p>;
   }
 
   return (
@@ -29,7 +29,7 @@ export function DiagnosisFlag({ diagnosisId }: { diagnosisId: string }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="tap-target inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+        className="tap-target inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-navy-400 hover:bg-navy-50"
       >
         <Flag className="h-3.5 w-3.5" aria-hidden />
         {t("tdl.flag")}
@@ -52,7 +52,7 @@ export function DiagnosisFlag({ diagnosisId }: { diagnosisId: string }) {
                   else setDone(true);
                 })
               }
-              className="tap-target h-9 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="tap-target h-9 rounded-lg border border-navy-100 px-3 text-xs font-medium text-navy-600 hover:bg-navy-50 disabled:opacity-50"
             >
               {reason === "not_mine"
                 ? t("tdl.notMine")

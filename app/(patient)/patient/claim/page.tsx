@@ -4,7 +4,7 @@ import { ClaimChallenge } from "@/components/patient/claim-challenge";
 import { PatientBack } from "@/components/patient/back";
 import { ClaimFlow } from "@/components/patient/claim-flow";
 import { ProveHandle } from "@/components/patient/prove-handle";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { patientAccounts } from "@/lib/db/schema";
@@ -87,15 +87,15 @@ export default async function ClaimPage() {
   const nothing = proven && suggestions.length === 0 && challenges.length === 0;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       {/* 🔴 37R.25 / C185 — claiming is reached from the home screen and had
           no way back to it. */}
       <PatientBack />
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">
           {t("pclaim.title")}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">
           {t("pclaim.body", { name: actor.firstName })}
         </p>
       </div>
@@ -110,8 +110,8 @@ export default async function ClaimPage() {
 
       {nothing ? (
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("pclaim.nothingTitle")}</p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          <p className="text-sm font-semibold text-navy-700">{t("pclaim.nothingTitle")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">
             {t("pclaim.nothingBody")}
           </p>
         </Card>

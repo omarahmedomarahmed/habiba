@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { ExportRecord } from "@/components/patient/export-record";
 import { PatientBack } from "@/components/patient/back";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { SeesWhat } from "@/components/visual/primitives";
 import {
   clinicVisibilityFor,
@@ -42,12 +42,12 @@ export default async function RecordExportPage() {
   if (visibility.practices.length > 0) await markClinicVisibilityShown(actor.personId);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       <PatientBack />
 
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("precord.title")}</h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("precord.title")}</h1>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">
           {t("precord.body")}
         </p>
       </div>
@@ -73,7 +73,7 @@ export default async function RecordExportPage() {
             here somebody can check rather than trust. "They see: Sarah M." beats any
             sentence describing the rule that produced it.
           */}
-          <h2 className="text-sm font-bold tracking-tight text-slate-900">
+          <h2 className="text-[17px] font-bold tracking-tight text-navy-700">
             {t("pclinic.title", { practice: visibility.practices.join(", ") })}
           </h2>
 
@@ -102,8 +102,8 @@ export default async function RecordExportPage() {
             patient's alternative, and a disclosure that names no alternative is a
             notification rather than a choice.
           */}
-          <p className="mt-3 text-sm font-medium text-slate-900">{t("pclinic.notBuilt")}</p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("pclinic.orAlone")}</p>
+          <p className="mt-3 text-sm font-medium text-navy-700">{t("pclinic.notBuilt")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("pclinic.orAlone")}</p>
         </Card>
       ) : null}
     </main>

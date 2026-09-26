@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 
 import { setCheckins } from "@/app/(patient)/patient/messages/actions";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -37,8 +38,8 @@ export function CheckinSwitch({ on, mutedOn }: { on: boolean; mutedOn: string | 
             aria-pressed={current === value}
             className={
               current === value
-                ? "tap-target h-11 flex-1 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
-                : "tap-target h-11 flex-1 rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                ? "tap-target h-11 flex-1 rounded-xl bg-navy-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                : "tap-target h-11 flex-1 rounded-xl bg-navy-50 px-4 text-sm font-semibold text-navy-600 hover:bg-navy-100 disabled:opacity-50"
             }
           >
             {value ? t("checkin.on") : t("checkin.off")}
@@ -47,7 +48,7 @@ export function CheckinSwitch({ on, mutedOn }: { on: boolean; mutedOn: string | 
       </div>
 
       {!current && mutedOn ? (
-        <p className="mt-3 text-xs text-slate-500">{t("checkin.mutedOn", { date: mutedOn })}</p>
+        <p className="mt-3 text-xs text-navy-400">{t("checkin.mutedOn", { date: mutedOn })}</p>
       ) : null}
     </Card>
   );

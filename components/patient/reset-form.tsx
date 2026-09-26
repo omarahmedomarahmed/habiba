@@ -5,7 +5,8 @@ import { useFormStatus } from "react-dom";
 import Link from "next/link";
 
 import { completePatientReset, requestPatientReset } from "@/lib/patient-auth/reset";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { readerCountry } from "@/lib/phone/e164";
 import { useT } from "@/lib/i18n/client";
 
@@ -61,8 +62,8 @@ export function PatientResetForm() {
   if (done.sent) {
     return (
       <Card className="space-y-4 p-5">
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("preset.changed")}</h1>
-        <p className="text-sm leading-relaxed text-slate-600">
+        <h1 className="text-xl font-bold tracking-tight text-navy-700">{t("preset.changed")}</h1>
+        <p className="text-sm leading-relaxed text-navy-400">
           {t("preset.changedBody")}
         </p>
         <Link href="/patient/login">
@@ -78,8 +79,8 @@ export function PatientResetForm() {
     return (
       <Card className="space-y-4 p-5">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pcode.title")}</h1>
-          <p className="mt-1 text-sm leading-relaxed text-slate-500">
+          <h1 className="text-xl font-bold tracking-tight text-navy-700">{t("pcode.title")}</h1>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">
             {t("pcode.body")} {t("pcode.expires")}
           </p>
         </div>
@@ -131,8 +132,8 @@ export function PatientResetForm() {
           <Submit label={t("pfield.setNewPassword")} />
         </form>
 
-        <p className="text-center text-sm text-slate-500">
-          <Link href="/patient/forgot-password" className="hover:text-slate-800">
+        <p className="text-center text-sm text-navy-400">
+          <Link href="/patient/forgot-password" className="hover:text-navy-700">
             {t("preset.askAnother")}
           </Link>
         </p>
@@ -143,10 +144,10 @@ export function PatientResetForm() {
   return (
     <Card className="space-y-4 p-5">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-xl font-bold tracking-tight text-navy-700">
           {t("preset.title")}
         </h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-500">
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("preset.body")}
         </p>
       </div>
@@ -174,8 +175,8 @@ export function PatientResetForm() {
         <Submit label={t("preset.sendCode")} />
       </form>
 
-      <p className="text-center text-sm text-slate-500">
-        <Link href="/patient/login" className="hover:text-slate-800">
+      <p className="text-center text-sm text-navy-400">
+        <Link href="/patient/login" className="hover:text-navy-700">
           {t("preset.backToSignIn")}
         </Link>
       </p>

@@ -156,7 +156,7 @@ export function SosOrb({
         }}
         style={{ top: `${top * 100}%` }}
         className={cn(
-          "fixed z-[300] flex h-14 w-14 -translate-y-1/2 touch-none items-center justify-center rounded-full bg-red-600 text-white shadow-lg",
+          "fixed z-[300] flex h-14 w-14 -translate-y-1/2 touch-none items-center justify-center rounded-full bg-red-600 text-white shadow-[0_8px_20px_-6px_rgba(220,38,38,0.7)] ring-4 ring-white/80",
           side === "end" ? "end-3" : "start-3",
           dimmed && !open ? "opacity-55" : "opacity-100",
         )}
@@ -165,12 +165,13 @@ export function SosOrb({
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[310] flex flex-col justify-end bg-slate-900/60 p-3">
-          <div className="max-h-[90dvh] overflow-y-auto rounded-3xl bg-white p-4">
+        <div className="fixed inset-0 z-[310] flex flex-col justify-end bg-navy-900/55 p-3 backdrop-blur-[2px]">
+          <div className="mx-auto max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[28px] bg-white p-5 shadow-[0_-20px_60px_-20px_rgba(3,11,23,0.45)]">
+            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-navy-200" aria-hidden />
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-base font-bold tracking-tight text-slate-900">{t("crisis.sheetTitle")}</p>
-                <p className="mt-0.5 text-sm leading-relaxed text-slate-600">
+                <p className="text-[24px] font-bold tracking-tight text-navy-700">{t("crisis.sheetTitle")}</p>
+                <p className="mt-1 text-[15px] leading-relaxed text-navy-500">
                   {t("crisis.sheetBody")}
                 </p>
               </div>
@@ -178,7 +179,7 @@ export function SosOrb({
                 type="button"
                 aria-label={t("common.close")}
                 onClick={() => setOpen(false)}
-                className="-m-2 rounded-lg p-2 text-slate-500"
+                className="-m-2 rounded-full p-2 text-navy-400 hover:bg-navy-50"
               >
                 <X className="h-5 w-5" aria-hidden />
               </button>
@@ -189,7 +190,7 @@ export function SosOrb({
                 <a
                   key={`${entry.country}-${entry.line.tel}`}
                   href={`tel:${entry.line.tel}`}
-                  className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-red-600 px-3 py-4 text-white"
+                  className="flex flex-col items-center justify-center gap-1 rounded-3xl bg-red-600 px-3 py-4 text-white shadow-[0_8px_20px_-8px_rgba(220,38,38,0.6)] active:scale-[0.98]"
                 >
                   <span className="text-2xl leading-none" aria-hidden>
                     {flagOf(entry.country)}
@@ -201,7 +202,7 @@ export function SosOrb({
                         : entry.line.name.en
                       : (HELP_WORD[entry.country] ?? "Help")}
                   </span>
-                  <span className="text-lg font-bold tracking-wide">{entry.line.label}</span>
+                  <span className="text-[26px] leading-none font-bold tracking-wide">{entry.line.label}</span>
                   <span className="text-[11px] opacity-80">
                     {COUNTRY_LABEL[entry.country] ?? entry.countryName ?? entry.country}
                   </span>
@@ -236,7 +237,7 @@ export function SosOrb({
               {practiceNumber ? (
                 <a
                   href={`tel:${practiceNumber}`}
-                  className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-slate-900 px-3 py-4 text-white"
+                  className="flex flex-col items-center justify-center gap-1 rounded-3xl bg-navy-900 px-3 py-4 text-white"
                 >
                   <span className="text-xs font-semibold">{t("crisis.yourPractice")}</span>
                   <span className="text-base font-bold tracking-wide">{practiceNumber}</span>
@@ -250,7 +251,7 @@ export function SosOrb({
               reader this IS the answer, and printing a number we cannot vouch
               for would be worse than saying this plainly.
             */}
-            <p className="mt-4 rounded-2xl bg-slate-100 px-3.5 py-3 text-sm leading-relaxed text-slate-700">
+            <p className="mt-4 rounded-2xl bg-navy-50 px-3.5 py-3 text-sm leading-relaxed text-navy-600">
               <Phone className="me-1.5 inline h-4 w-4 align-[-2px]" aria-hidden />
               {t("crisis.anywhereElse")}
             </p>

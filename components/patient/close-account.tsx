@@ -4,7 +4,8 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { closeMyAccount, type CloseState } from "@/app/(patient)/patient/account/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { useT } from "@/lib/i18n/client";
 
 function Submit() {
@@ -36,7 +37,7 @@ export function CloseAccount() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-start text-sm font-semibold text-red-700 active:bg-slate-50"
+        className="w-full rounded-2xl border border-navy-100 bg-white px-4 py-3.5 text-start text-sm font-semibold text-red-700 active:bg-navy-50"
       >
         {t("pclose.title")}
       </button>
@@ -45,8 +46,8 @@ export function CloseAccount() {
 
   return (
     <Card className="space-y-3 border-red-200 p-4">
-      <p className="text-sm font-semibold text-slate-900">{t("pclose.title")}</p>
-      <p className="text-xs leading-relaxed text-slate-600">{t("pclose.goes")}</p>
+      <p className="text-sm font-semibold text-navy-700">{t("pclose.title")}</p>
+      <p className="text-xs leading-relaxed text-navy-400">{t("pclose.goes")}</p>
       <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
         {t("pclose.stays")}
       </p>

@@ -98,9 +98,9 @@ export function PatientBottomNav({ liveSession = null }: Props) {
     <>
       <nav
         aria-label={t("tab.sections")}
-        className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur"
+        className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-navy-100 bg-white/90 backdrop-blur-xl"
       >
-        <ul className="mx-auto flex max-w-md items-end justify-between px-2 py-1.5">
+        <ul className="mx-auto flex max-w-lg items-end justify-between gap-1 px-2 pt-2 pb-1.5">
           {liveSession ? (
             <Item
               href={liveSession.href}
@@ -127,7 +127,7 @@ export function PatientBottomNav({ liveSession = null }: Props) {
               href="/patient/radar"
               aria-label={t("tab.radar")}
               onClick={intercept ? (event) => intercept(event, "/patient/radar") : undefined}
-              className="flex h-14 w-14 flex-col items-center justify-center rounded-full bg-brand-500 text-navy-600 shadow-lg shadow-brand-500/30 active:scale-95"
+              className="flex h-[60px] w-[60px] flex-col items-center justify-center rounded-full bg-brand-500 text-navy-700 shadow-[0_10px_28px_-8px_rgba(46,196,182,0.8)] ring-4 ring-white transition-transform hover:bg-brand-400 active:scale-95"
             >
               <Globe2 className="h-6 w-6" aria-hidden />
             </Link>
@@ -147,19 +147,20 @@ export function PatientBottomNav({ liveSession = null }: Props) {
       </nav>
 
       {leavingTo ? (
-        <div className="fixed inset-0 z-[60] flex items-end bg-slate-900/50 p-3">
-          <div className="mx-auto w-full max-w-md rounded-3xl bg-white p-5">
-            <p className="text-base font-bold tracking-tight text-slate-900">
+        <div className="fixed inset-0 z-[60] flex items-end bg-navy-900/45 p-3 backdrop-blur-[2px]">
+          <div className="mx-auto w-full max-w-md rounded-[28px] bg-white p-5 shadow-[0_-20px_60px_-20px_rgba(3,11,23,0.45)]">
+            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-navy-200" aria-hidden />
+            <p className="text-[19px] font-bold tracking-tight text-navy-700">
               {t("tab.leaveTitle")}
             </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+            <p className="mt-1.5 text-[15px] leading-relaxed text-navy-400">
               {t("tab.leaveBody")}
             </p>
             <div className="mt-4 flex gap-2.5">
               <button
                 type="button"
                 onClick={() => setLeavingTo(null)}
-                className="tap-target flex-1 rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-navy-600"
+                className="tap-target h-12 flex-1 rounded-2xl bg-brand-500 px-4 text-[15px] font-semibold text-navy-700"
               >
                 {t("tab.stay")}
               </button>
@@ -170,7 +171,7 @@ export function PatientBottomNav({ liveSession = null }: Props) {
                   setLeavingTo(null);
                   router.push(href);
                 }}
-                className="tap-target flex-1 rounded-xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700"
+                className="tap-target h-12 flex-1 rounded-2xl border border-navy-200 bg-white px-4 text-[15px] font-semibold text-navy-600"
               >
                 {t("tab.leaveAnyway")}
               </button>
@@ -204,11 +205,15 @@ function Item({
         aria-current={active ? "page" : undefined}
         onClick={onClick ? (event) => onClick(event, href) : undefined}
         className={cn(
-          "tap-target flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-medium",
-          tone === "live" ? "text-red-600" : active ? "text-brand-700" : "text-slate-500",
+          "tap-target relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11.5px] font-semibold transition-colors",
+          tone === "live"
+            ? "bg-red-50 text-red-700"
+            : active
+              ? "bg-navy-50 text-navy-700"
+              : "text-navy-400 hover:text-navy-600",
         )}
       >
-        <Icon className="h-5 w-5" aria-hidden />
+        <Icon className="h-[22px] w-[22px]" aria-hidden />
         {label}
       </Link>
     </li>

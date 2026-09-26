@@ -7,7 +7,8 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 
 import { acceptInvite } from "@/app/(patient)/patient/claim/actions";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { KeepsAccess } from "@/components/patient/keeps-access";
 import { useT } from "@/lib/i18n/client";
 
@@ -42,11 +43,11 @@ export function InviteFlow({
   if (done) {
     return (
       <Card className="p-5">
-        <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+        <p className="flex items-center gap-2 text-sm font-semibold text-navy-700">
           <Check className="h-4 w-4 text-brand-600" aria-hidden />
           {t("pclaim.doneTitle")}
         </p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+        <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {keepsAccess
             ? t("pclaim.doneKept")
             : t("pclaim.doneDropped")}
@@ -62,14 +63,14 @@ export function InviteFlow({
   return (
     <Card className="space-y-4 p-5">
       <div>
-        <p className="text-sm font-semibold text-slate-900">{t("pinvite.takeTitle")}</p>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+        <p className="text-sm font-semibold text-navy-700">{t("pinvite.takeTitle")}</p>
+        <p className="mt-2 text-sm leading-relaxed text-navy-400">
           {/* B21: the therapist keeps the notes; the masked name is what they wrote down. */}
           {t("pinvite.takeBody", { therapist: therapistName, masked: redactedName })}
         </p>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 p-4">
+      <div className="rounded-2xl border border-navy-100 p-4">
         <KeepsAccess
           label={t("pinvite.keepAccess")}
           checked={keepsAccess}

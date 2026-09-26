@@ -64,21 +64,21 @@ export default async function ReceiptPage({
       <div data-print-hide className="flex items-center justify-between gap-3 print:hidden">
         <PatientBack />
         <div className="flex items-center gap-3">
-          <Link href={`/patient/billing/receipt/${receipt.paymentId}?lang=${other}`} className="text-sm text-slate-600 underline">
+          <Link href={`/patient/billing/receipt/${receipt.paymentId}?lang=${other}`} className="text-sm text-navy-400 underline">
             {LOCALE_NAMES[other]}
           </Link>
           <PrintButton label={t("preceipt.print")} />
         </div>
       </div>
 
-      <article className="rounded-2xl border border-slate-200 bg-white p-5 print:border-0">
-        <header className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+      <article className="rounded-2xl border border-navy-100 bg-white p-5 print:border-0">
+        <header className="flex items-start justify-between gap-3 border-b border-navy-100 pb-3">
           <div>
-            <p className="text-lg font-bold text-slate-900">{BRAND}</p>
-            <h1 className="text-sm font-semibold text-slate-700">{t("preceipt.title")}</h1>
+            <p className="text-lg font-bold text-navy-700">{BRAND}</p>
+            <h1 className="text-sm font-semibold text-navy-600">{t("preceipt.title")}</h1>
           </div>
           {receipt.refunded ? (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+            <span className="rounded-full bg-navy-50 px-2 py-0.5 text-xs font-medium text-navy-400">
               {t("preceipt.refunded")}
             </span>
           ) : null}
@@ -105,7 +105,7 @@ export default async function ReceiptPage({
           ) : null}
         </dl>
 
-        <dl className="mt-4 space-y-1.5 border-t border-slate-100 pt-3 text-sm tabular-nums">
+        <dl className="mt-4 space-y-1.5 border-t border-navy-100 pt-3 text-sm tabular-nums">
           <Line label={t("preceipt.sessionPrice")}>{money(receipt.priceCents)}</Line>
           {receipt.coveredCents > 0 ? (
             <Line label={t("preceipt.covered")}>{`-${money(receipt.coveredCents)}`}</Line>
@@ -114,7 +114,7 @@ export default async function ReceiptPage({
           {receipt.cardFeeCents > 0 ? (
             <Line label={t("pay.cardFee")}>{money(receipt.cardFeeCents)}</Line>
           ) : null}
-          <div className="flex items-baseline justify-between gap-3 border-t border-slate-100 pt-2 font-semibold text-slate-900">
+          <div className="flex items-baseline justify-between gap-3 border-t border-navy-100 pt-2 font-semibold text-navy-700">
             <dt>{t("preceipt.total")}</dt>
             <dd>{money(receipt.totalCents)}</dd>
           </div>
@@ -123,10 +123,10 @@ export default async function ReceiptPage({
           ) : null}
         </dl>
 
-        <p className="mt-4 text-xs text-slate-500">
+        <p className="mt-4 text-xs text-navy-400">
           {agent ? t("preceipt.agent", { name: receipt.therapistName }) : t("preceipt.principal")}
         </p>
-        <p className="mt-1 text-xs text-slate-500">{t("preceipt.notInvoice")}</p>
+        <p className="mt-1 text-xs text-navy-400">{t("preceipt.notInvoice")}</p>
       </article>
     </main>
   );
@@ -135,8 +135,8 @@ export default async function ReceiptPage({
 function Line({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-end text-slate-800">{children}</dd>
+      <dt className="text-navy-400">{label}</dt>
+      <dd className="text-end text-navy-700">{children}</dd>
     </div>
   );
 }

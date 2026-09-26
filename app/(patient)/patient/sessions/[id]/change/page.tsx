@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { PatientBack } from "@/components/patient/back";
 import { BookingChange } from "@/components/patient/booking-change";
-import { Card } from "@/components/ui";
+import { Card } from "@/components/patient/kit";
 import { changeView } from "@/lib/data/booking-change";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
@@ -36,13 +36,13 @@ export default async function ChangeBookingPage({ params }: { params: Promise<{ 
   const zone = resolveZone(actor.timezone, view.therapistTimezone);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 py-6">
+    <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
       <PatientBack fallback="/patient/sessions" />
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("pchange.title")}</h1>
+      <h1 className="text-[26px] leading-tight font-bold tracking-tight text-balance text-navy-700">{t("pchange.title")}</h1>
 
       <Card className="p-4">
-        <p className="text-sm font-semibold text-slate-900">{view.therapistName}</p>
-        <p className="mt-0.5 text-sm text-slate-600">{formatWhen(view.at, zone, locale)}</p>
+        <p className="text-sm font-semibold text-navy-700">{view.therapistName}</p>
+        <p className="mt-0.5 text-sm text-navy-400">{formatWhen(view.at, zone, locale)}</p>
         <p className={`mt-3 text-sm ${view.free ? "text-emerald-700" : "text-amber-700"}`}>
           {!view.paid
             ? t("pchange.unpaid")
