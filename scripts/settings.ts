@@ -466,7 +466,7 @@ type Allowance = {
 };
 
 const ALLOWED: Allowance[] = [
-  ...([["joinEarlyMinutes", "5"], ["soonMinutes", "15"]] as const).map(([key, value]) => ({
+  ...([["joinEarlyMinutes", "5"], ["soonMinutes", "15"]] as const).map(([key, value]): Allowance => ({
     leaf: `rules.start.${key}`,
     on: "production",
     is: "(absent)",
