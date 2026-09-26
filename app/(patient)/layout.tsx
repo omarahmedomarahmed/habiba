@@ -83,6 +83,7 @@ export default async function PatientLayout({ children }: { children: React.Reac
       {/* 🔴 W2-P09: and beside it, for somebody signed in, what the app has told them. */}
       <LanguageCorner
         beside={actor ? <NoticeBell count={unseen} /> : null}
+        scrim
       />
       {live ? <SessionStarted href={live.href} therapistName={live.therapistName} /> : null}
       {children}
