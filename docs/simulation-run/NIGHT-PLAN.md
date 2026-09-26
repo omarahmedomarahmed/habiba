@@ -30,8 +30,8 @@ fourth full gate.
 | S1 | Redesign wave 1 in worktrees, started in parallel: website, patient app, therapist portal, to the `/design` mockups, with the radar globe from the current radar | done, merged into local branch `redesign-integration` (worktree `.claude/worktrees/redesign-integration`) |
 | S2 | Round 2 with round 3 folded in, on the live site at day 7 | closed (N13): ORG complete, CARE and OPS-WEB partial after a usage limit; recorded in ROUNDS.md |
 | S3 | Fix every round 2 bug on the redesign branch (N10) | done: batches 1 to 3 merged into `redesign-integration` (65 rows fixed; 666.50 kept per N11; cold starts noted; hydration #418 to be checked on the live site) |
-| S4 | Redesign + round 2 fixes; G2; migrations; push main; confirm live | pushed to main at d9495cc8; confirming the deploy |
-| S5 | Walkthrough of rounds 1 and 2 compacted on the new design; fix; G3; push main; confirm live | not started |
+| S4 | Redesign + round 2 fixes; G2; migrations; push main; confirm live | done: live at d9495cc8 (READY), smoke check green, production seed run |
+| S5 | Walkthrough of rounds 1 and 2 combined on the new design; fix; G3; push main; confirm live | walkthrough running (run wf_47a45f95-797, script scratchpad/sim/walk3.js, board round R3) |
 | S6 | Report to the founder: rulings table, what needs the founder, what is live | not started |
 
 ## After the next deploy to main
