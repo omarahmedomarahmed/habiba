@@ -66,6 +66,13 @@ test("board 966: the radar profile's Saved does not wait for the whole page to r
   assert.match(readSource("components/radar/therapist-console.tsx"), /if \(formState\.savedAt\) router\.refresh\(\)/);
 });
 
+test("board 968: the public radar and a clinician's booking page lead with pounds; the rest of the website with dollars", () => {
+  assert.match(readSource("app/(public)/radar/page.tsx"), /<MoneyDisplayProvider primary="EGP">/);
+  assert.match(readSource("app/(public)/t/[id]/layout.tsx"), /<MoneyDisplayProvider primary="EGP">/);
+  assert.match(readSource("app/(public)/layout.tsx"), /primary="USD"/, "marketing pages unchanged");
+  assert.doesNotMatch(readSource("components/radar/booking-sheet.tsx"), /: "Free"\}/);
+});
+
 test("board 749: who has access now lists live access; ended access once per clinician, apart", () => {
   const now = Date.parse("2026-09-26T08:00:00Z");
   const day = (h: number) => new Date(now + h * 3_600_000);
