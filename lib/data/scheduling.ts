@@ -13,6 +13,7 @@ import {
   availabilitySlots,
   organizations,
   patients,
+  sessionPayments,
   sessions,
   users,
   SLOT_PLACES,
@@ -471,8 +472,19 @@ export type BookResult =
       therapistName: string;
       /** For the confirmation's zone fallback. 11R.3. */
       therapistTimezone: string | null;
+      /** Shoot P11: whether the company's benefit paid it, in full or in part. */
+      covered: BookCoverage;
     }
   | { ok: false; error: string };
+
+/** Shoot P11: "full" leaves the patient nothing to pay, "part" leaves a share. */
+export type BookCoverage = "full" | "part" | null;
+
+/** Pure, for the test: the pot row's patient share, or null when the pot paid nothing. */
+export function coverageOf(patientShareCents: number | null): BookCoverage {
+  if (patientShareCents === null) return null;
+  return patientShareCents <= 0 ? "full" : "part";
+}
 
 /**
  * Turn a held hour into a real session. 11.2 / 11.3.
@@ -690,7 +702,28 @@ export async function bookSlot(input: {
    * than a failed booking.
    */
   const { payFromPot } = await import("@/lib/billing/pot");
-  await payFromPot(created.id);
+  const pot = await payFromPot(created.id);
+  /*
+   * Shoot P11: what the benefit did, for the confirmation. It said "Booked"
+   * and nothing about money, while the sessions list and billing both said
+   * "Covered by your benefit". Read from the pot's own row, the same test the
+   * list uses (board 418), so the two screens cannot disagree.
+   */
+  let covered: BookCoverage = null;
+  if (pot.paid) {
+    const [row] = await db
+      .select({ patientShareCents: sessionPayments.patientShareCents })
+      .from(sessionPayments)
+      .where(
+        and(
+          eq(sessionPayments.sessionId, created.id),
+          eq(sessionPayments.status, "paid"),
+          eq(sessionPayments.fundingSource, "pot"),
+        ),
+      )
+      .limit(1);
+    covered = coverageOf(row?.patientShareCents ?? null);
+  }
   /* 🔴 0169: benefit first, then the patient's wallet (ruling 7b). */
   const { holdWallet } = await import("@/lib/billing/wallet");
   await holdWallet(created.id);
@@ -704,6 +737,7 @@ export async function bookSlot(input: {
     startsAt: slot.startsAt,
     therapistName: [slot.therapistFirstName, slot.therapistLastName].filter(Boolean).join(" "),
     therapistTimezone: slot.therapistTimezone,
+    covered,
   };
 }
 

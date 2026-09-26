@@ -174,5 +174,8 @@ export async function confirmEmailCode(
   }
 
   log.info("email added", { account: ref(accountId) });
+  /* Shoot T21: a confirmed address claims the account's own record. */
+  const { claimOwnPerson } = await import("@/lib/data/claims");
+  await claimOwnPerson(accountId);
   return { ok: true, email };
 }

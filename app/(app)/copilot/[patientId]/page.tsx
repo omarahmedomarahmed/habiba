@@ -98,6 +98,7 @@ export default async function CopilotThreadPage({
             <AccessBanner
               patientId={patientId}
               state={access.state}
+              gated={access.gated}
               message={t(accessKey)}
               canRequest={access.capabilities.canRequestAccess}
               pendingSince={access.grant?.status === "pending" ? access.grant.requestedAt : null}

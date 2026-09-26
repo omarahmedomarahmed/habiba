@@ -1,11 +1,11 @@
 import { after, NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, gt } from "drizzle-orm";
 
 import { AuthorizationError, requireUserApi } from "@/lib/auth/guard";
 import { autoEndSession, readSessionClock } from "@/lib/data/sessions";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { sessions } from "@/lib/db/schema";
+import { sessions, transcriptSegments } from "@/lib/db/schema";
 import { finishSession } from "@/lib/session-finish";
 
 /*
@@ -96,6 +96,28 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
      * for the reason the clock is: two timers on one screen that disagree is
      * worse than one that is five seconds stale.
      */
+    /*
+     * Shoot note 1: the transcript saved since the room's last line, both
+     * speakers. The room used to show only what came back on its own uploads,
+     * so the patient's track, saved by another writer, reached the note and
+     * the copilot but never the live panel. Scoped by the owner check above.
+     */
+    const afterParam = new URL(request.url).searchParams.get("after");
+    const afterRaw = afterParam === null || afterParam === "" ? Number.NaN : Number(afterParam);
+    const segments =
+      row.status === "in_progress" && Number.isFinite(afterRaw) && afterRaw >= 0
+        ? await db
+            .select({
+              sequence: transcriptSegments.sequence,
+              speaker: transcriptSegments.speaker,
+              text: transcriptSegments.text,
+            })
+            .from(transcriptSegments)
+            .where(and(eq(transcriptSegments.sessionId, id), gt(transcriptSegments.sequence, Math.floor(afterRaw))))
+            .orderBy(asc(transcriptSegments.sequence))
+            .limit(100)
+        : [];
+
     const { upcomingBookings } = await import("@/lib/data/scheduling");
     const { bookingWarning } = await import("@/lib/scheduling/hours");
     const nextBooking = bookingWarning(await upcomingBookings(actor.userId), new Date());
@@ -124,6 +146,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
        * own screen turns it on, and a Stop or a no turns it off, within a poll.
        */
       recordingConsent: row.recordingConsent,
+      segments,
       nextBooking: nextBooking
         ? { minutes: nextBooking.minutes, startsAt: nextBooking.startsAt.toISOString() }
         : null,

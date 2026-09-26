@@ -239,6 +239,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           <AccessBanner
             patientId={patient.id}
             state={consent.state}
+            gated={consent.gated}
             message={consentMessage}
             canRequest={consent.capabilities.canRequestAccess}
             pendingSince={consent.grant?.status === "pending" ? consent.grant.requestedAt : null}
@@ -253,6 +254,8 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           promiseKey={invitePromiseKey(await inviteReach(patient))}
         />
 
+        {/* Shoot T21: the gate's "Add a diagnosis" link lands here. */}
+        <div id="diagnosis" className="scroll-mt-24">
         <PatientEditor
           patientId={patient.id}
           initial={{
@@ -264,6 +267,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             goals: patient.clinical?.goals ?? [],
           }}
         />
+        </div>
 
         {/* ============================================================= */}
         {/*  3 · ASK ABOUT THEM                                            */}
@@ -320,7 +324,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         {/*  4 · ADD TO THEIR HISTORY                                      */}
         {/* ============================================================= */}
         {consent.state !== "revoked" ? (
-          <div>
+          <div id="history" className="scroll-mt-24">
             <p className="mb-2 px-1 text-[17px] font-bold text-navy-700">
               {t("pprof.addToHistory")}
             </p>

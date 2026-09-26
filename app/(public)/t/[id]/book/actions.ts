@@ -42,6 +42,8 @@ async function said(error: string): Promise<string> {
 export type BookState = {
   error?: string;
   booked?: { startsAt: string; therapistName: string; when: string };
+  /** Shoot P11: the company's benefit paid it, in full or in part. */
+  covered?: "full" | "part" | null;
   /** Whether we could actually tell them, and by what. Reported, never assumed. */
   confirmationSent?: boolean;
   channel?: "email" | "whatsapp" | null;
@@ -226,6 +228,7 @@ export async function book(input: {
       // the message cannot disagree.
       when,
     },
+    covered: result.covered,
     confirmationSent: delivery.sent,
     channel: delivery.channel,
   };

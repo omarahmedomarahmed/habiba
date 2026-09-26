@@ -20,6 +20,7 @@ import {
 } from "@/app/(app)/sessions/actions";
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
 import { callMicMuted } from "@/lib/sessions/may-record";
+import { lastSequence, lineId, mergeLiveLines } from "@/lib/sessions/live-lines";
 import { sessionClock, type ClockLimits } from "@/lib/session-clock";
 import { pressOffRecord } from "@/lib/sessions/off-record";
 import { startWindow, type StartRule, type StartWindow } from "@/lib/sessions/start-window";
@@ -101,6 +102,9 @@ export function SessionRoom(props: RoomProps) {
 
   const [live, setLive] = useState(props.initialStatus === "in_progress");
   const [lines, setLines] = useState<TranscriptLine[]>(props.initialLines);
+  /* Shoot note 1: what the poll asks for is everything saved after this. */
+  const linesRef = useRef(lines);
+  linesRef.current = lines;
   /*
    * A refusal starts the room off record, and the clinician has to overrule it
    * deliberately.
@@ -223,15 +227,12 @@ export function SessionRoom(props: RoomProps) {
           suggestions?: CopilotSuggestion[];
         };
 
-        if (data.text) {
-          setLines((current) => [
-            ...current,
-            {
-              id: `s-${data.sequence}`,
-              speaker: data.speaker ?? speaker,
-              text: data.text!,
-            },
-          ]);
+        if (data.text && data.sequence) {
+          setLines((current) =>
+            mergeLiveLines(current, [
+              { id: lineId(data.sequence!), speaker: data.speaker ?? speaker, text: data.text! },
+            ]),
+          );
         }
         // The chunk response is the push channel — no socket required.
         if (data.crisis) setCrisis(true);
@@ -411,7 +412,14 @@ export function SessionRoom(props: RoomProps) {
     if (!live && props.modality !== "video") return;
     const poll = setInterval(async () => {
       try {
-        const response = await fetch(`/api/sessions/${props.sessionId}/state`, {
+        /*
+         * Shoot note 1: the saved segments ride on this poll too, both
+         * speakers, so a line written by any other writer (the patient's track
+         * from another device, a second tab) reaches this panel as it arrives
+         * rather than only the lines this browser uploaded itself.
+         */
+        const after = lastSequence(linesRef.current);
+        const response = await fetch(`/api/sessions/${props.sessionId}/state?after=${after}`, {
           credentials: "same-origin",
         });
         if (!response.ok) return;
@@ -422,7 +430,16 @@ export function SessionRoom(props: RoomProps) {
           clock?: { endReason?: string | null };
           nextBooking?: { minutes: number; startsAt: string } | null;
           recordingConsent?: "granted" | "declined" | null;
+          segments?: { sequence: number; speaker: TranscriptLine["speaker"]; text: string }[];
         };
+        if (data.segments?.length) {
+          const incoming = data.segments.map((segment) => ({
+            id: lineId(segment.sequence),
+            speaker: segment.speaker,
+            text: segment.text,
+          }));
+          setLines((current) => mergeLiveLines(current, incoming));
+        }
         if (data.recordingConsent !== undefined) applyConsent(data.recordingConsent);
         if (data.patientJoined) setPatientJoined(true);
         /* 🔴 76.35 — `?? null` and never `|| null`: zero seconds is away. */

@@ -1,4 +1,5 @@
 import { LanguageSwitch } from "@/components/i18n/language-switch";
+import { ScrollScrim } from "@/components/i18n/scroll-scrim";
 
 /**
  * 🔴 75.3 — THE SWITCH, IN THE SAME CORNER OF EVERY SIGNED-IN SCREEN.
@@ -31,8 +32,22 @@ import { LanguageSwitch } from "@/components/i18n/language-switch";
  * on its own because it is positioned with `end` rather than `right`, and it
  * carries the safe-area inset so it clears a notch.
  */
-export function LanguageCorner({ beside = null }: { beside?: React.ReactNode } = {}) {
+export function LanguageCorner({
+  beside = null,
+  scrim = false,
+}: {
+  beside?: React.ReactNode;
+  /**
+   * Shoot P19: a band of the page's own colour behind the corner, for a
+   * screen whose content scrolls up under it. The pills were white at 90%
+   * with a blur, so a scrolled page's text read through them and ran between
+   * them. With the band the text fades out before it reaches the controls.
+   */
+  scrim?: boolean;
+} = {}) {
   return (
+    <>
+    {scrim ? <ScrollScrim /> : null}
     <div
       className="pointer-events-none fixed end-0 z-50 flex items-center gap-2 p-2"
       /*
@@ -46,9 +61,11 @@ export function LanguageCorner({ beside = null }: { beside?: React.ReactNode } =
     >
       {/* W2-P09: the patient's notice bell shares the corner rather than covering a Back link. */}
       {beside ? <div className="pointer-events-auto">{beside}</div> : null}
-      <div className="pointer-events-auto rounded-full bg-white/90 shadow-sm ring-1 ring-slate-200 backdrop-blur">
+      {/* Shoot P19: opaque, so nothing scrolled under it reads through. */}
+      <div className="pointer-events-auto rounded-full bg-white shadow-sm ring-1 ring-slate-200">
         <LanguageSwitch />
       </div>
     </div>
+    </>
   );
 }

@@ -7,6 +7,20 @@
  * now comes from where the code went. Pure, so the rule is a test
  * (`tests/board-care.test.ts`).
  */
+/**
+ * Shoot T21: which handle a proving code is for. The number while WhatsApp is
+ * live; the email meanwhile (decision 23), when there is one. A patient with a
+ * number and an address was sent to "is this number yours?" and could never
+ * finish without an SMS that does not exist yet.
+ */
+export function handleChannel(
+  account: { phone: string | null; email: string | null },
+  whatsappLive: boolean,
+): "whatsapp" | "email" {
+  if (account.phone && (whatsappLive || !account.email)) return "whatsapp";
+  return account.email ? "email" : "whatsapp";
+}
+
 export function handleDelivery(
   meant: "whatsapp" | "email",
   reached: readonly string[],

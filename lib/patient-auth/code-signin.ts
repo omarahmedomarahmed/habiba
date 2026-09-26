@@ -241,6 +241,9 @@ export async function signInWithCode(
 
   await createPatientSession(account.id);
   log.info("patient signed in with a code", { account: ref(account.id), channel: row.channel });
+  /* Shoot T21: the handle the code reached is proved, so their own record is theirs. */
+  const { claimOwnPerson } = await import("@/lib/data/claims");
+  await claimOwnPerson(account.id);
 
   return { sent: true, next: patientLanding(formData.get("next")) };
 }

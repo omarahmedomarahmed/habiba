@@ -44,7 +44,7 @@ function SendCode({ label }: { label: string }) {
   );
 }
 
-export function ProveHandle({ handle }: { handle: string }) {
+export function ProveHandle({ handle, byEmail = false }: { handle: string; byEmail?: boolean }) {
   const t = useT();
   const router = useRouter();
   /*
@@ -62,7 +62,7 @@ export function ProveHandle({ handle }: { handle: string }) {
   return (
     <Card className="space-y-4 p-5">
       <div>
-        <p className="text-sm font-semibold text-navy-700">{t("pclaim.handleTitle")}</p>
+        <p className="text-sm font-semibold text-navy-700">{t(byEmail ? "pclaim.handleTitleEmail" : "pclaim.handleTitle")}</p>
         <p className="mt-1 text-sm leading-relaxed text-navy-400">
           {t("pclaim.handleBody", { handle })}
         </p>

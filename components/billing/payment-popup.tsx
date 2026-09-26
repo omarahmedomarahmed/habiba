@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Banknote } from "lucide-react";
 
 import { PayByTransfer, RejectedTransfer } from "@/components/billing/pay-by-transfer";
 import { PAY_OPEN_EVENT } from "@/components/billing/pay-open";
@@ -356,8 +357,8 @@ export function PaymentPopup({
            */
           className="fixed end-3 bottom-24 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-brand-500 text-navy-600 shadow-lg"
         >
-          {/* A banknote, drawn rather than typed, so no font decides its size. */}
-          <span aria-hidden className="block h-4 w-6 rounded-[3px] border-2 border-current" />
+          {/* Shoot P12: the icon set's banknote, not a box drawn from borders. */}
+          <Banknote aria-hidden className="h-5 w-5" strokeWidth={2.25} />
           {live.state === "submitted" ? (
             <span className="absolute -end-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-amber-400" />
           ) : null}

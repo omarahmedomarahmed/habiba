@@ -19,7 +19,7 @@ export async function NoticeBell({ count }: { count: number }) {
     <Link
       href="/patient/notices"
       aria-label={count > 0 ? `${t("pnotice.title")} (${count})` : t("pnotice.title")}
-      className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-navy-600 shadow-sm ring-1 ring-navy-100 backdrop-blur"
+      className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white text-navy-600 shadow-sm ring-1 ring-navy-100"
     >
       <Bell className="h-4 w-4" aria-hidden />
       {count > 0 ? (
