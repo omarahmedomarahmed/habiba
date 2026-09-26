@@ -124,6 +124,17 @@ test("590: a partner's or company's message goes to the professionals' queue, an
   assert.match(queue, /`Overdue \$\{row\.lateHours\}h/);
 });
 
+test("506: with Stripe off, a held balance says how the clinician is paid, not 'No Stripe account'", () => {
+  const card = readFileSync("components/admin/held-balances.tsx", "utf8");
+  const paid = card.indexOf("avault.paidInstapay");
+  const off = card.indexOf("avault.noPayoutMethod");
+  const stripe = card.indexOf("No Stripe account</Badge>");
+  assert.ok(paid > 0 && off > paid && stripe > off, "the manual method, then Stripe off, and only then the Stripe line");
+  const page = readFileSync("app/(admin)/admin/vault/page.tsx", "utf8");
+  assert.match(page, /stripeOn=\{features\.billing\}/);
+  assert.match(page, /payoutMethod: payoutBy\.get\(/);
+});
+
 test("490: a rejected top-up shows on the page, with what was sent, before anything is pressed", () => {
   const popup = readFileSync("components/billing/payment-popup.tsx", "utf8");
   const closed = popup.slice(popup.indexOf("if (!open) {"));

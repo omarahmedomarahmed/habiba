@@ -18,6 +18,8 @@ export type HeldRow = {
   payoutsEnabled: boolean;
   hasAccount: boolean;
   heldCents: number;
+  /** 🔴 Board 506: the default manual payout method, when the clinician has one. */
+  payoutMethod?: "instapay" | "wallet" | "stripe" | null;
 };
 
 /**
@@ -37,7 +39,10 @@ export function HeldBalances({
   rows,
   totalHeldCents,
   outOfBalanceCents,
+  stripeOn = true,
 }: {
+  /** 🔴 Board 506: with Stripe off, a missing Stripe account is not a problem. */
+  stripeOn?: boolean;
   rows: HeldRow[];
   totalHeldCents: number;
   outOfBalanceCents: number;
@@ -90,7 +95,7 @@ export function HeldBalances({
         ) : (
           <ul className="divide-y divide-slate-100">
             {rows.map((row) => (
-              <HeldRowItem key={row.therapistId} row={row} />
+              <HeldRowItem key={row.therapistId} row={row} stripeOn={stripeOn} />
             ))}
           </ul>
         )}
@@ -99,7 +104,8 @@ export function HeldBalances({
   );
 }
 
-function HeldRowItem({ row }: { row: HeldRow }) {
+function HeldRowItem({ row, stripeOn }: { row: HeldRow; stripeOn: boolean }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<React.ReactNode>(null);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +125,16 @@ function HeldRowItem({ row }: { row: HeldRow }) {
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {!row.hasAccount ? (
+        {/*
+          🔴 Board 506: how this clinician is paid, first. With Stripe off (as in
+          Egypt now) every row said "No Stripe account", which names a rail
+          nobody is on as the reason the money has not gone.
+        */}
+        {!row.hasAccount && (row.payoutMethod === "instapay" || row.payoutMethod === "wallet") ? (
+          <Badge tone="slate">{t(row.payoutMethod === "instapay" ? "avault.paidInstapay" : "avault.paidWallet")}</Badge>
+        ) : !row.hasAccount && !stripeOn ? (
+          <Badge tone="amber">{t("avault.noPayoutMethod")}</Badge>
+        ) : !row.hasAccount ? (
           <Badge tone="red">No Stripe account</Badge>
         ) : row.payoutsEnabled ? (
           <Badge tone="amber">Verified, should have released</Badge>

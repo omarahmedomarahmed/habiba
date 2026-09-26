@@ -19,7 +19,8 @@ import {
 } from "@/lib/data/vault";
 import { heldBalances, trialBalance, unbalancedTransactions } from "@/lib/billing/ledger";
 import { reconcileRenewals } from "@/lib/billing/obligations";
-import { adjustableClinicians, allOrganizations } from "@/lib/data/admin";
+import { adjustableClinicians, allOrganizations, defaultPayoutMethods } from "@/lib/data/admin";
+import { features } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { Money as UsdMoney } from "@/components/ui/money";
@@ -78,6 +79,13 @@ export default async function VaultPage() {
 
   const peak = Math.max(1, ...months.map((m) => Math.max(m.collected, m.spent)));
 
+  /*
+   * 🔴 Board 506 (AD11): how each clinician is actually paid. With Stripe off,
+   * an Egyptian clinician is paid by InstaPay or a wallet, and the row said
+   * "No Stripe account" as if that were the problem.
+   */
+  const payoutBy = await defaultPayoutMethods(held.map((row) => row.therapistId!).filter(Boolean));
+
   return (
     <div className="space-y-6">
       <div>
@@ -114,7 +122,9 @@ export default async function VaultPage() {
           payoutsEnabled: row.payoutsEnabled,
           hasAccount: Boolean(row.stripeAccountId),
           heldCents: row.heldCents,
+          payoutMethod: payoutBy.get(row.therapistId!) ?? null,
         }))}
+        stripeOn={features.billing}
         totalHeldCents={books.heldForTherapistsCents}
         outOfBalanceCents={books.outOfBalanceCents}
       />

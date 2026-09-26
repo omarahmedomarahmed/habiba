@@ -2165,6 +2165,10 @@ export const en = {
   "apot.state.cancelled": "Cancelled",
   "avault.heldEach": "Held for clinicians, one by one",
   "avault.owedTotal": "Owed to clinicians, in total",
+  /* 🔴 Board 506: how a clinician is paid while Stripe is off. */
+  "avault.paidInstapay": "Paid by InstaPay",
+  "avault.paidWallet": "Paid to a mobile wallet",
+  "avault.noPayoutMethod": "No payout method yet",
   /* 🔴 53.15 / 53.28 — a sponsor-facing DOCUMENT, so every word of it is a key. */
   "sponsor.inv.title": "Payment receipt",
   "sponsor.inv.taxNumber": "Tax number {id}",
@@ -7198,6 +7202,10 @@ export const ar: Record<MessageKey, string> = {
   "apot.state.cancelled": "أُلغي",
   "avault.heldEach": "محتجز للمعالجين، كلٌّ على حدة",
   "avault.owedTotal": "المستحق للمعالجين، إجمالًا",
+  /* 🔴 Board 506: how a clinician is paid while Stripe is off. */
+  "avault.paidInstapay": "يُدفع له عبر إنستاباي",
+  "avault.paidWallet": "يُدفع له على محفظة الهاتف",
+  "avault.noPayoutMethod": "لم يحدد طريقة استلام بعد",
   "sponsor.inv.title": "إيصال دفع",
   "sponsor.inv.taxNumber": "الرقم الضريبي {id}",
   "sponsor.inv.billedTo": "الفاتورة إلى",
