@@ -31,8 +31,8 @@ fourth full gate.
 | S2 | Round 2 with round 3 folded in, on the live site at day 7 | closed (N13): ORG complete, CARE and OPS-WEB partial after a usage limit; recorded in ROUNDS.md |
 | S3 | Fix every round 2 bug on the redesign branch (N10) | done: batches 1 to 3 merged into `redesign-integration` (65 rows fixed; 666.50 kept per N11; cold starts noted; hydration #418 to be checked on the live site) |
 | S4 | Redesign + round 2 fixes; G2; migrations; push main; confirm live | done: live at d9495cc8 (READY), smoke check green, production seed run |
-| S5 | Walkthrough of rounds 1 and 2 combined on the new design; fix; G3; push main; confirm live | every walkthrough fix merged into the working branch (a8693a81); G3 running |
-| S6 | Report to the founder: rulings table, what needs the founder, what is live | not started |
+| S5 | Walkthrough of rounds 1 and 2 combined on the new design; fix; G3; push main; confirm live | done: live at fed0db9c (READY), functions in pdx1, smoke check green, patient pages 0.2 to 1 s |
+| S6 | Report to the founder: rulings table, what needs the founder, what is live | done (the session's final message; rulings and founder items in RULINGS.md) |
 
 ## After the next deploy to main
 
