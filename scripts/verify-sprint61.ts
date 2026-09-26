@@ -78,6 +78,16 @@ async function main() {
     "'prove the domain' is not actionable; 'publish this record' is",
   );
 
+  {
+    const { translator } = await import("../lib/i18n/server");
+    const arabic = domainProblem({ domain: "example.com", ...none, mailboxProvedAt: at }, translator("ar")) ?? "";
+    check(
+      "🔴 Board 711 the domain's status sentence is in the reader's language",
+      arabic.includes("example.com") && /[؀-ۿ]/.test(arabic) && !/somebody|still need/i.test(arabic),
+      "an Arabic company read an English sentence under an Arabic heading",
+    );
+  }
+
   /* ================================================================== */
   /*  61.5, 61.6 · what a stranger can learn                             */
   /* ================================================================== */

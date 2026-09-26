@@ -62,7 +62,7 @@ export default async function SponsorDomainsPage() {
               mailboxProvedAt: row.mailboxProvedAt,
               dnsProvedAt: row.dnsProvedAt,
               agreementApprovedAt: row.agreementApprovedAt,
-            }),
+            }, t),
           }))}
         />
       </div>
