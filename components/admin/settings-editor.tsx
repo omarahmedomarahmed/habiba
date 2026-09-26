@@ -555,7 +555,7 @@ export function CountryEditor({
         <Field
           label="Regulators"
           htmlFor={`reg-${country.code}`}
-          hint="One per line. For Arabic readers, add the Arabic name after a bar: Ministry of Health | وزارة الصحة"
+          hint="One per line. Arabic after |"
         >
           <Textarea
             id={`reg-${country.code}`}

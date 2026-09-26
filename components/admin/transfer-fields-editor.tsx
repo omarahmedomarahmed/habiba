@@ -73,13 +73,13 @@ export function TransferFieldsEditor({
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">How Egypt pays us</p>
       <p className="mt-1 text-xs text-slate-500">
-        Until there is a gateway, this is the rail. Shown in this order.
+        Shown in this order.
       </p>
 
       {locked ? (
         <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
           {inFlight} payment{inFlight === 1 ? "" : "s"} in flight against these details. Clear the
-          transfers queue before editing, or somebody transfers into an account nobody is checking.
+          transfers queue before editing.
         </p>
       ) : null}
 
@@ -129,7 +129,7 @@ export function TransferFieldsEditor({
             */}
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <label className="text-xs text-slate-600">
-                Name in Arabic (optional)
+                Arabic name
                 <input
                   name="fieldLabelAr"
                   dir="rtl"
@@ -141,7 +141,7 @@ export function TransferFieldsEditor({
                 />
               </label>
               <label className="text-xs text-slate-600">
-                Note in Arabic (optional)
+                Arabic note
                 <input
                   name="fieldHintAr"
                   dir="rtl"
