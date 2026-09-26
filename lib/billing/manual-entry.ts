@@ -50,6 +50,12 @@ export type RejectedLive = {
   reason: string;
   sentLabel?: string;
   reference?: string | null;
+  /**
+   * 🔴 Board 828: what the turned-down claim was for, in USD cents. "Send it
+   * again" reopens the sheet at this figure; it reopened at the floor, and a
+   * company resubmitted an EGP 11,400 receipt against an EGP 5,700 claim.
+   */
+  settlesCents?: number;
 };
 
 /** What a screen renders. Assembled once so no flow has to sequence the calls. */
@@ -59,7 +65,8 @@ export type ManualEntry = {
   details: Awaited<ReturnType<typeof transferDetails>>;
   live:
     | { state: "none" }
-    | { state: "awaiting_proof"; paymentId: string }
+    /* 🔴 Board 828: the figure the open cart was opened at, so the sheet reopens there. */
+    | { state: "awaiting_proof"; paymentId: string; settlesCents?: number }
     | {
         state: "submitted";
         paymentId: string;
@@ -305,9 +312,18 @@ export async function manualEntry(input: {
    * is: C84 bans `Intl` inside a client component, and these are figures a payer
    * checks their total against.
    */
+  /*
+   * 🔴 Board 706: a seat line is stored English arithmetic ("1 seats from 0,
+   * for the 5 days left of this month"), frozen on the payment when it opened.
+   * It is said in the reader's language here, from its parts; any other label
+   * is shown as stored.
+   */
+  const { translator } = await import("@/lib/i18n/server");
+  const { seatBillText } = await import("./seat-label");
+  const tr = translator(input.locale.toLowerCase().startsWith("ar") ? "ar" : "en");
   const asLines = (items: PaymentLine[] | null | undefined) =>
     (items ?? []).map((item) => ({
-      label: item.label,
+      label: seatBillText(item.label, tr),
       amountLabel: formatMoney(egpMinorFor(item.cents, rateMicro), "EGP", input.locale),
       /*
        * 🔴 76.27 — THE SIGN IS DECIDED HERE, on the server, and travels as a
@@ -349,7 +365,7 @@ export async function manualEntry(input: {
               submittedAt: live.submittedAt?.toISOString() ?? null,
               hasProof: Boolean(live.proofUrl),
             }
-          : { state: "awaiting_proof", paymentId: live.id },
+          : { state: "awaiting_proof", paymentId: live.id, settlesCents: live.settlesCents },
     };
   }
 
@@ -377,6 +393,7 @@ export async function manualEntry(input: {
           reason: lastRejection.rejectReason ?? "",
           sentLabel: formatMoney(lastRejection.amountCents, lastRejection.currency.toUpperCase(), input.locale),
           reference: lastRejection.reference ?? null,
+          settlesCents: lastRejection.settlesCents,
         }
       : { state: "none" },
   };
@@ -454,6 +471,24 @@ export type PotStep = {
   /** How many sessions this covers at their coverage rate. */
   sessions: number;
 };
+
+/**
+ * 🔴 Board 828: WHICH RUNG THE STEPPER STARTS ON.
+ *
+ * The rung whose total is the figure already committed: the open cart's, or a
+ * turned-down claim's, so "Send it again" and a reopened sheet both come back
+ * at the amount the payer sent rather than at the floor. The floor when there
+ * is no such figure or it is not on the ladder any more.
+ */
+export function potStartRung(
+  steps: Pick<PotStep, "settlesCents">[],
+  live: { state: string; settlesCents?: number },
+): number {
+  if (live.state !== "awaiting_proof" && live.state !== "rejected") return 0;
+  if (live.settlesCents == null) return 0;
+  const at = steps.findIndex((step) => step.settlesCents === live.settlesCents);
+  return at < 0 ? 0 : at;
+}
 
 /**
  * 🔴 76.1 — EVERY LABEL ON THE STEPPER IS BUILT HERE, AND THAT IS THE POINT.

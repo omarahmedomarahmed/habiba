@@ -2,10 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { contentSecurityPolicy, cspHeaderName, isVideoRoom } from "@/lib/security/csp";
 import { DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/i18n/config";
-import { isLocalisable, LOCALE_HEADER, splitLocale } from "@/lib/i18n/paths";
+import { englishOnly, isLocalisable, LOCALE_HEADER, splitLocale } from "@/lib/i18n/paths";
 import {
   bounceNext,
   CLINIC_COOKIE,
+  orgCookieToClear,
   PARTNER_COOKIE,
   PATIENT_COOKIE,
   routeDecision,
@@ -156,8 +157,11 @@ export function middleware(request: NextRequest) {
    * this function, because the matcher excludes only `api/`, `_next` and image
    * extensions, and none of those is a page.
    */
+  /* 🔴 Board 651: a stale org cookie is cleared at its own landing, in the same response. */
+  const staleCookie = orgCookieToClear(rest, request.nextUrl.searchParams.get("expired") === "1");
   const withPolicy = <T extends NextResponse>(response: T): T => {
     response.headers.set(header, policy);
+    if (staleCookie && request.cookies.get(staleCookie)) response.cookies.delete(staleCookie);
     return response;
   };
 
@@ -171,6 +175,8 @@ export function middleware(request: NextRequest) {
    * and a crawler that saw it would be right to distrust the rest.
    */
   forwarded.delete(LOCALE_HEADER);
+  /* 🔴 N17 / board 921: the console reads in English whatever the cookie says. */
+  if (englishOnly(rest)) forwarded.set(LOCALE_HEADER, "en");
 
   if (!prefixed) {
     return withPolicy(NextResponse.next({ request: { headers: forwarded } }));

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { useT } from "@/lib/i18n/client";
+import { recoverFromChunkError } from "@/lib/chunk-recovery";
 
 /**
  * 🔴 0165: THE LIVE ROOM'S OWN BOUNDARY.
@@ -27,6 +28,8 @@ export default function RoomError({
   const t = useT();
 
   useEffect(() => {
+    /* 🔴 Board 929 (B7): a script that did not arrive is fetched again, once, before this is shown. */
+    if (recoverFromChunkError(error)) return;
     if (error.digest) console.error("room route error", error.digest);
   }, [error]);
 

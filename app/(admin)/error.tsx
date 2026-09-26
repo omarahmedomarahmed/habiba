@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { Button } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
+import { recoverFromChunkError } from "@/lib/chunk-recovery";
 
 /**
  * 🔴 A18: THE CONSOLE'S OWN BOUNDARY, so a failed page keeps the console.
@@ -30,6 +31,8 @@ export default function AdminError({
   const t = useT();
 
   useEffect(() => {
+    /* 🔴 Board 929 (B7): a script that did not arrive is fetched again, once, before this is shown. */
+    if (recoverFromChunkError(error)) return;
     if (error.digest) console.error("admin route error", error.digest);
   }, [error]);
 

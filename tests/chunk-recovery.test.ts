@@ -28,3 +28,16 @@ test("B7: it reloads once, and a second failure on the same path shows the page"
   assert.equal(shouldReload(chunk, "/x", null, 5_000), false, "no storage, no guard, no reload");
   assert.equal(shouldReload(new Error("boom"), "/y", memory(), 5_000), false);
 });
+
+test("board 929: every route group's error screen retries a chunk that did not arrive before saying something went wrong", async () => {
+  const { readdirSync, readFileSync, existsSync } = await import("node:fs");
+  const missing = readdirSync("app", { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => `app/${entry.name}/error.tsx`)
+    .filter((file) => existsSync(file))
+    .filter((file) => {
+      const source = readFileSync(file, "utf8");
+      return !/recoverFromChunkError\(error\)/.test(source) && !/<RouteError\b/.test(source);
+    });
+  assert.deepEqual(missing, [], "these show 'Something went wrong' for a script a reload would fetch");
+});

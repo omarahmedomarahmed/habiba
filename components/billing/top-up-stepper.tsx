@@ -36,8 +36,15 @@ export function TopUpStepper({
   onConfirm,
   onChoose,
   onStep,
+  start = 0,
 }: {
   steps: PotStep[];
+  /**
+   * 🔴 Board 828: the rung to open on. The open cart's figure, or a turned-down
+   * claim's, chosen on the server (`potStartRung`). It always opened at the
+   * floor, so "Send it again" on a rejected EGP 11,400 top-up offered EGP 5,700.
+   */
+  start?: number;
   /** Rendered under the summary. Receives the chosen credit, in USD cents. */
   onConfirm: (step: PotStep) => React.ReactNode;
   /**
@@ -57,7 +64,7 @@ export function TopUpStepper({
   onStep?: (step: PotStep, index: number) => void;
 }) {
   const t = useT();
-  const [i, setI] = useState(0);
+  const [i, setI] = useState(() => Math.min(Math.max(0, start), Math.max(0, steps.length - 1)));
   /*
    * 🔴 B20 — ONLY A STEP SOMEBODY TOOK IS A CHOICE. This fired on mount too, so
    * the floor was saved as a choice whenever the stepper appeared: including

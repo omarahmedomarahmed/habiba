@@ -58,7 +58,7 @@ export type TransferView = {
 
 export type LiveState =
   | { state: "none" }
-  | { state: "awaiting_proof"; paymentId: string }
+  | { state: "awaiting_proof"; paymentId: string; settlesCents?: number }
   | { state: "submitted"; paymentId: string; submittedAt: string | null; hasProof?: boolean }
   | RejectedLive;
 
@@ -139,6 +139,8 @@ export function PayByTransfer({
   lines,
   hideCardsSoon = false,
   onChoose,
+  startIndex = 0,
+  footer,
 }: {
   details: TransferView;
   /** "1,000 EGP", already formatted by the server in the payer's language. */
@@ -186,6 +188,10 @@ export function PayByTransfer({
   hideCardsSoon?: boolean;
   /** 🔴 76.13 — saves the company's chosen figure as their open payment. */
   onChoose?: (creditCents: number) => Promise<void>;
+  /** 🔴 Board 828: the stepper's first rung, the figure already committed. */
+  startIndex?: number;
+  /** 🔴 Board 895: under the form, where the way out of an open payment sits. */
+  footer?: React.ReactNode;
 }) {
   const t = useT();
   /* 🔴 Board 364: the operator's words for each account line, in the reader's language. */
@@ -412,6 +418,8 @@ export function PayByTransfer({
         */}
         {askAmount && steps ? (
           <TopUpStepper
+            key={startIndex}
+            start={startIndex}
             steps={steps}
             onChoose={onChoose}
             onStep={onStep}
@@ -432,6 +440,11 @@ export function PayByTransfer({
         <input
           id="transfer-ref"
           name="reference"
+          /*
+            🔴 Board 828: sending again after a turn-down is usually the same
+            transfer, so its reference comes back with it, not an empty box.
+          */
+          defaultValue={live.state === "rejected" ? (live.reference ?? "") : undefined}
           placeholder={t("transfer.refPlaceholder")}
           className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900"
         />
@@ -456,6 +469,7 @@ export function PayByTransfer({
 
         <Declare />
       </form>
+      {footer ? <div className="mt-3">{footer}</div> : null}
     </Card>
     </>
   );

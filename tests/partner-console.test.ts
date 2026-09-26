@@ -87,6 +87,10 @@ test("611: staff attach a practice by a clinician's email, as partner-billed", a
   assert.equal(result.practice?.id, practice);
   assert.deepEqual(await billing(), { partnerId: helio, mode: "partner_billed" });
   assert.deepEqual((await practicesFor(helio)).map((p) => p.id), [practice]);
+  /* 🔴 Board 934: listed by the clinician's address, and the internal slug is not in the row. */
+  const [row] = await practicesFor(helio);
+  assert.equal(row?.contactEmail, clinicianEmail.toLowerCase());
+  assert.equal("slug" in (row ?? {}), false);
 });
 
 test("611: another partner cannot take a practice that is already on a bill", async () => {
@@ -197,4 +201,25 @@ test("620: the partner's webhook form says what events do, never our build statu
     assert.doesNotMatch(words, /not built|not live|build/i, `${key} talks about our build`);
     assert.ok(ar[key as keyof typeof ar], `${key} has Arabic`);
   }
+});
+
+/* ------------------------------------------------------------ board 932 -- */
+
+test("board 932: a live subject can be linked, by the patient's own act, through a signed link", async () => {
+  const { subjectLinkToken, readSubjectLinkToken } = await import("../lib/partner/subject-link");
+  const id = "0b7a1c2e-3f40-4a5b-8c6d-7e8f90a1b2c3";
+  const later = new Date(Date.now() + 60_000);
+  const token = subjectLinkToken(id, later);
+  assert.deepEqual(readSubjectLinkToken(token), { subjectId: id });
+
+  /* A changed subject, a changed expiry or an old link resolves to nobody. */
+  const [, exp, mac] = token.split(".");
+  assert.equal(readSubjectLinkToken(`0b7a1c2e-3f40-4a5b-8c6d-7e8f90a1b2c4.${exp}.${mac}`), null);
+  assert.equal(readSubjectLinkToken(`${id}.${Number(exp) + 999}.${mac}`), null);
+  assert.equal(readSubjectLinkToken(token, new Date(later.getTime() + 1000)), null);
+
+  /* Only an empty, unrevoked subject is filled, and the person is the session's. */
+  assert.match(readFileSync("lib/partner/subject-link.ts", "utf8"), /isNull\(partnerSubjects\.personId\)/);
+  assert.match(readFileSync("app/(patient)/patient/link/[token]/actions.ts", "utf8"), /personId: actor\.personId/);
+  assert.match(readFileSync("app/api/partner/v1/subjects/[ref]/link/route.ts", "utf8"), /subjectLinkFor\(/);
 });

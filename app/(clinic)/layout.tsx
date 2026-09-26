@@ -1,8 +1,9 @@
 import { ClinicChrome } from "@/components/clinic/chrome";
 import { getClinicActor } from "@/lib/clinic-auth/session";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { isClinicDoor } from "@/lib/routing";
+import { CLINIC_COOKIE, isClinicDoor, orgExpiredLanding } from "@/lib/routing";
 
 /**
  * The clinic shell. PLAN.md 54.12, §3f, C259.
@@ -52,7 +53,22 @@ export default async function ClinicLayout({ children }: { children: React.React
    * switch.
    */
   /* 🔴 W2-C07: every door, not only the sign-in, and no rail over one. */
-  const door = isClinicDoor(head.get("x-pathname") ?? "");
+  const path = head.get("x-pathname") ?? "";
+  const door = isClinicDoor(path);
+
+  /*
+   * 🔴 Board 651: A STALE COOKIE GOES TO THE DOOR FROM HERE, IN ONE REDIRECT.
+   *
+   * The page's own guard found it first, but the page sits under a loading
+   * screen, so its redirect came from inside a streamed response and the
+   * browser followed it on the client: five navigations and ten seconds to
+   * reach the sign-in form. A layout above the loading boundary redirects
+   * before anything is flushed, and middleware clears the cookie at the
+   * landing (`orgCookieToClear`). Never on a door, which this layout wraps.
+   */
+  if (!actor && !door && path.startsWith("/clinic") && (await cookies()).get(CLINIC_COOKIE)?.value) {
+    redirect(orgExpiredLanding("clinic"));
+  }
 
   return (
     <ClinicChrome

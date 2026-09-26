@@ -361,6 +361,24 @@ export function orgExpiredLanding(portal: OrgPortal): string {
   return `${ORG_DOORS[portal].signIn}?expired=1`;
 }
 
+/**
+ * 🔴 Board 651: THE COOKIE MIDDLEWARE CLEARS ON THE WAY THROUGH A LANDING.
+ *
+ * A stale clinic cookie took five navigations and ten seconds to reach the
+ * sign-in form: the page's guard redirected from inside a streamed response
+ * (after the loading screen had flushed), the browser followed it on the
+ * client, then the route handler that deletes the cookie redirected again.
+ * Middleware can set cookies, so the landing itself clears the portal's
+ * cookie, and the layout sends a stale holder straight there: one redirect.
+ */
+export function orgCookieToClear(pathname: string, expired: boolean): string | null {
+  if (!expired) return null;
+  if (pathname === CLINIC_SIGN_IN) return CLINIC_COOKIE;
+  if (pathname === SPONSOR_SIGN_IN) return SPONSOR_COOKIE;
+  if (pathname === PARTNER_SIGN_IN) return PARTNER_COOKIE;
+  return null;
+}
+
 export type Principal = {
   /** For the tests and for a failure message somebody has to read. */
   name: string;

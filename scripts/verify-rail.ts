@@ -229,7 +229,8 @@ async function main() {
    */
   check(
     "🔴 …and the stepper holds an INDEX, never an amount it formats itself",
-    /useState\(0\)/.test(stepper) &&
+    /* Board 828: the index may start at a server-chosen rung; it is still an index. */
+    /const \[i, setI\] = useState\((0|\(\) => Math\.min\(Math\.max\(0, start\))/.test(stepper) &&
       !/Intl\./.test(stepper) &&
       !/toLocaleString/.test(stepper) &&
       !/toFixed/.test(stepper),

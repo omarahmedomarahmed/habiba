@@ -156,3 +156,9 @@ test("board 957 a reply and a close moments apart send one link and one code, an
     }
   }
 });
+
+test("board 958: the reply box and the close summary ask for different things", () => {
+  const queue = readFileSync("components/admin/support-queue.tsx", "utf8");
+  assert.match(queue, /name="reply"[^>]*placeholder=\{t\("asupport\.answerHint"\)\}/);
+  assert.match(queue, /name="summary"[^>]*placeholder=\{t\("asupport\.replyHint"\)\}/);
+});

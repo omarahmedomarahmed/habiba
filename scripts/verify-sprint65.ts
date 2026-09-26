@@ -204,7 +204,6 @@ async function main() {
   for (const [shell, layout, chrome] of [
     ["therapist", "app/(app)/layout.tsx", null],
     ["patient", "app/(patient)/layout.tsx", null],
-    ["admin", "app/(admin)/layout.tsx", null],
     ["room", "app/(room)/layout.tsx", null],
     ["partner", "app/(partner)/layout.tsx", null],
     ["sponsor", "app/(sponsor)/layout.tsx", "components/sponsor/chrome.tsx"],
@@ -219,6 +218,18 @@ async function main() {
       chrome === null ? "the corner, in the layout" : "the rail, through the desk",
     );
   }
+
+  /*
+   * 🔴 Ruling N17 (board 921): THE CONSOLE IS THE ONE EXCEPTION, and it is an
+   * exception with its own rule. It offered Arabic over screens that stayed
+   * English, so for launch it has no switch and middleware pins it to English.
+   */
+  check(
+    "🔴 N17 the staff console has no language switch and is pinned to English",
+    !/<LanguageCorner|<LanguageSwitch/.test(readSource("app/(admin)/layout.tsx")) &&
+      /englishOnly\(rest\)\) forwarded\.set\(LOCALE_HEADER, "en"\)/.test(readSource("middleware.ts")),
+    "a switch that changes nothing on the screens it sits on",
+  );
 
   /*
    * 🔴 CONTROL — the same clause, against a desk that renders no switch.

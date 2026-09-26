@@ -161,3 +161,13 @@ test("🔴 B32 every legal page has an Arabic title, description and footer labe
   // The integrations page has no English literal heading left.
   assert.doesNotMatch(await source("app/(public)/integrations/page.tsx"), /What this connects to|title="HR systems"/);
 });
+
+test("N17 / board 921: the staff console and its doors are English-only, nothing else is", async () => {
+  const { englishOnly } = await import("../lib/i18n/paths");
+  for (const path of ["/admin", "/admin/vault", "/staff/sign-in", "/staff/second-step"]) {
+    assert.equal(englishOnly(path), true, path);
+  }
+  for (const path of ["/", "/administration", "/clinic", "/sponsor/pot", "/patient", "/support"]) {
+    assert.equal(englishOnly(path), false, path);
+  }
+});

@@ -156,3 +156,16 @@ export function alternatesFor(
 
   return { canonical: `${appUrl}${localisedPath(rest, locale)}`, languages };
 }
+
+/**
+ * 🔴 Ruling N17 (board 921): THE STAFF CONSOLE IS ENGLISH-ONLY FOR LAUNCH.
+ *
+ * It offered an Arabic switch over screens that stayed almost all English. The
+ * console and its sign-in doors render English whatever the reader's cookie
+ * says: middleware pins the request's language header for these paths, the
+ * same header a `/ar` public URL sets, so every server and client string on
+ * them agrees. Their language switch is gone.
+ */
+export function englishOnly(pathname: string): boolean {
+  return /^\/(admin|staff)(\/|$)/.test(pathname);
+}
