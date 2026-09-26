@@ -144,7 +144,7 @@
     "verify:w2s": "node --env-file-if-exists=.env.local --import tsx --import ./scripts/_render-preload.mjs scripts/verify-w2s.ts",
     "verify:w1d": "node --env-file-if-exists=.env.local --import tsx --import ./scripts/_render-preload.mjs scripts/verify-w1d.ts",
     "verify:palette": "node --import tsx scripts/verify-palette.ts",
-    "verify:contrast": "node --import tsx scripts/verify-contrast.ts",
+    "verify:contrast": "node --env-file-if-exists=.env.local --import tsx scripts/verify-contrast.ts",
     "verify:machines": "node --import tsx scripts/verify-machines.ts",
     "verify:traps": "node --import tsx scripts/verify-traps.ts",
     "verify:csp": "node --import tsx scripts/verify-csp.ts",
