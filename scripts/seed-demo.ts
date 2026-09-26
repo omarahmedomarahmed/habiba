@@ -9,6 +9,15 @@
  *
  *     npm run on:production -- seed:demo -- --scenario=money
  *
+ * 🔴 AND A SIXTH THAT IS NOT A POSITION BUT A DIFFERENT CAST:
+ *
+ *     npm run on:production -- seed:demo -- --scenario=event
+ *
+ * The founders' demo video as seventeen shareable logins, for a startup event.
+ * Same wipe, same console logins on the private password, then
+ * `_seed-event.ts` writes the cast in `_event-cast.ts`. `verify:event-demo`
+ * reads it back and `docs/DEMO-LOGINS.md` is its login sheet.
+ *
  * `scripts/_value-statements.ts` holds the five and what each is walked to
  * prove. Each is a COMPLETE position rather than a diff: this script wipes and
  * rebuilds every time, so there is no order dependence between them and a
@@ -57,6 +66,7 @@ import { sql } from "drizzle-orm";
 
 import { hashPassword } from "../lib/auth/password";
 import { DEMO_LOGINS, DEMO_PASSWORD, UNCLAIMED_EMAIL, privatePassword } from "./_demo-cast";
+import { isEventScenario } from "./_event-cast";
 import { scenario, scenarioFrom, TUNING } from "./_value-statements";
 import { connect } from "./db";
 import { writesTo } from "./_verify";
@@ -103,10 +113,23 @@ async function main() {
    * second one by name.
    */
   const empty = process.argv.includes("--empty");
-  const name = scenarioFrom(process.argv.slice(2).filter((a) => a !== "--empty"));
+  /*
+   * 🔴 `--scenario=event` IS NOT ONE OF THE FIVE, and is recognised first.
+   *
+   * The five positions are walks over the everyday cast and `scenarioFrom`
+   * refuses anything else, which is right for them. The event cast is a
+   * different cast altogether (`_event-cast.ts`), so it shares only the wipe
+   * and the console logins below and then hands over to `_seed-event.ts`.
+   */
+  const event = isEventScenario(process.argv.slice(2));
+  const name = scenarioFrom(event ? [] : process.argv.slice(2).filter((a) => a !== "--empty"));
   const position = scenario(name);
   const tuning = TUNING[name];
-  console.log(`\n  🔴 scenario: ${name}. ${position.title}\n`);
+  console.log(
+    event
+      ? "\n  🔴 scenario: event. The founders' demo video, as logins to hand out.\n"
+      : `\n  🔴 scenario: ${name}. ${position.title}\n`,
+  );
 
   const { db, pool } = connect();
   const one = async <T>(text: ReturnType<typeof sql>): Promise<T> => {
@@ -349,10 +372,13 @@ async function main() {
               'Africa/Cairo')
       RETURNING id`);
 
-    if (empty) {
+    if (empty || event) {
       /* The two demo practices were laid down above with the platform; they are people-shaped, so they go. */
       await db.execute(sql`DELETE FROM subscriptions WHERE organization_id IN (${solo.id}, ${clinic.id})`);
       await db.execute(sql`DELETE FROM organizations WHERE id IN (${solo.id}, ${clinic.id})`);
+    }
+
+    if (empty) {
       console.log("\n🔴 Emptied. The platform organisation and the founder's console login are all that is left.");
       console.log("   next: npm run on:production -- simulate:seed   (docs/simulation/00-START-HERE.md)\n");
       void admin;
@@ -371,6 +397,19 @@ async function main() {
       INSERT INTO users (organization_id, email, first_name, last_name, role, password_hash, status, timezone)
       VALUES (${platform.id}, 'staff.demo@example.com', 'Sami', 'Demo', 'staff', ${privateHash}, 'active',
               'Africa/Cairo')`);
+
+    /*
+     * 🔴 THE EVENT CAST TAKES OVER HERE, with the console and the support
+     * account already written on the private password, exactly as above. The
+     * third private login, the company `habiba@24therapy.app`, belongs to the
+     * everyday cast's Habiba Holdings and is not created: the event's companies
+     * are invented, and a real inbox on one would be told about its transfers.
+     */
+    if (event) {
+      const { seedEvent } = await import("./_seed-event");
+      await seedEvent({ db, adminId: admin.id });
+      return;
+    }
 
     /*
      * 🔴 `verification_status` IS NOT WRITTEN HERE, AND MUST NOT BE.
