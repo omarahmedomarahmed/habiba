@@ -24,6 +24,7 @@ import { wordsFor } from "@/lib/i18n/message-words";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
+import { ticketAudience } from "@/lib/data/ticket-audience";
 import { callerKey, consume, globalCeiling } from "@/lib/rate-limit";
 
 /*
@@ -98,22 +99,6 @@ export type TicketInput = {
 export type TicketResult =
   | { ok: true; reference: string; dueAt: Date; id: string }
   | { ok: false; error: string };
-
-/**
- * 🔴 Board 590 (AD17.1): WHICH QUEUE A CONTACT-FORM MESSAGE GOES TO.
- *
- * The public form never said, so every message landed in Patients, including
- * a partner developer asking about production approval. The second queue is
- * the professionals' queue: clinicians, practices, companies and partners.
- * A message goes there when its topic is theirs, or when its sender is one of
- * them whatever topic they chose. Two queues are kept (the column's CHECK
- * allows two); the words on the tab say who the second one is for.
- */
-const PROFESSIONAL_TOPICS: readonly TicketTopic[] = ["joining_as_a_therapist", "a_partnership", "a_company"];
-
-export function ticketAudience(topic: TicketTopic, fromProfessional: boolean): "patient" | "therapist" {
-  return fromProfessional || PROFESSIONAL_TOPICS.includes(topic) ? "therapist" : "patient";
-}
 
 /** Whether an address belongs to a clinician, a partner developer, a practice manager or a company user. */
 async function professionalSender(email: string | null): Promise<boolean> {

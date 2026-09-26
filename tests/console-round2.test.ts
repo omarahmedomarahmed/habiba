@@ -113,7 +113,7 @@ test("564: a card says documents were not kept only while none are there", () =>
 });
 
 test("590: a partner's or company's message goes to the professionals' queue, and late is said in words", async () => {
-  const { ticketAudience } = await import("../lib/data/support");
+  const { ticketAudience } = await import("../lib/data/ticket-audience");
   assert.equal(ticketAudience("a_partnership", false), "therapist");
   assert.equal(ticketAudience("a_company", false), "therapist");
   assert.equal(ticketAudience("something_else", true), "therapist", "a known partner developer, whatever the topic");

@@ -99,7 +99,7 @@ export function usd(cents: number): string {
 type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 /** A balance's name in words: whose it is and which account, never the code. */
-export function balanceLabel(
+function balanceLabel(
   t: Translate,
   account: LedgerAccount,
   names: { clinician?: string | null; org?: string | null },
