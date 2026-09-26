@@ -2,6 +2,8 @@ import { Card } from "@/components/ui";
 import { LOCALES, LOCALE_NAMES, type Locale } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 
+import { LanguageSave } from "./language-save";
+
 /**
  * 🔴 0169 / RULING 8: the language this person reads in, and every message we
  * send them. A plain form, no JavaScript: it works on the phones this product
@@ -41,12 +43,7 @@ export async function LanguageSetting({
             ))}
           </select>
         </label>
-        <button
-          type="submit"
-          className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white active:bg-slate-700"
-        >
-          {t("lang.save")}
-        </button>
+        <LanguageSave />
       </form>
       {justSaved ? (
         <p role="status" className="mt-2 text-sm font-medium text-emerald-700">
