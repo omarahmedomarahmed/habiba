@@ -261,8 +261,23 @@ export function ClinicConsole({ initial = "week" }: { initial?: string }) {
  * 🔴 THE ROTA HAS THE REAL ROTA'S COLUMNS: who, with whom, and when. The real
  * `/clinic` rota never showed video or in person, so neither does this.
  */
+/** The week the example rota is in, and each row's day, written in the page's language. */
+const WEEK_OF = Date.UTC(2026, 2, 9);
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function rotaWhen(day: string, time: string, locale: "en" | "ar"): string {
+  const weekday = new Intl.DateTimeFormat(dateTag(locale), { weekday: "short", timeZone: "UTC" }).format(
+    new Date(WEEK_OF + Math.max(0, DAYS.indexOf(day)) * 86_400_000),
+  );
+  return `${weekday} ${time}`;
+}
+
 function ClinicWeek() {
   const t = useT();
+  const locale = useLocale();
+  const monday = new Intl.DateTimeFormat(dateTag(locale), { day: "numeric", month: "long", timeZone: "UTC" }).format(
+    new Date(WEEK_OF),
+  );
   const clinicians = new Set(CLINIC_WEEK.map((row) => row.clinician)).size;
   return (
     <>
@@ -272,7 +287,7 @@ function ClinicWeek() {
         <span className="flex h-8 w-8 items-center justify-center rounded-xl text-navy-500">
           <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden />
         </span>
-        <span className="min-w-0 truncate text-[13.5px] font-bold text-navy-700">{t("clinic.week", { date: "9 March" })}</span>
+        <span className="min-w-0 truncate text-[13.5px] font-bold text-navy-700">{t("clinic.week", { date: monday })}</span>
         <span className="flex h-8 w-8 items-center justify-center rounded-xl text-navy-500">
           <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
         </span>
@@ -298,7 +313,7 @@ function ClinicWeek() {
               </div>
               <span className="flex shrink-0 items-center gap-1 text-[12px] font-semibold tabular-nums text-navy-600">
                 <Clock className="h-3 w-3 text-navy-400" aria-hidden />
-                {row.day} {row.time}
+                {rotaWhen(row.day, row.time, locale)}
               </span>
             </div>
           ))}
@@ -467,7 +482,7 @@ function CompanyOverview() {
     <>
       <Head title={t("sponsor.nav.overview")} action={<Primary icon={Plus}>{t("sponsor.topUp")}</Primary>} />
 
-      <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="grid gap-2.5">
         <Card className="relative overflow-hidden p-4">
           <Glow className="-end-20 -top-20 h-48 w-48 opacity-40" />
           <div className="relative flex items-center gap-4">
