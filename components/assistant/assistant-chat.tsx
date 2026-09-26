@@ -9,6 +9,7 @@ import { Badge, Card } from "@/components/clinician/kit";
 import { linkRoster, type RosterEntry } from "@/lib/assistant/roster";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import { countKey } from "@/lib/i18n/count-form";
 
 /**
  * The general copilot. PLAN.md 10.1–10.5.
@@ -145,7 +146,7 @@ export function AssistantChat({
               clinician glancing at this wants to know whether to ask, not to
               be scored on how much they have used.
             */}
-            <Badge tone={remaining <= 5 ? "amber" : "slate"}>{remaining} left this month</Badge>
+            <Badge tone={remaining <= 5 ? "amber" : "slate"}>{t(countKey("tach.left", remaining), { count: remaining })}</Badge>
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">

@@ -233,6 +233,33 @@ async function main() {
         !readSource("components/assistant/prefs-prompt.tsx").includes("Speed ·"),
       "'Speed · 1.0×' on /settings in Arabic",
     );
+    /* Board 679 / 824: the redesigned clinician screens, in the reader's language and counted. */
+    const { invoiceLabel } = await import("../lib/billing/invoice-label");
+    check(
+      "Board 679 an invoice line this product wrote is read in the reader's language; an admin's own stays",
+      invoiceLabel("First session, on us", ar as never) === dict.ar?.["tinv.firstFree"] &&
+        invoiceLabel("Typed by an admin", ar as never) === "Typed by an admin",
+      "'First session, on us' on the Arabic bill",
+    );
+    const english679: string[] = [];
+    for (const [file, literal] of [
+      ["app/(app)/sessions/page.tsx", /\} min`|" · Video"/],
+      ["app/(app)/sessions/[id]/page.tsx", /\} min`/],
+      ["app/(app)/patients/page.tsx", /session\{patient\.sessionCount|`last \$\{/],
+      ["components/assistant/assistant-chat.tsx", /left this month/],
+      ["components/billing/plan-card.tsx", /\{current\.name\}/],
+      ["app/(app)/billing/page.tsx", /description: invoice\.description/],
+    ] as const) {
+      if (literal.test(readSource(file))) english679.push(file);
+    }
+    const { countKey } = await import("../lib/i18n/count-form");
+    check(
+      "Board 679 no English literal left on the Arabic clinician screens the walkthrough named, and counts take their Arabic forms",
+      english679.length === 0 &&
+        ar(countKey("tses.minutes", 1)) === "دقيقة واحدة" &&
+        ar(countKey("tses.count", 2)) === "جلستان",
+      english679.join(", ") || "counted",
+    );
 
     /* ------------------------------------------------ B37 · the list follows the uploads */
 

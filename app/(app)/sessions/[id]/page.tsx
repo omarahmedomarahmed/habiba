@@ -25,6 +25,7 @@ import { latestAssessment, priorRiskFor } from "@/lib/data/session-risk";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { formatDateTime, fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
+import { countKey } from "@/lib/i18n/count-form";
 import { SessionBadge } from "@/components/sessions/status-badge";
 import { NoteOriginNote } from "@/components/notes/provenance";
 import { lateRecordingStart } from "@/lib/consent";
@@ -240,7 +241,9 @@ export default async function SessionDetailPage({
                   started: formatDateTime(row.session.startedAt, actor.timezone, locale),
                 })
               : formatDateTime(sessionTime, actor.timezone, locale)}
-            {row.session.durationMinutes ? ` · ${row.session.durationMinutes} min` : ""}
+            {row.session.durationMinutes
+              ? ` · ${t(countKey("tses.minutes", row.session.durationMinutes), { count: row.session.durationMinutes })}`
+              : ""}
             {row.session.modality === "video" ? ` · ${t("thist.video")}` : ` · ${t("thist.inPerson")}`}
           </p>
           {/*
