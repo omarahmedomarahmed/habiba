@@ -7,6 +7,7 @@ import { getPatient } from "@/lib/data/patients";
 import { createSession, ensureRoom } from "@/lib/data/sessions";
 import { env } from "@/lib/env";
 import { wordsFor } from "@/lib/i18n/message-words";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { notify } from "@/lib/notify";
 import { fullName } from "@/lib/utils";
 
@@ -59,8 +60,9 @@ export type SessionInvite =
 export async function inviteToSession(actor: Actor, patientId: string): Promise<SessionInvite> {
   const patient = await getPatient(actor, patientId);
   if (!patient) return { error: "That patient is not in your practice." };
+  const reach = await inviteReach(patient);
 
-  if (!patient.phone && !patient.email) {
+  if (!reach.phone && !reach.email) {
     return {
       error: "Add a mobile number or an email first, then the invitation has somewhere to go.",
     };
@@ -144,8 +146,8 @@ export async function inviteToSession(actor: Actor, patientId: string): Promise<
        * it is given a person and a notice, so this is the whole fix.
        */
       personId: patient.personId,
-      email: patient.email,
-      phone: patient.phone,
+      email: reach.email,
+      phone: reach.phone,
       timezone: patient.timezone,
       locale: words.locale,
     },
@@ -169,4 +171,50 @@ export async function inviteToSession(actor: Actor, patientId: string): Promise<
   });
 
   return { url, priceCents, sent: delivery.sent, channel: delivery.channel };
+}
+
+/**
+ * 🔴 Board 832: WHERE AN INVITATION CAN ACTUALLY GO, asked before the tap and
+ * used by the send.
+ *
+ * The card promised "Sent to the number and address on their record" for any
+ * chart with a number or an address, and a chart with only a number answered
+ * "Nothing went out": WhatsApp is not live (decision 23), so a number carries
+ * nothing. Two things follow. The patient's own address, the one they signed in
+ * with, is used when the chart has none, so a person who has an account is
+ * reached by email. And the card promises only the route that will carry it.
+ */
+export type InviteReach = {
+  email: string | null;
+  phone: string | null;
+  /** Whether a number on file will actually carry the invitation today. */
+  byPhone: boolean;
+};
+
+export async function inviteReach(patient: {
+  email: string | null;
+  phone: string | null;
+  personId: string | null;
+}): Promise<InviteReach> {
+  let email = patient.email?.trim() || null;
+  let phone = patient.phone?.trim() || null;
+  if ((!email || !phone) && patient.personId) {
+    const { personContact } = await import("@/lib/data/people");
+    const own = await personContact(patient.personId);
+    email ??= own?.email?.trim() || null;
+    phone ??= own?.phone?.trim() || null;
+  }
+  const { whatsappConfigured } = await import("@/lib/notify/whatsapp");
+  const { templateStatus } = await import("@/lib/notify/templates");
+  const byPhone = Boolean(phone) && whatsappConfigured() && templateStatus("session.invite") === "approved";
+  return { email, phone, byPhone };
+}
+
+/** The line the card shows before the tap: only the route that will carry it. */
+export function invitePromiseKey(reach: InviteReach): MessageKey {
+  if (reach.email && reach.byPhone) return "pinv.willSend";
+  if (reach.email) return "pinv.willSendEmail";
+  if (reach.byPhone) return "pinv.willSendPhone";
+  if (reach.phone) return "pinv.phoneOnly";
+  return "pinv.needsHandle";
 }
