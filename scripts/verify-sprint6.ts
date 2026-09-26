@@ -319,7 +319,18 @@ async function main() {
     check("🔴 B6 a matching person that no clinician keeps a chart on is not claimable", bare.ok === false);
     const [holder] = await db
       .execute<{ id: string; org: string }>(
-        sql`SELECT id, organization_id AS org FROM users WHERE deleted_at IS NULL AND role = 'therapist' LIMIT 1`,
+        /*
+         * An APPROVED clinician, oldest first. "Any therapist, LIMIT 1" had no
+         * order, and once the simulation seeded unverified clinicians the
+         * database handed back one of those on some runs; the claim below keeps
+         * access for the holder, and `history_grants_require_verified()`
+         * rightly refuses a grant to an unapproved clinician, so the gate
+         * failed on the fixture it picked rather than on the claim it tests.
+         */
+        sql`SELECT u.id, u.organization_id AS org FROM users u
+              JOIN therapist_verifications v ON v.user_id = u.id AND v.state = 'approved'
+             WHERE u.deleted_at IS NULL AND u.role = 'therapist'
+             ORDER BY u.created_at LIMIT 1`,
       )
       .then((r) => r.rows);
     if (!holder) throw new Error("no clinician rows in this database to hold the chart");
