@@ -32,6 +32,7 @@ import {
   noteFromTranscript,
   normaliseLanguage,
   normaliseNote,
+  openStepsContext,
   PATIENT_GENDER_UNRECORDED,
 } from "./note-writer";
 
@@ -144,6 +145,29 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
       if (block) contextParts.push("", block);
     } catch (error) {
       log.warn("note context could not read the evidence layer", {
+        session: ref(sessionId),
+        reason: safeErrorMessage(error),
+      });
+    }
+  }
+
+  /*
+   * 🔴 Board 722: the steps already set and still open. A new session's note
+   * drafted "Write down any worries" again while the same step was open, and
+   * the clinician was offered it a second time.
+   */
+  if (row?.personId) {
+    try {
+      const { homeworkItems } = await import("@/lib/db/schema");
+      const open = await db
+        .select({ title: homeworkItems.title })
+        .from(homeworkItems)
+        .where(and(eq(homeworkItems.personId, row.personId), eq(homeworkItems.status, "open")))
+        .limit(20);
+      const block = openStepsContext(open.map((step) => step.title));
+      if (block) contextParts.push("", block);
+    } catch (error) {
+      log.warn("note context could not read the open steps", {
         session: ref(sessionId),
         reason: safeErrorMessage(error),
       });

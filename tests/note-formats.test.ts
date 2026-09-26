@@ -278,3 +278,19 @@ test("board 869 the writer is never left to default an Arabic note to the mascul
   const notes = readFileSync("lib/ai/notes.ts", "utf8");
   assert.match(notes, /PATIENT_GENDER_UNRECORDED,\n\s*\);/, "the session note's context carries the line");
 });
+
+/* ---------------------------------------------------------------- board 722 -- */
+
+test("board 722 the note is told which steps are already open, and never drafts them again", async () => {
+  const { openStepsContext, noteFromTranscript } = await writer();
+  assert.equal(openStepsContext([]), null);
+  assert.equal(openStepsContext(["  "]), null);
+  const block = openStepsContext(["Write down any worries", " Write down any worries "])!;
+  assert.match(block, /^STEPS ALREADY SET AND STILL OPEN/);
+  assert.equal(block.split("\n- ").length, 2, "one line per step");
+  const before = mock.state.chatRequests.length;
+  await noteFromTranscript({ context: block, transcript: TRANSCRIPT });
+  assert.match(systemOf(before), /STEPS ALREADY SET AND STILL OPEN" is already on their list: never draft it again/);
+  const notes = readFileSync("lib/ai/notes.ts", "utf8");
+  assert.match(notes, /openStepsContext\(open\.map/, "the session note's context carries the open steps");
+});

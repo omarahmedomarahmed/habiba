@@ -496,6 +496,41 @@ async function main() {
         typedA.ok && typedB.ok && count("Write down one worry") === 1,
         `${count("Write down one worry")} rows`,
       );
+      /* 🔴 Board 722 / 723: a later session drafts the same step while it is still open. */
+      const laterSession = await session(f.t1, f.t1p);
+      const again = await assignStep({ ...step, sessionId: laterSession });
+      const rows722 = await db
+        .select({ title: homeworkItems.title })
+        .from(homeworkItems)
+        .where(eq(homeworkItems.personId, f.p));
+      check(
+        "🔴 Board 722 a step already open is not set again from a later session's draft",
+        again.ok && again.already === true &&
+          rows722.filter((row) => row.title === "Phone charges outside the bedroom").length === 1,
+        JSON.stringify(again),
+      );
+      const { draftedStepsFor } = await import("../lib/data/homework");
+      const { sessionNotes } = await import("../lib/db/schema");
+      const { emptyContent, SOAP } = await import("../lib/notes/formats");
+      const content = emptyContent(SOAP);
+      content.patientSteps = ["Phone charges outside the bedroom", "A new step"];
+      await db.insert(sessionNotes).values({
+        sessionId: laterSession,
+        organizationId: f.orgId,
+        therapistId: f.t1,
+        content,
+        language: "en",
+        status: "draft",
+        format: "soap",
+      } as never);
+      const offered = await draftedStepsFor(laterSession, f.p);
+      check(
+        "🔴 Board 722 / 723 …and the later draft shows it as set, with no Set this to press",
+        offered.find((d) => d.title === "Phone charges outside the bedroom")?.assigned === true &&
+          offered.find((d) => d.title === "A new step")?.assigned === false,
+        JSON.stringify(offered),
+      );
+      await db.delete(sessionNotes).where(eq(sessionNotes.sessionId, laterSession));
       const sourceHw = stripComments(readSource("components/homework/clinician-homework.tsx"));
       check(
         "Board 500 / 518 the clinician's panel sends the drafted step's session and reads the list again after Set it",

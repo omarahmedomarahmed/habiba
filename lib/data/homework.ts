@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
@@ -264,6 +264,11 @@ export async function assignStep(input: {
    * and title, whatever became of the first; a typed one is one per open title,
    * so a double press cannot put the same open task on somebody's screen twice.
    * The second press answers with the step already set, and nothing is written.
+   *
+   * 🔴 Board 722: and a step that is already OPEN for this person, from any
+   * session or typed, is never set again. A new session's note drafted "Write
+   * down any worries" again while the same step was still open, and Set this
+   * made a second open copy.
    */
   const [existing] = await db
     .select({ id: homeworkItems.id })
@@ -273,7 +278,7 @@ export async function assignStep(input: {
         eq(homeworkItems.personId, input.personId),
         sql`btrim(${homeworkItems.title}) = ${title}`,
         input.source === "drafted" && input.sessionId
-          ? eq(homeworkItems.sessionId, input.sessionId)
+          ? or(eq(homeworkItems.sessionId, input.sessionId), eq(homeworkItems.status, "open"))
           : eq(homeworkItems.status, "open"),
       ),
     )
@@ -345,6 +350,13 @@ export async function withdrawStep(input: {
  */
 export async function draftedStepsFor(
   sessionId: string,
+  /**
+   * 🔴 Board 722 / 723: whose steps. A drafted step already open for this
+   * person, from any session or typed, reads as set, the same rule
+   * `assignStep` answers "already set" by, so a press that wrote nothing never
+   * leaves the button standing.
+   */
+  personId?: string | null,
 ): Promise<{ title: string; assigned: boolean }[]> {
   const { sessionNotes } = await import("@/lib/db/schema");
 
@@ -361,7 +373,14 @@ export async function draftedStepsFor(
   const live = await db
     .select({ title: homeworkItems.title })
     .from(homeworkItems)
-    .where(eq(homeworkItems.sessionId, sessionId));
+    .where(
+      personId
+        ? or(
+            eq(homeworkItems.sessionId, sessionId),
+            and(eq(homeworkItems.personId, personId), eq(homeworkItems.status, "open")),
+          )
+        : eq(homeworkItems.sessionId, sessionId),
+    );
 
   const liveTitles = new Set(live.map((l) => l.title.trim()));
   return drafted.map((title) => ({ title, assigned: liveTitles.has(title.trim()) }));
