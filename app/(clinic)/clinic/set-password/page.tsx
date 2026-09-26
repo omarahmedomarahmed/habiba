@@ -31,7 +31,7 @@ export default async function ClinicSetPasswordPage({
   if (!view) {
     return (
       <QuietAuthShell>
-        <p className="text-sm leading-relaxed text-slate-600">{t("clinic.linkInvalid")}</p>
+        <p className="text-sm leading-relaxed text-navy-500">{t("clinic.linkInvalid")}</p>
         <Link
           href="/clinic/forgot-password"
           className="mt-3 inline-flex text-sm font-semibold text-brand-700"

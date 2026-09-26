@@ -42,7 +42,7 @@ export default async function ClinicApplyPage() {
           practice manager most needs before signing is what the portal will and will not
           show them, and it was the third paragraph of four.
         */}
-        <div className="space-y-4 rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+        <div className="space-y-4 rounded-3xl bg-navy-50 p-5 ring-1 ring-navy-100">
           <SeesWhat
             who={t("clinic.apply.seesWho")}
             can={[t("clinic.apply.seesSchedule"), t("clinic.apply.seesBills"), t("clinic.apply.seesTeam")]}
@@ -53,7 +53,7 @@ export default async function ClinicApplyPage() {
               t("clinic.neverBuilt"),
             ]}
           />
-          <p className="text-sm leading-relaxed text-slate-600">{t("clinic.cannotVerify")}</p>
+          <p className="text-sm leading-relaxed text-navy-500">{t("clinic.cannotVerify")}</p>
         </div>
       </div>
     </QuietAuthShell>

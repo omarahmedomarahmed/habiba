@@ -4,14 +4,15 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { signInClinic } from "@/app/(clinic)/clinic/sign-in/actions";
-import { Button, Card, Field, Input } from "@/components/ui";
+import { Button, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <Button full size="lg" type="submit" disabled={pending}>
-      {pending ? "Working…" : label}
+      {pending ? t("common.working") : label}
     </Button>
   );
 }
@@ -32,7 +33,7 @@ export function ClinicSignInForm() {
   const [state, formAction] = useActionState(signInClinic, {});
 
   return (
-    <Card className="p-5">
+    <div>
       <form action={formAction} className="space-y-4">
         <Field label={t("clinic.email")} htmlFor="clinic-email">
           <Input
@@ -56,13 +57,13 @@ export function ClinicSignInForm() {
         </Field>
 
         {state.error ? (
-          <p role="alert" className="text-xs text-red-600">
+          <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
             {state.error}
           </p>
         ) : null}
 
         <Submit label={t("clinic.signIn")} />
       </form>
-    </Card>
+    </div>
   );
 }

@@ -3,6 +3,7 @@
 import { signOutClinic } from "@/app/(clinic)/clinic/sign-in/actions";
 import { switchToClinician } from "@/app/(clinic)/clinic/team/actions";
 import type { ClinicCapability } from "@/lib/clinic-auth/capabilities";
+import { LogOut, Stethoscope } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -87,6 +88,15 @@ function allowedGroups(capabilities: readonly ClinicCapability[]) {
   );
 }
 
+/*
+ * The two session-ending buttons, drawn once and worn twice: white ink with
+ * their words in the navy rail, a navy icon in the phone's top bar (the words
+ * stay for a screen reader and as the tooltip).
+ */
+const DESK_ACTION =
+  "tap-target inline-flex h-10 items-center gap-2 rounded-xl px-3 text-[13px] font-semibold text-navy-600 ring-1 ring-navy-100 hover:bg-navy-50 group-data-[desk=rail]/desk:text-white/85 group-data-[desk=rail]/desk:ring-white/15 group-data-[desk=rail]/desk:hover:bg-white/10 group-data-[desk=rail]/desk:hover:text-white";
+const DESK_LABEL = "sr-only group-data-[desk=rail]/desk:not-sr-only";
+
 /** 🔴 Ruling 14b: the pages inside the current group, one tap away. */
 function ClinicTabs({ capabilities }: { capabilities: readonly ClinicCapability[] }) {
   const t = useT();
@@ -95,16 +105,16 @@ function ClinicTabs({ capabilities }: { capabilities: readonly ClinicCapability[
   const group = allowedGroups(capabilities).find((g) => g.tabs.some((tab) => within(tab.href)));
   if (!group || group.tabs.length < 2) return null;
   return (
-    <nav aria-label={t(group.key)} className="mb-4">
-      <ul className="flex gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1">
+    <nav aria-label={t(group.key)} className="mb-6">
+      <ul className="inline-flex max-w-full gap-1 overflow-x-auto rounded-full bg-white p-1 ring-1 ring-navy-100 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {group.tabs.map((tab) => (
-          <li key={tab.href} className="flex-1">
+          <li key={tab.href} className="shrink-0">
             <Link
               href={tab.href}
               aria-current={within(tab.href) ? "page" : undefined}
               className={cn(
-                "block rounded-xl px-3 py-2 text-center text-sm font-semibold whitespace-nowrap",
-                within(tab.href) ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900",
+                "inline-flex h-10 items-center rounded-full px-4 text-[14px] font-semibold whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
+                within(tab.href) ? "bg-navy-600 text-white" : "text-navy-500 hover:text-navy-700",
               )}
             >
               {t(tab.key)}
@@ -147,6 +157,7 @@ export function ClinicChrome({
 
   return (
     <Desk
+      tone="navy"
       nav={nav}
       bare={bare}
       home="/clinic"
@@ -170,21 +181,17 @@ export function ClinicChrome({
           */}
           {linked ? (
             <form action={switchToClinician}>
-              <button
-                type="submit"
-                className="tap-target h-9 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                {t("clinic.switchToClinician")}
+              <button type="submit" title={t("clinic.switchToClinician")} className={DESK_ACTION}>
+                <Stethoscope className="h-4 w-4 shrink-0" aria-hidden />
+                <span className={DESK_LABEL}>{t("clinic.switchToClinician")}</span>
               </button>
             </form>
           ) : null}
 
           <form action={signOutClinic}>
-            <button
-              type="submit"
-              className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-            >
-              {t("clinic.signOut")}
+            <button type="submit" title={t("clinic.signOut")} className={DESK_ACTION}>
+              <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+              <span className={DESK_LABEL}>{t("clinic.signOut")}</span>
             </button>
           </form>
         </>

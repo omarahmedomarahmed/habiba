@@ -8,7 +8,10 @@ import {
   openClinicBillPayment,
   quoteClinicInvoices,
 } from "./actions";
-import { Card } from "@/components/ui";
+import { Armchair, Building2, CheckCircle2, Download, Receipt } from "lucide-react";
+
+import { ClinicHead } from "@/components/clinic/ui";
+import { Badge, buttonClass, Card, EmptyState, Glow, IconTile } from "@/components/clinician/kit";
 import { requireClinicCapability } from "@/lib/clinic-auth/guard";
 import { clinicBills, clinicSeatBills } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
@@ -128,41 +131,39 @@ export default async function ClinicBillsPage({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          {t("clinic.billsTitle")}
-        </h1>
-        {/* 🔴 C263 — why there is no itemised breakdown, where they look for it. */}
-        <p className="mt-1 text-sm leading-relaxed text-slate-600">{t("clinic.billsBody")}</p>
+      {/* 🔴 C263 — why there is no itemised breakdown, where they look for it. */}
+      <ClinicHead
+        title={t("clinic.billsTitle")}
+        subtitle={t("clinic.billsBody")}
+        action={
+          /*
+            🔴 63.17 / C334 — the export, and only for a principal that holds it.
 
-        {/*
-          🔴 63.17 / C334 — the export, and only for a principal that holds it.
+            Reading a bill on a screen and taking a copy of it away are different acts,
+            so `export` is its own capability rather than a consequence of
+            `bills.read`. The route checks it again and refuses with a 403; this only
+            decides whether a link is drawn.
 
-          Reading a bill on a screen and taking a copy of it away are different acts,
-          so `export` is its own capability rather than a consequence of
-          `bills.read`. The route checks it again and refuses with a 403; this only
-          decides whether a link is drawn.
-
-          A plain link rather than a button: it is a GET that returns a file, which
-          is what a browser already knows how to do.
-        */}
-        {actor.capabilities.includes("export") ? (
-          <a
-            href="/clinic/export?what=bills"
-            className="mt-3 inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            {t("clinic.exportCsv")}
-          </a>
-        ) : null}
-      </div>
+            A plain link rather than a button: it is a GET that returns a file, which
+            is what a browser already knows how to do.
+          */
+          actor.capabilities.includes("export") ? (
+            <a href="/clinic/export?what=bills" className={buttonClass("secondary", "sm")}>
+              <Download className="h-4 w-4" aria-hidden />
+              {t("clinic.exportCsv")}
+            </a>
+          ) : null
+        }
+      />
 
       {checkout && checkout !== "cancelled" ? (
-        <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
+        <p role="status" className="flex items-center gap-2 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-800 ring-1 ring-brand-100">
+          <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
           {t("portal.billing.paid")}
         </p>
       ) : null}
       {checkout === "cancelled" ? (
-        <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">
+        <p role="status" className="rounded-2xl bg-white px-4 py-3 text-sm text-navy-500 ring-1 ring-navy-100">
           {t("portal.billing.cancelled")}
         </p>
       ) : null}
@@ -174,12 +175,22 @@ export default async function ClinicBillsPage({
         settled. The button is the admin's: paying spends the practice's money.
       */}
       {dueCents > 0 ? (
-        <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
-          <p className="text-sm font-semibold text-slate-900">
-            {rich(t("clinic.dueNow", { amount: slot(0) }), [money(dueCents)])}
-          </p>
-          {actor.role === "admin" && !needsTransfer ? <PayClinicBills amountCents={dueCents} /> : null}
-        </Card>
+        <div className="relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-3xl bg-navy-900 p-5 text-white sm:p-6">
+          <Glow className="-end-16 -top-16 h-48 w-48 opacity-60" />
+          <div className="relative flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-navy-700">
+              <Receipt className="h-5 w-5" aria-hidden />
+            </span>
+            <p className="text-[22px] font-bold tabular-nums">
+              {rich(t("clinic.dueNow", { amount: slot(0) }), [money(dueCents)])}
+            </p>
+          </div>
+          {actor.role === "admin" && !needsTransfer ? (
+            <div className="relative">
+              <PayClinicBills amountCents={dueCents} />
+            </div>
+          ) : null}
+        </div>
       ) : null}
       {transfer ? (
         <BillPicker
@@ -210,18 +221,25 @@ export default async function ClinicBillsPage({
       {/* 🔴 W2-C03 / C3: the seat invoices, which no clinic screen showed. */}
       {seatBills.length > 0 ? (
         <Card className="p-5">
-          <p className="text-sm font-semibold text-slate-900">{t("clinic.nav.seats")}</p>
-          <ul className="mt-3 divide-y divide-slate-100 text-sm">
+          <div className="flex items-center gap-3">
+            <IconTile tone="navy">
+              <Armchair className="h-5 w-5" aria-hidden />
+            </IconTile>
+            <h2 className="text-[17px] font-bold text-navy-700">{t("clinic.nav.seats")}</h2>
+          </div>
+          <ul className="mt-3 divide-y divide-navy-100/70 text-sm">
             {seatBills.map((row, index) => (
-              <li key={index} className="flex flex-wrap items-baseline justify-between gap-3 py-2">
-                <span className="text-slate-600">
+              <li key={index} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5">
+                <span className="min-w-0 text-navy-500">
                   {month(row.issuedAt)} · {row.description}
                 </span>
-                <span className="tabular-nums text-slate-800">
-                  {money(row.amountCents)}{" "}
-                  <span className="text-xs text-slate-500">
-                    {row.status === "paid" ? t("sponsor.inv.paid") : row.status === "due" ? t("clinic.due") : null}
-                  </span>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold tabular-nums text-navy-700">{money(row.amountCents)}</span>
+                  {row.status === "paid" ? (
+                    <Badge tone="green">{t("sponsor.inv.paid")}</Badge>
+                  ) : row.status === "due" ? (
+                    <Badge tone="amber">{t("clinic.due")}</Badge>
+                  ) : null}
                 </span>
               </li>
             ))}
@@ -230,50 +248,55 @@ export default async function ClinicBillsPage({
       ) : null}
 
       {bills.length === 0 ? (
-        <Card className="p-5">
-          <p className="text-sm leading-relaxed text-slate-600">{t("clinic.billsEmpty")}</p>
+        <Card>
+          <EmptyState icon={<Building2 className="h-6 w-6" aria-hidden />} title={t("clinic.billsEmpty")} />
         </Card>
       ) : (
         <div className="space-y-3">
           {bills.map((bill) => (
             <Card key={bill.periodStart.toISOString()} className="p-5">
-              <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <p className="text-sm font-semibold text-slate-900">{month(bill.periodStart)}</p>
-                {/*
-                  🔴 C262 — the COUNT is withheld below the floor and the money never is.
-                  A month with one session and a bill for it is one patient's consent
-                  decision divided by one; a practice still has to be able to pay.
-                */}
-                <p className="text-xs text-slate-500">
-                  {bill.sessions === null
-                    ? t("clinic.suppressed")
-                    : t("clinic.sessionCount", { count: bill.sessions })}
-                  {/* 🔴 W2-C03: settled or not, said on the month itself. */}
-                  {bill.dueCents > 0
-                    ? ` · ${t("clinic.due")}`
-                    : bill.totalCents > 0 && bill.paidCents === bill.totalCents
-                      ? ` · ${t("sponsor.inv.paid")}`
-                      : null}
-                </p>
+              <div className="flex items-center gap-3">
+                <IconTile tone={bill.dueCents > 0 ? "amber" : "navy"}>
+                  <Building2 className="h-5 w-5" aria-hidden />
+                </IconTile>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-bold text-navy-700">{month(bill.periodStart)}</p>
+                  {/*
+                    🔴 C262 — the COUNT is withheld below the floor and the money never is.
+                    A month with one session and a bill for it is one patient's consent
+                    decision divided by one; a practice still has to be able to pay.
+                  */}
+                  <p className="text-[13px] text-navy-400">
+                    {bill.sessions === null
+                      ? t("clinic.suppressed")
+                      : t("clinic.sessionCount", { count: bill.sessions })}
+                  </p>
+                </div>
+                {/* 🔴 W2-C03: settled or not, said on the month itself. */}
+                {bill.dueCents > 0 ? (
+                  <Badge tone="amber">{t("clinic.due")}</Badge>
+                ) : bill.totalCents > 0 && bill.paidCents === bill.totalCents ? (
+                  <Badge tone="green">{t("sponsor.inv.paid")}</Badge>
+                ) : null}
               </div>
 
-              <dl className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-sm">
+              <dl className="mt-4 space-y-1.5 border-t border-navy-100 pt-3 text-sm">
                 <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-slate-500">{t("clinic.platformFee")}</dt>
-                  <dd className="tabular-nums text-slate-700">
+                  <dt className="text-navy-400">{t("clinic.platformFee")}</dt>
+                  <dd className="tabular-nums text-navy-600">
                     {bill.platformFeeCents === null ? t("clinic.suppressed") : money(bill.platformFeeCents, bill.currency)}
                   </dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-slate-500">{t("clinic.aiFee")}</dt>
-                  <dd className="tabular-nums text-slate-700">
+                  <dt className="text-navy-400">{t("clinic.aiFee")}</dt>
+                  <dd className="tabular-nums text-navy-600">
                     {/* 🔴 K7 / CE33: withheld with the count, or it is the consents priced. */}
                     {bill.aiFeeCents === null ? t("clinic.suppressed") : money(bill.aiFeeCents, bill.currency)}
                   </dd>
                 </div>
-                <div className="flex items-baseline justify-between gap-3 border-t border-slate-100 pt-1">
-                  <dt className="font-semibold text-slate-900">{t("clinic.total")}</dt>
-                  <dd className="font-semibold tabular-nums text-slate-900">
+                <div className="flex items-baseline justify-between gap-3 border-t border-navy-100 pt-2">
+                  <dt className="font-bold text-navy-700">{t("clinic.total")}</dt>
+                  <dd className="text-[17px] font-bold tabular-nums text-navy-700">
                     {money(bill.totalCents, bill.currency)}
                   </dd>
                 </div>

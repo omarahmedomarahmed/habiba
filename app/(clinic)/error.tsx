@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+import { RotateCw } from "lucide-react";
+
+import { buttonClass } from "@/components/clinician/kit";
+import { cn } from "@/lib/utils";
 
 import { useT } from "@/lib/i18n/client";
 
@@ -35,12 +39,11 @@ export default function ClinicError({
       role="alert"
       className="mx-auto flex max-w-sm flex-col items-center gap-4 px-6 py-16 text-center"
     >
-      <p className="text-sm leading-relaxed text-slate-600">{t("common.somethingWrong")}</p>
-      <button
-        type="button"
-        onClick={reset}
-        className="tap-target h-10 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white"
-      >
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 ring-1 ring-amber-200">
+        <RotateCw className="h-6 w-6" aria-hidden />
+      </span>
+      <p className="text-[15px] leading-relaxed text-navy-600">{t("common.somethingWrong")}</p>
+      <button type="button" onClick={reset} className={cn("tap-target", buttonClass("primary", "md"))}>
         {t("common.retry")}
       </button>
     </div>
