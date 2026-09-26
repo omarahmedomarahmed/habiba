@@ -268,6 +268,13 @@ export type PlatformSettings = {
       value: string;
       /** Greyed subtext under the value. An example, or where to find it. */
       hint: string;
+      /**
+       * 🔴 Board 364: the same two, for an Arabic screen. Optional: empty
+       * means an Arabic reader gets the label as typed (usually a rail's own
+       * name, "InstaPay") and no note, rather than an English sentence.
+       */
+      labelAr: string;
+      hintAr: string;
       /** Lower sorts first. */
       position: number;
       /**
@@ -1453,6 +1460,8 @@ export function parseGroup<G extends SettingsGroup>(
               label: label.slice(0, 80),
               value: value.slice(0, 200),
               hint: str(row.hint, "").trim().slice(0, 160),
+              labelAr: str(row.labelAr, "").trim().slice(0, 80),
+              hintAr: str(row.hintAr, "").trim().slice(0, 160),
               position: 0,
               /* No audience means nobody sees it, which is a mistake. Default to everyone. */
               audiences: audiences.length > 0 ? audiences : ["patient", "therapist", "clinic", "company"],
@@ -1767,6 +1776,13 @@ export type CountrySettings = {
 
   /** 20.4 / 20.5 — what we ask for here, and who licenses it. */
   regulators: string[];
+  /**
+   * 🔴 Board 364 (B50): a regulator's name for an Arabic reader, keyed by the
+   * name above. Optional: typed in admin as "Name | الاسم" on the same line,
+   * and stored that way, so no column was needed. A name with none falls back
+   * to the product's own list (`regulatorNameFor`).
+   */
+  regulatorNamesAr?: Record<string, string>;
   idLabelFront: string | null;
   idLabelBack: string | null;
   licenceLabel: string | null;
@@ -1774,6 +1790,43 @@ export type CountrySettings = {
 
   enabled: boolean;
 };
+
+/**
+ * 🔴 Board 364: a stored regulator line is "Name" or "Name | الاسم". The name
+ * is what a clinician picks and what the verification row records; the Arabic
+ * half is what an Arabic reader sees beside their clinician's licence.
+ */
+function regulatorsOf(
+  stored: string[],
+  extra: unknown,
+): { regulators: string[]; regulatorNamesAr: Record<string, string> } {
+  const regulatorNamesAr: Record<string, string> = {};
+  const regulators: string[] = [];
+  for (const line of stored) {
+    const bar = line.indexOf("|");
+    const name = (bar === -1 ? line : line.slice(0, bar)).trim();
+    const arabic = bar === -1 ? "" : line.slice(bar + 1).trim();
+    if (!name) continue;
+    regulators.push(name);
+    if (arabic) regulatorNamesAr[name] = arabic.slice(0, 200);
+  }
+  if (extra && typeof extra === "object") {
+    for (const [name, arabic] of Object.entries(extra as Record<string, unknown>)) {
+      if (regulators.includes(name) && typeof arabic === "string" && arabic.trim() && !regulatorNamesAr[name]) {
+        regulatorNamesAr[name] = arabic.trim().slice(0, 200);
+      }
+    }
+  }
+  return { regulators, regulatorNamesAr };
+}
+
+/** 🔴 Board 364: the lines as stored, each with its Arabic name after a bar when it has one. */
+export function storedRegulators(country: Pick<CountrySettings, "regulators" | "regulatorNamesAr">): string[] {
+  return country.regulators.map((name) => {
+    const arabic = country.regulatorNamesAr?.[name];
+    return arabic ? `${name} | ${arabic}` : name;
+  });
+}
 
 /** 20.3 — a country nobody can pay into or out of. */
 export function hasNoRail(country: CountrySettings): boolean {
@@ -1963,6 +2016,7 @@ export function parseCountry(row: {
   crisisLineLabel?: string | null;
   crisisLineTel?: string | null;
   regulators?: unknown;
+  regulatorNamesAr?: unknown;
   idLabelFront?: string | null;
   idLabelBack?: string | null;
   licenceLabel?: string | null;
@@ -2016,7 +2070,7 @@ export function parseCountry(row: {
       row.crisisLineLabel?.trim() && row.crisisLineTel?.trim()
         ? row.crisisLineTel.trim()
         : null,
-    regulators: list(row.regulators),
+    ...regulatorsOf(list(row.regulators), row.regulatorNamesAr),
     /*
      * Empty means "not configured", which the accessor turns into the shipped
      * fallback in `lib/regulators.ts` — an empty string here would instead

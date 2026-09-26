@@ -169,3 +169,31 @@ export function moneyEntryFigures(split: FrozenSplit): {
     employeeCents,
   };
 }
+
+/**
+ * 🔴 Board 430, ruling 18: WHERE A CANCELLED SESSION'S TRANSFER GOES.
+ *
+ * A session paid by bank transfer has no charge to reverse, so a cancellation
+ * (the clinician's, or the patient's inside the free window) used to answer
+ * "your payment could not go back automatically, contact us". Ruling 18 says
+ * the money that arrived for a session that will not happen goes to the
+ * patient's wallet by default, and back to their bank only if they ask.
+ *
+ * `wallet` only when the money is ours to hold and came by transfer: captured
+ * by us (`platform`), no card charge (`stripePaymentIntentId`) and no gateway
+ * charge behind it, not a company's pot row (two payers), for a patient with a
+ * wallet, with the wallet switched on. Anything else goes back on its own rail.
+ */
+export function cancelledPaymentRoute(input: {
+  fundingSource: string;
+  capture: string;
+  stripePaymentIntentId: string | null;
+  gatewayPaid: boolean;
+  hasPerson: boolean;
+  walletEnabled: boolean;
+}): "wallet" | "rail" {
+  if (input.fundingSource === "pot" || input.capture !== "platform") return "rail";
+  if (input.stripePaymentIntentId || input.gatewayPaid) return "rail";
+  if (!input.hasPerson || !input.walletEnabled) return "rail";
+  return "wallet";
+}

@@ -27,6 +27,8 @@ type Field = {
   label: string;
   value: string;
   hint: string;
+  labelAr?: string;
+  hintAr?: string;
   audiences: string[];
 };
 
@@ -71,13 +73,13 @@ export function TransferFieldsEditor({
     <Card className="p-4">
       <p className="text-sm font-semibold text-slate-900">How Egypt pays us</p>
       <p className="mt-1 text-xs text-slate-500">
-        Until there is a gateway, this is the rail. Shown in this order.
+        Shown in this order.
       </p>
 
       {locked ? (
         <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
           {inFlight} payment{inFlight === 1 ? "" : "s"} in flight against these details. Clear the
-          transfers queue before editing, or somebody transfers into an account nobody is checking.
+          transfers queue before editing.
         </p>
       ) : null}
 
@@ -120,6 +122,37 @@ export function TransferFieldsEditor({
                 className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm disabled:bg-slate-100"
               />
             </label>
+            {/*
+              🔴 Board 364: what an Arabic reader sees. Optional: left empty, the
+              name above is shown as typed and the note is left out, so an
+              Arabic payment screen never carries an English sentence.
+            */}
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <label className="text-xs text-slate-600">
+                Arabic name
+                <input
+                  name="fieldLabelAr"
+                  dir="rtl"
+                  value={row.labelAr ?? ""}
+                  disabled={locked}
+                  onChange={(e) => edit(i, { labelAr: e.target.value })}
+                  placeholder="إنستاباي"
+                  className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm disabled:bg-slate-100"
+                />
+              </label>
+              <label className="text-xs text-slate-600">
+                Arabic note
+                <input
+                  name="fieldHintAr"
+                  dir="rtl"
+                  value={row.hintAr ?? ""}
+                  disabled={locked}
+                  onChange={(e) => edit(i, { hintAr: e.target.value })}
+                  placeholder="الأسرع"
+                  className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm disabled:bg-slate-100"
+                />
+              </label>
+            </div>
 
             {/*
               🔴 WHO SEES IT. A patient does not need the corporate account and a

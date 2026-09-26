@@ -186,6 +186,38 @@ async function tellPatient(input: { personId: string; amountCents: number; curre
 }
 
 /**
+ * 🔴 Board 430: a session paid by a transfer that had ARRIVED, then cancelled,
+ * is credited to the wallet by `refundTransferToWallet`. The transfer is
+ * marked the way `creditCancelledTransfer` marks one, so "Refund instead"
+ * lists it and acts on it. Only a confirmed transfer with no exception yet.
+ */
+export async function recordTransferInWallet(input: {
+  sessionId: string;
+  creditId: string;
+  byUserId: string | null;
+}): Promise<void> {
+  const now = new Date();
+  await db
+    .update(manualPayments)
+    .set({
+      exception: "not_payable",
+      exceptionDetail: "The session was cancelled after this transfer arrived. It is in the patient's wallet, and a refund if they ask.",
+      exceptionAt: now,
+      exceptionResolvedAt: now,
+      exceptionResolvedBy: input.byUserId,
+      exceptionResolution: `${WALLET_RESOLUTION}${input.creditId}. Refund instead from here if they ask.`,
+    })
+    .where(
+      and(
+        inArray(manualPayments.purpose, ["session", "payg_session"]),
+        eq(manualPayments.refId, input.sessionId),
+        eq(manualPayments.state, "confirmed"),
+        sql`${manualPayments.exception} IS NULL`,
+      ),
+    );
+}
+
+/**
  * The confirmed transfers for cancelled bookings sitting in a wallet, whose
  * credit is still whole: the rows "Refund instead" can act on.
  */

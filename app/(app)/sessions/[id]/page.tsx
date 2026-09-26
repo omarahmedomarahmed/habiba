@@ -291,7 +291,7 @@ export default async function SessionDetailPage({
               session opened by mistake was complete it and be billed.
             */}
             <div className="px-5 py-3.5">
-              <CancelSession sessionId={id} />
+              <CancelSession sessionId={id} paid={row.session.paymentStatus === "paid"} />
             </div>
           </Card>
         ) : (
@@ -423,6 +423,12 @@ export default async function SessionDetailPage({
         <SourcePanel
           sessionId={id}
           kind={source?.kind ?? null}
+          /*
+           * 🔴 Board 334: our own room and the room in person write no source
+           * row (only a meeting we create elsewhere does), so a session held
+           * in the 24Therapy room read "No source is recorded".
+           */
+          impliedKind={row.session.startedAt ? (row.session.modality === "in_person" ? "in_person" : "24t_room") : null}
           provisionedAt={
             source?.provisionedAt
               ? formatDateTime(source.provisionedAt, actor.timezone, locale)

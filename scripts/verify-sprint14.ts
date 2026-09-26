@@ -475,8 +475,10 @@ async function main() {
     /*
      * 🔴 W1-13: A CLINICIAN CANCELS A PAID APPOINTMENT.
      *
-     * Paid by transfer, so the refund cannot go back by itself: the answer is a
-     * refund OWED, the payment still `paid`, and never a row calling it refunded.
+     * Paid by transfer, so the refund cannot go back by itself. 🔴 Board 430,
+     * ruling 18: the money we hold goes to the patient's wallet by default, the
+     * payment is marked refunded once, and a credit points at the session.
+     * Never kept silently, and never the old "contact us" with nothing queued.
      */
     const { afterClinicianCancel } = await import("../lib/data/clinician-cancel");
     const booked = await early("clinician-cancel", {
@@ -496,10 +498,15 @@ async function main() {
     });
     const cancelledPayment = await db.execute<{ status: string }>(sql`
       SELECT status FROM session_payments WHERE session_id = ${booked}`);
+    const walletCredit = await db.execute<{ amount_cents: number }>(sql`
+      SELECT amount_cents FROM patient_credits WHERE from_session_id = ${booked}`);
     check(
-      "🔴 W1-13 a paid appointment the clinician cancels is refunded or owed, never silently kept",
-      cancelled.outcome === "refund_owed" && cancelledPayment.rows[0]?.status === "paid",
-      `outcome ${cancelled.outcome}, payment ${cancelledPayment.rows[0]?.status}`,
+      "🔴 W1-13 / board 430 a transfer-paid appointment the clinician cancels goes to the patient's wallet (ruling 18)",
+      cancelled.outcome === "wallet" &&
+        cancelledPayment.rows[0]?.status === "refunded" &&
+        walletCredit.rows.length === 1 &&
+        Number(walletCredit.rows[0]!.amount_cents) > 0,
+      `outcome ${cancelled.outcome}, payment ${cancelledPayment.rows[0]?.status}, credits ${JSON.stringify(walletCredit.rows)}`,
     );
     /*
      * 🔴 W1-28b: AND THE PATIENT'S APP SAYS SO, WITH THE REASON. The email and
@@ -550,9 +557,8 @@ async function main() {
     );
     const cancelRefundRows = await refundRow(booked).catch(() => []);
     check(
-      "🔴 W1-28a the clinician's cancellation refund owed is a row too, naming who cancelled",
-      cancelRefundRows.length === 1 && cancelRefundRows[0]!.status === "owed" &&
-        cancelRefundRows[0]!.requested_by_user_id === absent!.id,
+      "🔴 W1-28a / board 430 the clinician's cancellation of a transfer-paid session is in the wallet, so nothing is queued twice",
+      cancelRefundRows.length === 0,
       JSON.stringify(cancelRefundRows),
     );
 

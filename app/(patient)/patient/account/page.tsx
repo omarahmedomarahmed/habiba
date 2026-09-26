@@ -297,11 +297,23 @@ export default async function PatientAccountPage({
               .map((session) => (
                 <div key={session.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
                   <span className="min-w-0 truncate text-navy-700">{session.therapistName}</span>
+                  {/* 🔴 Board 418: a session the benefit paid reads Covered, never "Paid" and its price. */}
                   <span className="shrink-0 text-xs text-navy-400">
-                    {session.paymentStatus === "paid" ? t("pyou.paid") : t("pyou.owed")}
+                    {session.covered
+                      ? t("pbilling.covered")
+                      : session.paymentStatus === "paid"
+                        ? t("pyou.paid")
+                        : t("pyou.owed")}
                   </span>
                   <span className="shrink-0 tabular-nums text-navy-700">
-                    <Money cents={session.priceCents} currency={session.priceCurrency} />
+                    {session.covered ? (
+                      t("psessions.coveredByBenefit")
+                    ) : (
+                      <Money
+                        cents={session.owedCents ?? session.priceCents}
+                        currency={session.owedCents !== null ? "USD" : session.priceCurrency}
+                      />
+                    )}
                   </span>
                 </div>
               ))}

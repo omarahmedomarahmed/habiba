@@ -534,20 +534,23 @@ export async function feedbackForTherapist(therapistId: string, limit = 30) {
 export const OFF_RECORD_THRESHOLD_MS = 20_000;
 
 export async function offRecordGaps(sessionId: string) {
-  const rows = await db.execute<{ gap_start: number; gap_end: number }>(sql`
-    SELECT prev_end AS gap_start, start_ms AS gap_end FROM (
-      SELECT start_ms, LAG(end_ms) OVER (ORDER BY sequence) AS prev_end
-      FROM transcript_segments WHERE session_id = ${sessionId}
-    ) t
-    WHERE prev_end IS NOT NULL AND start_ms - prev_end > ${OFF_RECORD_THRESHOLD_MS}
-    ORDER BY prev_end
-  `);
-
-  return (rows.rows as { gap_start: number; gap_end: number }[]).map((row) => ({
-    fromMs: Number(row.gap_start),
-    toMs: Number(row.gap_end),
-    seconds: Math.round((Number(row.gap_end) - Number(row.gap_start)) / 1000),
-  }));
+  /*
+   * 🔴 Board 334/344: ON THE SESSION'S CLOCK, ACROSS BOTH TRACKS.
+   *
+   * This read each line against the one stored before it (`sequence`). Our
+   * room uploads two tracks, each with its own chunk numbers, so the stored
+   * order runs clinician 0:08, patient 1:44, clinician 0:16, patient 1:52...
+   * and every jump forward counted as a stretch off record. A two-minute
+   * session with nothing taken off record read "6 minutes were not recorded".
+   * A gap is now a stretch that NEITHER track covers: each line against the
+   * furthest point anything before it (by start) had reached.
+   */
+  const rows = await db
+    .select({ startMs: transcriptSegments.startMs, endMs: transcriptSegments.endMs })
+    .from(transcriptSegments)
+    .where(eq(transcriptSegments.sessionId, sessionId));
+  const { uncoveredStretches } = await import("@/lib/transcript/gaps");
+  return uncoveredStretches(rows, OFF_RECORD_THRESHOLD_MS);
 }
 
 /**

@@ -11,6 +11,7 @@ import type { MessageKey } from "@/lib/i18n/messages";
 import { localeTag } from "@/lib/i18n/config";
 import { PatientNoteOriginClient } from "@/components/notes/provenance-client";
 import { Money } from "@/components/ui/money";
+import { sortForGroup } from "@/lib/sessions/order";
 
 /**
  * A patient's own sessions, in the four groups 15.3 names.
@@ -93,7 +94,10 @@ export function PatientSessionList({
   return (
     <div className="space-y-5">
       {ORDER.map((group) => {
-        const rows = sessions.filter((s) => s.group === group);
+        const rows = sortForGroup(
+          group,
+          sessions.filter((s) => s.group === group),
+        );
         if (rows.length === 0) return null;
 
         return (
@@ -119,7 +123,10 @@ export function PatientSessionList({
                     </p>
                     <p className="mt-0.5 text-xs text-navy-400">
                       {formatWhen(session.at, resolved, locale)}
-                      {session.priceCents > 0
+                      {session.covered
+                        ? /* 🔴 Board 418: the benefit paid it; the price printed alone read as money they paid. */
+                          ` · ${t("psessions.coveredByBenefit")}`
+                        : session.priceCents > 0
                         ? /*
                            * 🔴 THE CURRENCY THE SESSION WAS PRICED IN, not USD for everybody.
                            *

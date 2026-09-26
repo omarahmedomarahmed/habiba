@@ -68,6 +68,13 @@ export function ProveHandle({ handle }: { handle: string }) {
         </p>
       </div>
 
+      {/* 🔴 Board 276: it went to their email, and the page says so. */}
+      {asked.sent && !asked.channelDown && asked.channel === "email" ? (
+        <p role="status" className="rounded-xl bg-navy-50 px-3.5 py-3 text-sm leading-relaxed text-navy-600">
+          {t("pclaim.sentByEmail")}
+        </p>
+      ) : null}
+
       {asked.channelDown ? (
         <p
           role="status"
