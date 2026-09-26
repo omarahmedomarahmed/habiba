@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Check, Plus, SkipForward, Trash2 } from "lucide-react";
 
 import { removeStep, setStep } from "@/app/(app)/patients/[id]/homework/actions";
@@ -32,6 +33,7 @@ export function ClinicianHomework({
   items,
   trend,
   drafted,
+  draftSessionId,
   canAssign,
   zone,
 }: {
@@ -72,6 +74,12 @@ export function ClinicianHomework({
   };
   /** Steps the last note drafted, and whether each is already live. */
   drafted: { title: string; assigned: boolean }[];
+  /**
+   * 🔴 Board 500: the session those steps were drafted from. A drafted step was
+   * set with no session, and `assigned` is asked by session, so it read as never
+   * set and kept its button.
+   */
+  draftSessionId: string | null;
   canAssign: boolean;
 }) {
   const locale = useLocale();
@@ -81,16 +89,25 @@ export function ClinicianHomework({
   const [detail, setDetail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  /* Board 518: the drafted steps set on this screen, shown as set at once. */
+  const [justSet, setJustSet] = useState<string[]>([]);
 
   const add = (input: { title: string; detail?: string; fromDraft?: boolean }) =>
     startTransition(async () => {
       setError(null);
-      const result = await setStep(patientId, input);
+      const result = await setStep(patientId, {
+        ...input,
+        sessionId: input.fromDraft ? (draftSessionId ?? undefined) : undefined,
+      });
       if (result.error) setError(result.error);
       else {
+        if (input.fromDraft) setJustSet((all) => [...all, input.title]);
         setTitle("");
         setDetail("");
         setAdding(false);
+        /* 🔴 Board 518: the list is read again, so the new step is on screen. */
+        router.refresh();
       }
     });
 
@@ -151,7 +168,7 @@ export function ClinicianHomework({
             {drafted.map((draft) => (
               <li key={draft.title} className="flex items-start gap-2">
                 <span className="min-w-0 flex-1 text-sm text-navy-600">{draft.title}</span>
-                {draft.assigned ? (
+                {draft.assigned || justSet.includes(draft.title) ? (
                   <Badge tone="slate">{t("thw.set")}</Badge>
                 ) : (
                   <button

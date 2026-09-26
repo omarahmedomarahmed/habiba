@@ -286,6 +286,7 @@ export default async function PatientDocumentsPage({
           }))}
           trend={trend}
           drafted={drafted}
+          draftSessionId={lastSession?.id ?? null}
           canAssign={access.state !== "revoked"}
         />
 
