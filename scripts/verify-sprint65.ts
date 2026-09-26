@@ -31,7 +31,7 @@ const { check, finish } = reporter();
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (["node_modules", ".next"].includes(entry.name)) continue;
+    if (["node_modules", ".next", ".claude"].includes(entry.name)) continue;
     const path = `${dir}/${entry.name}`;
     if (entry.isDirectory()) walk(path, out);
     else if (path.endsWith(".tsx")) out.push(path);

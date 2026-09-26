@@ -27,7 +27,7 @@ test("AE56: an admin path goes back to the staff door, with or without a cookie"
   assert.doesNotMatch(route, /new URL\("\/login"/);
   assert.match(read("lib/auth/guard.ts"), /const door = signInDoorFor\(next\)/);
   // The staff door says why they are there, as the practice door does.
-  assert.match(read("app/(auth)/staff/sign-in/page.tsx"), /params\.expired \? t\("tauth\.noticeExpired"\)/);
+  assert.match(read("app/(auth)/staff/sign-in/page.tsx"), /params\.expired\s*\?\s*t\("tauth\.noticeExpired"\)/);
 });
 
 test("AE57: the quiet shell never renders an empty heading", () => {

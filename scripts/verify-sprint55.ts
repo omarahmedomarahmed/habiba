@@ -40,7 +40,7 @@ const { check, finish } = reporter();
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
-    if (["node_modules", ".next", ".git", "drizzle", "public"].includes(entry)) continue;
+    if (["node_modules", ".next", ".git", ".claude", "drizzle", "public"].includes(entry)) continue;
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) walk(path, out);
     else if (/\.(ts|tsx)$/.test(path)) out.push(path);

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { BlockRenderer } from "@/components/public/blocks";
 import { DEFAULT_PAGES } from "@/lib/content/defaults";
 import { getPublicPage } from "@/lib/content/service";
-import { DICTIONARIES } from "@/lib/i18n/messages";
+import type { MessageKey } from "@/lib/i18n/messages";
 import { getI18n } from "@/lib/i18n/server";
 
 /*
@@ -51,12 +51,16 @@ export async function generateMetadata({
 async function untranslatedShell(slug: string, served: string) {
   const { locale, t } = await getI18n();
   if (served === locale) return null;
-  const words = DICTIONARIES[locale] as Record<string, string>;
-  const title = words[`page.title.${slug}`];
+  /* Through the resolver, so an operator's wording in /admin/content wins here too. */
+  const word = (key: string) => {
+    const value = t(key as MessageKey);
+    return value && value !== key ? value : null;
+  };
+  const title = word(`page.title.${slug}`);
   if (!title) return null;
   return {
     title,
-    description: words[`page.desc.${slug}`] ?? null,
+    description: word(`page.desc.${slug}`),
     notice: t("page.englishBinding"),
     show: t("page.showEnglish"),
   };

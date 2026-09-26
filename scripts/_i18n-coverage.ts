@@ -45,7 +45,7 @@ export type FileCount = {
 };
 
 /** Directories whose text is not a product surface. */
-const SKIP = new Set(["node_modules", ".next", "dist", "build"]);
+const SKIP = new Set(["node_modules", ".next", ".claude", "dist", "build"]);
 
 /**
  * Files exempt by name, each for a stated reason.

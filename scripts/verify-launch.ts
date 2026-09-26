@@ -329,8 +329,20 @@ async function main() {
   console.log("\n7. loading and error screens");
 
   const groups = ["(public)", "(auth)", "(room)", "(app)", "(clinic)", "(patient)", "(sponsor)", "(partner)", "(admin)", "pay", "join"];
+  /*
+   * 🔴 B35: two groups carry their skeleton below the root on purpose. A loading
+   * file at the root of `(public)` or `pay` streams a 200 before a page can call
+   * `notFound()`, so a missing page answered 200. The skeleton sits on the routes
+   * that read the database first, and those are what is checked for them.
+   */
+  const loadingAt: Record<string, string[]> = {
+    "(public)": ["(public)/radar/loading.tsx", "(public)/t/[id]/loading.tsx"],
+    pay: ["pay/[token]/loading.tsx"],
+  };
   const missing = groups.flatMap((group) =>
-    ["loading.tsx", "error.tsx"].filter((file) => !existsSync(join("app", group, file))).map((file) => `${group}/${file}`),
+    ["loading.tsx", "error.tsx"]
+      .flatMap((file) => (file === "loading.tsx" && loadingAt[group] ? loadingAt[group] : [`${group}/${file}`]))
+      .filter((file) => !existsSync(join("app", file))),
   );
   check(
     "🔴 every route group has a loading and an error screen",
@@ -378,7 +390,9 @@ async function main() {
     /t\("error\.roomBody"\)/.test(room) && bothLanguages("error.roomBody") &&
       /RouteError/.test(readSource("app/(public)/error.tsx")) &&
       /RouteError/.test(readSource("app/(auth)/error.tsx")) &&
-      ["(public)", "(room)"].every((g) => /t\("common\.loading"\)/.test(readSource(join("app", g, "loading.tsx")))),
+      /t\("common\.loading"\)/.test(readSource("app/(room)/loading.tsx")) &&
+      /t\("common\.loading"\)/.test(readSource("components/public/page-loading.tsx")) &&
+      /<PageLoading\b/.test(readSource("app/(public)/radar/loading.tsx")),
   );
 
   /* ============================================ the database half */

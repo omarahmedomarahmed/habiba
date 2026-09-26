@@ -60,7 +60,7 @@ const ROOT = process.cwd();
  * control at the bottom of `verify:reachable` now asserts the count of files
  * under `components/public` for exactly this reason.
  */
-const SKIP_AT_ROOT = ["node_modules", ".git", "drizzle", "public", ".render", ".vercel"];
+const SKIP_AT_ROOT = ["node_modules", ".git", ".claude", "drizzle", "public", ".render", ".vercel"];
 
 /**
  * 🔴 77.7 — ANY NEXT BUILD DIRECTORY, not the one called `.next`.

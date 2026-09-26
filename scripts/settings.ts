@@ -466,17 +466,17 @@ type Allowance = {
 };
 
 const ALLOWED: Allowance[] = [
-  {
-    leaf: "copilot.messagesPerPatientPerSession",
+  ...([["joinEarlyMinutes", "5"], ["soonMinutes", "15"]] as const).map(([key, value]) => ({
+    leaf: `rules.start.${key}`,
     on: "production",
-    is: "4",
-    elsewhere: "10",
+    is: "(absent)",
+    elsewhere: value,
     because:
-      "simulate:seed narrows the in-session copilot on the run's own database to 4, because the " +
-      "six month run has $10 of model credit and 62 sessions at the shipped 10 would spend most " +
-      "of it on suggestions nobody reads. Dev and the simulation branch keep the shipped 10, so " +
-      "the default the product ships is still under test. It goes back to 10 when the run ends.",
-  },
+      "The start clock (15 minutes 'starting soon', 5 minutes 'join early') is new on this branch. " +
+      "Production's stored rules row predates it, so the code default applies there, which is the " +
+      "same number. It is saved through /admin/settings once the new code is live (ruling N5), " +
+      "and then this allowance matches nothing and is printed as not in effect.",
+  })),
 ];
 
 async function compare(): Promise<number> {

@@ -527,7 +527,8 @@ async function main() {
   const segments = ["app/(patient)", "app/pay", "app/join"];
   const missing = segments.flatMap((dir) =>
     ["loading.tsx", "error.tsx"]
-      .map((file) => `${dir}/${file}`)
+      /* B35: /pay's skeleton sits under [token], so /pay itself can still answer 404. */
+      .map((file) => (dir === "app/pay" && file === "loading.tsx" ? "app/pay/[token]/loading.tsx" : `${dir}/${file}`))
       .filter(
         (file) =>
           !existsSync(file) ||
