@@ -16,3 +16,14 @@ with the reason, so any of them can be reversed in the morning.
 | N9 | Every product picture on the public site is redrawn from the new screens (patient app, therapist, clinic, company, partner), with invented people, EGP prices from the settings and no "online now" claim | The founder asked for it; a site showing the old look would sell a product that no longer exists |
 | N10 | Round 2 fixes are made on the redesign branch, and G1 and G2 become one full gate run before main | The redesign is what ships, so fixing the old screens first would be fixed twice; one gate run instead of two saves about ninety minutes of the night and stays inside the founder's limit |
 | N11 | A clinic's part-month seat price shows EGP 666.50 rather than 666.67 (board 252), left as it is for launch | Bills are stored in USD cents and shown in EGP at 50, so every EGP figure is a multiple of 0.50 and the one shown is exactly what is charged; storing EGP on each bill changes the bank-transfer path the night before launch |
+| N12 | The first sign-in after the site sat idle can hang once (board 255); left for launch, retried by the person | A cold database connection; the documented fix is a package not yet installed, and adding a dependency at night is riskier than a retry |
+
+## Needs the founder
+
+| # | What | Why it waits for you |
+|---|---|---|
+| F1 | The Egyptian entity's registered name, address and tax number for company receipts (B19) | Legal data only you hold |
+| F2 | Meta approval of the WhatsApp templates when WhatsApp is set up; `session.invite` and `session.started` now carry a link button, so they need approving again | Your Meta account |
+| F3 | In /admin/settings: the Arabic name after a bar on Egypt's regulator line (for example "Supreme Council for Mental Health \| المجلس القومي للصحة النفسية") and an Arabic note on the InstaPay line | Operator-typed text; your console login expired overnight |
+| F4 | Save the rules once in /admin/settings so the 15 and 5 minute start clock is stored (it already applies as the default) | Same console login |
+| F5 | Patient bank details on the transfer sheet if bank transfer (not only InstaPay) is wanted | A business choice and a real account |
