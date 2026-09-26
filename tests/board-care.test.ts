@@ -149,6 +149,11 @@ test("board 432: only the clinician's cancellation notice carries the clinician'
   assert.match(source, /new Set<string>\(\["w1a\.cancelledByClinician"\]\)/);
 });
 
+test("board 301: the join page promises a card gateway only when the pay page offers a card", () => {
+  assert.match(readSource("app/join/[token]/page.tsx"), /cardsLive=\{await \(await import\("@\/lib\/billing\/egypt"\)\)\.railIsReady\(\)\}/);
+  assert.match(readSource("components/join/join-flow.tsx"), /cardsLive \? "join\.privateNotePaid" : "join\.privateNoteTransfer"/);
+});
+
 test("board 334: a session held in our own room names its source", () => {
   assert.match(readSource("app/(app)/sessions/[id]/page.tsx"), /impliedKind=/);
 });

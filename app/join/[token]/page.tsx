@@ -220,6 +220,8 @@ export default async function JoinPage({
             : session.priceCents
         }
         paymentStatus={session.paymentStatus}
+        /* 🔴 Board 301: the same question the pay page asks before it offers a card. */
+        cardsLive={await (await import("@/lib/billing/egypt")).railIsReady()}
         /*
          * 🔴 A DROPPED CONNECTION IS NOT A NEW ARRIVAL.
          *

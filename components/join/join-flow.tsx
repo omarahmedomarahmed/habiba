@@ -58,6 +58,7 @@ export function JoinFlow({
   feedbackToken,
   modality,
   priceCents,
+  cardsLive = true,
   paymentStatus,
   resumeAfterPayment,
   cancelled,
@@ -88,6 +89,12 @@ export function JoinFlow({
   feedbackToken: string | null;
   modality: "in_person" | "video";
   priceCents: number;
+  /**
+   * 🔴 Board 301: can the pay page take a card? When not, it offers a bank
+   * transfer only, and the line under the button says so instead of promising
+   * a card gateway.
+   */
+  cardsLive?: boolean;
   paymentStatus: "not_required" | "pending" | "paid";
   resumeAfterPayment: boolean;
   cancelled: boolean;
@@ -427,7 +434,7 @@ export function JoinFlow({
 
       <p className="flex items-start gap-2 rounded-2xl bg-white px-4 py-3 text-xs leading-relaxed text-navy-500 ring-1 ring-navy-100">
         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-        {owes ? t("join.privateNotePaid") : t("join.privateNote")}
+        {owes ? t(cardsLive ? "join.privateNotePaid" : "join.privateNoteTransfer") : t("join.privateNote")}
       </p>
 
       {/* 🔴 W2-P11: before they go in too, for somebody waiting on the form. */}

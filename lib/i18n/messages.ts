@@ -217,6 +217,7 @@ export const en = {
      is the part this line exists to reassure them about.
   */
   "join.privateNotePaid": "The payment gateway takes the payment for your therapist. We never see your card.",
+  "join.privateNoteTransfer": "You pay by bank transfer on the next page, and we pass it to your therapist. Your session opens once we confirm it.",
   "join.paymentReceived": "Payment received",
   "join.takingYouIn": "Taking you into your session…",
 
@@ -5552,6 +5553,7 @@ export const ar: Record<MessageKey, string> = {
   "join.tooManyAttempts": "محاولات كثيرة. انتظر لحظة ثم حاول مرة أخرى.",
   "join.privateNote": "جلستك خاصة ولا تُشارَك مع أي شخص آخر.",
   "join.privateNotePaid": "بوابة الدفع تتلقى المبلغ لمعالجك، ولا نرى بطاقتك أبدًا.",
+  "join.privateNoteTransfer": "هتدفع بتحويل بنكي في الصفحة الجاية، وإحنا بنوصّله لمعالجك. جلستك بتتفتح أول ما نأكد التحويل.",
   "join.paymentReceived": "تم استلام الدفع",
   "join.takingYouIn": "جارٍ إدخالك إلى جلستك…",
 
