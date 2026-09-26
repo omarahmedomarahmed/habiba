@@ -6,6 +6,7 @@ import { isLocalisable, LOCALE_HEADER, splitLocale } from "@/lib/i18n/paths";
 import {
   bounceNext,
   CLINIC_COOKIE,
+  orgCookieToClear,
   PARTNER_COOKIE,
   PATIENT_COOKIE,
   routeDecision,
@@ -156,8 +157,11 @@ export function middleware(request: NextRequest) {
    * this function, because the matcher excludes only `api/`, `_next` and image
    * extensions, and none of those is a page.
    */
+  /* 🔴 Board 651: a stale org cookie is cleared at its own landing, in the same response. */
+  const staleCookie = orgCookieToClear(rest, request.nextUrl.searchParams.get("expired") === "1");
   const withPolicy = <T extends NextResponse>(response: T): T => {
     response.headers.set(header, policy);
+    if (staleCookie && request.cookies.get(staleCookie)) response.cookies.delete(staleCookie);
     return response;
   };
 

@@ -528,3 +528,21 @@ test("no org guard redirects a cookie holder straight to its sign-in page", () =
     assert.match(handler, /revoke\w+Session\(\)/, `${portal} handler must clear the cookie`);
   }
 });
+
+test("board 651: a stale clinic cookie reaches the sign-in form in one redirect, and the landing clears it", async () => {
+  const { orgCookieToClear, CLINIC_COOKIE, SPONSOR_COOKIE, PARTNER_COOKIE } = await import("../lib/routing");
+  /* The landing clears its own portal's cookie, and only with `expired=1`. */
+  assert.equal(orgCookieToClear("/clinic/sign-in", true), CLINIC_COOKIE);
+  assert.equal(orgCookieToClear("/sponsor/sign-in", true), SPONSOR_COOKIE);
+  assert.equal(orgCookieToClear("/partner/sign-in", true), PARTNER_COOKIE);
+  assert.equal(orgCookieToClear("/clinic/sign-in", false), null, "a plain visit to the door signs nobody out");
+  assert.equal(orgCookieToClear("/clinic", true), null);
+
+  /* The layout, above the loading boundary, sends a stale holder straight to the landing. */
+  const layout = readFileSync("app/(clinic)/layout.tsx", "utf8");
+  assert.match(layout, /redirect\(orgExpiredLanding\("clinic"\)\)/, "the clinic layout must redirect a stale cookie itself");
+  assert.match(layout, /!door/, "and never on a door, which the layout also wraps");
+  const middleware = readFileSync("middleware.ts", "utf8");
+  assert.match(middleware, /orgCookieToClear\(/, "middleware must clear the stale cookie at the landing");
+  assert.match(middleware, /response\.cookies\.delete\(staleCookie\)/);
+});
