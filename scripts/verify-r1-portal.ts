@@ -341,26 +341,26 @@ async function main() {
 
     /* ------------------------------------------------ B63 · Arabic in Arabic */
 
-    const { spokenLanguageFor } = await import("../lib/data/transcript");
+    const { spokenLanguagesFor } = await import("../lib/data/transcript");
     check(
       "B63 CONTROL a clinician and patient who never chose Arabic are still detected",
-      (await spokenLanguageFor({ therapistId: user.id, patientId: null, transcriptLanguage: null })) === null,
-      "null means detect",
+      (await spokenLanguagesFor({ therapistId: user.id, patientId: null, transcriptLanguage: null })).length === 0,
+      "no candidates means detect",
     );
     await db.execute(sql`UPDATE users SET locale = 'ar' WHERE id = ${user.id}`);
     check(
-      "B63 a clinician who works in Arabic has their sessions transcribed as Arabic",
-      (await spokenLanguageFor({ therapistId: user.id, patientId: null, transcriptLanguage: null })) === "ar",
-      "detection returned «يعني صعب عليكي ترفضي» as 'Jani, sa ba' li tirfudi'",
+      "B63 / board 824 a clinician who works in Arabic has their sessions transcribed as Arabic or English",
+      (await spokenLanguagesFor({ therapistId: user.id, patientId: null, transcriptLanguage: null })).join() === "ar,en",
+      "detection returned «يعني صعب عليكي ترفضي» as 'Jani, sa ba' li tirfudi'; pinning Arabic alone translated English speech",
     );
     check(
       "B63 …and a language set in the room still wins",
-      (await spokenLanguageFor({ therapistId: user.id, patientId: null, transcriptLanguage: "en" })) === "en",
+      (await spokenLanguagesFor({ therapistId: user.id, patientId: null, transcriptLanguage: "en" })).join() === "en",
       "the room's choice is the person's",
     );
     check(
       "B63 the transcription route asks it",
-      /language: await spokenLanguageFor\(session\)/.test(readSource("app/api/sessions/[id]/transcribe/route.ts")),
+      /languages: await spokenLanguagesFor\(session\)/.test(readSource("app/api/sessions/[id]/transcribe/route.ts")),
       "it passed session.transcriptLanguage, null unless somebody pressed a button",
     );
 

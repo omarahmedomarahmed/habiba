@@ -163,18 +163,40 @@ function lostTheNumber(error: unknown): boolean {
  * عليكي ترفضي»), which no reader, search or note writer can use. When either
  * person in the session works in Arabic, the chunk is transcribed as Arabic.
  * Anybody else is still detected, and a language set in the room always wins.
+ *
+ * 🔴 Board 824 / 868: AND ARABIC IS NEVER THE ONLY CANDIDATE.
+ *
+ * Pinning Arabic translated an English "Tired, honestly." into Arabic words
+ * nobody said, and a patient whose language was on their chart
+ * (`patients.locale`, B39) but not on a claimed person was not read at all, so
+ * her Arabic went to detection and came back in Latin letters. The patient's
+ * language is now read from both places, and a session with Arabic in it is
+ * transcribed as Arabic OR English, chunk by chunk (`transcriptionRequests`):
+ * code-switching into English is ordinary in an Egyptian session. An empty list
+ * means detect.
  */
-export async function spokenLanguageFor(session: {
+export async function spokenLanguagesFor(session: {
   therapistId: string;
   patientId: string | null;
   transcriptLanguage: string | null;
-}): Promise<string | null> {
-  if (session.transcriptLanguage) return session.transcriptLanguage;
+}): Promise<string[]> {
+  if (session.transcriptLanguage) return [session.transcriptLanguage];
   const { rows } = await db.execute(sql`
     SELECT
       (SELECT u.locale FROM users u WHERE u.id = ${session.therapistId}) AS clinician,
-      (SELECT pe.locale FROM patients p JOIN people pe ON pe.id = p.person_id
+      (SELECT COALESCE(pe.locale, p.locale) FROM patients p LEFT JOIN people pe ON pe.id = p.person_id
         WHERE p.id = ${session.patientId}) AS patient`);
   const found = rows[0] as { clinician: string | null; patient: string | null } | undefined;
-  return found?.clinician === "ar" || found?.patient === "ar" ? "ar" : null;
+  return sessionLanguages(found?.patient ?? null, found?.clinician ?? null);
+}
+
+/**
+ * The candidates from the two people's languages, the patient's first: Arabic
+ * with English beside it, and nothing (detect) when neither works in Arabic.
+ */
+export function sessionLanguages(patient: string | null, clinician: string | null): string[] {
+  const base = (l: string | null) => (l ?? "").trim().toLowerCase().split(/[-_]/)[0] ?? "";
+  const known = [base(patient), base(clinician)].filter(Boolean);
+  if (!known.includes("ar")) return [];
+  return [...new Set([...known, "en"])];
 }

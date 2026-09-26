@@ -53,7 +53,7 @@
     "test:physics": "node --env-file-if-exists=.env.local --import tsx --test tests/physics.test.ts",
     "test:clock": "node --env-file-if-exists=.env.local --import tsx --test tests/clock.test.ts",
     "test:toasts": "node --env-file-if-exists=.env.local --import tsx --test tests/toasts.test.ts",
-    "test:transcribe": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/transcribe.test.ts",
+    "test:transcribe": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/transcribe.test.ts tests/transcribe-request.test.ts",
     "settings:seed": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts seed",
     "settings:show": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts show",
     "settings:rails": "node --env-file-if-exists=.env.local --import tsx scripts/settings.ts rails",
