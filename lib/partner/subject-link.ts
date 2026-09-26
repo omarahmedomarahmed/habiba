@@ -13,7 +13,7 @@ import { log, ref } from "@/lib/logger";
 import type { PartnerKey } from "./route";
 
 /**
- * 🔴 Board 932 (PT11 to PT13) — THE PERSON'S OWN ACT THAT LINKS A SUBJECT.
+ * 🔴 Board 932 (PT11 to PT13): THE PERSON'S OWN ACT THAT LINKS A SUBJECT.
  *
  * `upsertSubject` says a subject is linked "by supplying something only that
  * person could have: they sign in and confirm it", and every live partner

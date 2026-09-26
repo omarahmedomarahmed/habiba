@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * 🔴 Board 932 — a link the partner hands to its own patient.
+ * 🔴 Board 932: a link the partner hands to its own patient.
  *
  * The patient opens it, signs in to their own account and confirms; only then
  * does the subject point at a person, and write-back and readers can answer.

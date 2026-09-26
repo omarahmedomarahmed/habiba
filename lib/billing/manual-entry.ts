@@ -473,7 +473,7 @@ export type PotStep = {
 };
 
 /**
- * 🔴 Board 828 — WHICH RUNG THE STEPPER STARTS ON.
+ * 🔴 Board 828: WHICH RUNG THE STEPPER STARTS ON.
  *
  * The rung whose total is the figure already committed: the open cart's, or a
  * turned-down claim's, so "Send it again" and a reopened sheet both come back

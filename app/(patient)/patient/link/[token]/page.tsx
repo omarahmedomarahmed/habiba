@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export const dynamic = "force-dynamic";
 
 /**
- * 🔴 Board 932 — a platform the patient uses asks to write the sessions it
+ * 🔴 Board 932: a platform the patient uses asks to write the sessions it
  * holds with them into their record here. Shown to the signed-in patient only
  * (middleware sends anybody else to sign in and back), with the platform's
  * name and nothing the platform sent about them.
