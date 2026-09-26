@@ -67,7 +67,7 @@ export function BookingCalendar({
     () => countryFromE164(booker?.phone ?? null) ?? readerCountry(),
   );
   const [note, setNote] = useState("");
-  const [done, setDone] = useState<{ when: string; sent: boolean } | null>(null);
+  const [done, setDone] = useState<{ when: string; sent: boolean; covered: "full" | "part" | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -113,6 +113,15 @@ export function BookingCalendar({
           {t("pbook.bookedWith", { name: therapistName })}
         </p>
         <p className="mt-1 text-sm text-slate-700">{done.when}</p>
+        {/*
+          Shoot P11: the benefit, said where the booking is confirmed. The
+          sessions list and billing said it; the moment they booked did not.
+        */}
+        {done.covered ? (
+          <p className="mt-2 rounded-xl bg-brand-50 px-3 py-2 text-sm font-medium text-brand-900">
+            {t(done.covered === "full" ? "pbook.coveredFull" : "pbook.coveredPart")}
+          </p>
+        ) : null}
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
           {done.sent ? t("pbook.confirmSent") : t("pbook.confirmNotSent")}
         </p>
@@ -252,6 +261,7 @@ export function BookingCalendar({
                     setDone({
                       when: result.booked.when,
                       sent: Boolean(result.confirmationSent),
+                      covered: result.covered ?? null,
                     });
                   }
                 })

@@ -940,6 +940,7 @@ export const en = {
   "pclaim.title": "Have you seen a therapist before?",
   "pclaim.body": "If they already keep notes about you, you can take ownership of them, {name}.",
   "pclaim.handleTitle": "First, is this number yours?",
+  "pclaim.handleTitleEmail": "First, is this email address yours?",
   "pclaim.handleBody": "We have not looked yet. First we check you can receive a message at {handle}.",
   "pclaim.sendCode": "Send me a code",
   "pclaim.codeLabel": "Six-digit code",
@@ -1253,6 +1254,8 @@ export const en = {
 
   "pban.asked": "Asked. They see your note when they next sign in.",
   "pban.ask": "Ask for access",
+  "pban.addDiagnosis": "Add a diagnosis",
+  "pban.addHistory": "Type or dictate a history",
   "pban.whyLabel": "Why are you asking? They read this.",
   "pban.example":
     "I am preparing for our session on Thursday and would like to see your history.",
@@ -1572,6 +1575,8 @@ export const en = {
   "pbook.payAndStart": "Pay {amount} and start now",
   "pbook.startNow": "Start now",
   "pbook.bookedWith": "Booked with {name}",
+  "pbook.coveredFull": "Covered by your benefit. You pay nothing for this session.",
+  "pbook.coveredPart": "Your benefit pays part of this session. The rest is yours to pay.",
   "pbook.confirmSent": "We have sent you a confirmation with the link to join.",
   "pbook.confirmNotSent": "We could not send you a confirmation, so write this time down. Your therapist has it too.",
   "pbook.noHours": "{name} has not published any hours yet. If this is urgent, they may be on the Crisis Radar right now.",
@@ -6289,6 +6294,7 @@ export const ar: Record<MessageKey, string> = {
   "pclaim.title": "هل زرت معالجًا من قبل؟",
   "pclaim.body": "إن كانت لدى معالجك ملاحظات عنك، يمكنك استلامها يا {name}.",
   "pclaim.handleTitle": "أولًا، هل هذا الرقم رقمك؟",
+  "pclaim.handleTitleEmail": "أولًا، هل هذا البريد الإلكتروني بريدك؟",
   "pclaim.handleBody": "لم نبحث بعد. نتأكد أولًا أنك تستقبل رسالة على {handle}.",
   "pclaim.sendCode": "أرسل لي رمزًا",
   "pclaim.codeLabel": "رمز من ستة أرقام",
@@ -6554,6 +6560,8 @@ export const ar: Record<MessageKey, string> = {
 
   "pban.asked": "تم الطلب. سيرى ملاحظتك عند دخوله القادم.",
   "pban.ask": "اطلب الاطلاع",
+  "pban.addDiagnosis": "أضف تشخيصًا",
+  "pban.addHistory": "اكتب تاريخًا مرضيًا أو أمْلِه",
   "pban.whyLabel": "لماذا تطلب؟ هو من سيقرأ هذا.",
   "pban.example": "أستعد لجلستنا يوم الخميس وأود الاطلاع على تاريخك.",
 
@@ -6818,6 +6826,8 @@ export const ar: Record<MessageKey, string> = {
   "pbook.payAndStart": "ادفع {amount} وابدأ الآن",
   "pbook.startNow": "ابدأ الآن",
   "pbook.bookedWith": "تم الحجز مع {name}",
+  "pbook.coveredFull": "مغطّاة من ميزتك. لن تدفع شيئًا مقابل هذه الجلسة.",
+  "pbook.coveredPart": "تدفع ميزتك جزءًا من هذه الجلسة، والباقي عليك.",
   "pbook.confirmSent": "أرسلنا إليك تأكيدًا فيه رابط الدخول.",
   "pbook.confirmNotSent": "لم نتمكن من إرسال تأكيد، فدوّن هذا الموعد. ومعالجك لديه أيضًا.",
   "pbook.noHours": "لا ساعات منشورة لدى {name} بعد. وإن كان الأمر عاجلًا فقد يكون على رادار الأزمات الآن.",
