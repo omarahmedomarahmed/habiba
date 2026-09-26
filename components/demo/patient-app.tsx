@@ -26,7 +26,7 @@ import {
 import { MotionRoot, soft } from "./motion";
 import { Avatar, Glow } from "@/components/clinician/kit";
 import type { DemoContent } from "@/lib/content/demo";
-import { dateTag } from "@/lib/i18n/config";
+import { formatDay } from "@/lib/scheduling/tz";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { WorldRadar } from "@/components/radar/world-radar";
@@ -803,7 +803,7 @@ function Billing() {
                 <span className="min-w-0">
                   <span className="block truncate text-[12.5px] font-bold text-navy-700">{t("transfer.subjectSessionWith", { name: demoName(bill.clinician, locale) })}</span>
                   <span className="block text-[10.5px] text-navy-400">
-                    {new Intl.DateTimeFormat(dateTag(locale), { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${bill.on}T12:00:00Z`))}
+                    {formatDay(new Date(`${bill.on}T12:00:00Z`), "UTC", locale)}
                   </span>
                 </span>
               </span>
