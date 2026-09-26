@@ -16,7 +16,7 @@ full gate runs at most after G0. A `send_later` check-in wakes the session every
 |---|---|---|
 | G0 | Round 1 fixes, before any of this | ran: 34 of 39 passed; the 5 failed groups fixed and re-run alone (N4) |
 | G1 | After round 2 (with round 3 folded in) and its fixes, before main | merged into G2 (ruling N10) |
-| G2 | After the redesign and the round 2 fixes, before main | running (log scratchpad/gates-g2.log) |
+| G2 | After the redesign and the round 2 fixes, before main | passed: 38 groups in the full run, the run cut off by a container restart after `rendered`; the last 7 groups and `principals` (fixed) re-run alone and passed (N4) |
 | G3 | After the post-redesign walkthrough fixes, before main | not run |
 
 Between gates: `npx tsc --noEmit -p .`, the unit suites and the verifiers each change touches. Never a
@@ -30,7 +30,7 @@ fourth full gate.
 | S1 | Redesign wave 1 in worktrees, started in parallel: website, patient app, therapist portal, to the `/design` mockups, with the radar globe from the current radar | done, merged into local branch `redesign-integration` (worktree `.claude/worktrees/redesign-integration`) |
 | S2 | Round 2 with round 3 folded in, on the live site at day 7 | closed (N13): ORG complete, CARE and OPS-WEB partial after a usage limit; recorded in ROUNDS.md |
 | S3 | Fix every round 2 bug on the redesign branch (N10) | done: batches 1 to 3 merged into `redesign-integration` (65 rows fixed; 666.50 kept per N11; cold starts noted; hydration #418 to be checked on the live site) |
-| S4 | Redesign + round 2 fixes; G2; migrations; push main; confirm live | QA agent doing the final sweep on the merged branch; then G2 on `redesign-integration` merged into `claude/lucid-fermi-pwdz7f` |
+| S4 | Redesign + round 2 fixes; G2; migrations; push main; confirm live | pushed to main at d9495cc8; confirming the deploy |
 | S5 | Walkthrough of rounds 1 and 2 compacted on the new design; fix; G3; push main; confirm live | not started |
 | S6 | Report to the founder: rulings table, what needs the founder, what is live | not started |
 
