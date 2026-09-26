@@ -593,8 +593,7 @@ function MessageBubble({
         : null;
     const at = Number.isFinite(citation.atSeconds) ? formatDuration(citation.atSeconds) : null;
     if (when && at) return t("tcop.chip", { when, at });
-    if (when) return t("tcop.chipSession", { when });
-    return at ? t("tcop.chipAt", { at }) : t("tcop.fromSession");
+    return when ?? at ?? t("tcop.fromSession");
   };
 
   if (message.role === "therapist") {
