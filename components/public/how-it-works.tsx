@@ -27,10 +27,13 @@ import { cn } from "@/lib/utils";
 export function HowItWorks({
   heading,
   body,
+  note,
   items,
 }: {
   heading?: string;
   body?: string;
+  /** B30: the screens are examples, said once under them. */
+  note?: string;
   items: { audience: string; title: string; body?: string; demo: React.ReactNode }[];
 }) {
   return (
@@ -64,6 +67,7 @@ export function HowItWorks({
             </Rise>
           ))}
         </div>
+        {note ? <p className="mt-10 text-center text-[13px] text-navy-500">{note}</p> : null}
       </div>
     </section>
   );

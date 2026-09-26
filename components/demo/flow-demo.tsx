@@ -99,7 +99,7 @@ function Screen({
 }) {
   return (
     <div className="flex h-full flex-col px-4 pt-4 pb-3">
-      <p className="text-[15px] font-bold leading-snug text-slate-900">{title}</p>
+      <p className="text-[15px] font-bold leading-snug text-navy-700">{title}</p>
       <div className="mt-3 flex-1 space-y-2.5">{children}</div>
       {foot ? <div className="pt-3">{foot}</div> : null}
     </div>
@@ -110,12 +110,12 @@ function Tile({ children, tone }: { children: React.ReactNode; tone?: "brand" | 
   return (
     <div
       className={cn(
-        "rounded-xl border p-3 text-[13px] leading-relaxed",
+        "rounded-2xl border p-3 text-[13px] leading-relaxed shadow-[0_1px_2px_rgba(10,35,66,0.04)]",
         tone === "brand"
-          ? "border-brand-200 bg-brand-50/70 text-slate-900"
+          ? "border-brand-200 bg-brand-50/70 text-navy-700"
           : tone === "muted"
-            ? "border-slate-200 bg-slate-50 text-slate-600"
-            : "border-slate-200 bg-white text-slate-800",
+            ? "border-navy-100 bg-navy-50 text-navy-500"
+            : "border-navy-100 bg-white text-navy-600",
       )}
     >
       {children}
@@ -134,8 +134,8 @@ function Tile({ children, tone }: { children: React.ReactNode; tone?: "brand" | 
  */
 function NeverTile({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[13px] leading-relaxed text-slate-600">
-      <X className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" aria-hidden />
+    <div className="flex items-start gap-2.5 rounded-xl border border-navy-100 bg-navy-50 p-3 text-[13px] leading-relaxed text-navy-500">
+      <X className="mt-0.5 h-4 w-4 shrink-0 text-navy-500" aria-hidden />
       <span>{children}</span>
     </div>
   );
@@ -166,10 +166,10 @@ function Tap({
       type="button"
       onClick={onClick}
       className={cn(
-        "tap-target block w-full rounded-xl px-3 py-2.5 text-center text-[13px] font-semibold transition-colors",
+        "tap-target block w-full rounded-2xl px-3 py-2.5 text-center text-[13px] font-semibold transition-colors",
         variant === "primary" && "bg-brand-500 text-navy-600 hover:bg-brand-400",
         variant === "secondary" &&
-          "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+          "border border-navy-100 bg-white text-navy-600 hover:bg-navy-50",
         variant === "danger" && "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100",
         pressed && "ring-2 ring-brand-600 ring-offset-1",
       )}
@@ -212,8 +212,8 @@ const CLAIM: Step[] = [
         <Screen title={t("pclaim.title")}>
           <Tile>
             {t("dfl.recordFound")}
-            <p className="mt-1.5 text-lg font-bold tracking-wide text-slate-900">{t("dfl.initials")}</p>
-            <p className="mt-1 text-[11px] text-slate-600">{t("pclaim.initialsOnly")}</p>
+            <p className="mt-1.5 text-lg font-bold tracking-wide text-navy-700">{t("dfl.initials")}</p>
+            <p className="mt-1 text-[11px] text-navy-500">{t("pclaim.initialsOnly")}</p>
           </Tile>
           <Tap onClick={next}>{t("pclaim.yesSendCode")}</Tap>
           <Tap
@@ -232,7 +232,7 @@ const CLAIM: Step[] = [
     why: "dfl.claimWhy2",
     screen: ({ t, next }) => (
       <Screen title={t("pclaim.handleTitle")}>
-        <p className="text-[13px] leading-relaxed text-slate-600">
+        <p className="text-[13px] leading-relaxed text-navy-500">
           {t("pclaim.handleBody", { handle: "+20 10 •• •• 41" })}
         </p>
         <Tap onClick={next}>{t("pclaim.sendCode")}</Tap>
@@ -256,7 +256,7 @@ const CLAIM: Step[] = [
       const CODE = "419026";
       return (
         <Screen title={t("pclaim.checkWhatsapp")}>
-          <p className="text-[13px] leading-relaxed text-slate-600">{t("pclaim.codeSent")}</p>
+          <p className="text-[13px] leading-relaxed text-navy-500">{t("pclaim.codeSent")}</p>
           <div className="flex gap-1.5">
             {CODE.split("").map((digit, i) => (
               <button
@@ -268,10 +268,10 @@ const CLAIM: Step[] = [
                 className={cn(
                   "grid h-10 flex-1 place-items-center rounded-lg border text-[15px] font-bold tabular-nums transition-colors",
                   i < typed.length
-                    ? "border-brand-300 bg-brand-50 text-slate-900"
+                    ? "border-brand-300 bg-brand-50 text-navy-700"
                     : i === typed.length
-                      ? "border-brand-600 bg-white text-slate-600 ring-2 ring-brand-200"
-                      : "border-slate-200 bg-white text-transparent",
+                      ? "border-brand-600 bg-white text-navy-500 ring-2 ring-brand-200"
+                      : "border-navy-100 bg-white text-transparent",
                 )}
               >
                 {digit}
@@ -279,13 +279,13 @@ const CLAIM: Step[] = [
             ))}
           </div>
           {typed.length < CODE.length ? (
-            <p className="text-[11px] text-slate-600">{t("dfl.tapTheDigits")}</p>
+            <p className="text-[11px] text-navy-500">{t("dfl.tapTheDigits")}</p>
           ) : null}
           <button
             type="button"
             disabled={typed.length < CODE.length}
             onClick={next}
-            className="tap-target block w-full rounded-xl bg-brand-500 px-3 py-2.5 text-center text-[13px] font-semibold text-navy-600 transition-colors hover:bg-brand-400 disabled:bg-slate-200 disabled:text-slate-500"
+            className="tap-target block w-full rounded-xl bg-brand-500 px-3 py-2.5 text-center text-[13px] font-semibold text-navy-600 transition-colors hover:bg-brand-400 disabled:bg-navy-100 disabled:text-navy-400"
           >
             {t("pclaim.checkCode")}
           </button>
@@ -319,7 +319,7 @@ const CLAIM: Step[] = [
             <span
               className={cn(
                 "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded border-2 transition-colors",
-                state.keep ? "border-brand-700 bg-brand-700" : "border-slate-300 bg-white",
+                state.keep ? "border-brand-700 bg-brand-700" : "border-navy-200 bg-white",
               )}
             >
               {state.keep ? <Check className="h-3 w-3 text-white" aria-hidden /> : null}
@@ -359,7 +359,7 @@ const CONSENT: Step[] = [
       <Screen title={t("consent.waiting")}>
         <Tile>
           <span className="flex items-start gap-2.5">
-            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" aria-hidden />
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-navy-500" aria-hidden />
             {t("dfl.askedBy", { name: t("dfl.demoTherapist") })}
           </span>
         </Tile>
@@ -396,7 +396,7 @@ const CONSENT: Step[] = [
             {t(label)}
           </Tap>
         ))}
-        <p className="pt-1 text-[12px] leading-relaxed text-slate-600">{t("consent.noCost")}</p>
+        <p className="pt-1 text-[12px] leading-relaxed text-navy-500">{t("consent.noCost")}</p>
       </Screen>
     ),
   },
@@ -415,7 +415,7 @@ const CONSENT: Step[] = [
               {t("consent.canRead")}
             </span>
           </span>
-          <span className="mt-1.5 block text-[11px] text-slate-600">
+          <span className="mt-1.5 block text-[11px] text-navy-500">
             {t("consent.untilChange")}
           </span>
         </Tile>
@@ -433,7 +433,7 @@ const CONSENT: Step[] = [
       <Screen title={t("consent.whoHasAccess")}>
         <Tile>
           <span className="flex items-center gap-2">
-            <Eye className="h-4 w-4 shrink-0 text-slate-600" aria-hidden />
+            <Eye className="h-4 w-4 shrink-0 text-navy-500" aria-hidden />
             {t("dfl.demoTherapist")}
           </span>
         </Tile>
@@ -462,10 +462,10 @@ const CONSENT: Step[] = [
         <Tile>
           <span className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2">
-              <EyeOff className="h-4 w-4 shrink-0 text-slate-600" aria-hidden />
+              <EyeOff className="h-4 w-4 shrink-0 text-navy-500" aria-hidden />
               {t("dfl.demoTherapist")}
             </span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-slate-600 uppercase">
+            <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-navy-500 uppercase">
               {t("consent.cannotRead")}
             </span>
           </span>
@@ -516,10 +516,10 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
     <section className="px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-5xl">
         <div className="max-w-2xl">
-          <h2 className="text-balance text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          <h2 className="text-balance text-2xl font-bold tracking-tight text-navy-700 sm:text-3xl">
             {title}
           </h2>
-          <p className="mt-2.5 text-[15px] leading-relaxed text-slate-600">{body}</p>
+          <p className="mt-2.5 text-[15px] leading-relaxed text-navy-500">{body}</p>
         </div>
 
         <div className="mt-9 grid gap-8 lg:grid-cols-[1fr_auto] lg:gap-12">
@@ -538,7 +538,7 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
                       aria-current={now ? "step" : undefined}
                       className={cn(
                         "flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-start transition-colors",
-                        now ? "bg-brand-50" : "hover:bg-slate-50",
+                        now ? "bg-brand-50" : "hover:bg-navy-50",
                       )}
                     >
                       <span
@@ -548,7 +548,7 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
                             ? "bg-brand-500 text-navy-600"
                             : done
                               ? "bg-brand-100 text-brand-700"
-                              : "bg-slate-100 text-slate-600",
+                              : "bg-navy-50 text-navy-500",
                         )}
                       >
                         {done ? <Check className="h-3.5 w-3.5" aria-hidden /> : i + 1}
@@ -557,13 +557,13 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
                         <span
                           className={cn(
                             "block text-[14px] font-semibold",
-                            now ? "text-brand-800" : "text-slate-900",
+                            now ? "text-brand-800" : "text-navy-700",
                           )}
                         >
                           {t(one.label)}
                         </span>
                         {now ? (
-                          <span className="mt-1 block text-[13px] leading-relaxed text-slate-700">
+                          <span className="mt-1 block text-[13px] leading-relaxed text-navy-600">
                             {t(one.why)}
                           </span>
                         ) : null}
@@ -579,7 +579,7 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
                 type="button"
                 onClick={() => { setAt((i) => Math.max(0, i - 1)); }}
                 disabled={at === 0}
-                className="tap-target inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 disabled:opacity-40"
+                className="tap-target inline-flex items-center gap-1.5 rounded-lg border border-navy-100 bg-white px-3 py-2 text-[13px] font-semibold text-navy-600 disabled:opacity-40"
               >
                 <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden />
                 {t("dfl.back")}
@@ -588,7 +588,7 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
                 <button
                   type="button"
                   onClick={() => { setAt(0); setState({}); }}
-                  className="tap-target inline-flex items-center gap-1.5 rounded-lg bg-navy-500 px-3 py-2 text-[13px] font-semibold text-white"
+                  className="tap-target inline-flex items-center gap-1.5 rounded-lg bg-navy-600 px-3 py-2 text-[13px] font-semibold text-white"
                 >
                   <RotateCcw className="h-3.5 w-3.5" aria-hidden />
                   {t("dfl.restart")}
@@ -603,7 +603,7 @@ function StepFlow({ steps, title, body }: { steps: Step[]; title: string; body: 
                   <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden />
                 </button>
               )}
-              <span className="ms-auto text-[12px] tabular-nums text-slate-600">
+              <span className="ms-auto text-[12px] tabular-nums text-navy-500">
                 {t("dfl.stepOf", { n: at + 1, total: steps.length })}
               </span>
             </div>

@@ -53,7 +53,7 @@ export type Feature = {
   link?: { label: string; href: string };
 };
 
-export function FeatureBands({ features }: { features: Feature[] }) {
+export function FeatureBands({ features, note }: { features: Feature[]; /** B30: each screen is an example, said under it. */ note?: string }) {
   return (
     <>
       {features.map((feature, index) => {
@@ -89,7 +89,10 @@ export function FeatureBands({ features }: { features: Feature[] }) {
                 ) : null}
               </Rise>
 
-              <div className={cn("min-w-0", mirrored && "lg:order-1")}>{feature.demo}</div>
+              <div className={cn("min-w-0", mirrored && "lg:order-1")}>
+                {feature.demo}
+                {note ? <p className="mt-4 text-center text-[13px] text-navy-500">{note}</p> : null}
+              </div>
             </div>
           </section>
         );
