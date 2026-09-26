@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Check, RotateCw, X } from "lucide-react";
+import { motion } from "motion/react";
 
 import type { TryResult } from "@/app/(partner)/partner/webhooks/actions";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { cn } from "@/lib/utils";
 
 /**
  * 🔴 W2-X03: ONE TRY, AND WHAT THEIR ENDPOINT SAID, beside the button that asked.
@@ -12,7 +15,7 @@ import type { MessageKey } from "@/lib/i18n/messages";
  * Used for "Send a test event" on an endpoint and "Redeliver" on a delivery. The
  * answer is the HTTP status or the network error, which is what a developer
  * fixing their receiver needs, and it is shown where they pressed rather than on
- * another page.
+ * another page. The arrow turns while the try is in flight, as in the mockup.
  */
 export function TryButton({
   action,
@@ -33,17 +36,26 @@ export function TryButton({
         type="button"
         disabled={pending}
         onClick={() => start(async () => setResult(await action(id)))}
-        className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-60"
+        className="tap-target inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold text-navy-600 ring-1 ring-navy-100 transition-colors outline-none hover:bg-navy-50 focus-visible:ring-2 focus-visible:ring-brand-400 disabled:opacity-60"
       >
+        <motion.span
+          className="inline-flex"
+          animate={pending ? { rotate: 360 } : { rotate: 0 }}
+          transition={pending ? { repeat: Infinity, duration: 0.8, ease: "linear" } : { duration: 0 }}
+        >
+          <RotateCw className="h-3.5 w-3.5" aria-hidden />
+        </motion.span>
         {t(labelKey)}
       </button>
       {result ? (
         <span
           role="status"
-          className={
-            result.ok ? "text-xs font-semibold text-brand-700" : "text-xs font-semibold text-red-600"
-          }
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-semibold ring-1 ring-inset",
+            result.ok ? "bg-brand-50 text-brand-800 ring-brand-100" : "bg-red-50 text-red-700 ring-red-200",
+          )}
         >
+          {result.ok ? <Check className="h-3.5 w-3.5" aria-hidden /> : <X className="h-3.5 w-3.5" aria-hidden />}
           {result.ok ? t("dev.delivered") : t("dev.failed")}
           {result.status ? ` ${result.status}` : ""}
           {result.error ? ` ${result.error}` : ""}

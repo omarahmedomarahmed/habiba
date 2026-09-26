@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { PageHeader } from "@/components/clinician/kit";
 import { WebhookList } from "@/components/partner/webhook-list";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePartner } from "@/lib/partner-auth/guard";
@@ -26,9 +27,10 @@ export default async function PartnerWebhooksPage() {
   const hooks = await webhooksFor(actor.partnerId);
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">{t("dev.webhooksTitle")}</h1>
+    <div>
+      <PageHeader title={t("dev.webhooksTitle")} />
 
+      <div className="px-4 sm:px-6">
       <WebhookList
         hooks={hooks.map((hook) => ({
           id: hook.id,
@@ -39,6 +41,7 @@ export default async function PartnerWebhooksPage() {
         }))}
         canEdit={actor.role === "admin"}
       />
+      </div>
     </div>
   );
 }

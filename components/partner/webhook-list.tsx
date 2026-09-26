@@ -2,10 +2,13 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Plus, Webhook } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { addWebhook, disable, sendTest } from "@/app/(partner)/partner/webhooks/actions";
+import { Badge, Button, Card, EmptyState, Field, IconTile, Input } from "@/components/clinician/kit";
+import { CheckChip, ConfirmBox, RowButton, SecretCard } from "@/components/partner/parts";
 import { TryButton } from "@/components/partner/try-button";
-import { Button, Card, Field, Input } from "@/components/ui";
 import { WEBHOOK_EVENTS } from "@/lib/db/schema";
 import { useT } from "@/lib/i18n/client";
 
@@ -37,10 +40,11 @@ export type WebhookRow = {
 };
 
 function Submit({ label }: { label: string }) {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Working…" : label}
+      {pending ? t("common.working") : label}
     </Button>
   );
 }
@@ -54,71 +58,83 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
 
   return (
     <div className="flex flex-col gap-4">
-      {state.secret ? (
-        <Card className="border-brand-200 bg-brand-50 p-5">
-          <code className="block break-all rounded-xl bg-white p-3 font-mono text-xs text-slate-900 ring-1 ring-brand-200">
-            {state.secret}
-          </code>
-          <p className="mt-2 text-xs leading-relaxed text-slate-600">{t("dev.secretOnce")}</p>
-        </Card>
-      ) : null}
+      <AnimatePresence>
+        {state.secret ? (
+          <motion.div
+            key={state.secret}
+            initial={{ opacity: 0, y: 14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          >
+            <SecretCard secret={state.secret} note={t("dev.secretOnce")} />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {hooks.length === 0 ? (
-        <Card className="p-5">
-          <p className="text-sm text-slate-600">{t("dev.webhooksEmpty")}</p>
+        <Card>
+          <EmptyState icon={<Webhook className="h-6 w-6" aria-hidden />} title={t("dev.webhooksEmpty")} />
         </Card>
       ) : (
         <ul className="flex flex-col gap-3">
           {hooks.map((hook) => (
             <li key={hook.id}>
-              <Card className="p-4">
-                <p className="break-all font-mono text-xs text-slate-900">{hook.url}</p>
-                <p className="mt-1 font-mono text-xs text-slate-500">{hook.events.join(", ")}</p>
-                {hook.disabled ? (
-                  <p className="mt-1 text-xs font-semibold text-slate-500">{t("dev.revoked")}</p>
-                ) : hook.failing ? (
-                  <p className="mt-1 text-xs font-semibold text-red-600">{t("dev.failing")}</p>
-                ) : null}
+              <Card className={hook.disabled ? "p-4 opacity-75" : "p-4"}>
+                <div className="flex items-start gap-3.5">
+                  <IconTile tone={hook.failing && !hook.disabled ? "amber" : "navy"}>
+                    <Webhook className="h-5 w-5" aria-hidden />
+                  </IconTile>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="min-w-0 break-all font-mono text-[14px] font-semibold text-navy-700">{hook.url}</p>
+                      {hook.disabled ? (
+                        <Badge tone="slate">{t("dev.revoked")}</Badge>
+                      ) : hook.failing ? (
+                        <Badge tone="red">{t("dev.failing")}</Badge>
+                      ) : null}
+                    </div>
+                    <ul className="mt-2 flex flex-wrap gap-1.5">
+                      {hook.events.map((event) => (
+                        <li key={event} className="rounded-lg bg-navy-50 px-2 py-0.5 font-mono text-[12px] text-navy-600">
+                          {event}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
 
-                {/* 🔴 W2-X03: a signed `ping`, and what their endpoint answered. */}
                 {canEdit && !hook.disabled ? (
-                  <TryButton action={sendTest} id={hook.id} labelKey="dev.sendTest" />
-                ) : null}
+                  <div className="mt-3 flex flex-wrap items-start gap-2 border-t border-navy-50 pt-1">
+                    {/* 🔴 W2-X03: a signed `ping`, and what their endpoint answered. */}
+                    <TryButton action={sendTest} id={hook.id} labelKey="dev.sendTest" />
 
-                {/*
-                  🔴 DISABLE ASKS FIRST, as revoking a key does (W2-X04). It was one
-                  tap that stopped every delivery to a production endpoint.
-                */}
-                {canEdit && !hook.disabled && asking !== hook.id ? (
-                  <button
-                    type="button"
-                    onClick={() => setAsking(hook.id)}
-                    className="tap-target mt-3 h-9 rounded-xl px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
-                  >
-                    {t("dev.disable")}
-                  </button>
+                    {/*
+                      🔴 DISABLE ASKS FIRST, as revoking a key does (W2-X04). It was one
+                      tap that stopped every delivery to a production endpoint.
+                    */}
+                    {asking !== hook.id ? (
+                      <RowButton danger className="mt-2" onClick={() => setAsking(hook.id)}>
+                        {t("dev.disable")}
+                      </RowButton>
+                    ) : null}
+                  </div>
                 ) : null}
 
                 {canEdit && !hook.disabled && asking === hook.id ? (
-                  <form action={disable} className="mt-3 space-y-2">
-                    <input type="hidden" name="webhookId" value={hook.id} />
-                    <p className="text-xs text-slate-700">{t("dev.disableConfirm")}</p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="submit"
-                        className="tap-target h-9 rounded-xl bg-red-600 px-3 text-xs font-semibold text-white hover:bg-red-700"
-                      >
-                        {t("dev.disableYes")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAsking(null)}
-                        className="tap-target h-9 rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                      >
-                        {t("dev.cancel")}
-                      </button>
-                    </div>
-                  </form>
+                  <ConfirmBox>
+                    <form action={disable} className="space-y-3">
+                      <input type="hidden" name="webhookId" value={hook.id} />
+                      <p className="text-sm text-navy-600">{t("dev.disableConfirm")}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="submit" variant="danger" size="sm">
+                          {t("dev.disableYes")}
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setAsking(null)}>
+                          {t("dev.cancel")}
+                        </Button>
+                      </div>
+                    </form>
+                  </ConfirmBox>
                 ) : null}
               </Card>
             </li>
@@ -128,8 +144,8 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
 
       {canEdit ? (
         open ? (
-          <Card className="p-5">
-            <form action={formAction} className="space-y-4">
+          <Card className="p-5 sm:p-6">
+            <form action={formAction} className="space-y-5">
               <Field label={t("dev.url")} htmlFor="hook-url">
                 {/*
                  * 🔴 NO PLACEHOLDER, and it was `https://` until the i18n ratchet caught it.
@@ -143,28 +159,26 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
                  * field, `registerWebhook` refuses anything that is not https with a sentence,
                  * and `partner_webhooks_https` refuses it again in the database.
                  */}
-                <Input id="hook-url" name="url" type="url" required />
+                <Input id="hook-url" name="url" type="url" dir="ltr" className="font-mono text-sm" required />
               </Field>
 
-              <fieldset className="space-y-2">
-                <legend className="text-xs font-semibold text-slate-700">{t("dev.events")}</legend>
+              <fieldset>
+                <legend className="text-sm font-semibold text-navy-600">{t("dev.events")}</legend>
                 {/* 🔴 W3 / D6: every event needs a linked patient, and nothing links one yet. */}
-                <p className="text-xs text-amber-800">{t("devs.needsLink")}</p>
-                {WEBHOOK_EVENTS.map((event) => (
-                  <label key={event} className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      name="events"
-                      value={event}
-                      className="h-4 w-4 rounded border-slate-300"
-                    />
-                    <code className="font-mono text-xs">{event}</code>
-                  </label>
-                ))}
+                <p className="mt-1.5 rounded-xl bg-amber-50 px-3 py-2 text-[13px] text-amber-900 ring-1 ring-amber-200">
+                  {t("devs.needsLink")}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {WEBHOOK_EVENTS.map((event) => (
+                    <CheckChip key={event} name="events" value={event}>
+                      {event}
+                    </CheckChip>
+                  ))}
+                </div>
               </fieldset>
 
               {state.error ? (
-                <p role="alert" className="text-xs text-red-600">
+                <p role="alert" className="text-sm text-red-700">
                   {state.error}
                 </p>
               ) : null}
@@ -173,9 +187,12 @@ export function WebhookList({ hooks, canEdit }: { hooks: WebhookRow[]; canEdit: 
             </form>
           </Card>
         ) : (
-          <Button variant="secondary" onClick={() => setOpen(true)}>
-            {t("dev.newWebhook")}
-          </Button>
+          <div>
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden />
+              {t("dev.newWebhook")}
+            </Button>
+          </div>
         )
       ) : null}
     </div>
