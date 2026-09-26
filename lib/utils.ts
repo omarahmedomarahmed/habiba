@@ -5,6 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * The ground a selected pill gives its own element, switched on once a sliding
+ * `layoutId` highlight has landed. The highlight is a sibling layer, so without
+ * this the words on it sit on a transparent element and anything that reads the
+ * ground from the text upward (the contrast gate, forced colours) finds white
+ * on white. The delay keeps the slide a slide: the destination does not light
+ * up before the pill arrives. Leaving the state has no delay.
+ */
+export const SETTLE = "transition-[background-color] duration-0 delay-[350ms]";
+
 export function initials(first?: string | null, last?: string | null): string {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
 }

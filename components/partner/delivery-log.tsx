@@ -8,7 +8,7 @@ import { redeliverOne } from "@/app/(partner)/partner/webhooks/actions";
 import { Badge, Card, EmptyState } from "@/components/clinician/kit";
 import { TryButton } from "@/components/partner/try-button";
 import { useT } from "@/lib/i18n/client";
-import { cn } from "@/lib/utils";
+import { cn, SETTLE } from "@/lib/utils";
 
 /**
  * The delivery log, as rows a developer scans, with the mockup's filter on top.
@@ -70,7 +70,7 @@ export function DeliveryLog({ deliveries }: { deliveries: DeliveryRow[] }) {
               onClick={() => setFilter(option.id)}
               className={cn(
                 "relative inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
-                on ? "text-white" : "bg-white text-navy-600 ring-1 ring-navy-100",
+                on ? `bg-navy-600 text-white ${SETTLE}` : "bg-white text-navy-600 ring-1 ring-navy-100",
               )}
             >
               {on ? (

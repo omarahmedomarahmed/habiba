@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 
 import { useT } from "@/lib/i18n/client";
 import { groupOf } from "@/lib/nav/clinician";
-import { cn } from "@/lib/utils";
+import { cn, SETTLE } from "@/lib/utils";
 
 /**
  * 🔴 RULING 14b: THE PAGES A GROUP HOLDS, AS A ROW OF TABS AT THE TOP OF EACH.
@@ -18,6 +18,13 @@ import { cn } from "@/lib/utils";
  *
  * It sits in the portal's top bar, and the selection is a navy pill that
  * slides to the page you chose, as in the approved mockups.
+ *
+ * 🔴 THE CHOSEN TAB ALSO CARRIES THE NAVY ITSELF. The sliding pill is a sibling
+ * layer, so white words sat on a link whose own ground was transparent, and
+ * anything reading the ground from the text up (the contrast gate, a forced
+ * colours mode, a print) found white on white. The link's own navy switches on
+ * only after the pill has landed (`SETTLE`), so the slide still reads as a
+ * slide and not as a second pill appearing at the destination.
  */
 export function SectionTabs({ cleared = true }: { cleared?: boolean }) {
   const pathname = usePathname();
@@ -43,7 +50,7 @@ export function SectionTabs({ cleared = true }: { cleared?: boolean }) {
                 aria-current={on ? "page" : undefined}
                 className={cn(
                   "relative inline-flex h-10 items-center rounded-full px-4 text-[14px] font-semibold whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
-                  on ? "text-white" : "bg-white text-navy-500 ring-1 ring-navy-100 hover:text-navy-700",
+                  on ? `bg-navy-600 text-white ${SETTLE}` : "bg-white text-navy-500 ring-1 ring-navy-100 hover:text-navy-700",
                 )}
               >
                 {on ? (

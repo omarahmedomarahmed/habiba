@@ -10,7 +10,7 @@ import { Logo } from "@/components/brand/logo";
 import { Avatar, Glow } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/messages";
-import { cn } from "@/lib/utils";
+import { cn, SETTLE } from "@/lib/utils";
 
 /**
  * The partner's navigation. PLAN.md 55.2, 55.3.
@@ -140,7 +140,7 @@ export function PartnerChrome({
                   aria-current={on ? "page" : undefined}
                   className={cn(
                     "relative flex h-11 items-center gap-3 rounded-xl px-3 text-[14px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
-                    on ? "text-navy-700" : "text-white/75 hover:bg-white/5 hover:text-white",
+                    on ? `bg-brand-500 text-navy-700 ${SETTLE}` : "text-white/75 hover:bg-white/5 hover:text-white",
                   )}
                 >
                   {on ? (
@@ -204,7 +204,7 @@ export function PartnerChrome({
                         aria-current={on ? "page" : undefined}
                         className={cn(
                           "relative inline-flex h-10 items-center rounded-full px-4 text-[14px] font-semibold whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
-                          on ? "text-white" : "bg-white text-navy-500 ring-1 ring-navy-100 hover:text-navy-700",
+                          on ? `bg-navy-600 text-white ${SETTLE}` : "bg-white text-navy-500 ring-1 ring-navy-100 hover:text-navy-700",
                         )}
                       >
                         {on ? (
