@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Banknote, Video } from "lucide-react";
 
 import { getI18n } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
@@ -64,15 +65,17 @@ export async function SessionOrb({
         session.state === "owes" ? "bg-amber-400 text-navy-600" : "bg-brand-500 text-navy-600",
       )}
     >
+      {/*
+        Shoot P12/P13/P19/P20: the icons used to be drawn from CSS borders, a
+        box for a banknote and a box with one side missing for a door. On a
+        phone the door read as a broken glyph, and nobody could tell the orb
+        was the way into their session. They are the icon set's own now: a
+        video camera for "your session is ready", a banknote for "pay".
+      */}
       {session.state === "owes" ? (
-        /* A banknote, drawn rather than typed, so no font decides its size. */
-        <span aria-hidden className="block h-4 w-6 rounded-[3px] border-2 border-current" />
+        <Banknote aria-hidden className="h-5 w-5" strokeWidth={2.25} />
       ) : (
-        /* A door. The same shape, opened. */
-        <span
-          aria-hidden
-          className="block h-5 w-4 rounded-[2px] border-2 border-current border-e-0"
-        />
+        <Video aria-hidden className="h-5 w-5" strokeWidth={2.25} />
       )}
 
       {/*
