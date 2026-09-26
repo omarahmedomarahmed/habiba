@@ -1014,6 +1014,27 @@ export async function adjustmentSums(input: {
   return out;
 }
 
+/**
+ * 🔴 Board 454: whether a company's pot has ever paid for a session, read
+ * from its own legs (`session_payment` against `sponsor_pot`, referenced to
+ * the sponsor). Names no session and no person.
+ */
+export async function potHasPaidForSession(sponsorId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: ledgerEntries.id })
+    .from(ledgerEntries)
+    .where(
+      and(
+        eq(ledgerEntries.account, "sponsor_pot"),
+        eq(ledgerEntries.txnKind, "session_payment"),
+        eq(ledgerEntries.refType, "sponsor"),
+        eq(ledgerEntries.refId, sponsorId),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** A12: how far back the second tab's twin is looked for. */
 const TWIN_WINDOW_MS = 10 * 60 * 1000;

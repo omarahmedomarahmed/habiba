@@ -10,7 +10,6 @@ import {
   sponsorCodes,
   sponsorIdentifierFields,
   rateLimits,
-  sponsorMoneyEntries,
   sponsorPots,
   sponsors,
   type RemovalReason,
@@ -863,12 +862,13 @@ export async function coverageHasAudience(sponsorId: string): Promise<boolean> {
     .where(and(eq(enrolments.sponsorId, sponsorId), sql`${enrolments.state} <> 'removed'`))
     .limit(1);
   if (enrolled) return true;
-  const [spent] = await controlDb
-    .select({ id: sponsorMoneyEntries.id })
-    .from(sponsorMoneyEntries)
-    .where(eq(sponsorMoneyEntries.sponsorId, sponsorId))
-    .limit(1);
-  return Boolean(spent);
+  /*
+   * The pot's own ledger, not `sponsor_money_entries`: C244 keeps that table to
+   * one reader (the company money view), and "has the pot ever paid for a
+   * session" is a question the books answer without it.
+   */
+  const { potHasPaidForSession } = await import("@/lib/billing/ledger");
+  return potHasPaidForSession(sponsorId);
 }
 
 /**
