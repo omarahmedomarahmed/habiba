@@ -112,6 +112,18 @@ test("564: a card says documents were not kept only while none are there", () =>
   assert.doesNotMatch(card, />\s*Turned down once\. Rejecting again/, "the count is the real one");
 });
 
+test("590: a partner's or company's message goes to the professionals' queue, and late is said in words", async () => {
+  const { ticketAudience } = await import("../lib/data/support");
+  assert.equal(ticketAudience("a_partnership", false), "therapist");
+  assert.equal(ticketAudience("a_company", false), "therapist");
+  assert.equal(ticketAudience("something_else", true), "therapist", "a known partner developer, whatever the topic");
+  assert.equal(ticketAudience("billing", false), "patient");
+  const support = readFileSync("lib/data/support.ts", "utf8");
+  assert.match(support, /audience: input\.audience \?\? ticketAudience\(topic, await professionalSender\(email\)\)/);
+  const queue = readFileSync("components/admin/support-queue.tsx", "utf8");
+  assert.match(queue, /`Overdue \$\{row\.lateHours\}h/);
+});
+
 test("490: a rejected top-up shows on the page, with what was sent, before anything is pressed", () => {
   const popup = readFileSync("components/billing/payment-popup.tsx", "utf8");
   const closed = popup.slice(popup.indexOf("if (!open) {"));

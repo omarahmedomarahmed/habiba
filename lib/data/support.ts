@@ -100,6 +100,34 @@ export type TicketResult =
   | { ok: false; error: string };
 
 /**
+ * 🔴 Board 590 (AD17.1): WHICH QUEUE A CONTACT-FORM MESSAGE GOES TO.
+ *
+ * The public form never said, so every message landed in Patients, including
+ * a partner developer asking about production approval. The second queue is
+ * the professionals' queue: clinicians, practices, companies and partners.
+ * A message goes there when its topic is theirs, or when its sender is one of
+ * them whatever topic they chose. Two queues are kept (the column's CHECK
+ * allows two); the words on the tab say who the second one is for.
+ */
+const PROFESSIONAL_TOPICS: readonly TicketTopic[] = ["joining_as_a_therapist", "a_partnership", "a_company"];
+
+export function ticketAudience(topic: TicketTopic, fromProfessional: boolean): "patient" | "therapist" {
+  return fromProfessional || PROFESSIONAL_TOPICS.includes(topic) ? "therapist" : "patient";
+}
+
+/** Whether an address belongs to a clinician, a partner developer, a practice manager or a company user. */
+async function professionalSender(email: string | null): Promise<boolean> {
+  if (!email) return false;
+  const found = await controlDb.execute<{ hit: number }>(sql`
+    SELECT 1 AS hit FROM users WHERE lower(email) = ${email} AND role = 'therapist'
+    UNION ALL SELECT 1 FROM partner_users WHERE lower(email) = ${email} AND deleted_at IS NULL
+    UNION ALL SELECT 1 FROM clinic_managers WHERE lower(email) = ${email}
+    UNION ALL SELECT 1 FROM sponsor_users WHERE lower(email) = ${email} AND deleted_at IS NULL
+    LIMIT 1`);
+  return found.rows.length > 0;
+}
+
+/**
  * A short reference a person can quote back. Not a UUID.
  *
  * Somebody reading it out on the phone at two in the morning should not have
@@ -192,7 +220,7 @@ export async function fileTicket(input: TicketInput): Promise<TicketResult> {
       name: name.slice(0, 120),
       email,
       phone,
-      audience: input.audience ?? "patient",
+      audience: input.audience ?? ticketAudience(topic, await professionalSender(email)),
       patientAccountId: input.patientAccountId ?? null,
       userId: input.userId ?? null,
       relatedSessionId: input.relatedSessionId ?? null,
