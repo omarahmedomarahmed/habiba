@@ -14,7 +14,7 @@ full gate runs at most after G0. A `send_later` check-in wakes the session every
 
 | Run | When | Status |
 |---|---|---|
-| G0 | Round 1 fixes, before any of this | running at the time of writing |
+| G0 | Round 1 fixes, before any of this | ran: 34 of 39 passed; the 5 failed groups fixed and re-run alone (N4) |
 | G1 | After round 2 (with round 3 folded in) and its fixes, before main | not run |
 | G2 | After the redesign, before main | not run |
 | G3 | After the post-redesign walkthrough fixes, before main | not run |
@@ -26,11 +26,11 @@ fourth full gate.
 
 | # | Stage | Status |
 |---|---|---|
-| S0 | G0 passes; production migrations 0174, 0176, 0178 first; push main; confirm live; Arabic CMS rows that claim clinicians are online fixed through `/admin/content` | in progress |
-| S1 | Redesign wave 1 in worktrees, started in parallel: website, patient app, therapist portal, to the `/design` mockups, with the radar globe from the current radar | not started |
+| S0 | G0 passes; production migrations 0174, 0176, 0178 first; push main; confirm live; Arabic CMS rows that claim clinicians are online fixed through `/admin/content` | migrations applied, main pushed at ac275b63 (deploy building); then save rules in /admin/settings (N5) and check the Arabic home |
+| S1 | Redesign wave 1 in worktrees, started in parallel: website, patient app, therapist portal, to the `/design` mockups, with the radar globe from the current radar | done, merged into local branch `redesign-integration` (worktree `.claude/worktrees/redesign-integration`) |
 | S2 | Round 2 with round 3 folded in, on the live site: every round 1 bug re-walked, then the round 2 and 3 flows, sessions played by one agent per pair, patient audio through the transcribe upload as the patient track | not started |
 | S3 | Fix every round 2 bug; G1; migrations; push main; confirm live | not started |
-| S4 | Redesign wave 2 (clinic, company, partner); merge waves 1 and 2; G2; push main; confirm live | not started |
+| S4 | Redesign wave 2 (clinic, company, partner); merge waves 1 and 2; G2; push main; confirm live | wave 2 agents running, each merging `redesign-integration` first |
 | S5 | Walkthrough of rounds 1 and 2 compacted on the new design; fix; G3; push main; confirm live | not started |
 | S6 | Report to the founder: rulings table, what needs the founder, what is live | not started |
 

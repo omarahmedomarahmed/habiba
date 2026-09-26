@@ -10,10 +10,17 @@ export type Clock = { day: number; realAt: string; history: { day: number; shift
 
 const DAY_MS = 86_400_000;
 
-/** The shift that puts the product's now at the start of `toDay`, in whole seconds. */
+/**
+ * The shift that puts the product's now within the first hour of `toDay`, in whole hours.
+ *
+ * Whole hours, not seconds: availability slots start on the hour (the
+ * `availability_slots_whole_hour` check), so a shift of 5 days 16 hours 21
+ * minutes left every slot at :21 and the database refused the move. Rounded
+ * down, the product's now lands at most an hour after the day starts.
+ */
 export function shiftFor(clock: Clock, toDay: number, realNow: Date): number {
   const elapsed = realNow.getTime() - new Date(clock.realAt).getTime();
-  return Math.floor(((toDay - clock.day) * DAY_MS - elapsed) / 1000);
+  return Math.floor(((toDay - clock.day) * DAY_MS - elapsed) / 3_600_000) * 3_600;
 }
 
 type Col = { table: string; column: string; type: string };
