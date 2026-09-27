@@ -446,7 +446,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "hero",
         eyebrow: "For patients",
         heading: "Your therapy record, and it is actually yours",
-        body: "Find somebody, book them, and read what they write to you afterwards. The phone beside this is the app, as Mariam sees it when she signs in.",
+        body: "Find somebody, book them, and read what they write to you afterwards. The phone beside this is the app, as Mariam sees it.",
         ctaLabel: "See who is online now",
         ctaHref: "/radar",
         /*
@@ -485,7 +485,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             label: "Finding somebody",
             title: "Somebody who speaks your first language.",
-            body: "Browse by what you want help with and by language, see each therapist's price, and book an hour they published.",
+            body: "Browse by need and by language, see each therapist's price, and book an hour they published.",
             demo: "patient-therapists",
           },
           {
@@ -529,7 +529,8 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           { title: "A copy of everything, emailed to you, never over WhatsApp", body: "" },
           { title: "A psychiatrist and a therapist on one record, each granted separately", body: "" },
           { title: "Recording is asked for, not assumed, and stops when you say", body: "" },
-          { title: "Claim a record a therapist already keeps, with your phone number", body: "" },
+          { title: "Claim the record a therapist keeps, with your phone number", body: "" },
+          { title: "Still there in three years: nothing expires", body: "" },
           { title: "You never talk to the AI: nothing written by a machine reaches you unsigned", body: "" },
         ],
       },

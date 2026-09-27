@@ -65,7 +65,7 @@ import {
 } from "@/lib/marketing/fixtures";
 import { egp, egpFrom } from "@/lib/marketing/prices";
 import { formatCalendarDate, formatDay, formatTime } from "@/lib/scheduling/tz";
-import { cn } from "@/lib/utils";
+import { cn, formatMonthYear } from "@/lib/utils";
 
 /**
  * 🔴 THE FOUR DESKS, AS THE SEEDED LOGINS SEE THEM (founder, 26 Sep).
@@ -495,10 +495,7 @@ function CompanyLedger() {
   const t = useT();
   const locale = useLocale();
   const money = useMoney();
-  const month = (iso: string) =>
-    new Intl.DateTimeFormat(locale === "ar" ? "ar-EG-u-nu-latn" : "en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(
-      new Date(`${iso}T12:00:00Z`),
-    );
+  const month = (iso: string) => formatMonthYear(`${iso}T12:00:00Z`, "UTC", locale);
   const topUps = COMPANY_TOPUPS.reduce((sum, row) => sum + row.egp, 0);
 
   return (
@@ -1675,7 +1672,7 @@ function KarimRadar() {
           onClick={() => setOnline((x) => !x)}
           className={cn(
             "relative mt-3 inline-flex h-9 items-center gap-2 rounded-xl px-3.5 text-[12.5px] font-semibold",
-            online ? "bg-white/10 text-white ring-1 ring-white/15" : "bg-brand-500 text-navy-700",
+            online ? GO_OFFLINE : GO_ONLINE,
           )}
         >
           {online ? t("dpo.goOffline") : t("dpo.goOnline")}
@@ -1684,6 +1681,11 @@ function KarimRadar() {
     </>
   );
 }
+
+/* The availability toggle. Online it sits on the dark card with white ink; offline it is
+ * the teal ground with navy ink, never white on teal. */
+const GO_OFFLINE = "bg-white/10 text-white ring-1 ring-white/15";
+const GO_ONLINE = "bg-brand-500 text-navy-700";
 
 function KarimSettings() {
   const t = useT();

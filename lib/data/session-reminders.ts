@@ -45,6 +45,26 @@ import { getSettings } from "@/lib/settings";
  * a provider that is down produces one logged failure per mark rather than a
  * retry every minute for an hour.
  */
+/**
+ * 🔴 51.6: what the minute tick did, for staff. The Scheduled jobs panel on
+ * /admin/errors says whether `tick` is running; this says whether patients are
+ * being reached: the reminders claimed in the last day, by outcome. Counts only,
+ * no session or patient, because the question staff ask is "are reminders
+ * going out", and a list of who had a session today is not theirs to read.
+ */
+export async function reminderOutcomes(
+  now: Date = new Date(),
+): Promise<{ sent: number; unreachable: number; failed: number }> {
+  const since = new Date(now.getTime() - 24 * 60 * 60_000);
+  const rows = await db
+    .select({ outcome: sessionReminders.outcome, count: sql<number>`count(*)::int` })
+    .from(sessionReminders)
+    .where(gt(sessionReminders.createdAt, since))
+    .groupBy(sessionReminders.outcome);
+  const by = new Map(rows.map((row) => [row.outcome, Number(row.count)]));
+  return { sent: by.get("sent") ?? 0, unreachable: by.get("unreachable") ?? 0, failed: by.get("failed") ?? 0 };
+}
+
 export async function sweepSessionReminders(now: Date = new Date()): Promise<{
   due: number;
   sent: number;

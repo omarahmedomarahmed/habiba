@@ -32,6 +32,7 @@ move by the same amount, and no trigger stamps the real time.
    |---|---|
    | `/api/cron/crisis` | Waiting patients warned, overrun sessions closed, crisis follow-ups kept in the outbox |
    | `/api/cron/reminders` | Session reminders, unpaid bookings released, wallet holds swept, payment reminders |
+   | `/api/cron/tick` | The 60, 30 and 15 minute reminders and the "you can go in now" at 5 for every session booked inside the next hour, each sent once: a second fire sends nothing, and /admin/errors counts what went |
    | `/api/cron/billing` | Bills due, plans lapsed or renewed, pot alerts, the one-person digest, payouts released |
    | `/api/cron/retention` | Expired carts, tokens and grants cleared |
    | `/api/cron/extract` | Notes' facts extracted for the record and the copilot |

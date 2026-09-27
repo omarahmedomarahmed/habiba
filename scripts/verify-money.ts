@@ -345,19 +345,37 @@ function main() {
    * default; the demo added a literal 14%. The demo content now carries what
    * `sessionVatBpsFor` gives for Egypt, the read the new-session preview makes.
    */
+  /*
+   * The patient app mockup was redrawn as Mariam's phone: her sessions are
+   * covered by her employer, so it quotes a therapist's hourly rate and no
+   * checkout total at all. The rule still binds: no literal VAT anywhere, and
+   * the moment a VAT or total line comes back it must read the rule the
+   * content hands it and hide a zero line, as the old checkout preview did.
+   */
   const patientApp = readSource("components/demo/patient-app.tsx");
-  const literalVat = (src: string) => /priceCents \* 0\.\d+/.test(src);
+  const literalVat = (src: string) => /(?:priceCents|price|pounds|egp) \* 0\.\d+/.test(src);
+  const quotesTotal = (src: string) => /"pat\.(?:vat|total)"|\bvat\b\s*[=+]/.test(src);
+  const vatFromRule = (src: string) =>
+    /sessionVatBps=\{content\?\.sessionVatBps \?\? 0\}/.test(src) && /\{vat > 0 \? \(/.test(src);
   check(
     "🔴 E the radar demo computes VAT from the rule it is handed, and hides a zero line",
     !literalVat(patientApp) &&
-      /sessionVatBps=\{content\?\.sessionVatBps \?\? 0\}/.test(patientApp) &&
-      /\{vat > 0 \? \(/.test(patientApp) &&
+      (!quotesTotal(patientApp) || vatFromRule(patientApp)) &&
       /sessionVatBpsFor\(settings\.rules, egypt\?\.vatBps \?\? 0\)/.test(readSource("lib/content/demo.ts")),
     "a demo quoting a total no checkout would ever charge",
   );
   check(
     "🔴 CONTROL the literal detector catches the old line",
     literalVat("const vat = Math.round(who.priceCents * 0.14);"),
+    "",
+  );
+  check(
+    "🔴 CONTROL a total line without the rule is caught",
+    quotesTotal('<span>{t("pat.total")}</span>') &&
+      quotesTotal("const vat = Math.round(price * 0.14);") &&
+      !vatFromRule('<span>{t("pat.total")}</span>') &&
+      vatFromRule("sessionVatBps={content?.sessionVatBps ?? 0}\n{vat > 0 ? (") &&
+      !quotesTotal("{money(who.egp)}"),
     "",
   );
 

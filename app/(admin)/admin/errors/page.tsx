@@ -6,6 +6,7 @@ import { ListControls } from "@/components/admin/list-controls";
 import { PAGE_SIZE, paging, searchTerm } from "@/lib/admin/paging";
 import { ERROR_RETENTION_DAYS, recentErrors } from "@/lib/observability/errors";
 import { jobHealth, opsAlertBoard } from "@/lib/observability/heartbeat";
+import { reminderOutcomes } from "@/lib/data/session-reminders";
 import { OpsAlertsList } from "@/components/admin/ops-alerts";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDateTime } from "@/lib/utils";
@@ -37,7 +38,12 @@ export default async function AdminErrorsPage({
   const { page, offset } = paging(params);
   const fetched = await recentErrors(PAGE_SIZE * 4 + 1, { offset: offset * 4, q });
   const hasMore = fetched.length > PAGE_SIZE * 4;
-  const [health, alerts, { t, locale }] = await Promise.all([jobHealth(), opsAlertBoard(), getI18n()]);
+  const [health, alerts, reminders, { t, locale }] = await Promise.all([
+    jobHealth(),
+    opsAlertBoard(),
+    reminderOutcomes(),
+    getI18n(),
+  ]);
   const rows = fetched.slice(0, PAGE_SIZE * 4);
 
   const groups = new Map<string, { rows: typeof rows; first: Date; last: Date }>();
@@ -78,6 +84,11 @@ export default async function AdminErrorsPage({
             </li>
           ))}
         </ul>
+        {/* 🔴 0183 / 51.6: whether the minute tick is reaching patients, not only whether it runs. */}
+        <p className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2 text-xs text-slate-600">
+          {reminders.failed > 0 ? <Badge tone="red">{reminders.failed}</Badge> : null}
+          {t("aops.reminders", reminders)}
+        </p>
         {/* 🔴 Board 423: in plain words, each marked open or cleared, never a raw key. */}
         <OpsAlertsList rows={alerts} t={t} zone={actor.timezone} locale={locale} />
       </Card>
