@@ -215,7 +215,7 @@ export default async function PatientHomePage({
               </span>
               <span className="flex min-w-0 items-center gap-2 text-[14px] font-semibold text-brand-300">
                 <span className="live-dot h-2.5 w-2.5 shrink-0 rounded-full bg-brand-400" aria-hidden />
-                <span className="truncate">
+                <span className="line-clamp-2 leading-tight">
                   {liveNow === 1 ? t("home.liveOne") : t("home.liveMany", { count: liveNow })}
                 </span>
               </span>

@@ -476,13 +476,18 @@ export async function seedEvent(ctx: { db: Db; adminId: string }): Promise<void>
      * every patient until they open the crisis radar themselves, which no
      * invented clinician ever will. `online` with a fresh heartbeat reads as
      * online for ninety seconds and offline after, and stays listed either way.
+     *
+     * 🔴 Seeded OFF the radar (status offline, no heartbeat), never `online`. A
+     * row seeded online stays online for as long as the clinician's portal keeps
+     * a heartbeat, so a demo login that only signed in showed as free to every
+     * visitor. A demo clinician is bright only after pressing Go on the radar.
      */
     await db.execute(sql`
       INSERT INTO therapist_radar
         (user_id, organization_id, status, demo, headline, languages, specialties, country, region, city,
          last_seen_at, accepts_walk_ins, practice_name, practice_address, practice_confirmed_at)
-      VALUES (${user.id}, ${orgId}, 'online', true, ${c.headline}, ${JSON.stringify(c.languages)}::jsonb,
-              ${JSON.stringify(c.specialties)}::jsonb, 'EG', ${c.governorate}, ${c.city}, now(), false,
+      VALUES (${user.id}, ${orgId}, 'offline', true, ${c.headline}, ${JSON.stringify(c.languages)}::jsonb,
+              ${JSON.stringify(c.specialties)}::jsonb, 'EG', ${c.governorate}, ${c.city}, NULL, false,
               ${c.practice.name}, ${c.practice.address}, now())`);
 
     /* Fourteen days of opening hours, on the hour, skipping the Egyptian weekend. */
