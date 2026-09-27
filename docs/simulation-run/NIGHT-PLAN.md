@@ -56,3 +56,13 @@ fourth full gate.
 | Home audiences copy synced (content:sync home audiences) | done |
 | Gates on the merged branch | passed (verifiers re-run alone after N4) |
 | Live walk: 17 logins, radar offline dots, go live and back, SOS drag and tap | passed |
+
+## 27 Sep, founder's list after the event (done, live)
+
+| Step | State |
+|---|---|
+| Five workers merged: loader and language switch, radar countries and chips, For pages and mockups, patient app, reminders and clock | done |
+| Gates | passed after fixing failed groups alone (claims, principals, qualified, suites, prose, money, palette, sprint12/37l2/51/65, runbook, served) |
+| Production: migration 0183, event cast reseeded (100 of 100), for-patients synced | done |
+| Demo clinicians seeded off the radar (found live: a signed-in demo showed as free) | fixed, reseeded |
+| Live walk: radar world, Egypt zoom with Cairo, Alexandria, Mansoura; chips; go live and back; SOS drag; session page; orb; language switch; loading bar | passed |
