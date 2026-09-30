@@ -52,6 +52,27 @@ export const CRON_INTERVAL_HOURS: Record<string, number> = {
   tick: 1 / 60,
 };
 
+/**
+ * 🔴 How often a job RECORDS a heartbeat, where that is not every run.
+ *
+ * The minute tick skips the database when no session starts within the hour
+ * (`lib/sessions/reminder-marker.ts`), and a heartbeat is a database write, so
+ * a skipped run records none. It always reaches the database at :20
+ * (`TICK_HOURLY_MINUTE`), the minute the hourly jobs wake it anyway, and that
+ * run records the heartbeat. So the watchdog holds the tick to an hour: late
+ * after two, which still means the scheduled tick, its secret, or its database
+ * path has stopped. `CRON_INTERVAL_HOURS` above stays the schedule itself,
+ * which `verify:launch` compares with `vercel.json`.
+ */
+export const HEARTBEAT_HOURS: Record<string, number> = {
+  tick: 1,
+};
+
+/** The interval the watchdog holds a job's heartbeat to. */
+function heartbeatHoursFor(job: string): number | undefined {
+  return HEARTBEAT_HOURS[job] ?? CRON_INTERVAL_HOURS[job];
+}
+
 /** Late means twice the interval: one missed run is a blip, two is a stopped job. */
 export const OVERDUE_FACTOR = 2;
 
@@ -165,7 +186,7 @@ export async function findProblems(now = new Date()): Promise<WatchdogProblem[]>
   for (const [job, hours] of Object.entries(CRON_INTERVAL_HOURS)) {
     const beat = byJob.get(job);
     const last = beat?.lastSuccessAt ?? null;
-    const lateBy = lateAfterMs(hours);
+    const lateBy = lateAfterMs(heartbeatHoursFor(job) ?? hours);
     /*
      * No row at all is late too. The migration seeds a row for every scheduled
      * job, so a missing one means somebody deleted it, and a job nobody can
@@ -293,7 +314,7 @@ export async function jobHealth(now = new Date()): Promise<{
   const rows = await db.select().from(cronHeartbeats).orderBy(cronHeartbeats.job);
   return {
     jobs: rows.map((row) => {
-      const hours = CRON_INTERVAL_HOURS[row.job] ?? 24;
+      const hours = heartbeatHoursFor(row.job) ?? 24;
       const since = row.lastSuccessAt ?? row.updatedAt;
       return {
         job: row.job,

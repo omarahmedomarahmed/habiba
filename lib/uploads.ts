@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
-import { del, get, put } from "@vercel/blob";
+import { BlobPreconditionFailedError, del, get, head, put } from "@vercel/blob";
 
 import { env } from "@/lib/env";
 import { log, safeErrorMessage } from "@/lib/logger";
@@ -410,3 +410,85 @@ export function documentUrl(stored: string | null | undefined): string | null {
 }
 
 export const uploadsBaseUrl = env.appUrl;
+
+/* ------------------------------------------------ the reminder marker -- */
+
+/**
+ * 🔴 THE ONE BLOB THAT IS NOT A FILE: the minute tick's marker
+ * (`lib/sessions/reminder-marker.ts`). Two timestamps and nothing personal, so
+ * it may live on either store, and it lives here because this is the one module
+ * that talks to blob storage (`verify:blobs`).
+ *
+ * Private when a private store exists (`BLOB_PRIVATE_READ_WRITE_TOKEN`), read
+ * from origin with `useCache: false`, so a write is seen by the next read.
+ * Otherwise the main store, which is public: a public read can come from the
+ * CDN, so each one is checked against `head()` (the API, never cached) and a
+ * copy whose ETag disagrees is refused as unreadable, which sends the tick to
+ * the database.
+ *
+ * Every call has a short timeout: a slow blob store must cost a tick its skip,
+ * never its reminders.
+ */
+function markerAccess(): "private" | "public" {
+  return process.env.BLOB_PRIVATE_READ_WRITE_TOKEN ? "private" : "public";
+}
+
+function markerToken(): string | undefined {
+  return markerAccess() === "private" ? privateToken() : process.env.BLOB_READ_WRITE_TOKEN || undefined;
+}
+
+const MARKER_TIMEOUT_MS = 2_500;
+
+/** An ETag as the API and the CDN may each quote it. */
+function bareEtag(etag: string | null | undefined): string {
+  return (etag ?? "").replace(/^W\//, "").replace(/"/g, "");
+}
+
+/** The marker's text and ETag; null when there is none. Throws on anything else. */
+export async function readMarkerBlob(path: string): Promise<{ text: string; etag: string } | null> {
+  const access = markerAccess();
+  const token = markerToken();
+  const result = await get(path, {
+    access,
+    token,
+    useCache: false,
+    abortSignal: AbortSignal.timeout(MARKER_TIMEOUT_MS),
+  });
+  if (!result) return null;
+  if (result.statusCode !== 200) throw new Error("marker read returned no body");
+  const text = await new Response(result.stream).text();
+  if (access === "public") {
+    const origin = await head(path, { token, abortSignal: AbortSignal.timeout(MARKER_TIMEOUT_MS) });
+    if (bareEtag(origin.etag) !== bareEtag(result.blob.etag)) throw new Error("marker read from a stale cache");
+    return { text, etag: origin.etag };
+  }
+  return { text, etag: result.blob.etag };
+}
+
+/**
+ * Write the marker, conditionally. `ifMatch` a string: only over that version.
+ * `ifMatch` null: only when there is no marker yet. Throws when the condition
+ * fails (`isMarkerConflict`) or the store refuses.
+ */
+export async function writeMarkerBlob(path: string, text: string, ifMatch: string | null): Promise<void> {
+  await put(path, text, {
+    access: markerAccess(),
+    token: markerToken(),
+    addRandomSuffix: false,
+    contentType: "application/json",
+    cacheControlMaxAge: 0,
+    ...(ifMatch === null ? { allowOverwrite: false } : { ifMatch }),
+    abortSignal: AbortSignal.timeout(MARKER_TIMEOUT_MS),
+  });
+}
+
+/** Somebody else wrote first: read again and retry. */
+export function isMarkerConflict(error: unknown): boolean {
+  if (error instanceof BlobPreconditionFailedError) return true;
+  return error instanceof Error && /already exists|precondition/i.test(error.message);
+}
+
+/** Remove the marker, so the next tick reads the database. Throws on failure. */
+export async function deleteMarkerBlob(path: string): Promise<void> {
+  await del(path, { token: markerToken(), abortSignal: AbortSignal.timeout(MARKER_TIMEOUT_MS) });
+}

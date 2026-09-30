@@ -270,6 +270,10 @@ async function main() {
     console.log(`  sponsor     ${sponsor.id}`);
     console.log(`  patient     ${patient.id}`);
     console.log(`  therapist   ${therapist.id}`);
+
+    /* 🔴 A session two hours ahead, written with SQL: the minute tick's marker is read again (`lib/data/reminder-marker.ts`). */
+    const { refreshReminderMarker } = await import("../lib/data/reminder-marker");
+    await refreshReminderMarker();
   } finally {
     await pool.end();
   }

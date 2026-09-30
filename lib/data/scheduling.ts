@@ -689,6 +689,13 @@ export async function bookSlot(input: {
   }
 
   /*
+   * 🔴 The minute tick's marker learns this start, after the row is committed,
+   * so a booking inside the hour is reminded from the next minute. Never throws.
+   */
+  const { noteSessionBooked } = await import("./reminder-marker");
+  await noteSessionBooked(slot.startsAt);
+
+  /*
    * 🔴 53.21 — POT FIRST, ALWAYS, and here rather than on the pay page.
    *
    * A badged patient never pays out of pocket while their sponsor's pot has
@@ -782,6 +789,9 @@ export async function cancelBooking(input: {
     /* 🔴 K20: a transfer declared for it is now money to give back, on the staff screen. */
     const { flagTransfersForCancelled } = await import("@/lib/billing/rail-exceptions");
     await flagTransfersForCancelled(cancelled.sessionId);
+    /* The minute tick's marker, read again without this session. Never throws. */
+    const { noteSessionCancelled } = await import("./reminder-marker");
+    await noteSessionCancelled();
   }
 
   await audit({
