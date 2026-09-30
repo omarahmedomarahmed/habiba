@@ -218,6 +218,10 @@ const SCOPE: Record<string, Scope> = {
   // The per-minute reminder job behind `/api/cron/[job]` (CRON_SECRET). It reads
   // a booked session's time and the patient's own contact to remind them, nothing more.
   "session-reminders": { who: ["admin"], clinical: true },
+  // The minute tick's marker: the start of the soonest booked session and when it
+  // was read, nothing else. Written after a patient or clinician books, moves or
+  // cancels, and by the cron jobs. Not clinical: no person, no session id.
+  "reminder-marker": { who: ["clinician", "patient", "admin"] },
   "meeting-connections": { who: ["clinician", "admin"], clinical: true },
   challenge: { who: ["clinician", "patient", "admin"], clinical: true },
   // B6: the claim refusals, translated for the patient screens that show them. No query of its own.

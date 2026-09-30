@@ -353,6 +353,9 @@ export async function patientCancel(input: {
     )
     .returning({ id: sessions.id });
   if (!cancelled) return { ok: false, error: "pchange.errGone" };
+  /* The minute tick's marker, read again without this session. Never throws. */
+  const { noteSessionCancelled } = await import("./reminder-marker");
+  await noteSessionCancelled();
 
   /* The hour goes back on the calendar for somebody else. */
   await db
@@ -624,6 +627,14 @@ export async function rescheduleBooking(input: {
     if (error instanceof Moved) return { ok: false, error: error.key };
     throw error;
   }
+
+  /*
+   * 🔴 The minute tick's marker learns the new start, after the move is
+   * committed. A move to later leaves the old start in it until the next
+   * hourly refresh, which only runs a tick that finds nothing. Never throws.
+   */
+  const { noteSessionBooked } = await import("./reminder-marker");
+  await noteSessionBooked(target.startsAt);
 
   await audit({
     actor: input.by.kind === "therapist" ? input.by.actor : null,

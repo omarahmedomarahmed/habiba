@@ -53,8 +53,9 @@ export const maxDuration = 300;
  *                     spent rate-limit rows and errors past thirty days, and
  *                     takes clinicians with an expired licence off (W1-16).
  *   tick       every minute  🔴 0183: the 60, 30 and 15 minute reminders and
- *                     the "you can go in now" at 5, for booked sessions. One
- *                     indexed read that finds nothing on almost every minute.
+ *                     the "you can go in now" at 5, for booked sessions. It
+ *                     reads a marker in Vercel Blob first and does not touch
+ *                     the database unless a session starts within the hour.
  *
  * 🔴 0165: `crisis` WAS DAILY, and that was a launch blocker. A crisis alert
  * whose notification failed waited up to a day for its retry. It runs on the
@@ -793,7 +794,16 @@ const JOBS = {
     const { advanceEtaDocuments } = await import("@/lib/billing/eta/issue");
     const eta = await step(failed, "advanceEtaDocuments", () => advanceEtaDocuments());
 
+    /*
+     * 🔴 The minute tick's marker, from the database, while it is awake anyway.
+     * Last, so the releases and cancellations above are in it. Never throws; a
+     * marker that cannot be written only sends the tick to the database.
+     */
+    const { refreshReminderMarker } = await import("@/lib/data/reminder-marker");
+    const markerWritten = await refreshReminderMarker();
+
     return {
+      markerWritten,
       failedSteps: failed.join(",") || undefined,
       etaAdvanced: eta?.advanced,
       /* C12a: credit notes a sent return was missing, opened this hour. */
@@ -856,11 +866,31 @@ const JOBS = {
    * sent, so a tick that overlaps the last one, or a rerun by hand, sends
    * nothing twice. Each part caught on its own (C14).
    */
+  /*
+   * 🔴 AND IT NO LONGER WAKES THE DATABASE TO FIND NOTHING. The "second or so"
+   * above was wrong in practice: a connection every minute kept the compute up
+   * around the clock. So the tick first reads a two timestamp marker from Vercel
+   * Blob (`lib/sessions/reminder-marker.ts`) and returns without a query when no
+   * session starts inside the next 61 minutes. A marker that is missing,
+   * unreadable, malformed or stale runs the sweep as before. At :20, when the
+   * hourly jobs wake the database anyway, it always runs, so its heartbeat is
+   * written once an hour whatever the marker says. A skipped run records no
+   * heartbeat (that would be the query it exists to avoid); see
+   * `HEARTBEAT_HOURS` in `lib/observability/heartbeat.ts`.
+   */
   async tick() {
     const failed: string[] = [];
+    const { tickGate, refreshReminderMarker } = await import("@/lib/data/reminder-marker");
+    const gate = await tickGate();
+    if (!gate.run) return { skipped: true, gate: gate.reason };
+
     const { sweepSessionReminders } = await import("@/lib/data/session-reminders");
     const reminders = await step(failed, "sweepSessionReminders", () => sweepSessionReminders());
+    /* After the sweep, from the database: the next session still ahead. Never throws. */
+    const marked = await refreshReminderMarker();
     return {
+      gate: gate.reason,
+      markerWritten: marked,
       failedSteps: failed.join(",") || undefined,
       remindersDue: reminders?.due,
       remindersSent: reminders?.sent,
@@ -894,6 +924,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ job:
 
   try {
     const result = await JOBS[job as JobName]();
+    /*
+     * 🔴 A tick that skipped the database records nothing: the heartbeat is a
+     * query, and the skip exists to make none. The tick reaches the database at
+     * least hourly (:20), and that run records it.
+     */
+    if ("skipped" in result && result.skipped === true) {
+      log.info("cron job skipped", { job, gate: result.gate });
+      return NextResponse.json({ job, ...result });
+    }
     const failedSteps = "failedSteps" in result ? (result.failedSteps as string | undefined) : undefined;
     await recordHeartbeat(job, { failedSteps });
     log.info("cron job completed", { job, ...result });

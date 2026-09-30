@@ -983,6 +983,9 @@ export async function cancelSession(actor: Actor, sessionId: string): Promise<bo
       .update(availabilitySlots)
       .set({ status: "open", sessionId: null, bookedByAccountId: null, note: null, updatedAt: new Date() })
       .where(and(eq(availabilitySlots.sessionId, sessionId), eq(availabilitySlots.status, "booked")));
+    /* The minute tick's marker, read again without this session. Never throws. */
+    const { noteSessionCancelled } = await import("./reminder-marker");
+    await noteSessionCancelled();
   }
 
   return cancelled.length > 0;

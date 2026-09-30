@@ -1535,6 +1535,16 @@ async function main() {
     console.log(`  it puts the product into: ${position.edges.join(", ")}`);
     console.log(`  the walk is docs/PROVE-IT.md, section "${name}"`);
     console.log(`\n  then: npm run on:production -- verify:demo -- --scenario=${name}\n`);
+
+    /*
+     * 🔴 The sessions above were written with SQL, past the hooks that tell the
+     * minute tick's marker (`lib/data/reminder-marker.ts`), and one starts in ten
+     * minutes. So the marker is written again from the database, now. Never
+     * throws; if it cannot be written it is removed, and the next tick reads the
+     * database. Without a blob token it only logs.
+     */
+    const { refreshReminderMarker } = await import("../lib/data/reminder-marker");
+    await refreshReminderMarker();
   } finally {
     await pool.end();
   }
