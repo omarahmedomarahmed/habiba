@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { CHALLENGE_LIFETIME_MS, issueChallenge, readChallenge } from "../lib/auth/challenge";
+import { FACTOR_RESET_TARGETS, isFactorResetTarget, mayResetAccountFactor } from "../lib/auth/factor-reset";
 import {
   ENROL_PROOF_MINUTES,
   enrolProofCurrent,
@@ -73,6 +74,39 @@ test("a clinician, a clinic manager and a partner user can add an app, and then 
   assert.match(source("app/(app)/settings/page.tsx"), /<AuthenticatorCard/);
   assert.match(source("app/(clinic)/clinic/page.tsx"), /<AuthenticatorCard/);
   assert.match(source("app/(partner)/partner/team/page.tsx"), /<AuthenticatorCard/);
+});
+
+/* Review fix: a lost app has a way back for everybody, and every way is audited. */
+
+test("an owner or a manager resets a clinician's, clinic manager's or partner user's app; staff cannot", () => {
+  assert.equal(mayResetAccountFactor("super_admin"), true);
+  assert.equal(mayResetAccountFactor("manager"), true);
+  for (const role of ["staff", "therapist", null, undefined]) assert.equal(mayResetAccountFactor(role), false, String(role));
+  assert.deepEqual([...FACTOR_RESET_TARGETS], ["clinician", "clinic", "partner"]);
+  assert.equal(isFactorResetTarget("partner"), true);
+  assert.equal(isFactorResetTarget("staff"), false);
+
+  const factor = source("lib/auth/second-factor.ts");
+  const reset = factor.slice(factor.indexOf("export async function resetAccountFactor"));
+  assert.match(reset, /if \(!mayResetAccountFactor\(actor\.role\)\)/);
+  /* A back office member is never reset here: theirs is required and Team resets it. */
+  assert.match(reset, /!\(BACK_OFFICE_ROLES as readonly string\[\]\)\.includes\(row\.role\)/);
+  assert.match(reset, /action: "second_factor\.reset_refused"/);
+  assert.match(reset, /action: "second_factor\.reset",/);
+  const actions = source("app/(admin)/admin/security/actions.ts");
+  assert.match(actions, /requireRole\("super_admin", "manager"\)[\s\S]{0,400}resetAccountFactor\(actor, target/);
+});
+
+test("a sole super_admin has an audited break glass, behind the production confirmation", () => {
+  const script = source("scripts/reset-second-factor.ts");
+  assert.match(script, /writesTo\(\{ productionIsAllowed: true \}\)/);
+  assert.match(script, /inArray\(users\.role, \[\.\.\.BACK_OFFICE_ROLES\]\)/);
+  assert.match(script, /tx\.insert\(auditLog\)/);
+  assert.match(script, /const DRY = process\.argv\.includes\("--dry"\)/);
+  assert.match(source("package.json"), /"factor:reset": "node --env-file-if-exists=\.env\.local --import tsx scripts\/reset-second-factor\.ts"/);
+  const onProduction = source("scripts/on-production.ts");
+  assert.match(onProduction, /"factor:reset": \{\s*writes: true,[\s\S]{0,200}destroys: \{ unless: \["--dry"\] \}/);
+  assert.match(source("scripts/verify-sprint57.ts"), /"scripts\/reset-second-factor\.ts",/);
 });
 
 /* Review fix: a password alone never enrols an app. */

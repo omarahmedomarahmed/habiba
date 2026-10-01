@@ -3,14 +3,16 @@
  */
 import "server-only";
 
-import { and, count, eq, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { decryptSecret, encryptSecret, secretsConfigured } from "@/lib/crypto/secretbox";
 import { controlDb as db } from "@/lib/db";
 import {
   authSessions,
+  clinicManagers,
   BACK_OFFICE_ROLES,
+  partnerUsers,
   portalRecoveryCodes,
   portalSecondFactors,
   staffEmailCodes,
@@ -32,6 +34,7 @@ import {
   pendingEnrolmentCurrent,
   verifyTotp,
 } from "./totp";
+import { mayResetAccountFactor, type FactorResetTarget } from "./factor-reset";
 
 /**
  * 🔴 TASK 40: THE SECOND STEP, THE HALF THAT STORES THINGS.
@@ -508,7 +511,8 @@ export async function removeOwnFactor(who: Who, typed: string): Promise<StepResu
  * B2.3 that means enrolling a new app on the second step page.
  *
  * Never their own. An owner who could reset their own second step would need
- * only a password to do it. Another owner resets it, or the database does.
+ * only a password to do it. Another owner resets it, or, for a sole owner, the
+ * audited break glass `npm run factor:reset` (scripts/reset-second-factor.ts).
  *
  * The role is asked again here, not only by the action's guard: a second
  * caller of this function tomorrow does not inherit a guard it did not write.
@@ -555,5 +559,74 @@ export async function resetSecondFactor(
    * The success row is written by the caller, `resetMemberSecondFactor` in
    * `app/(admin)/admin/team/actions.ts`, beside every other act on the team.
    */
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Reset of a clinician's, clinic manager's or partner user's app      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Review fix: the optional app's support reset. A super_admin or a manager in
+ * the console names the account by its email; the app and its recovery codes
+ * are cleared and the next sign-in is a password again, until they enrol a
+ * new one. Every attempt is an audit row, found or not.
+ */
+export async function resetAccountFactor(
+  actor: Pick<Actor, "userId" | "organizationId" | "role">,
+  target: FactorResetTarget,
+  email: string,
+): Promise<{ ok: true } | { ok: false; error: MessageKey }> {
+  if (!mayResetAccountFactor(actor.role)) return { ok: false, error: "ateam.errNotChangeable" };
+  const address = email.trim().toLowerCase();
+  if (!address) return { ok: false, error: "asec.resetNotFound" };
+
+  let owner: FactorOwner | null = null;
+  if (target === "clinician") {
+    const [row] = await db
+      .select({ id: users.id, role: users.role })
+      .from(users)
+      .where(and(sql`lower(${users.email}) = ${address}`, isNull(users.deletedAt)))
+      .limit(1);
+    /* Never a back office member: theirs is required, and Team resets it. */
+    if (row && !(BACK_OFFICE_ROLES as readonly string[]).includes(row.role)) owner = { kind: "user", id: row.id };
+  } else if (target === "clinic") {
+    const [row] = await db
+      .select({ id: clinicManagers.id })
+      .from(clinicManagers)
+      .where(sql`lower(${clinicManagers.email}) = ${address}`)
+      .limit(1);
+    if (row) owner = { kind: "clinic", id: row.id };
+  } else {
+    const [row] = await db
+      .select({ id: partnerUsers.id })
+      .from(partnerUsers)
+      .where(and(sql`lower(${partnerUsers.email}) = ${address}`, isNull(partnerUsers.deletedAt)))
+      .limit(1);
+    if (row) owner = { kind: "partner", id: row.id };
+  }
+
+  const resourceType = target === "clinician" ? "user" : target === "clinic" ? "clinic_manager" : "partner_user";
+  if (!owner) {
+    await audit({
+      actor,
+      category: "admin",
+      action: "second_factor.reset_refused",
+      resourceType,
+      reason: `${target}: no such account`,
+    });
+    return { ok: false, error: "asec.resetNotFound" };
+  }
+
+  await removeFactor(owner);
+  if (owner.kind === "user") await db.delete(staffEmailCodes).where(eq(staffEmailCodes.userId, owner.id));
+  await audit({
+    actor,
+    category: "admin",
+    action: "second_factor.reset",
+    resourceType,
+    resourceId: owner.id,
+    reason: `${target} app reset from the console`,
+  });
   return { ok: true };
 }
