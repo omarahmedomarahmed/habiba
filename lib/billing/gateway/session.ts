@@ -10,6 +10,7 @@ import {
   therapistVerifications,
   users,
 } from "@/lib/db/schema";
+import { qualified } from "@/lib/db/qualified";
 import { env } from "@/lib/env";
 import type { LedgerExecutor } from "@/lib/billing/ledger";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
@@ -375,7 +376,7 @@ export async function sweepUnbookedGatewayPayments(graceMinutes = 15): Promise<n
           OR NOT EXISTS (
             SELECT 1 FROM ${ledgerEntries}
              WHERE ${ledgerEntries.refType} = 'session_payment'
-               AND ${ledgerEntries.refId} = ${sessionPayments.id}
+               AND ${ledgerEntries.refId} = ${qualified(sessionPayments.id)}
                AND ${ledgerEntries.txnKind} = 'session_payment'
           )
         )`,
@@ -390,7 +391,7 @@ export async function sweepUnbookedGatewayPayments(graceMinutes = 15): Promise<n
       error: new Error(
         `A card payment was taken and is not on the books (attempt ${ref(row.id)}). Settle the session or refund the card.`,
       ),
-      path: "/api/cron/reminders/unbooked-card-payment",
+      path: "/cron/reminders/unbooked-card-payment",
       method: "CRON",
     });
   }
