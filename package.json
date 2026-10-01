@@ -120,6 +120,7 @@
     "test:hydration": "node --env-file-if-exists=.env.local --import tsx --test tests/hydration.test.tsx",
     "test:challenge": "node --env-file-if-exists=.env.local --import tsx --test tests/challenge.test.ts",
     "test:money": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/money.test.ts",
+    "test:money-guards": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/money-guards.test.ts",
     "screens": "node --env-file-if-exists=.env.local --import tsx scripts/screens.ts",
     "verify:sprint25": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint25.ts",
     "verify:sprint24": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint24.ts",

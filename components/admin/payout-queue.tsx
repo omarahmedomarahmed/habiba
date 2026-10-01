@@ -9,6 +9,7 @@ import {
   confirm,
   didNotArrive,
   markSent,
+  recheckWithProvider,
   reject,
   sendThroughProvider,
   takeOn,
@@ -60,7 +61,7 @@ export type QueueRow = {
   owned: boolean;
   requestedAtLabel: string;
   proofUrl: string | null;
-  providerState: "sending" | "sent" | "failed" | null;
+  providerState: "sending" | "sent" | "failed" | "unknown" | null;
   providerError: string | null;
 };
 
@@ -179,8 +180,10 @@ function ManualRow({ row, providerReady }: { row: QueueRow; providerReady: boole
   const [rejectState, rejectAction] = useActionState(reject, INITIAL);
   const [returnState, returnAction] = useActionState(didNotArrive, INITIAL);
   const [providerState, providerAction] = useActionState(sendThroughProvider, INITIAL);
+  const [recheckState, recheckAction] = useActionState(recheckWithProvider, INITIAL);
   const t = useT();
-  const sending = row.providerState === "sending";
+  /* 🔴 0188: no answer from the provider blocks every way of sending, like sending does. */
+  const sending = row.providerState === "sending" || row.providerState === "unknown";
 
   const error =
     claimState.error ??
@@ -189,7 +192,8 @@ function ManualRow({ row, providerReady }: { row: QueueRow; providerReady: boole
     sentState.error ??
     confirmState.error ??
     rejectState.error ??
-    returnState.error;
+    returnState.error ??
+    recheckState.error;
 
   return (
     <li>
@@ -252,7 +256,19 @@ function ManualRow({ row, providerReady }: { row: QueueRow; providerReady: boole
             </form>
           ) : null}
 
-          {sending ? <Badge>{t("apayout.providerSending")}</Badge> : null}
+          {row.providerState === "sending" ? <Badge>{t("apayout.providerSending")}</Badge> : null}
+          {row.providerState === "unknown" ? (
+            <>
+              <p className="w-full text-xs text-amber-700">
+                {t("apayout.providerUnknown")}: {t("apayout.unknownBlocked")}
+              </p>
+              <form action={recheckAction}>
+                <input type="hidden" name="requestId" value={row.id} />
+                <Go label={t("apayout.recheck")} tone="quiet" />
+              </form>
+              {recheckState.ok ? <p className="w-full text-xs text-slate-600">{recheckState.note}</p> : null}
+            </>
+          ) : null}
           {row.providerState === "failed" && row.providerError ? (
             <p className="w-full text-xs text-rose-600">
               {t("apayout.providerFailed")}: {row.providerError}

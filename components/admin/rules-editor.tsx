@@ -110,6 +110,18 @@ export function RulesEditor({ rules, history }: { rules: RulesSettings; history:
             value={rules.approvals.payoutDetailsCooldownHours}
             status="applied"
           />
+          <Check
+            label="Transfer, approve and send by different people"
+            name="approvePayoutSeparation"
+            checked={rules.approvals.payoutSeparation}
+            status="applied"
+          />
+          <NumberRow
+            label="Earnings held after a session (days)"
+            name="earningsHoldDays"
+            value={rules.earnings.holdDays}
+            status="applied"
+          />
           <p className="text-xs text-slate-500">Nobody approves their own payout.</p>
         </Section>
 

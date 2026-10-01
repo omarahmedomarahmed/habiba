@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
 import { requireStaff } from "@/lib/auth/guard";
-import { confirmPayment, rejectPayment } from "@/lib/billing/manual";
+import { confirmPayment, rejectPayment, STATEMENT_DIFFERS } from "@/lib/billing/manual";
 import { grantFor } from "@/lib/billing/manual-grants";
 
 /**
@@ -22,13 +22,18 @@ export type TransferState = { error?: string; ok?: string };
 export async function confirm(
   paymentId: string,
   expected?: { amountCents: number; settlesCents: number },
+  /** 0188: what the bank statement says, in the transfer's minor units, when staff typed it. */
+  statementMinor?: number | null,
 ): Promise<TransferState> {
   const actor = await requireStaff();
 
+  const statement =
+    typeof statementMinor === "number" && Number.isInteger(statementMinor) && statementMinor >= 0 ? statementMinor : null;
   const result = await confirmPayment({
     paymentId,
     byUserId: actor.userId,
     expected,
+    statementMinor: statement,
     /*
      * 🔴 What a confirmation UNLOCKS lives in its own module. `lib/billing/manual.ts`
      * owns the queue and knows nothing about sessions, invoices or pots, which is
@@ -50,17 +55,23 @@ export async function confirm(
       action: "transfer.confirm",
       resourceType: "manual_payment",
       resourceId: paymentId,
-      reason: result.error
+      reason: (statement !== null
+        ? "Checked against the bank statement amount. "
+        : "Checked against the payer's declaration only (book against book). ") + (result.error
         ? "Bank transfer checked and confirmed; the grant failed and is under Needs a decision"
         : result.flagged
           ? `Bank transfer checked and confirmed; raised as ${result.flagged} under Needs a decision`
           : result.walletCredited
             ? "Bank transfer checked and confirmed; the booking was cancelled, so it was credited to the patient's wallet"
-            : "Bank transfer checked and confirmed",
+            : "Bank transfer checked and confirmed"),
     });
     revalidatePath("/admin/transfers");
   }
 
+  if (result.error === STATEMENT_DIFFERS) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t(STATEMENT_DIFFERS) };
+  }
   if (result.error) return { error: result.error };
   if (result.flagged) {
     return { error: flaggedMessage(result.flagged) };
