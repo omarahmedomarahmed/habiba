@@ -1,9 +1,9 @@
 import "server-only";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
-import { partnerConsents } from "@/lib/db/schema";
+import { partnerConsents, type PartnerConsentSource } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 
 /**
@@ -34,7 +34,40 @@ export type ConsentEvent = {
   state: "given" | "withdrawn";
   answeredAt: Date;
   offsetSeconds: number;
+  /** F6: whose answer it is. Only the patient's own (or a sandbox subject's) yes records. */
+  source?: PartnerConsentSource;
 };
+
+/**
+ * 🔴 F6: THE SOURCES WHOSE YES OPENS A RECORDING.
+ *
+ * A partner vouching that its patient agreed is kept, marked `partner`, and
+ * never enough: the patient must say yes themselves, signed in to their own
+ * account on our page (`lib/partner/patient-consent.ts`). A sandbox key's
+ * subject is nobody (68.22's CHECKs), so a sandbox yes is a test and counts.
+ * A withdrawal is the safe direction and counts from ANY source.
+ */
+export const RECORDING_SOURCES: readonly PartnerConsentSource[] = ["patient", "sandbox"];
+
+/** Which source a partner key's own answer is filed under. */
+export function partnerAnswerSource(environment: "sandbox" | "live"): PartnerConsentSource {
+  return environment === "sandbox" ? "sandbox" : "partner";
+}
+
+/**
+ * Pure: the boundary from a session's events, as `recordingFrom` computes it in
+ * SQL. The last event that counts wins (by `answeredAt`); a partner's vouched
+ * yes does not count, anybody's withdrawal does.
+ */
+export function boundaryFromEvents(events: ConsentEvent[]): number | null {
+  const counted = events.filter(
+    (e) => e.state === "withdrawn" || RECORDING_SOURCES.includes(e.source ?? "partner"),
+  );
+  /* Stable, oldest first: of two answers at one instant the later-arrived one wins. */
+  const latest = [...counted].sort((a, b) => a.answeredAt.getTime() - b.answeredAt.getTime()).at(-1);
+  if (!latest || latest.state !== "given") return null;
+  return latest.offsetSeconds;
+}
 
 /**
  * 🔴 68.1 / 68.2 — RECORD AN ANSWER. APPEND ONLY, AND NOTHING IS UPDATED.
@@ -55,6 +88,8 @@ export async function recordConsent(input: {
   state: "given" | "withdrawn";
   answeredAt: Date;
   offsetSeconds: number;
+  /** F6: omitted is `partner`, vouched and never enough to record on. */
+  source?: PartnerConsentSource;
 }): Promise<{ ok?: true; error?: string }> {
   const now = Date.now();
   const answered = input.answeredAt.getTime();
@@ -80,9 +115,10 @@ export async function recordConsent(input: {
     state: input.state,
     answeredAt,
     offsetSeconds,
+    source: input.source ?? "partner",
   });
 
-  log.info("partner consent recorded", { state: input.state });
+  log.info("partner consent recorded", { state: input.state, source: input.source ?? "partner" });
   return { ok: true };
 }
 
@@ -106,19 +142,26 @@ export async function recordingFrom(input: {
     .select({
       state: partnerConsents.state,
       offsetSeconds: partnerConsents.offsetSeconds,
+      answeredAt: partnerConsents.answeredAt,
+      source: partnerConsents.source,
     })
     .from(partnerConsents)
     .where(
       and(
         eq(partnerConsents.partnerId, input.partnerId),
         eq(partnerConsents.externalSessionRef, input.externalSessionRef),
+        /* 🔴 F6: a partner's vouched yes is not a yes. See `RECORDING_SOURCES`. */
+        or(
+          inArray(partnerConsents.source, [...RECORDING_SOURCES]),
+          eq(partnerConsents.state, "withdrawn"),
+        ),
       ),
     )
     .orderBy(desc(partnerConsents.answeredAt), desc(partnerConsents.createdAt))
     .limit(1);
 
-  if (!latest || latest.state !== "given") return null;
-  return latest.offsetSeconds;
+  /* The same rule as the pure one, applied again, so the query and the test cannot drift. */
+  return boundaryFromEvents(latest ? [latest] : []);
 }
 
 /**
@@ -195,6 +238,7 @@ export async function consentHistory(input: {
       state: partnerConsents.state,
       answeredAt: partnerConsents.answeredAt,
       offsetSeconds: partnerConsents.offsetSeconds,
+      source: partnerConsents.source,
     })
     .from(partnerConsents)
     .where(

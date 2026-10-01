@@ -122,11 +122,13 @@ async function checkBooks(
   // I4
   const { publishedLedger } = await import("../lib/data/sponsor-ledger");
   const later = await publishedLedger(ctx.sponsorId, new Date(Date.now() + 8 * 24 * 60 * 60 * 1000));
-  const ledgerCovered = later.entries.reduce((sum, e) => sum + (e.kind === "refund" ? -e.coveredCents : e.coveredCents), 0);
+  /* F7: reported periods plus what is held back for privacy is the pot's spend, to the cent. */
+  const ledgerCovered =
+    later.weeks.reduce((sum, p) => sum + p.spendCents, 0) + (later.heldBack?.spendCents ?? 0);
   c(
-    "🔴 I4 the company's published ledger sums to the same spend the pot recorded",
-    later.entries.length >= 5 && ledgerCovered === potSpend,
-    `${later.entries.length} entries covering ${ledgerCovered}, pot spend ${potSpend}`,
+    "🔴 I4 the company's ledger, periods plus held back, sums to the same spend the pot recorded",
+    ledgerCovered === potSpend,
+    `${later.weeks.length} periods and ${later.heldBack?.spendCents ?? 0} held back covering ${ledgerCovered}, pot spend ${potSpend}`,
   );
 
   // I5

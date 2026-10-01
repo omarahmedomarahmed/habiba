@@ -19,6 +19,9 @@ import { env } from "@/lib/env";
 import { log, ref } from "@/lib/logger";
 import { SESSION_COOKIE } from "@/lib/routing";
 
+import { hasApprovedPartner } from "./approvals";
+import { LAUNCH_LANDING, LAUNCH_SESSION_MS } from "./launch-scope";
+
 /* 🔴 66.4 — a launch belongs to a PARTNER, so the key must have one. */
 import type { PartnerKey } from "./route";
 
@@ -82,7 +85,48 @@ import type { PartnerKey } from "./route";
  * can leave lying around.
  */
 
-const LAUNCH_MS = 60 * 60 * 1000;
+/*
+ * 🔴 F6 (the independent due diligence): FIFTEEN MINUTES, RESTRICTED, AND ONLY
+ * WITH THE CLINICIAN'S OWN APPROVAL.
+ *
+ * The launch above minted a full one-hour clinician session for any verified
+ * clinician in a practice on the partner's bill, knowing only their email. Now:
+ *
+ *   - the clinician must have approved THIS partner themselves, in Settings,
+ *     Integrations (`clinician_partner_approvals`), revocable there, and it is
+ *     asked at minting AND at redemption (`launchRefusal`);
+ *   - the session lasts fifteen minutes and is restricted
+ *     (`lib/partner/launch-scope.ts`): read only, and only the landing page and
+ *     the charts of patients linked to this partner. No dashboard, no other
+ *     patient, no settings, no money.
+ */
+const LAUNCH_MS = LAUNCH_SESSION_MS;
+
+/**
+ * Pure: why a launch is refused, or null to go ahead. In this order, so a
+ * sandbox key learns nothing about anybody and a stranger's email is the same
+ * 404 as no email at all.
+ */
+export function launchRefusal(input: {
+  environment: "sandbox" | "live";
+  found: boolean;
+  verified: boolean;
+  approved: boolean;
+}): { error: string; status: 403 | 404 } | null {
+  if (input.environment !== "live") {
+    return { error: "A sandbox key cannot sign a clinician in. Use your live key.", status: 403 };
+  }
+  if (!input.found) return { error: "No such clinician.", status: 404 };
+  if (!input.verified) return { error: "That clinician is not verified with us.", status: 403 };
+  if (!input.approved) {
+    return {
+      error:
+        "That clinician has not approved your platform. They approve it themselves in 24Therapy, under Settings, Integrations, and can revoke it there.",
+      status: 403,
+    };
+  }
+  return null;
+}
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -128,7 +172,7 @@ export async function launchClinician(input: {
    * caseload. Only a live key, which an operator approved, may do that.
    */
   if (input.key.environment !== "live") {
-    return { error: "A sandbox key cannot sign a clinician in. Use your live key.", status: 403 };
+    return launchRefusal({ environment: input.key.environment, found: false, verified: false, approved: false })!;
   }
 
   const [clinician] = await controlDb
@@ -145,11 +189,14 @@ export async function launchClinician(input: {
     )
     .limit(1);
 
-  if (!clinician) return { error: "No such clinician.", status: 404 };
-
-  if (!clinician.verified) {
-    return { error: "That clinician is not verified with us.", status: 403 };
-  }
+  /* 🔴 F6: and the clinician's own approval of this partner, asked again at redemption. */
+  const refused = launchRefusal({
+    environment: input.key.environment,
+    found: Boolean(clinician),
+    verified: Boolean(clinician?.verified),
+    approved: clinician ? await hasApprovedPartner(clinician.id, input.key.partnerId) : false,
+  });
+  if (refused || !clinician) return refused ?? { error: "No such clinician.", status: 404 };
 
   const token = randomBytes(32).toString("base64url");
 
@@ -232,7 +279,8 @@ export async function redeemLaunch(token: string): Promise<RedeemResult> {
     )
     .limit(1);
 
-  if (!clinician || !clinician.verified) {
+  /* 🔴 F6: an approval revoked inside the two minutes stops the launch here. */
+  if (!clinician || !clinician.verified || !(await hasApprovedPartner(clinician.id, claimed.partnerId))) {
     return { error: "That clinician can no longer be signed in." };
   }
 
@@ -286,15 +334,18 @@ export async function redeemLaunch(token: string): Promise<RedeemResult> {
  * would put two video products on one screen and make the patient's consent question arrive
  * in the wrong product.
  */
+/*
+ * 🔴 F6: ONE DESTINATION NOW. The dashboard, the whole patient list, sessions
+ * and notes are the clinician's entire practice, which a launched session may
+ * no longer reach; it lands on the list of THIS partner's patients
+ * (`LAUNCH_LANDING`), and any target a caller names resolves there.
+ */
 const LAUNCH_TARGETS: Record<string, string> = {
-  dashboard: "/dashboard",
-  patients: "/patients",
-  sessions: "/sessions",
-  notes: "/notes",
+  "partner-launch": LAUNCH_LANDING,
 };
 
 function safeTarget(target: string | undefined): string {
-  return LAUNCH_TARGETS[(target ?? "dashboard").trim()] ?? "/dashboard";
+  return LAUNCH_TARGETS[(target ?? "partner-launch").trim()] ?? LAUNCH_LANDING;
 }
 
 /** The targets a partner may name, for the docs page to print from one source. */

@@ -207,6 +207,10 @@ async function main() {
    * Monday of the week and a shuffle, and no session, person, patient,
    * therapist or payment id and no timestamp. A column added to it is a way
    * back to a person, so it fails here rather than shipping.
+   *
+   * F7 (0186) adds exactly one: `person_tag`, a digest keyed by the server
+   * secret, read only to count DISTINCT people before a period is reported,
+   * and never returned by the company view.
    */
   const MONEY_COLUMNS = [
     "covered_cents",
@@ -214,6 +218,7 @@ async function main() {
     "employee_cents",
     "id",
     "kind",
+    "person_tag",
     "price_cents",
     "shuffle",
     "sponsor_id",
@@ -294,10 +299,10 @@ async function main() {
    * no corporate feature and a green test.
    */
   check(
-    "🔴 CONTROL the roster still returns the two things a sponsor may see",
+    "🔴 CONTROL the roster still returns the names, and (F7) nothing stamped by a person's own use",
     /firstName: people\.firstName/.test(rosterQuery) &&
-      /lastVerifiedAt: enrolments\.lastVerifiedAt/.test(rosterQuery),
-    "a name and a last-verified date, which is what makes a roster trustworthy",
+      !/lastVerifiedAt|pausedAt|lastUsed|sessionCount/.test(rosterQuery),
+    "a name and the company's own pause; no last-verified date, which is stamped when one person comes back",
   );
 
   /*
@@ -1452,12 +1457,13 @@ async function main() {
      * without it, it stays 1.
      */
     const floored = parseGroup("sponsor", { activityFloor: 1 });
+    const two = parseGroup("sponsor", { activityFloor: 2 });
     const raised = parseGroup("sponsor", { activityFloor: 25 });
 
     check(
-      "🔴 C229 the activity floor cannot be set below two, and there is no way to switch it off",
-      floored.activityFloor !== 1 && floored.activityFloor >= 2,
-      `a floor of 1 becomes ${floored.activityFloor}, so one person's spend is never a chart`,
+      "🔴 C229 / F7 the activity floor cannot be set below five, and there is no way to switch it off",
+      floored.activityFloor >= 5 && two.activityFloor >= 5,
+      `1 becomes ${floored.activityFloor} and 2 becomes ${two.activityFloor}, so a small group is never a chart`,
     );
 
     check(

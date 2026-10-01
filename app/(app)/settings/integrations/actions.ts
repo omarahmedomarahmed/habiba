@@ -30,3 +30,23 @@ export async function disconnectMeetingAccount(
   revalidatePath("/settings/integrations");
   return { ok: true };
 }
+
+/**
+ * 🔴 F6: the clinician's own approval of the platform their practice is on,
+ * before it may open 24Therapy for them. Only the partner their practice is
+ * billed through can be approved (`approvePartner` checks); revoking also ends
+ * any session that partner opened for them.
+ */
+export async function approvePartnerLaunch(partnerId: string): Promise<void> {
+  const actor = await requireUser();
+  const { approvePartner } = await import("@/lib/partner/approvals");
+  await approvePartner(actor, partnerId);
+  revalidatePath("/settings/integrations");
+}
+
+export async function revokePartnerLaunch(partnerId: string): Promise<void> {
+  const actor = await requireUser();
+  const { revokePartner } = await import("@/lib/partner/approvals");
+  await revokePartner(actor, partnerId);
+  revalidatePath("/settings/integrations");
+}

@@ -708,8 +708,8 @@ async function main() {
       VALUES (${partner.id}, ${`live-session-${fixture}`}, ${liveSubject}, 'live', now(),
               'A real approved note', 'clinician-1', now())`);
     await db.execute(sql`
-      INSERT INTO partner_consents (partner_id, external_session_ref, external_subject_ref, state, answered_at)
-      VALUES (${partner.id}, ${`live-session-${fixture}`}, ${liveSubject}, 'given', now())`);
+      INSERT INTO partner_consents (partner_id, external_session_ref, external_subject_ref, state, answered_at, source)
+      VALUES (${partner.id}, ${`live-session-${fixture}`}, ${liveSubject}, 'given', now(), 'patient')`);
     const fromSandbox = await sessionMaterial({ partnerId: partner.id, externalSubjectRef: liveSubject, environment: "sandbox" });
     const fromLive = await sessionMaterial({ partnerId: partner.id, externalSubjectRef: liveSubject, environment: "live" });
     check(

@@ -136,6 +136,17 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
     writes: true,
     why: "wipes the cast and seeds the demo one. Snapshot first. It DELETES PEOPLE",
   },
+  /*
+   * 🔴 F9: the sensitive files the old fallback put on the PUBLIC blob store
+   * are on production and nowhere else, so this has nowhere else to run. A dry
+   * run unless given `--apply`; with it, each file is copied to the private
+   * store, checked, its row repointed by a conditional UPDATE, and only then is
+   * the public copy deleted. It plants nothing and deletes no row.
+   */
+  "blobs:migrate-private": {
+    writes: true,
+    why: "moves sensitive files off the public blob store. Dry run unless --apply",
+  },
 
   /* ---------------------------------------------------------------- reading */
   baseline: { writes: false, why: "counts every row in every table, and writes none of them" },

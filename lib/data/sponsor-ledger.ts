@@ -5,50 +5,67 @@ import { and, eq, lte } from "drizzle-orm";
 import { controlDb } from "@/lib/db";
 import { sponsorMoneyEntries } from "@/lib/db/schema";
 import { getSettings } from "@/lib/settings";
-import { batchToFloor, lastPublishedWeek, type LedgerEntry } from "@/lib/sponsor/ledger";
+import {
+  lastPublishedWeek,
+  ledgerAnalytics,
+  ledgerPeriods,
+  privacyFloor,
+  type HeldBack,
+  type LedgerAnalytics,
+  type LedgerPeriod,
+} from "@/lib/sponsor/ledger";
 
 /**
- * 🔴 W2-S10 / FIX-PLAN D1: THE COMPANY'S MONEY VIEW. C244'S ONE EXCEPTION.
+ * 🔴 W2-S10 / F7: THE COMPANY'S MONEY VIEW. C244'S ONE EXCEPTION, AS PERIODS.
  *
  * C244 forbids company reporting from joining sessions, dates or names. The
- * founder's decision of 2026-09-24 makes one exception: a company sees each
- * pot-funded session's money (price, coverage, covered amount, the employee's
- * share), with no employee, no therapist and no specialty.
+ * founder's decision of 2026-09-24 makes one exception, narrowed by F7 (the
+ * independent due diligence): a company sees, per week or month, what its pot
+ * spent and how many sessions it paid for, and only for a period in which at
+ * least the reporting floor's worth of DIFFERENT people were funded. Never a
+ * row per session, never a price, never the employee's share.
  *
- * ## 🔴 This file reads ONE table and joins NOTHING
+ * ## 🔴 This file reads ONE table, joins NOTHING, and returns NO ENTRY
  *
- * `sponsor_money_entries` is written by `payFromPot` at the moment it freezes
- * the split, with no session, person, therapist or payment id and no date
- * finer than the week. So the join C244 forbids is made nowhere at read time,
- * and `verify:sprint49` and `tests/company-portal.test.ts` assert this file
- * names no other table: a column or a join added here is a failure.
- *
- * ## 🔴 Published in batches
- *
- * `sponsor.ledgerPublishing` decides the newest week returned: `weekly` (the
- * default) returns only weeks that have ended, so a week's entries appear
- * together the Monday after; `live` returns this week's as they are paid.
- * Either way the weeks are then gathered into batches of at least the
- * reporting floor (`batchToFloor`), so no entry is ever shown alone.
+ * `sponsor_money_entries` has no session, person, therapist or payment id and
+ * no date finer than the week. Its `person_tag` is a keyed digest read here
+ * only so `ledgerPeriods` can count distinct people; what this function returns
+ * is periods and totals, so neither the tag nor any one session's money ever
+ * reaches a page, a CSV or a log. `verify:sprint49` and
+ * `tests/company-portal.test.ts` assert this file names no other table.
  */
+export type PublishedLedger = {
+  weeks: LedgerPeriod[];
+  months: LedgerPeriod[];
+  /** The trailing weeks still short of the floor. For the verifiers, never rendered. */
+  heldBack: HeldBack | null;
+  stats: LedgerAnalytics;
+  through: string;
+  publishing: "weekly" | "live";
+  floor: number;
+};
+
 export async function publishedLedger(
   sponsorId: string,
   now = new Date(),
-): Promise<{ entries: LedgerEntry[]; through: string; publishing: "weekly" | "live" }> {
+  context: { balanceCents: number | null; topUps: { amountCents: number }[] } = {
+    balanceCents: null,
+    topUps: [],
+  },
+): Promise<PublishedLedger> {
   const settings = await getSettings();
   const publishing = settings.sponsor.ledgerPublishing;
   const through = lastPublishedWeek(publishing, now);
+  const floor = privacyFloor(settings.sponsor.activityFloor);
 
   const rows = await controlDb
     .select({
-      /* 🔴 THE WHOLE SELECT LIST. There is nothing else in the table to add. */
+      /* 🔴 THE WHOLE SELECT LIST. No price and no share are even read. */
       kind: sponsorMoneyEntries.kind,
       weekStart: sponsorMoneyEntries.weekStart,
-      priceCents: sponsorMoneyEntries.priceCents,
       coverageBps: sponsorMoneyEntries.coverageBps,
       coveredCents: sponsorMoneyEntries.coveredCents,
-      employeeCents: sponsorMoneyEntries.employeeCents,
-      shuffle: sponsorMoneyEntries.shuffle,
+      personTag: sponsorMoneyEntries.personTag,
     })
     .from(sponsorMoneyEntries)
     .where(
@@ -56,9 +73,14 @@ export async function publishedLedger(
     )
     .limit(20_000);
 
+  const weekly = ledgerPeriods(rows, floor, "week");
   return {
-    entries: batchToFloor(rows, settings.sponsor.activityFloor),
+    weeks: weekly.periods,
+    months: ledgerPeriods(rows, floor, "month").periods,
+    heldBack: weekly.heldBack,
+    stats: ledgerAnalytics({ entries: rows, floor, ...context }),
     through,
     publishing,
+    floor,
   };
 }

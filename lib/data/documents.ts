@@ -211,6 +211,9 @@ async function storeBlob(
     const { putPrivate } = await import("@/lib/uploads");
     return { url: await putPrivate(path, file, file.type) };
   } catch (error) {
+    /* 🔴 F9: no private store means no upload, said plainly in the reader's language. */
+    const { PrivateStoreMissingError, privateStoreRefusal } = await import("@/lib/uploads");
+    if (error instanceof PrivateStoreMissingError) return { error: await privateStoreRefusal() };
     // Never log the path — for a clinical document it is the credential.
     log.error("document upload failed", { reason: safeErrorMessage(error) });
     return { error: "The upload did not go through. Try again." };

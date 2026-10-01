@@ -199,6 +199,8 @@ async function main() {
         state: "given",
         answeredAt: new Date(),
         offsetSeconds: 0,
+        /* F6: on a live session only the patient's own yes records. */
+        source: "patient",
       });
       const opened = await openSession({
         partnerId: partner.id,

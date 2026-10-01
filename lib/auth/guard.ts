@@ -38,7 +38,45 @@ export async function requireUser(): Promise<Actor> {
    * office member exactly one page: the second step.
    */
   if (verdict === "second_step") await toSecondStep();
+  /* 🔴 F6: a session a partner opened reaches only that partner's patients, read only. */
+  if (state!.actor.partnerScope) await holdToLaunchScope(state!.actor);
   return state!.actor;
+}
+
+/**
+ * 🔴 F6: the restriction on a partner-opened session, on every page and action
+ * that comes through `requireUser` (which is all of them: `requireRole`,
+ * `requireVerified` and the staff guards call it). See `lib/partner/launch-scope.ts`.
+ */
+async function holdToLaunchScope(actor: Actor): Promise<void> {
+  const { LAUNCH_LANDING, patientInLaunchScope, scopedRoute, scopeVerdict, validScopeSignature } =
+    await import("@/lib/partner/launch-scope");
+  const hdrs = await headers();
+  const path = hdrs.get("x-pathname") ?? "";
+  const method = (hdrs.get("x-request-method") ?? "").toUpperCase();
+  /*
+   * Believed only when middleware signed them. `/api/` skips middleware, so an
+   * unsigned path or method is a caller's own claim: treated as an API call.
+   */
+  const signed = validScopeSignature({ method, path, signature: hdrs.get("x-scope-sig"), secret: env.authSecret });
+  const route = signed ? scopedRoute(path) : null;
+  const verdict = scopeVerdict({
+    path,
+    /* A POST without JS has no `next-action` header, so the method decides too. */
+    isAction: Boolean(hdrs.get("next-action")) || !["GET", "HEAD"].includes(method),
+    isApi: !signed || path.startsWith("/api/"),
+    patientInScope:
+      route?.kind === "patient"
+        ? await patientInLaunchScope({
+            partnerId: actor.partnerScope!.partnerId,
+            userId: actor.userId,
+            patientId: route.patientId,
+          })
+        : null,
+  });
+  if (verdict === "admit") return;
+  if (route?.kind === "landing") throw new AuthorizationError("A launched session is read only");
+  redirect(LAUNCH_LANDING);
 }
 
 /**
@@ -155,6 +193,8 @@ export async function requireUserApi(): Promise<Actor> {
   if (!state) throw new AuthorizationError("Not signed in");
   // 🔴 Task 40: the same second step as `requireUser`, as a 401 rather than a redirect.
   if (state.pendingSecondFactor) throw new AuthorizationError("Second step required");
+  // 🔴 F6: a partner-opened session is read only and calls no API route of ours.
+  if (state.actor.partnerScope) throw new AuthorizationError("Not available in a launched session");
   return state.actor;
 }
 

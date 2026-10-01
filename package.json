@@ -213,6 +213,8 @@
     "verify:blobs": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-blobs.ts",
     "verify:whatsapp": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-whatsapp.ts",
     "blobs:private": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/blobs-to-private.ts",
+    "blobs:migrate-private": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/migrate-private-blobs.ts",
+    "test:due-diligence": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/due-diligence.test.ts",
     "verify:rules": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-rules.ts",
     "verify:launch": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-launch.ts",
     "verify:eta": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-eta.ts",

@@ -20,7 +20,9 @@ import { log, safeErrorMessage } from "@/lib/logger";
  *    `access: "public"` with an unguessable path, which made the URL itself
  *    the key, and a URL is copied, logged and forwarded. Private blobs live in
  *    the store named by `BLOB_PRIVATE_READ_WRITE_TOKEN` (a store created as
- *    private), or in the main store when that one is private itself.
+ *    private; the main store's token when the main store is private itself).
+ *    🔴 F9: without that token a sensitive file is REFUSED, never written to
+ *    the public store (`PrivateStoreMissingError`).
  *  - **A headshot is different.** It is meant to be seen: it goes on the
  *    public radar, so it stays public, under its own prefix.
  *
@@ -66,6 +68,43 @@ function privateToken(): string | undefined {
   return process.env.BLOB_PRIVATE_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN || undefined;
 }
 
+/**
+ * 🔴 F9: WITHOUT THE PRIVATE STORE'S TOKEN, A SENSITIVE FILE IS REFUSED, NEVER
+ * PUT ON THE PUBLIC STORE.
+ *
+ * This used to fall back to a public blob at an unguessable address, logged as
+ * an error, so an upload never failed. The independent due diligence found
+ * clinical documents, licences and receipts on the public store as a result: an
+ * unguessable URL is still a URL, and URLs are copied, logged and forwarded. So
+ * the private writer now needs `BLOB_PRIVATE_READ_WRITE_TOKEN` (set it to the
+ * main store's token when the main store is itself private), and without it the
+ * upload is refused with a sentence in the reader's language, a loud log line,
+ * and a standing operations alert (`findProblems`, key `private-store-missing`).
+ */
+export class PrivateStoreMissingError extends Error {
+  constructor() {
+    super("The private file store is not configured (BLOB_PRIVATE_READ_WRITE_TOKEN), so this file was not stored.");
+    this.name = "PrivateStoreMissingError";
+  }
+}
+
+/** Whether a private write can happen at all. Pure over the environment, for the tests. */
+export function privateStoreConfigured(environment: Record<string, string | undefined> = process.env): boolean {
+  return Boolean(environment.BLOB_PRIVATE_READ_WRITE_TOKEN);
+}
+
+/** The refusal a person reads, in their language; English where there is no request. */
+export async function privateStoreRefusal(): Promise<string> {
+  try {
+    const { getI18n } = await import("@/lib/i18n/server");
+    const { t } = await getI18n();
+    return t("upload.privateStoreMissing");
+  } catch {
+    const { en } = await import("@/lib/i18n/messages");
+    return en["upload.privateStoreMissing"];
+  }
+}
+
 /** A private blob's address: it answers only with a token. */
 function isPrivateBlobUrl(url: string): boolean {
   try {
@@ -83,35 +122,25 @@ function isPrivateBlobUrl(url: string): boolean {
  * headshot's.
  */
 export async function putPrivate(path: string, body: File | Blob | Buffer, contentType: string): Promise<string> {
-  try {
-    const blob = await put(path, body, {
-      access: "private",
-      addRandomSuffix: false,
-      contentType,
-      cacheControlMaxAge: 0,
-      token: privateToken(),
+  /*
+   * 🔴 F9: no fallback. Without the private store's token nothing is written,
+   * and the operator hears about it (the log line here, and the watchdog's
+   * standing `private-store-missing` alert by email).
+   */
+  if (!privateStoreConfigured()) {
+    log.error("ALERT private blob store not configured: a sensitive upload was REFUSED, not stored", {
+      kind: path.split("/")[0],
     });
-    return blob.url;
-  } catch (error) {
-    /*
-     * 🔴 NO PRIVATE STORE YET, AND AN UPLOAD MUST NOT FAIL FOR IT. Creating one
-     * is an operator step (`BLOB_PRIVATE_READ_WRITE_TOKEN`, docs/LONG-TERM.md).
-     * Until it is done, a public main store refuses a private write, and a
-     * clinician could not send their licence nor a patient their receipt. So the
-     * file goes where it always went, an unguessable public path, and it is
-     * logged as an error so /admin/errors says the step is still owed. With the
-     * token set, a refusal is a real failure and is thrown.
-     */
-    if (process.env.BLOB_PRIVATE_READ_WRITE_TOKEN) throw error;
-    log.error("private blob store not configured; stored on the public store", { reason: safeErrorMessage(error) });
-    const blob = await put(path, body, {
-      access: "public",
-      addRandomSuffix: true,
-      contentType,
-      cacheControlMaxAge: 0,
-    });
-    return blob.url;
+    throw new PrivateStoreMissingError();
   }
+  const blob = await put(path, body, {
+    access: "private",
+    addRandomSuffix: false,
+    contentType,
+    cacheControlMaxAge: 0,
+    token: privateToken(),
+  });
+  return blob.url;
 }
 
 /**
@@ -270,6 +299,14 @@ export async function uploadDocument(opts: {
       log.error("local upload failed", { kind: opts.kind, reason: safeErrorMessage(error) });
       return { error: "The upload did not go through. Try again." };
     }
+  }
+
+  /* 🔴 F9: a sensitive kind with no private store is refused here, before any write. */
+  if (isPrivateKind(opts.kind) && !privateStoreConfigured()) {
+    log.error("ALERT private blob store not configured: a sensitive upload was REFUSED, not stored", {
+      kind: opts.kind,
+    });
+    return { error: await privateStoreRefusal() };
   }
 
   try {

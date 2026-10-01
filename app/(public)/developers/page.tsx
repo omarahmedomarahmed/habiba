@@ -116,11 +116,12 @@ GET /api/partner/v1/subjects/YOUR-REF/readers
 200 { "readers": [ { "clinicianId": "...", "grantedAt": "..." } ] }
 
 POST /api/partner/v1/launch
-{ "clinician": "dr@example.com", "target": "patients" }
+{ "clinician": "dr@example.com" }
 
 200 { "url": "https://.../api/partner/launch?token=..." }
+403 until the clinician approves your platform in their own Settings
 open it in a new window: single use, two minutes,
-then a one-hour session for that clinician
+then 15 read only minutes on your linked patients only
 targets: ${PARTNER_LAUNCH_TARGETS.join(", ")}`}
         />
 
@@ -227,6 +228,11 @@ GET /api/partner/v1/notes/<sessionId>
   "state": "given", "answered_at": "2026-09-14T10:40:00Z",
   "offset_seconds": 600 }
 
+live key, before the patient's own yes:
+200 { "recording_from_seconds": null,
+      "patient_consent_url": "https://.../patient/partner-consent/..." }
+
+once they said yes there, signed in to their account:
 200 { "recording_from_seconds": 600,
       "coverage": "Recording started 10 minutes into this
                    session. Nothing before that was recorded,

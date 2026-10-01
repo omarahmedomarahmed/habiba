@@ -24,6 +24,7 @@
  */
 
 import { CURRENCY_BY_ENTITY } from "@/lib/billing/money";
+import { SPONSOR_FLOOR_MIN } from "@/lib/sponsor/ledger";
 
 
 /**
@@ -425,7 +426,11 @@ export type PlatformSettings = {
      * and the Egyptian benchmark the founders set is 1,000 EGP, or $20.
      */
     averageSessionCents: number;
-    /** 53.3 / C229 — below this headcount a sponsor sees the balance and nothing else. */
+    /**
+     * 53.3 / C229 / F7: the small-group floor: below this headcount a sponsor
+     * sees the balance and nothing else, and a ledger period is reported only
+     * when this many DIFFERENT people were funded in it. Never below five.
+     */
     activityFloor: number;
     /** 53.19b / C247 — how often an identifier is re-checked. */
     verifyCycleMonths: number;
@@ -1586,12 +1591,17 @@ export function parseGroup<G extends SettingsGroup>(
           max: 100_000,
         }),
         /*
-         * 🔴 THE FLOOR CANNOT BE SET BELOW TWO, and there is no way to switch
-         * it off — the same construction as `twoPersonThresholdCents`, for the
-         * same reason. A floor of 1 means a sponsor with one enrolled person
-         * reads that person's weekly therapy spend, by name, from a chart.
+         * 🔴 F7: THE FLOOR CANNOT BE SET BELOW FIVE, and there is no way to
+         * switch it off. It counts DISTINCT PEOPLE in a reported period
+         * (`lib/sponsor/ledger.ts`), and a group of two or three at a small
+         * company is a name. Anything lower is clamped UP to five, never
+         * thrown back to some other value; `privacyFloor` applies the same
+         * minimum again at read time, so a value stored before F7 cannot slip.
          */
-        activityFloor: int(v.activityFloor, d.sponsor.activityFloor, { min: 2, max: 1_000 }),
+        activityFloor: Math.min(
+          1_000,
+          Math.max(SPONSOR_FLOOR_MIN, int(v.activityFloor, d.sponsor.activityFloor, { max: 1_000 })),
+        ),
         verifyCycleMonths: int(v.verifyCycleMonths, d.sponsor.verifyCycleMonths, {
           min: 1,
           max: 60,
