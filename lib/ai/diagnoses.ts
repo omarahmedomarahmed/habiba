@@ -98,6 +98,10 @@ export async function proposeDiagnoses(input: {
   organizationId: string;
   userId: string;
 }): Promise<{ proposed: number; discarded: number }> {
+  /* 🔴 Due diligence F3: a person who withdrew consent to processing abroad is not read by a model. */
+  const { aiPausedForPerson } = await import("@/lib/data/ai-consent");
+  if (await aiPausedForPerson(input.personId)) return { proposed: 0, discarded: 0 };
+
   const passages = await db
     .select({
       chunkId: documentChunks.id,

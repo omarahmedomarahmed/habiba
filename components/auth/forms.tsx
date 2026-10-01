@@ -13,6 +13,7 @@ import {
 } from "@/lib/auth/actions";
 import { Button, Field, Input } from "@/components/clinician/kit";
 import { useT } from "@/lib/i18n/client";
+import { SignupConsent } from "@/components/auth/signup-consent";
 
 const INITIAL: ActionState = {};
 
@@ -190,6 +191,26 @@ export function SignUpForm() {
   const [state, action] = useActionState(signUp, INITIAL);
   const t = useT();
 
+  /*
+   * 🔴 F14: the same screen for a new address and a registered one. The email
+   * says which; the page never does.
+   */
+  if (state.ok && state.sentTo) {
+    return (
+      <div className="space-y-4">
+        <p className="text-base font-bold tracking-tight text-navy-500">{t("tauth.signupSent.title")}</p>
+        <p className="text-sm leading-relaxed text-navy-400">
+          {t("tauth.signupSent.body", { email: state.sentTo })}
+        </p>
+        <Link href="/login">
+          <Button variant="secondary" full>
+            {t("tauth.signupSent.signIn")}
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <form action={action} className="space-y-4">
       <ErrorNote message={state.error} />
@@ -219,22 +240,10 @@ export function SignUpForm() {
         <Input id="password" name="password" type="password" autoComplete="new-password" required />
       </Field>
 
-      <Submit>{t("tauth.createAccount")}</Submit>
+      {/* F3: the layered notice and the box the form cannot be sent without. */}
+      <SignupConsent audience="clinician" />
 
-      <p className="text-center text-xs leading-relaxed text-navy-400">
-        {withLinks(t("tauth.terms"), {
-          terms: (
-            <Link href="/terms" className="underline">
-              {t("tauth.termsWord")}
-            </Link>
-          ),
-          privacy: (
-            <Link href="/privacy" className="underline">
-              {t("tauth.privacyWord")}
-            </Link>
-          ),
-        })}
-      </p>
+      <Submit>{t("tauth.createAccount")}</Submit>
     </form>
   );
 }

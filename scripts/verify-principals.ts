@@ -210,6 +210,15 @@ const SCOPE: Record<string, Scope> = {
    */
   "sponsor-domains": { who: ["sponsor", "admin"] },
   residency: { who: ["patient", "admin"], clinical: true },
+  /*
+   * Due diligence F3: whether a person withdrew consent to processing abroad.
+   * One boolean, read before a model call by the clinician's session page and
+   * routes, and by the patient's own residency page. No clinical content.
+   */
+  "ai-consent": {
+    who: ["patient", "clinician", "admin"],
+    why: "a yes or no about the AI pause, read before a model call, never a record",
+  },
   // Also reached by the public rating link `/t/[id]` and the radar, which
   // carry a one-time token rather than a session. C273: a rating is never
   // attributed, so the read is an aggregate.

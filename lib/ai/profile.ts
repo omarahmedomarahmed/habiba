@@ -17,7 +17,7 @@ import {
 } from "@/lib/db/schema";
 import { log, ref as logRef, safeErrorMessage } from "@/lib/logger";
 
-import { MODELS, logUsage, openai, parseJson } from "./client";
+import { MODELS, logUsage, openai, parseJsonStrict } from "./client";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -221,6 +221,13 @@ export async function regenerateProfile(input: {
   organizationId: string;
   userId: string;
 }): Promise<{ sections: number; conflicts: number; observations: number } | null> {
+  /* 🔴 Due diligence F3: nobody who withdrew consent to processing abroad is profiled by a model. */
+  const { aiPausedForPerson } = await import("@/lib/data/ai-consent");
+  if (await aiPausedForPerson(input.personId)) {
+    log.info("profile not rebuilt: AI processing is paused for this person", { person: logRef(input.personId) });
+    return null;
+  }
+
   const material = await gather(input.personId);
   if (!material.text.trim()) return null;
 
@@ -261,7 +268,19 @@ export async function regenerateProfile(input: {
       status: "success",
     });
 
-    raw = parseJson(completion.choices[0]?.message?.content, {}, "profile");
+    /*
+     * 🔴 Due diligence F13: an answer that is not the shape asked for changes
+     * NOTHING. This parsed with a fallback of `{}`, and an empty object went on
+     * to replace the stored profile with no sections and delete the timeline:
+     * one bad reply erased a person's standing record. Now the previous version
+     * stays exactly as it was, and the failure is logged as an error.
+     */
+    const parsed = readProfileOutput(completion.choices[0]?.message?.content);
+    if (!parsed) {
+      log.error("profile output unusable, previous profile kept", { person: logRef(input.personId) });
+      return null;
+    }
+    raw = parsed;
   } catch (error) {
     log.error("profile generation failed", {
       person: logRef(input.personId),
@@ -273,6 +292,12 @@ export async function regenerateProfile(input: {
   const sections = keepCitedSections(raw.sections, material.refs);
   const conflicts = keepCitedConflicts(raw.conflicts, material.refs);
   const observed = keepDatedObservations(raw.observations, material);
+  /*
+   * F13: the timeline is replaced only when the reply carried one. A reply with
+   * sections and no observations array is a profile update, not an instruction
+   * to forget every dated event the person has.
+   */
+  const replaceTimeline = Array.isArray(raw.observations);
 
   await db
     .insert(personProfiles)
@@ -299,8 +324,8 @@ export async function regenerateProfile(input: {
 
   // Replaced, not appended: a timeline that accumulates every regeneration
   // shows the same bereavement four times.
-  await db.delete(observations).where(eq(observations.personId, input.personId));
-  if (observed.length > 0) {
+  if (replaceTimeline) await db.delete(observations).where(eq(observations.personId, input.personId));
+  if (replaceTimeline && observed.length > 0) {
     await db.insert(observations).values(
       observed.map((o) => ({
         personId: input.personId,
@@ -323,6 +348,26 @@ export async function regenerateProfile(input: {
     conflicts: conflicts.length,
     observations: observed.length,
   };
+}
+
+/**
+ * F13: the model's reply as a profile, or null when it is not one.
+ *
+ * Unparseable, not an object, or without a `sections` array is null: the
+ * caller keeps the stored profile and its timeline. A `sections` array that
+ * turns out empty after citation filtering is a real (if thin) answer and is
+ * not null here.
+ */
+export function readProfileOutput(
+  content: string | null | undefined,
+): { sections?: unknown; conflicts?: unknown; observations?: unknown } | null {
+  const parsed = parseJsonStrict<{ sections?: unknown; conflicts?: unknown; observations?: unknown }>(
+    content,
+    "profile",
+  );
+  if (!parsed.ok) return null;
+  if (!Array.isArray(parsed.value.sections)) return null;
+  return parsed.value;
 }
 
 /* ------------------------------------------------------------ the filters -- */

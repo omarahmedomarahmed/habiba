@@ -12,6 +12,7 @@ import { confirmEmailCode, issueEmailCode } from "@/lib/patient-auth/email";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { callerKey, consume } from "@/lib/rate-limit";
 import { avatarUploadProblem, deleteDocument, uploadDocument } from "@/lib/uploads";
+import { say } from "@/lib/i18n/say";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -64,7 +65,7 @@ export async function finishNumberChange(
   const actor = await requirePatient();
 
   const verdict = await consume(await callerKey("patient:number-code"), 5, 15 * 60);
-  if (!verdict.allowed) return { error: "Too many attempts. Try again in a few minutes." };
+  if (!verdict.allowed) return { error: await say("perr.tooManyFewMinutes") };
 
   const result = await completeOwnChange({
     accountId: actor.accountId,
@@ -104,8 +105,8 @@ export async function saveOwnName(
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
 
-  if (firstName.length < 1) return { error: "Tell us what to call you." };
-  if (firstName.length > 80 || lastName.length > 80) return { error: "That is too long." };
+  if (firstName.length < 1) return { error: await say("perr.whatToCall") };
+  if (firstName.length > 80 || lastName.length > 80) return { error: await say("perr.tooLong") };
 
   await db
     .update(people)
@@ -128,7 +129,7 @@ export async function saveOwnPhoto(formData: FormData): Promise<AccountState> {
   const actor = await requirePatient();
 
   const file = formData.get("photo");
-  if (!(file instanceof File)) return { error: "Choose a photo." };
+  if (!(file instanceof File)) return { error: await say("perr.choosePhoto") };
 
   const problem = avatarUploadProblem(file);
   if (problem) return { error: problem };
@@ -195,7 +196,7 @@ export async function askForEmailCode(_prev: EmailState, formData: FormData): Pr
   const actor = await requirePatient();
 
   const verdict = await consume(await callerKey("patient:email-code"), 5, 15 * 60);
-  if (!verdict.allowed) return { error: "Too many codes asked for. Try again in a few minutes." };
+  if (!verdict.allowed) return { error: await say("perr.tooManyCodesFew") };
 
   const email = String(formData.get("email") ?? "");
   const issued = await issueEmailCode(actor.accountId, email);
@@ -207,7 +208,7 @@ export async function confirmEmail(_prev: EmailState, formData: FormData): Promi
   const actor = await requirePatient();
 
   const verdict = await consume(await callerKey("patient:email-confirm"), 10, 15 * 60);
-  if (!verdict.allowed) return { error: "Too many attempts. Try again in a few minutes." };
+  if (!verdict.allowed) return { error: await say("perr.tooManyFewMinutes") };
 
   const email = String(formData.get("email") ?? "");
   const done = await confirmEmailCode(actor.accountId, email, String(formData.get("code") ?? ""));

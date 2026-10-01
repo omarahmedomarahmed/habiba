@@ -17,6 +17,7 @@ import { callerKey, consume } from "@/lib/rate-limit";
 import { log, ref } from "@/lib/logger";
 
 import { revokeAllPatientSessions } from "./session";
+import { say } from "@/lib/i18n/say";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -113,7 +114,7 @@ export async function requestPatientReset(
   const handle = String(formData.get("handle") ?? "").trim();
   const country = String(formData.get("handleCountry") ?? "") || null;
 
-  if (!handle) return { error: "Enter the phone number or email you sign in with." };
+  if (!handle) return { error: await say("perr.enterHandleSignIn") };
 
   /*
    * Rate-limited per caller, because this endpoint sends messages to strangers'
@@ -124,7 +125,7 @@ export async function requestPatientReset(
   if (!verdict.allowed) {
     const minutes = Math.max(1, Math.ceil(verdict.retryAfter / 60));
     return {
-      error: `Too many requests from this connection. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      error: await say("perr.tooManyRequestsMinutes", { minutes }),
     };
   }
 
@@ -193,12 +194,12 @@ export async function completePatientReset(
   if (!verdict.allowed) {
     const minutes = Math.max(1, Math.ceil(verdict.retryAfter / 60));
     return {
-      error: `Too many attempts from this connection. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      error: await say("perr.tooManyAttemptsConnMinutes", { minutes }),
     };
   }
 
   const account = await findAccount(handle, country);
-  const wrong = { error: "That code is wrong or has expired. Ask for a new one." };
+  const wrong = { error: await say("perr.codeWrong") };
   if (!account) return wrong;
 
   const [row] = await db
@@ -230,7 +231,7 @@ export async function completePatientReset(
         .update(patientAuthTokens)
         .set({ usedAt: new Date() })
         .where(eq(patientAuthTokens.id, row.id));
-      return { error: "Too many wrong codes. Ask for a new one." };
+      return { error: await say("perr.tooManyWrongCodes") };
     }
 
     await db

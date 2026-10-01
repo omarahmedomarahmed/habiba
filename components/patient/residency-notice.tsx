@@ -29,6 +29,7 @@ export function ResidencyNotice({
   wording,
   homeLabel,
   servingLabel,
+  aiPaused = false,
 }: {
   crosses: boolean;
   agreedAt: string | null;
@@ -36,6 +37,8 @@ export function ResidencyNotice({
   /** Null when we do not know which country they live in. */
   homeLabel: string | null;
   servingLabel: string;
+  /** F3: they withdrew, so no model is called about them. Said, not implied. */
+  aiPaused?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -73,9 +76,22 @@ export function ResidencyNotice({
         </p>
       ) : null}
 
+      {aiPaused && !agreedAt ? (
+        <div role="status" className="mt-3 rounded-xl border border-amber-300 bg-white p-3">
+          <p className="text-sm font-semibold text-navy-700">{t("residency.aiPaused.title")}</p>
+          <p className="mt-1 text-sm leading-relaxed text-navy-600">{t("residency.aiPaused.body")}</p>
+        </div>
+      ) : null}
+
       {agreedAt ? (
         <div className="mt-4">
           <p className="text-sm text-navy-400">{t("residency.agreedOn", { date: agreedAt })}</p>
+          {/*
+            🔴 F3: what withdrawing does, said before the button. It used to do
+            nothing at all; now it stops every model call about them, and that
+            is all it can truthfully promise.
+          */}
+          <p className="mt-2 text-sm leading-relaxed text-navy-500">{t("residency.withdrawExplain")}</p>
           <button
             type="button"
             disabled={pending}

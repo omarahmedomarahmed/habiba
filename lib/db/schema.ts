@@ -366,6 +366,14 @@ export const users = pgTable(
     lockedUntil: timestamp("locked_until", { withTimezone: true }),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
 
+    /**
+     * 🔴 0187 / due diligence F3: the signup notice version a clinician
+     * ticked, and when. Null for accounts created before it, or by an
+     * operator rather than by signing up.
+     */
+    termsVersion: text("terms_version"),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -530,7 +538,8 @@ export const authTokens = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    purpose: text("purpose").$type<"password_reset">().notNull(),
+    /* F14: `signup_confirm` is the welcome email's single use sign-in link. */
+    purpose: text("purpose").$type<"password_reset" | "signup_confirm">().notNull(),
     tokenHash: text("token_hash").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     usedAt: timestamp("used_at", { withTimezone: true }),
@@ -1053,6 +1062,13 @@ export const sessions = pgTable(
      * never opened).
      */
     clockStartedAt: timestamp("clock_started_at", { withTimezone: true }),
+    /**
+     * 🔴 0187 / due diligence F13: the model risk check ran and its answer
+     * could not be used (an outage, or output that was not the shape asked
+     * for). Shown to the clinician as "risk check failed", never as a clean
+     * result. Null when it ran, or never applied.
+     */
+    riskCheckFailedAt: timestamp("risk_check_failed_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     durationMinutes: integer("duration_minutes"),
 
@@ -4562,6 +4578,16 @@ export const patientAccounts = pgTable(
      * therapists.
      */
     timezone: text("timezone"),
+
+    /**
+     * 🔴 0187 / due diligence F3: which version of the signup notice they
+     * ticked, and when. Null for an account older than the notice, which
+     * accepted nothing we can prove. See `lib/consent/terms.ts`.
+     */
+    termsVersion: text("terms_version"),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
+    /** 🔴 0187 / F11: when they confirmed they are 18 or older. */
+    adultConfirmedAt: timestamp("adult_confirmed_at", { withTimezone: true }),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

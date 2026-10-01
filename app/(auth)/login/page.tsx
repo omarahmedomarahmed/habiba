@@ -20,12 +20,14 @@ const NOTICES = {
   // deleted the cookie. Saying so is the difference between "the app is broken"
   // and "I have been away a while".
   expired: "tauth.noticeExpired",
+  /* F14: a signup link that was used, expired or never ours. */
+  link: "tauth.confirm.invalid",
 } as const satisfies Record<string, MessageKey>;
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; reset?: string; changed?: string; expired?: string }>;
+  searchParams: Promise<{ next?: string; reset?: string; changed?: string; expired?: string; link?: string }>;
 }) {
   const [params, { t }] = await Promise.all([searchParams, getI18n()]);
   const notice = params.reset
@@ -34,7 +36,9 @@ export default async function LoginPage({
       ? t(NOTICES.changed)
       : params.expired
         ? t(NOTICES.expired)
-        : undefined;
+        : params.link
+          ? t(NOTICES.link)
+          : undefined;
 
   return (
     <AuthShell

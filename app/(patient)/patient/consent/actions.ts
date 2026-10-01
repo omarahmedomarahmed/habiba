@@ -8,6 +8,7 @@ import { unlinkPartner } from "@/lib/data/partner-links";
 import { askForHistory, createInvite, revokeInviteCode } from "@/lib/data/portability";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import type { GrantShape } from "@/lib/db/schema";
+import { say } from "@/lib/i18n/say";
 
 export type ConsentState = { error?: string; ok?: boolean };
 
@@ -94,7 +95,7 @@ export async function cancelInvite(inviteId: string): Promise<ConsentState> {
   const actor = await requirePatient();
 
   const done = await revokeInviteCode({ personId: actor.personId, inviteId });
-  if (!done.ok) return { error: "That code has already been used or cancelled." };
+  if (!done.ok) return { error: await say("perr.codeUsed") };
 
   revalidatePath("/patient/consent");
   return { ok: true };

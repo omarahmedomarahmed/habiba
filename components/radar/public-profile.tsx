@@ -9,6 +9,7 @@ import { countryFlag } from "@/lib/geo";
 import { cn, fullName, initials } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
 import { useT } from "@/lib/i18n/client";
+import { specialtyLabel } from "@/lib/i18n/taxonomy-label";
 import { SessionPrice } from "@/components/money/session-price";
 
 export type ProfileEntry = Omit<RadarEntry, "status"> & {
@@ -125,7 +126,7 @@ export function PublicProfile({ initial }: { initial: ProfileEntry }) {
           <Row icon={Languages} label={t("radar.speaks")} value={profile.languages.join(", ")} />
         ) : null}
         {profile.specialties.length > 0 ? (
-          <Row icon={Check} label={t("radar.worksWith")} value={profile.specialties.join(", ")} />
+          <Row icon={Check} label={t("radar.worksWith")} value={profile.specialties.map((s) => specialtyLabel(s, t)).join(", ")} />
         ) : null}
         {profile.city || profile.country ? (
           <Row

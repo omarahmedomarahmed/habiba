@@ -21,7 +21,8 @@ import {
   languageFlag,
 } from "@/lib/geo";
 import { getI18n } from "@/lib/i18n/server";
-import { en as ENGLISH, type MessageKey } from "@/lib/i18n/messages";
+import type { MessageKey } from "@/lib/i18n/messages";
+import { taxonomyKey as sharedTaxonomyKey } from "@/lib/i18n/taxonomy-label";
 import type { Translate } from "@/lib/i18n/server";
 import type { Locale } from "@/lib/i18n/config";
 
@@ -64,18 +65,8 @@ export type TaxonomyOption = {
  */
 function taxonomyKey(kind: TaxonomyKind, code: string): MessageKey | null {
   if (kind === "country") return null;
-  const prefix = kind === "language" ? "lang" : "spec";
-  const slug = code
-    .split(/[^A-Za-z0-9]+/)
-    .filter(Boolean)
-    .map((word, index) =>
-      index === 0
-        ? word[0]!.toLowerCase() + word.slice(1)
-        : word[0]!.toUpperCase() + word.slice(1),
-    )
-    .join("");
-  const key = `${prefix}.${slug}`;
-  return key in ENGLISH ? (key as MessageKey) : null;
+  /* F18: one derivation, shared with the client components that show a clinician. */
+  return sharedTaxonomyKey(kind, code);
 }
 
 function builtIn(
