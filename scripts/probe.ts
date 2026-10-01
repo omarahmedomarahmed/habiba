@@ -27,7 +27,6 @@
  * `next dev` rather than `next start`.
  */
 import { sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { reporter, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -1439,8 +1438,6 @@ async function sweep(db: ReturnType<typeof connect>["db"]): Promise<void> {
     DELETE FROM manual_payments WHERE user_id IN (SELECT id FROM users WHERE email LIKE ${like})`);
   await db.execute(sql`
     DELETE FROM auth_sessions WHERE user_id IN (SELECT id FROM users WHERE email LIKE ${like})`);
-  await db.execute(sql`
-    DELETE FROM audit_log WHERE ${auditFixtures()} AND actor_user_id IN (SELECT id FROM users WHERE email LIKE ${like})`);
   await db.execute(sql`DELETE FROM patient_accounts WHERE email LIKE ${like}`);
   await db.execute(sql`DELETE FROM users WHERE email LIKE ${like}`);
   await db.execute(sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE contact_email LIKE ${like} OR name LIKE ${`%${SURNAME}%`})`);

@@ -40,7 +40,6 @@ process.env.EGYPT_PAYOUTS_HMAC = `verify-mm-${randomBytes(24).toString("hex")}`;
 import { randomBytes } from "node:crypto";
 
 import { sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -365,7 +364,6 @@ async function usMonth(db: Db) {
       sql`DELETE FROM sessions WHERE organization_id = ${org.id}`,
       sql`DELETE FROM enrolments WHERE sponsor_id = ${sponsor.id}`,
       sql`DELETE FROM patients WHERE organization_id = ${org.id}`,
-      sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsor.id})`,
       sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsor.id}`,
       sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
       sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
@@ -648,7 +646,6 @@ async function main() {
       sql`DELETE FROM sessions WHERE organization_id = ${org.id}`,
       sql`DELETE FROM enrolments WHERE sponsor_id = ${sponsor.id}`,
       sql`DELETE FROM patients WHERE organization_id = ${org.id}`,
-      sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsor.id})`,
       sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsor.id}`,
       sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
       sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,

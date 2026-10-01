@@ -15,7 +15,6 @@
  */
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { connect, schema } from "./db";
 
@@ -390,11 +389,6 @@ async function main() {
       check("7.6 an audit row cannot name a clinician AND a patient", bothRefused);
     }
   } finally {
-    await db
-      .delete(auditLog)
-      .where(
-        sql`${auditFixtures()} AND actor_account_id IN (SELECT id FROM patient_accounts WHERE email LIKE ${`${TAG}%`})`,
-      );
     await db.delete(patients).where(sql`last_name = ${TAG}`);
     await db.delete(patientAccounts).where(sql`email LIKE ${`${TAG}%`}`);
     /*

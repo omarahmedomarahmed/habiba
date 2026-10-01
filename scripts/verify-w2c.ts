@@ -15,7 +15,6 @@
 import { randomBytes } from "node:crypto";
 
 import { sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -203,8 +202,6 @@ async function main() {
       removed.error ?? "removed",
     );
   } finally {
-    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND actor_clinic_manager_id IN
-      (SELECT id FROM clinic_managers WHERE email LIKE ${`%${fixture}%`})`);
     await db.execute(sql`DELETE FROM clinic_managers WHERE email LIKE ${`%${fixture}%`}`);
     await db.execute(sql`DELETE FROM clinic_roles WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug LIKE ${`${fixture}%`})`);
