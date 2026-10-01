@@ -66,6 +66,9 @@ const OUTBOUND_ONLY: Record<string, string> = {
   /* W2-S09 */
   "lib/data/sponsor-admin.ts":
     "the recipients are a company that has only enquired and our own back office; neither has a person row, and the enquiry's in-app home is the operator's sponsors page",
+  /* F2 (2026-10-01, due diligence) */
+  "lib/crisis/alerts.ts":
+    "a crisis alert goes to a clinician, a clinic manager or the back office, none of whom has a person row and so no patient notice log; the clinician's own notifications row is written before the send, and the alert page it links to is the in-app home",
   /* W2-S05 */
   "lib/data/sponsor-users.ts":
     "an invite or reset link for a company login, which has no person row, and a password link written into a log is a second place to steal it from",

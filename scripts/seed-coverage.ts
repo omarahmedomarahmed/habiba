@@ -128,7 +128,7 @@ async function main() {
     const { openPot } = await import("../lib/data/sponsor-admin");
     const opened = await openPot({
       sponsorId: sponsor.id,
-      refundPolicy: "Unused balance is refunded within 30 days of written notice.",
+      refundPolicy: "Unused balance is refunded on request, by our staff.",
       expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       overdraftCents: 5_000,
       welcomeCreditCents: 10_000,

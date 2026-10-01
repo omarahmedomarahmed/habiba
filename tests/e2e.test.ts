@@ -220,7 +220,21 @@ test("a new therapist is sent to verification before they can see a patient", as
   await page.fill("#lastName", "Ellis");
   await page.fill("#email", EMAIL);
   await page.fill("#password", PASSWORD);
+  /* F3: the notice is a box the form cannot be sent without. */
+  await page.check('input[name="terms"]');
   await page.getByRole("button", { name: "Create account" }).click();
+  await dismissAlarmPrompt(page);
+
+  /*
+   * F14: signup answers "check your inbox" whether or not the address was
+   * registered, so it cannot be used to find out who is. The new account
+   * exists and signs in with the password it chose.
+   */
+  await page.waitForSelector("text=Check your inbox", { timeout: 30_000 });
+  await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded" });
+  await page.fill("#email", EMAIL);
+  await page.fill("#password", PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await dismissAlarmPrompt(page);
 
   // The gate. Signing up gets you an account, not a caseload.

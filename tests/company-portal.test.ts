@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { readSource } from "../scripts/_verify";
-import { batchToFloor as batchLedger, type LedgerEntry as Entry } from "../lib/sponsor/ledger";
+import { ledgerPeriods, type LedgerEntry as Entry } from "../lib/sponsor/ledger";
 
 /**
  * Wave 2, the company portal: the dead ends a company met with no way forward.
@@ -101,16 +101,16 @@ type Ledger = typeof import("../lib/sponsor/ledger");
 const ledgerModule = async () =>
   (await import("../lib/sponsor/ledger").catch(() => null)) as Ledger | null;
 
-const entry = (over: Partial<import("../lib/sponsor/ledger").LedgerEntry>) => ({
+const entry = (over: Partial<Entry>): Entry => ({
   kind: "session" as const,
   weekStart: "2026-09-07",
-  priceCents: 2000,
   coverageBps: 6000,
   coveredCents: 1200,
-  employeeCents: 800,
-  shuffle: 0,
+  personTag: "p0",
   ...over,
 });
+const people = (n: number, over: Partial<Entry> = {}) =>
+  Array.from({ length: n }, (_, i) => entry({ personTag: `p${i}`, ...over }));
 
 test("W2-S10 entries are published in weekly batches unless an operator makes it live", async () => {
   const l = await ledgerModule();
@@ -123,40 +123,19 @@ test("W2-S10 entries are published in weekly batches unless an operator makes it
   assert.equal(l.lastPublishedWeek("live", now), "2026-09-21");
 });
 
-test("W2-S10 sorting breaks ties by the shuffle, never by the order paid", async () => {
+test("F7 periods sort and filter as whole periods, never below the floor", async () => {
   const l = (await ledgerModule())!;
-  const q = l.parseLedgerQuery({ sort: "price", dir: "desc" });
-  const sorted = l.sortLedger(
-    [entry({ shuffle: 9 }), entry({ shuffle: 1 }), entry({ priceCents: 3000, shuffle: 5 })],
-    q,
+  const { periods } = l.ledgerPeriods(
+    [...people(5, { weekStart: "2026-08-03" }), ...people(6, { weekStart: "2026-09-07" })],
+    5,
   );
-  assert.deepEqual(sorted.map((e) => e.shuffle), [5, 1, 9]);
-
-  const filtered = l.filterLedger(
-    [entry({ coverageBps: 6000 }), entry({ coverageBps: 10000 }), entry({ priceCents: 9000 })],
-    l.parseLedgerQuery({ coverage: "60", max: "50" }),
-  );
-  assert.equal(filtered.length, 1);
-  assert.equal(l.parseLedgerQuery({ coverage: "sixty", sort: "name" }).coverage, null);
-  assert.equal(l.parseLedgerQuery({ sort: "name" }).sort, "week", "an unknown sort is the default");
-});
-
-test("🔴 K6 a ledger filter never narrows the view below the floor", async () => {
-  const l = (await ledgerModule())!;
-  const batch = [
-    ...[1, 2, 3, 4].map((n) => entry({ shuffle: n })),
-    entry({ priceCents: 9000, shuffle: 5 }),
-  ];
-  const lone = l.parseLedgerQuery({ min: "90" });
-  // Control: the plain filter isolates the one session, which is the leak.
-  assert.equal(l.filterLedger(batch, lone).length, 1);
-  const held = l.filterToFloor(batch, lone, 5);
-  assert.deepEqual(held, { entries: [], heldBack: true });
-  // Unfiltered, the batch is shown whole; a filter matching the floor is shown too.
-  assert.equal(l.filterToFloor(batch, l.parseLedgerQuery({}), 5).entries.length, 5);
-  assert.equal(l.filterToFloor(batch, l.parseLedgerQuery({ max: "90" }), 5).entries.length, 5);
-  // Sorting is not a filter.
-  assert.equal(l.filterToFloor(batch, l.parseLedgerQuery({ sort: "price" }), 5).heldBack, false);
+  assert.equal(periods.length, 2);
+  const bySessions = l.sortPeriods(periods, l.parseLedgerQuery({ sort: "sessions", dir: "desc" }));
+  assert.deepEqual(bySessions.map((p) => p.sessions), [6, 5]);
+  const september = l.filterPeriods(periods, l.parseLedgerQuery({ from: "2026-09" }));
+  assert.deepEqual(september.map((p) => p.from), ["2026-09-07"]);
+  assert.equal(l.parseLedgerQuery({ sort: "price" }).sort, "week", "price is not a sort any more");
+  assert.equal(l.parseLedgerQuery({ by: "month" }).by, "month");
 });
 
 test("🔴 K6 every company screen reads the pot through the headcount gate", () => {
@@ -172,8 +151,8 @@ test("🔴 K6 every company screen reads the pot through the headcount gate", ()
   const ledger = readSource("app/(sponsor)/sponsor/ledger/page.tsx");
   const csv = readSource("app/(sponsor)/sponsor/ledger/export/route.ts");
   for (const source of [ledger, csv]) {
-    assert.match(source, /filterToFloor\(/);
-    assert.doesNotMatch(source, /\bfilterLedger\(/, "a filter that can narrow below the floor");
+    assert.match(source, /filterPeriods\(/);
+    assert.doesNotMatch(source, /priceCents|employeeCents/, "a per-session figure on a company screen");
   }
   const gate = readSource("lib/data/sponsors.ts");
   const body = gate.slice(gate.indexOf("export async function reportablePot"));
@@ -209,43 +188,30 @@ test("B19 a receipt we cannot issue says why and gives a way to ask, scoped to t
   assert.match(ask, /kind: "ops\.receiptAsked"/);
 });
 
-test("W2-S10 the reporting floor applies to every aggregate", async () => {
+test("W2-S10 / F7 the reporting floor applies to every aggregate, over people", async () => {
   const l = (await ledgerModule())!;
   const floor = 5;
-  const few = [entry({ weekStart: "2026-08-03" }), entry({ weekStart: "2026-08-10" })];
+  const few = [entry({ weekStart: "2026-08-03", personTag: "a" }), entry({ weekStart: "2026-08-10", personTag: "b" })];
   const quiet = l.ledgerAnalytics({ entries: few, floor, balanceCents: 50_000, topUps: [] });
   assert.equal(quiet.sessions, null);
   assert.equal(quiet.spendCents, null);
-  assert.equal(quiet.averagePriceCents, null);
-  assert.equal(quiet.employeeShareCents, null);
-  assert.ok(quiet.months.every((m) => m.spendCents === null && m.sessions === null));
   assert.ok(quiet.coverageMix.every((b) => b.sessions === null));
   assert.equal(quiet.burnCents, null);
   assert.equal(quiet.runwayMonths, null);
 
-  /* August has two, September four: August rolls into September, never dropped. */
-  const more = [...few, ...[1, 2, 3, 4].map((n) => entry({ weekStart: "2026-09-07", shuffle: n }))];
-  const out = l.ledgerAnalytics({
-    entries: more,
-    floor,
-    balanceCents: 7200,
-    topUps: [{ amountCents: 10_000 }],
-  });
-  assert.deepEqual(out.months, [
-    { month: "2026-08", spendCents: null, sessions: null },
-    { month: "2026-09", spendCents: 7200, sessions: 6 },
-  ]);
+  /* August has two people, September four more: August rolls into September, never dropped. */
+  const more = [...few, ...["c", "d", "e", "f"].map((p) => entry({ weekStart: "2026-09-07", personTag: p }))];
+  const out = l.ledgerAnalytics({ entries: more, floor, balanceCents: 7200, topUps: [{ amountCents: 10_000 }] });
   assert.equal(out.sessions, 6);
-  assert.equal(out.averagePriceCents, 2000);
-  assert.equal(out.employeeShareCents, 4800);
+  assert.equal(out.spendCents, 7200);
   assert.deepEqual(out.coverageMix, [{ coverageBps: 6000, sessions: 6 }]);
   assert.equal(out.burnCents, 7200);
   assert.equal(out.runwayMonths, 1);
   assert.deepEqual(out.topUps, { count: 1, totalCents: 10_000 }, "top-ups are the company's own acts");
 
-  /* A coverage bucket under the floor is suppressed while the total is not. */
+  /* A coverage bucket under the floor of PEOPLE is suppressed while the total is not. */
   const mixed = l.ledgerAnalytics({
-    entries: [...more, entry({ coverageBps: 10000, coveredCents: 2000, employeeCents: 0 })],
+    entries: [...more, entry({ coverageBps: 10000, coveredCents: 2000, personTag: "a" })],
     floor,
     balanceCents: null,
     topUps: [],
@@ -257,16 +223,12 @@ test("W2-S10 the reporting floor applies to every aggregate", async () => {
   assert.equal(mixed.runwayMonths, null, "no runway from a suppressed balance");
 });
 
-test("W2-S10 the CSV carries money and a week, and every cell is escaped", async () => {
+test("W2-S10 / F7 the CSV carries periods, sessions and spend, and every cell is escaped", async () => {
   const l = (await ledgerModule())!;
-  const rows = l.ledgerCsvRows(
-    [entry({}), entry({ kind: "refund" })],
-    ["Week", "Kind", "Price", "Coverage %", "Covered", "Employee share"],
-    (kind) => (kind === "refund" ? "=HYPERLINK(1)" : "Session"),
-  );
-  assert.equal(rows.length, 3);
-  assert.deepEqual(rows[1], ["2026-09-07", "Session", 20, 60, 12, 8]);
-  assert.equal(rows[2]![4], -12, "a refund is a negative number, not text");
+  const { periods } = l.ledgerPeriods(people(5), 5);
+  const rows = l.ledgerCsvRows(periods, ["Period", "Sessions", "Spent"]);
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows[1], ["2026-09-07", 5, 60]);
 
   const route = readSource("app/(sponsor)/sponsor/ledger/export/route.ts");
   assert.match(route, /csvCell/, "the export does not escape its cells");
@@ -333,42 +295,36 @@ test("W2-S04 replace code, remove field and revoke key each get Cancel and a suc
   assert.match(confirm, /done/, "the confirm never reports success");
 });
 
-/* ------------------------------------------ W2-S10: no entry stands alone -- */
+/* ------------------------------------------ W2-S10 / F7: no small group stands alone -- */
 
-
-function entryIn(weekStart: string, shuffle: number): Entry {
-  return { kind: "session", weekStart, priceCents: 5000, coverageBps: 10000, coveredCents: 5000, employeeCents: 0, shuffle };
+function entryIn(weekStart: string, personTag: string): Entry {
+  return { kind: "session", weekStart, coverageBps: 10000, coveredCents: 5000, personTag };
 }
 
-test("W2-S10 a week holding one entry is never shown on its own", () => {
-  // One session in the first week, none after: at a small company that is a person.
-  assert.deepEqual(batchLedger([entryIn("2026-08-03", 1)], 5), []);
+test("W2-S10 / F7 a week holding one person is never shown on its own", () => {
+  assert.deepEqual(ledgerPeriods([entryIn("2026-08-03", "a")], 5).periods, []);
 });
 
-test("W2-S10 quiet weeks gather into one batch, dated by its span, once it clears the floor", () => {
+test("W2-S10 / F7 quiet weeks gather into one period, dated by its span, once it holds five people", () => {
   const entries = [
-    entryIn("2026-08-03", 1),
-    entryIn("2026-08-10", 2),
-    entryIn("2026-08-10", 3),
-    entryIn("2026-08-17", 4),
-    entryIn("2026-08-17", 5),
-    // The next batch has only one so far, and waits.
-    entryIn("2026-08-24", 6),
+    entryIn("2026-08-03", "a"),
+    entryIn("2026-08-10", "b"),
+    entryIn("2026-08-10", "c"),
+    entryIn("2026-08-17", "d"),
+    entryIn("2026-08-17", "e"),
+    // The next period has only one so far, and waits.
+    entryIn("2026-08-24", "f"),
   ];
-  const shown = batchLedger(entries, 5);
-  assert.equal(shown.length, 5);
-  for (const entry of shown) {
-    assert.equal(entry.weekStart, "2026-08-03");
-    assert.equal(entry.weekEnd, "2026-08-17");
-  }
-  assert.ok(!shown.some((entry) => entry.shuffle === 6));
+  const { periods, heldBack } = ledgerPeriods(entries, 5);
+  assert.deepEqual(periods, [{ from: "2026-08-03", to: "2026-08-17", sessions: 5, spendCents: 25_000 }]);
+  assert.deepEqual(heldBack, { sessions: 1, spendCents: 5000 });
 });
 
-test("W2-S10 a week that clears the floor by itself keeps its own week", () => {
-  const week = Array.from({ length: 5 }, (_, i) => entryIn("2026-08-03", i));
-  const shown = batchLedger(week, 5);
-  assert.equal(shown.length, 5);
-  assert.ok(shown.every((entry) => entry.weekStart === "2026-08-03" && entry.weekEnd === undefined));
+test("W2-S10 / F7 a week that clears the floor by itself keeps its own week", () => {
+  const week = ["a", "b", "c", "d", "e"].map((p) => entryIn("2026-08-03", p));
+  assert.deepEqual(ledgerPeriods(week, 5).periods, [
+    { from: "2026-08-03", to: "2026-08-03", sessions: 5, spendCents: 25_000 },
+  ]);
 });
 
 /* Board 357: a spent reset link says so on arrival, in the company and partner portals as in the clinic. */

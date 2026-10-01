@@ -501,12 +501,12 @@ function CompanyLedger() {
   return (
     <>
       <Head title={t("sponsor.nav.ledger")} subtitle={`${t("sponsor.ledgerBody")} ${t("sponsor.ledgerWeekly")}`} />
-      <div className="grid grid-cols-2 gap-2.5 @3xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 @3xl:grid-cols-3">
         <Stat tone="dark" label={t("sponsor.spentTotal")}>
           {money(COMPANY.spentEgp)}
         </Stat>
-        <Stat label={t("sponsor.ledgerAverage")}>{money(Math.round(COMPANY.spentEgp / COMPANY.sessions))}</Stat>
-        <Stat label={t("sponsor.ledgerEmployees")}>{money(0)}</Stat>
+        {/* F7: totals over periods only; no average price and no employee share. */}
+        <Stat label={t("sponsor.sessionsTotal")}>{COMPANY.sessions}</Stat>
         <Stat label={t("sponsor.ledgerTopUps")}>{money(topUps)}</Stat>
       </div>
       <div className="grid gap-2.5 @lg:grid-cols-2">

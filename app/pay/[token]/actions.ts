@@ -13,6 +13,7 @@ import { patientOwesFor } from "@/lib/billing/session-owed";
 import { resolveJoinToken } from "@/lib/data/sessions";
 import { convertAtRate, getCountrySettings, getSettings, sessionMoney, sessionVatBpsFor } from "@/lib/settings";
 import { uploadDocument } from "@/lib/uploads";
+import { say } from "@/lib/i18n/say";
 
 export type PayState = {
   error?: string;
@@ -53,14 +54,14 @@ export type Breakdown = {
  */
 export async function priceFor(token: string, countryCode: string): Promise<Breakdown | { error: string }> {
   const session = await resolveJoinToken(token);
-  if (!session) return { error: "That link has expired." };
-  if (session.priceCents <= 0) return { error: "This session is free to join." };
+  if (!session) return { error: await say("perr.linkExpired") };
+  if (session.priceCents <= 0) return { error: await say("perr.sessionFree") };
 
   const country = await getCountrySettings(countryCode);
   if (!country) {
     return {
       error:
-        "We cannot take payments in that country yet. Ask your therapist for a free link. The session works exactly the same.",
+        await say("perr.noPaymentsCountry"),
     };
   }
 
@@ -101,7 +102,7 @@ export async function priceFor(token: string, countryCode: string): Promise<Brea
   });
 
   const quote = await quoteFor("usd", country.currency);
-  if (!quote) return { error: "We cannot price this session in your currency yet." };
+  if (!quote) return { error: await say("perr.noCurrency") };
 
   return {
     countryCode: country.code,
@@ -136,12 +137,12 @@ export async function startPayment(input: {
   email?: string | null;
 }): Promise<PayState> {
   const session = await resolveJoinToken(input.token);
-  if (!session) return { error: "That link has expired." };
-  if (session.priceCents <= 0) return { error: "This session is free to join." };
-  if (session.paymentStatus === "paid") return { error: "This session is already paid for." };
+  if (!session) return { error: await say("perr.linkExpired") };
+  if (session.priceCents <= 0) return { error: await say("perr.sessionFree") };
+  if (session.paymentStatus === "paid") return { error: await say("perr.alreadyPaid") };
 
   const name = input.name.trim().slice(0, 80);
-  if (!name) return { error: "Enter the name your therapist knows you by." };
+  if (!name) return { error: await say("perr.enterKnownName") };
 
   const checkout = await createSessionPaymentCheckout({
     sessionId: session.id,
@@ -188,16 +189,16 @@ export async function declareSessionTransfer(
   formData: FormData,
 ): Promise<TransferState> {
   const session = await resolveJoinToken(token);
-  if (!session) return { error: "That link has expired." };
-  if (session.priceCents <= 0) return { error: "This session is free to join." };
-  if (session.paymentStatus === "paid") return { error: "This session is already paid for." };
+  if (!session) return { error: await say("perr.linkExpired") };
+  if (session.priceCents <= 0) return { error: await say("perr.sessionFree") };
+  if (session.paymentStatus === "paid") return { error: await say("perr.alreadyPaid") };
 
   /*
    * 🔴 Asked again here rather than trusted from the screen. A form that renders
    * on a condition is a form somebody can post without meeting it.
    */
   if (!(await organizationNeedsTransfer(session.organizationId))) {
-    return { error: "This session is paid by card. Reload the page." };
+    return { error: await say("perr.paidByCard") };
   }
 
   const reference = String(formData.get("reference") ?? "").trim();

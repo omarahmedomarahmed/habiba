@@ -9,6 +9,7 @@
  * refuses production by name.
  */
 import { sql } from "drizzle-orm";
+import { auditFixtures } from "./_audit-fixtures";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -35,7 +36,7 @@ async function plantSponsor(db: Db, label: string): Promise<string> {
 }
 
 async function dropSponsor(db: Db, sponsorId: string) {
-  await db.execute(sql`DELETE FROM audit_log WHERE resource_id IN
+  await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN
     (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsorId})`);
   await db.execute(sql`DELETE FROM ledger_entries WHERE ref_id = ${sponsorId}`);
   await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsorId}`);
@@ -118,7 +119,7 @@ async function plantWorld(db: Db, label: string) {
     await db.execute(sql`DELETE FROM patient_notifications WHERE person_id IN
       (SELECT person_id FROM patients WHERE organization_id = ${org.id})`);
     await db.execute(sql`DELETE FROM sessions WHERE organization_id = ${org.id}`);
-    await db.execute(sql`DELETE FROM audit_log WHERE resource_id IN
+    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN
       (SELECT id FROM enrolments WHERE sponsor_id = ${sponsorId})`);
     await db.execute(sql`DELETE FROM enrolments WHERE sponsor_id = ${sponsorId}`);
     const people = (
@@ -777,23 +778,42 @@ async function moneyLedger(db: Db) {
      * The floor's worth is planted in the same week to see it come out.
      */
     check(
-      "W2-S10 by default this week's entries are published the Monday after, and a lone entry not even then",
-      weekly.publishing === "weekly" && weekly.entries.length === 0 && nextWeek.entries.length === 0,
-      `${weekly.entries.length} now, ${nextWeek.entries.length} after the week ends`,
+      "W2-S10 by default this week's money is published the Monday after, and one person's not even then",
+      weekly.publishing === "weekly" && weekly.weeks.length === 0 && nextWeek.weeks.length === 0,
+      `${weekly.weeks.length} periods now, ${nextWeek.weeks.length} after the week ends`,
     );
-    const { getSettings } = await import("../lib/settings");
-    const floor = (await getSettings()).sponsor.activityFloor;
+    const floor = weekly.floor;
+    /*
+     * 🔴 F7: the floor counts PEOPLE. The same person's sessions, however many,
+     * never clear it; `floor` different people do.
+     */
     for (let i = 1; i < floor; i++) {
       await db.execute(sql`
         INSERT INTO sponsor_money_entries
-          (sponsor_id, kind, week_start, price_cents, coverage_bps, covered_cents, employee_cents, shuffle)
-        VALUES (${world.sponsorId}, 'session', ${row?.week_start ?? weekStartOf(new Date())}, 2500, 6000, 1500, 1000, ${i})`);
+          (sponsor_id, kind, week_start, price_cents, coverage_bps, covered_cents, employee_cents, shuffle, person_tag)
+        VALUES (${world.sponsorId}, 'session', ${row?.week_start ?? weekStartOf(new Date())}, 2500, 6000, 1500, 1000, ${i}, 'one-person')`);
+    }
+    const onePerson = await publishedLedger(world.sponsorId, new Date(Date.now() + 8 * 24 * 60 * 60 * 1000));
+    check(
+      "🔴 F7 many sessions by too few people are never a reported week",
+      onePerson.weeks.length === 0,
+      `${onePerson.weeks.length} periods from ${floor} sessions by two people`,
+    );
+    for (let i = 1; i < floor; i++) {
+      await db.execute(sql`
+        INSERT INTO sponsor_money_entries
+          (sponsor_id, kind, week_start, price_cents, coverage_bps, covered_cents, employee_cents, shuffle, person_tag)
+        VALUES (${world.sponsorId}, 'session', ${row?.week_start ?? weekStartOf(new Date())}, 2500, 6000, 1500, 1000, ${i}, ${`person-${i}`})`);
     }
     const cleared = await publishedLedger(world.sponsorId, new Date(Date.now() + 8 * 24 * 60 * 60 * 1000));
+    const [period] = cleared.weeks;
     check(
-      "W2-S10 …and the week comes out whole once it holds the reporting floor's worth",
-      cleared.entries.length === floor,
-      `${cleared.entries.length} of ${floor}`,
+      "W2-S10 / F7 …and the week comes out as one total once it holds the floor's worth of different people",
+      cleared.weeks.length === 1 &&
+        period?.sessions === 2 * floor - 1 &&
+        !("priceCents" in (period ?? {})) &&
+        !("employeeCents" in (period ?? {})),
+      JSON.stringify(cleared.weeks),
     );
   } finally {
     await db.execute(sql`DELETE FROM sponsor_money_entries WHERE sponsor_id = ${world.sponsorId}`).catch(

@@ -904,7 +904,7 @@ async function main() {
 
     await db.execute(sql`
       INSERT INTO partner_launch_tokens (partner_id, user_id, token_hash, target, expires_at)
-      VALUES (${partnerId}, ${clinicianId}, ${launchHash}, '/dashboard', now() + interval '2 minutes')`);
+      VALUES (${partnerId}, ${clinicianId}, ${launchHash}, '/partner-launch', now() + interval '2 minutes')`);
 
     const claimLaunch = () =>
       db.execute(sql`

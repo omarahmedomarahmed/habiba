@@ -776,8 +776,8 @@ function shot(s, file, { x, y, w, h }) {
       { text: "HIPAA status, stated plainly: ", options: { bold: true, color: TEAL } },
       {
         text:
-          "we offer a BAA on every plan, because we are a business associate the moment we touch a therapist's patient data — " +
-          "that is a contract we owe, not an upsell. BAAs with our own infrastructure providers are in progress and the compliance page says so.",
+          "no BAA or data processing agreement is signed yet, with customers or with our own infrastructure providers, " +
+          "and the compliance page says so. Signing them comes before any real patient data.",
         options: { color: ICE },
       },
     ],
@@ -794,8 +794,8 @@ function shot(s, file, { x, y, w, h }) {
 
   const cw = (COL - 0.44 * 2) / 3;
   const plans = [
-    ["Pay as you go", "$6", "per completed session", ["First session free, once per clinic", "10 copilot questions per patient / month", "HIPAA BAA included"]],
-    ["Unlimited", "$99", "per clinician / month", ["Unlimited sessions and copilot", "Priority transcription queue", "HIPAA BAA included"]],
+    ["Pay as you go", "$6", "per completed session", ["First session free, once per clinic", "10 copilot questions per patient / month", "BAA not yet available"]],
+    ["Unlimited", "$99", "per clinician / month", ["Unlimited sessions and copilot", "Priority transcription queue", "BAA not yet available"]],
     ["Crisis Radar", "10%", "of what the clinician charges", ["Charged on the patient's card at booking", "Clinician is paid out by Stripe Connect", "Refunds return our cut too"]],
   ];
 
@@ -1037,7 +1037,7 @@ function shot(s, file, { x, y, w, h }) {
     ["Users", "Zero", "No patient has used it. Nothing here is a retention chart."],
     ["Revenue", "$0", "Billing is wired end to end and has never charged a stranger."],
     ["Entity", "Incorporating in the US", "In progress. Delaware C-corp."],
-    ["Compliance", "HIPAA work under way", "BAA offered on every plan; infrastructure BAAs pending."],
+    ["Compliance", "HIPAA work under way", "No BAA signed yet, with customers or infrastructure providers."],
     ["Beta", "UAE / MENA clinics", "First conversations. Arabic-first is why we start there."],
   ];
 

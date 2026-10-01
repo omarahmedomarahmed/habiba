@@ -22,6 +22,7 @@ import { namesForUsers, voicesFor } from "@/lib/data/session-voices";
 import { latestSummary } from "@/lib/data/summaries";
 import { addendaFor } from "@/lib/data/note-record";
 import { latestAssessment, priorRiskFor } from "@/lib/data/session-risk";
+import { aiPausedForPatient } from "@/lib/data/ai-consent";
 import { NOTE_LANGUAGES } from "@/lib/db/schema";
 import { formatDateTime, fullName } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
@@ -196,6 +197,14 @@ export default async function SessionDetailPage({
    * here and the classifier nowhere. See `lib/data/session-risk.ts` and C170.
    */
   const assessment = live ? null : await latestAssessment(id, actor, row.session.patientId);
+  /*
+   * 🔴 Due diligence F13 and F3: two states that used to look like nothing.
+   * A risk check whose answer could not be read was indistinguishable from a
+   * clean one, and a patient who withdrew consent to processing abroad had no
+   * sign of it on the clinician's screen while their sessions went unrecorded.
+   */
+  const riskCheckFailed = !live && row.session.riskCheckFailedAt !== null;
+  const aiPaused = await aiPausedForPatient(row.session.patientId);
   const priorRisk = assessment
     ? await priorRiskFor(id, row.session.patientId, row.session.therapistId, actor.organizationId)
     : [];
@@ -276,6 +285,11 @@ export default async function SessionDetailPage({
       </div>
 
       <div className="space-y-4 px-4 sm:px-6">
+        {aiPaused ? (
+          <p role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
+            {t("portal.session.aiPaused")}
+          </p>
+        ) : null}
         {live ? (
           <Card className="overflow-hidden p-0">
             <div className="relative flex flex-col items-start gap-4 overflow-hidden bg-navy-900 p-5 text-white">
@@ -320,6 +334,12 @@ export default async function SessionDetailPage({
           </Card>
         ) : (
           <>
+          {riskCheckFailed ? (
+            <div role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+              <p className="text-sm font-semibold text-amber-900">{t("portal.session.riskFailedTitle")}</p>
+              <p className="mt-1 text-sm leading-relaxed text-amber-900/90">{t("portal.session.riskFailedBody")}</p>
+            </div>
+          ) : null}
           {assessment ? (
             <RiskAssessment
               level={assessment.level as "moderate" | "elevated" | "high" | "critical"}

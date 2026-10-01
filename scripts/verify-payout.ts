@@ -43,6 +43,7 @@
  * earnings and a payout request, and deletes all of it in a `finally`.
  */
 import { sql } from "drizzle-orm";
+import { auditFixtures } from "./_audit-fixtures";
 
 import { reporter, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -440,7 +441,7 @@ async function sweep(db: ReturnType<typeof connect>["db"]): Promise<void> {
     DELETE FROM ledger_entries WHERE organization_id IN
       (SELECT id FROM organizations WHERE slug = ${SLUG})`);
   await db.execute(sql`
-    DELETE FROM audit_log WHERE organization_id IN
+    DELETE FROM audit_log WHERE ${auditFixtures()} AND organization_id IN
       (SELECT id FROM organizations WHERE slug = ${SLUG})`);
   await db.execute(sql`
     DELETE FROM users WHERE organization_id IN

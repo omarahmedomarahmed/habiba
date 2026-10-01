@@ -7,6 +7,7 @@ import type { Role } from "@/lib/db/schema";
 import { admission, getSessionState, SESSION_COOKIE, type Actor } from "./session";
 import { env } from "@/lib/env";
 import { signInDoorFor, STAFF_SECOND_STEP } from "@/lib/routing";
+import { holdLaunchedSession, isLaunchedSession } from "./launch-hold";
 
 export class AuthorizationError extends Error {
   constructor(message = "Not authorized") {
@@ -38,8 +39,11 @@ export async function requireUser(): Promise<Actor> {
    * office member exactly one page: the second step.
    */
   if (verdict === "second_step") await toSecondStep();
+  /* 🔴 F6: a launched session reaches only its own scope, read only (lib/auth/launch-hold.ts). */
+  if (isLaunchedSession(state!.actor)) await holdLaunchedSession(state!.actor);
   return state!.actor;
 }
+
 
 /**
  * A back office session that has given its password and not yet passed the
@@ -155,6 +159,8 @@ export async function requireUserApi(): Promise<Actor> {
   if (!state) throw new AuthorizationError("Not signed in");
   // 🔴 Task 40: the same second step as `requireUser`, as a 401 rather than a redirect.
   if (state.pendingSecondFactor) throw new AuthorizationError("Second step required");
+  // 🔴 F6: a launched session is read only and calls no API route of ours.
+  if (isLaunchedSession(state.actor)) throw new AuthorizationError("Not available in a launched session");
   return state.actor;
 }
 

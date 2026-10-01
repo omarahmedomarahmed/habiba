@@ -15,6 +15,7 @@
  *   - the wallet account on the books equals what the patients can spend.
  */
 import { sql } from "drizzle-orm";
+import { auditFixtures } from "./_audit-fixtures";
 
 import { reporter, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -214,7 +215,7 @@ async function main() {
     await db.execute(sql`DELETE FROM patient_credits WHERE person_id = ${person.id}`);
     await db.execute(sql`DELETE FROM ledger_entries WHERE organization_id = ${org.id}`);
     await db.execute(sql`DELETE FROM session_payments WHERE organization_id = ${org.id}`);
-    await db.execute(sql`DELETE FROM audit_log WHERE organization_id = ${org.id}`).catch(() => undefined);
+    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND organization_id = ${org.id}`).catch(() => undefined);
     await db.execute(sql`DELETE FROM sessions WHERE patient_id = ${patient.id}`);
     await db.execute(sql`DELETE FROM patients WHERE id = ${patient.id}`);
     await db.execute(sql`DELETE FROM people WHERE id = ${person.id}`);

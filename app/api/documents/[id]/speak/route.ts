@@ -83,6 +83,12 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     });
     if (!decision.allowed) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
+    /* 🔴 Due diligence F3: a document about somebody who withdrew consent to processing abroad is not sent to OpenAI to be read aloud. */
+    const { aiPausedForPerson } = await import("@/lib/data/ai-consent");
+    if (await aiPausedForPerson(document.personId)) {
+      return NextResponse.json({ error: "ai_paused" }, { status: 409 });
+    }
+
     /*
      * 🔴 A speech call is paid per character and this route had no limit, so
      * one signed-in reader holding a button (or a loop) could spend the model

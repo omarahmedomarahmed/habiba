@@ -1,41 +1,50 @@
 /**
- * 🔴 W2-S10 / FIX-PLAN D1: THE COMPANY'S MONEY LEDGER, AS ARITHMETIC.
+ * 🔴 W2-S10 / F7: THE COMPANY'S MONEY LEDGER, AS PERIODS, NEVER AS SESSIONS.
  *
- * The founder's decision: a company sees every pot-funded session's money entry
- * (price, coverage, covered amount, the employee's share) with analytics,
- * filters, sorting and a CSV, and never a name, a therapist or a specialty.
- * The rows come from `sponsor_money_entries`, which carries none of those and no
- * date finer than the week; this file is what is done with them, pure, so every
- * rule here is a test rather than a paragraph.
+ * The first build published one row per pot-funded session, with its price and
+ * the employee's share, in batches of at least `activityFloor` ENTRIES. An
+ * independent review broke it twice over: five entries can be one person, and
+ * a row with a price and a share is one person's session whatever week it is
+ * dated. So a company now sees, per period (a week, or several weeks merged),
+ * the total its pot spent and the number of sessions, and only for a period in
+ * which at least `floor` DISTINCT PEOPLE were funded. A period short of that is
+ * merged into the next; what is still short at the end is "held back for
+ * privacy" and shown only as part of a reconciliation line. Never a price,
+ * never an employee share, never a row per session.
  *
- * ## 🔴 The reporting floor is on EVERY aggregate
+ * The rows come from `sponsor_money_entries`, which carries no name, therapist,
+ * session or date finer than the week. Its `person_tag` is a keyed digest used
+ * here ONLY to count distinct people; it never leaves this module's inputs.
  *
- * `sponsor.activityFloor` (C229) governs each figure computed across entries:
- * a month below it is rolled into the next, as `applyActivityFloor` does for
- * weeks; an average, a total or a coverage bucket over fewer entries than the
- * floor is null, which is "not enough to report", never zero. Top-ups are the
- * company's own acts and name nobody, so they are shown as they are.
+ * ## 🔴 The floor has a hard minimum of five
+ *
+ * `SPONSOR_FLOOR_MIN` is enforced in the settings parser AND here, so a stored
+ * value of 2 (from before F7) still reads as 5 on every company screen.
  */
 
 export type LedgerEntry = {
   kind: "session" | "refund";
   /** The Monday of the week it was paid, `YYYY-MM-DD`. The finest date there is. */
   weekStart: string;
-  priceCents: number;
   coverageBps: number;
   coveredCents: number;
-  employeeCents: number;
-  /** Random at insert. The order within a batch, so row order carries no time. */
-  shuffle: number;
   /**
-   * The last week of the batch this entry was published in, when that batch
-   * spans more than one week (`batchToFloor`). The entry is somewhere in
-   * `weekStart` to `weekEnd`, and nothing says where.
+   * 🔴 F7: a keyed digest of the person, for COUNTING distinct people only.
+   * Null on rows written before 0186: every null in a period counts as ONE
+   * person between them, the safe direction (fewer people, more held back).
    */
-  weekEnd?: string;
+  personTag: string | null;
 };
 
 export type LedgerPublishing = "weekly" | "live";
+
+/** 🔴 F7: the reporting floor can never be set below this. People, not entries. */
+export const SPONSOR_FLOOR_MIN = 5;
+
+/** The floor actually applied: the setting, never below `SPONSOR_FLOOR_MIN`. */
+export function privacyFloor(setting: number): number {
+  return Math.max(SPONSOR_FLOOR_MIN, Number.isFinite(setting) ? Math.floor(setting) : SPONSOR_FLOOR_MIN);
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -47,9 +56,8 @@ export function weekStartOf(at: Date): string {
 }
 
 /**
- * The newest week a company may see. Weekly: the last week that has ENDED, so
- * a week's entries arrive together, shuffled, the Monday after. Live: this
- * week, as each is paid (still dated by the week).
+ * The newest week a company may see. Weekly: the last week that has ENDED.
+ * Live: this week (still only ever as part of a period that clears the floor).
  */
 export function lastPublishedWeek(mode: LedgerPublishing, now: Date): string {
   const thisWeek = weekStartOf(now);
@@ -57,183 +65,171 @@ export function lastPublishedWeek(mode: LedgerPublishing, now: Date): string {
   return new Date(Date.parse(`${thisWeek}T00:00:00Z`) - 7 * DAY_MS).toISOString().slice(0, 10);
 }
 
-/**
- * 🔴 THE FLOOR ON THE ENTRIES THEMSELVES, not only on what is summed from them.
- *
- * Listing entries one by one undoes a floor that only guards aggregates: at a
- * company of eight, a week holding one entry is one person, and the company
- * knows who was out that afternoon. So weeks are gathered, oldest first, into
- * batches of at least `floor` entries (C229's number). A batch is published
- * only once it clears the floor, every entry in it dated by the batch's span,
- * never its own week; the quiet weeks still gathering are not shown at all.
- * Every entry the founder asked for is still there (D1); what goes is the one
- * that stands alone.
- */
-export function batchToFloor(entries: LedgerEntry[], floor: number): LedgerEntry[] {
-  const byWeek = new Map<string, LedgerEntry[]>();
+/** How many different people these entries are. Untagged rows count as one between them. */
+export function distinctPeople(entries: LedgerEntry[]): number {
+  const tags = new Set<string>();
+  let untagged = false;
   for (const entry of entries) {
-    byWeek.set(entry.weekStart, [...(byWeek.get(entry.weekStart) ?? []), entry]);
+    if (entry.personTag) tags.add(entry.personTag);
+    else untagged = true;
   }
-  const published: LedgerEntry[] = [];
-  let batch: LedgerEntry[] = [];
-  let first: string | null = null;
-  for (const week of [...byWeek.keys()].sort()) {
-    first ??= week;
-    batch.push(...byWeek.get(week)!);
-    if (batch.length < Math.max(1, floor)) continue;
-    const span = first === week ? {} : { weekEnd: week };
-    for (const entry of batch) published.push({ ...entry, weekStart: first, ...span });
-    batch = [];
-    first = null;
-  }
-  return published;
+  return tags.size + (untagged ? 1 : 0);
 }
-
-/* ------------------------------------------------------ filters and sorting -- */
-
-export const LEDGER_SORTS = ["week", "price", "coverage", "covered", "employee"] as const;
-export type LedgerSort = (typeof LEDGER_SORTS)[number];
-
-export type LedgerQuery = {
-  /** `YYYY-MM`, inclusive, by the month the entry's week starts in. */
-  from: string | null;
-  to: string | null;
-  /** Basis points, one value, or null for every coverage. */
-  coverage: number | null;
-  /** Price bounds in cents, inclusive. */
-  minCents: number | null;
-  maxCents: number | null;
-  sort: LedgerSort;
-  dir: "asc" | "desc";
-};
-
-const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
-
-function cents(value: string | undefined): number | null {
-  if (!value?.trim()) return null;
-  const dollars = Number(value);
-  return Number.isFinite(dollars) && dollars >= 0 ? Math.round(dollars * 100) : null;
-}
-
-/** From a URL's search params. Anything malformed is ignored, never an error. */
-export function parseLedgerQuery(params: Record<string, string | undefined>): LedgerQuery {
-  const coverage = params.coverage?.trim() ? Number(params.coverage) : NaN;
-  const sort = LEDGER_SORTS.find((key) => key === params.sort) ?? "week";
-  return {
-    from: params.from && MONTH.test(params.from) ? params.from : null,
-    to: params.to && MONTH.test(params.to) ? params.to : null,
-    coverage:
-      Number.isInteger(coverage) && coverage >= 0 && coverage <= 100 ? coverage * 100 : null,
-    minCents: cents(params.min),
-    maxCents: cents(params.max),
-    sort,
-    dir: params.dir === "asc" ? "asc" : "desc",
-  };
-}
-
-export function filterLedger(entries: LedgerEntry[], query: LedgerQuery): LedgerEntry[] {
-  return entries.filter((entry) => {
-    const month = entry.weekStart.slice(0, 7);
-    if (query.from && month < query.from) return false;
-    if (query.to && month > query.to) return false;
-    if (query.coverage !== null && entry.coverageBps !== query.coverage) return false;
-    if (query.minCents !== null && entry.priceCents < query.minCents) return false;
-    if (query.maxCents !== null && entry.priceCents > query.maxCents) return false;
-    return true;
-  });
-}
-
-/** Whether any filter narrows the ledger (sorting is not a filter). */
-function isFiltered(query: LedgerQuery): boolean {
-  return (
-    query.from !== null ||
-    query.to !== null ||
-    query.coverage !== null ||
-    query.minCents !== null ||
-    query.maxCents !== null
-  );
-}
-
-/**
- * 🔴 K6: A FILTER NEVER NARROWS THE LEDGER BELOW THE FLOOR.
- *
- * `batchToFloor` publishes entries in batches of at least `floor`, and then a
- * price band or a coverage value picked to match one entry brought the screen
- * and the CSV down to a single row: one session, alone, which is exactly what
- * the batch exists to prevent. So a filtered view with fewer than `floor`
- * entries in it is withheld whole, and the screen says to widen the filters.
- * The unfiltered ledger is already floored by its batches.
- */
-export function filterToFloor(
-  entries: LedgerEntry[],
-  query: LedgerQuery,
-  floor: number,
-): { entries: LedgerEntry[]; heldBack: boolean } {
-  const filtered = filterLedger(entries, query);
-  if (isFiltered(query) && filtered.length > 0 && filtered.length < Math.max(1, floor)) {
-    return { entries: [], heldBack: true };
-  }
-  return { entries: filtered, heldBack: false };
-}
-
-/**
- * 🔴 Sorted by what the company asked, and ties broken by the SHUFFLE, never by
- * insertion. Two entries in one week with the same price would otherwise come
- * out in the order they were paid, which is the timing a batch exists to hide.
- */
-export function sortLedger(entries: LedgerEntry[], query: LedgerQuery): LedgerEntry[] {
-  const key = (entry: LedgerEntry): number | string => {
-    switch (query.sort) {
-      case "price":
-        return entry.priceCents;
-      case "coverage":
-        return entry.coverageBps;
-      case "covered":
-        return entry.coveredCents;
-      case "employee":
-        return entry.employeeCents;
-      default:
-        return entry.weekStart;
-    }
-  };
-  const sign = query.dir === "asc" ? 1 : -1;
-  return [...entries].sort((a, b) => {
-    const ka = key(a);
-    const kb = key(b);
-    if (ka < kb) return -sign;
-    if (ka > kb) return sign;
-    return a.shuffle - b.shuffle;
-  });
-}
-
-/* --------------------------------------------------------------- analytics -- */
 
 /** A session counts one, a refund takes one back; spend likewise. */
 function sessionsIn(entries: LedgerEntry[]): number {
   return entries.reduce((n, entry) => n + (entry.kind === "refund" ? -1 : 1), 0);
 }
 
-function sum(entries: LedgerEntry[], pick: (entry: LedgerEntry) => number): number {
-  return entries.reduce((n, entry) => n + (entry.kind === "refund" ? -pick(entry) : pick(entry)), 0);
+function spendIn(entries: LedgerEntry[]): number {
+  return entries.reduce((n, e) => n + (e.kind === "refund" ? -e.coveredCents : e.coveredCents), 0);
 }
 
-export type MonthFigure = {
-  /** `YYYY-MM`. */
-  month: string;
-  /** Null is SUPPRESSED, not zero: rolled forward into the next reported month. */
-  spendCents: number | null;
-  sessions: number | null;
+/**
+ * 🔴 ONE REPORTED PERIOD. The whole shape a company's ledger is made of: two
+ * dates and two totals. No price, no share, no person count, no row per session.
+ */
+export type LedgerPeriod = {
+  /** `YYYY-MM-DD`, the first week (or `YYYY-MM`, the first month) in the period. */
+  from: string;
+  /** The last week (or month) in it; equal to `from` for a single one. */
+  to: string;
+  sessions: number;
+  spendCents: number;
 };
 
+export type HeldBack = { sessions: number; spendCents: number };
+
+export type LedgerUnit = "week" | "month";
+
+/**
+ * 🔴 F7: GATHER WEEKS INTO PERIODS OF AT LEAST `floor` PEOPLE.
+ *
+ * Oldest first, each week is added to the open period; the period is reported
+ * once the DISTINCT people in it reach the floor (`privacyFloor`). A short
+ * period is merged forward rather than dropped (a dropped one could be
+ * recovered by subtracting the shown ones from a total). What is still short
+ * at the end is returned as `heldBack`, a total for the reconciliation line.
+ *
+ * 🔴 Review fix: THE MONTH VIEW IS BUILT FROM THE PUBLISHED WEEKS, NEVER FROM
+ * THE ENTRIES. Each view used to merge up to the floor on its own, so a month
+ * could clear the floor while its last weeks were still held back, and "the
+ * month minus the weeks shown inside it" printed those held-back weeks alone,
+ * which can be one person. Now a month is the sum of whole weekly periods that
+ * are already published (`monthsFromWeeks`), and the held-back figure is the
+ * same one total in both views. So any difference between two published
+ * figures, in either view, is a sum of whole published weekly periods, each of
+ * which already cleared the floor, and never a group below it.
+ */
+export function ledgerPeriods(
+  entries: LedgerEntry[],
+  floorSetting: number,
+  unit: LedgerUnit = "week",
+): { periods: LedgerPeriod[]; heldBack: HeldBack | null } {
+  const floor = privacyFloor(floorSetting);
+  const byKey = new Map<string, LedgerEntry[]>();
+  for (const entry of entries) {
+    byKey.set(entry.weekStart, [...(byKey.get(entry.weekStart) ?? []), entry]);
+  }
+  const periods: LedgerPeriod[] = [];
+  let open: LedgerEntry[] = [];
+  let first: string | null = null;
+  for (const key of [...byKey.keys()].sort()) {
+    first ??= key;
+    open.push(...byKey.get(key)!);
+    if (distinctPeople(open) < floor) continue;
+    periods.push({ from: first, to: key, sessions: sessionsIn(open), spendCents: spendIn(open) });
+    open = [];
+    first = null;
+  }
+  const heldBack = open.length > 0 ? { sessions: sessionsIn(open), spendCents: spendIn(open) } : null;
+  return { periods: unit === "month" ? monthsFromWeeks(periods) : periods, heldBack };
+}
+
+/**
+ * 🔴 Review fix: THE MONTHS, AS SUMS OF WHOLE PUBLISHED WEEKLY PERIODS.
+ *
+ * A weekly period belongs to the month its LAST week starts in, so a period
+ * that runs across a month end is counted once, in the later month, whose
+ * `from` then names the earlier month honestly. Nothing here reads an entry:
+ * a month can only ever say what the weekly view already says, added up.
+ */
+export function monthsFromWeeks(weeks: LedgerPeriod[]): LedgerPeriod[] {
+  const months: LedgerPeriod[] = [];
+  for (const week of [...weeks].sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0))) {
+    const month = week.to.slice(0, 7);
+    const last = months.at(-1);
+    if (last && last.to === month) {
+      last.sessions += week.sessions;
+      last.spendCents += week.spendCents;
+    } else {
+      months.push({ from: week.from.slice(0, 7), to: month, sessions: week.sessions, spendCents: week.spendCents });
+    }
+  }
+  return months;
+}
+
+/* ------------------------------------------------------ filters and sorting -- */
+
+export const LEDGER_SORTS = ["week", "sessions", "spend"] as const;
+export type LedgerSort = (typeof LEDGER_SORTS)[number];
+
+export type LedgerQuery = {
+  /** `YYYY-MM`, inclusive, by the months a period starts and ends in. */
+  from: string | null;
+  to: string | null;
+  by: LedgerUnit;
+  sort: LedgerSort;
+  dir: "asc" | "desc";
+};
+
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** From a URL's search params. Anything malformed is ignored, never an error. */
+export function parseLedgerQuery(params: Record<string, string | undefined>): LedgerQuery {
+  return {
+    from: params.from && MONTH.test(params.from) ? params.from : null,
+    to: params.to && MONTH.test(params.to) ? params.to : null,
+    by: params.by === "month" ? "month" : "week",
+    sort: LEDGER_SORTS.find((key) => key === params.sort) ?? "week",
+    dir: params.dir === "asc" ? "asc" : "desc",
+  };
+}
+
+/**
+ * Filters pick whole PERIODS, each already over the floor, so no filter can
+ * narrow the view to a small group: there is nothing smaller than a period.
+ */
+export function filterPeriods(periods: LedgerPeriod[], query: LedgerQuery): LedgerPeriod[] {
+  return periods.filter((period) => {
+    if (query.from && period.from.slice(0, 7) < query.from) return false;
+    if (query.to && period.to.slice(0, 7) > query.to) return false;
+    return true;
+  });
+}
+
+export function sortPeriods(periods: LedgerPeriod[], query: LedgerQuery): LedgerPeriod[] {
+  const key = (p: LedgerPeriod): number | string =>
+    query.sort === "sessions" ? p.sessions : query.sort === "spend" ? p.spendCents : p.from;
+  const sign = query.dir === "asc" ? 1 : -1;
+  return [...periods].sort((a, b) => {
+    const ka = key(a);
+    const kb = key(b);
+    if (ka < kb) return -sign;
+    if (ka > kb) return sign;
+    return a.from < b.from ? -1 : a.from > b.from ? 1 : 0;
+  });
+}
+
+/* --------------------------------------------------------------- analytics -- */
+
 export type LedgerAnalytics = {
-  months: MonthFigure[];
+  /** Totals across the REPORTED periods only. Null when no period is reported. */
   sessions: number | null;
   spendCents: number | null;
-  averagePriceCents: number | null;
-  employeeShareCents: number | null;
   coverageMix: { coverageBps: number; sessions: number | null }[];
   topUps: { count: number; totalCents: number };
-  /** Average covered spend a month over the last three reported months. */
+  /** Average spend a month over the last three reported months. */
   burnCents: number | null;
   /** Whole months the published balance lasts at that burn. */
   runwayMonths: number | null;
@@ -246,66 +242,35 @@ export function ledgerAnalytics(input: {
   balanceCents: number | null;
   topUps: { amountCents: number }[];
 }): LedgerAnalytics {
-  const { entries, floor } = input;
+  const floor = privacyFloor(input.floor);
+  const { periods } = ledgerPeriods(input.entries, floor, "week");
+  /* Review fix: the burn reads the same published weeks, summed by month. */
+  const months = monthsFromWeeks(periods);
+  const reported = periods.length > 0;
 
-  /*
-   * Months in order, each rolled forward until it clears the floor, exactly
-   * as `applyActivityFloor` does for weeks: a dropped month could be recovered
-   * by subtracting the shown ones from a total, a rolled one cannot.
-   */
-  const byMonth = new Map<string, LedgerEntry[]>();
-  for (const entry of entries) {
-    const month = entry.weekStart.slice(0, 7);
-    byMonth.set(month, [...(byMonth.get(month) ?? []), entry]);
-  }
-  const months: MonthFigure[] = [];
-  let carriedSpend = 0;
-  let carriedSessions = 0;
-  for (const month of [...byMonth.keys()].sort()) {
-    const rows = byMonth.get(month)!;
-    carriedSpend += sum(rows, (entry) => entry.coveredCents);
-    carriedSessions += sessionsIn(rows);
-    if (carriedSessions >= floor) {
-      months.push({ month, spendCents: carriedSpend, sessions: carriedSessions });
-      carriedSpend = 0;
-      carriedSessions = 0;
-    } else {
-      months.push({ month, spendCents: null, sessions: null });
-    }
-  }
-
-  const total = sessionsIn(entries);
-  const reportable = total >= floor;
-
+  /* A coverage bucket is a count over people too, so it has the same floor. */
   const buckets = new Map<number, LedgerEntry[]>();
-  for (const entry of entries) {
+  for (const entry of input.entries) {
     buckets.set(entry.coverageBps, [...(buckets.get(entry.coverageBps) ?? []), entry]);
   }
   const coverageMix = [...buckets.keys()]
     .sort((a, b) => b - a)
     .map((coverageBps) => {
-      const n = sessionsIn(buckets.get(coverageBps)!);
-      return { coverageBps, sessions: n >= floor ? n : null };
+      const rows = buckets.get(coverageBps)!;
+      return { coverageBps, sessions: distinctPeople(rows) >= floor ? sessionsIn(rows) : null };
     });
 
-  const reported = months.filter((m) => m.spendCents !== null).slice(-3);
+  const recent = months.slice(-3);
   const burnCents =
-    reported.length > 0
-      ? Math.round(reported.reduce((n, m) => n + (m.spendCents ?? 0), 0) / reported.length)
-      : null;
+    recent.length > 0 ? Math.round(recent.reduce((n, m) => n + m.spendCents, 0) / recent.length) : null;
   const runwayMonths =
     burnCents && burnCents > 0 && input.balanceCents !== null
       ? Math.max(0, Math.floor(input.balanceCents / burnCents))
       : null;
 
   return {
-    months,
-    sessions: reportable ? total : null,
-    spendCents: reportable ? sum(entries, (entry) => entry.coveredCents) : null,
-    averagePriceCents: reportable
-      ? Math.round(sum(entries, (entry) => entry.priceCents) / Math.max(1, total))
-      : null,
-    employeeShareCents: reportable ? sum(entries, (entry) => entry.employeeCents) : null,
+    sessions: reported ? periods.reduce((n, p) => n + p.sessions, 0) : null,
+    spendCents: reported ? periods.reduce((n, p) => n + p.spendCents, 0) : null,
     coverageMix,
     topUps: {
       count: input.topUps.length,
@@ -316,32 +281,42 @@ export function ledgerAnalytics(input: {
   };
 }
 
+/**
+ * 🔴 F7: THE OVERVIEW AND THE LEDGER ADD UP, VISIBLY.
+ *
+ * The overview prints the published pot totals (every pot-funded session); the
+ * ledger prints only periods that clear the people floor. The difference is
+ * what is not broken down: held back for privacy, paid this week and not yet
+ * published, or refunded. Both figures are already on the company's screens,
+ * so the line adds no information; it makes the two agree in front of them.
+ * Null when there is nothing to reconcile or the overview is behind (its total
+ * is published in floor-sized steps).
+ */
+export function reconcile(
+  overview: { sessions: number; spentCents: number } | null,
+  reported: { sessions: number | null; spendCents: number | null },
+): HeldBack | null {
+  if (!overview) return null;
+  const sessions = overview.sessions - (reported.sessions ?? 0);
+  const spendCents = overview.spentCents - (reported.spendCents ?? 0);
+  if (sessions < 0 || spendCents < 0 || (sessions === 0 && spendCents === 0)) return null;
+  return { sessions, spendCents };
+}
+
 /* --------------------------------------------------------------------- CSV -- */
 
 /**
- * The export's rows, header first. Amounts are NUMBERS in dollars, so a refund's
- * negative is a number a spreadsheet sums rather than text it escapes; every
+ * The export's rows, header first: a period, its sessions and its spend, never
+ * a price or an employee share. Amounts are NUMBERS in the major unit; every
  * cell still goes through `csvCell` (W1-19) on its way out.
  */
 export function ledgerCsvRows(
-  entries: LedgerEntry[],
-  /** In the reader's language: week, kind, price, coverage %, covered, employee share. */
+  periods: LedgerPeriod[],
+  /** In the reader's language: period, sessions, spent. */
   header: string[],
-  kindLabel: (kind: LedgerEntry["kind"]) => string,
 ): (string | number)[][] {
   return [
     header,
-    ...entries.map((entry) => {
-      const sign = entry.kind === "refund" ? -1 : 1;
-      return [
-        // An ISO 8601 interval when the batch spans weeks (`batchToFloor`).
-        entry.weekEnd ? `${entry.weekStart}/${entry.weekEnd}` : entry.weekStart,
-        kindLabel(entry.kind),
-        entry.priceCents / 100,
-        entry.coverageBps / 100,
-        (sign * entry.coveredCents) / 100,
-        (sign * entry.employeeCents) / 100,
-      ];
-    }),
+    ...periods.map((p) => [p.from === p.to ? p.from : `${p.from}/${p.to}`, p.sessions, p.spendCents / 100]),
   ];
 }

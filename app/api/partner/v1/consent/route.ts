@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { consentHistory, recordConsent } from "@/lib/partner/consent";
+import { consentHistory, partnerAnswerSource, recordConsent } from "@/lib/partner/consent";
+import { linkedPersonOf, patientConsentUrl } from "@/lib/partner/patient-consent";
 import { openSession, otherEnvironment } from "@/lib/partner/platform";
 import { fail, withKey } from "@/lib/partner/route";
 
@@ -57,9 +58,15 @@ export const dynamic = "force-dynamic";
  * {
  *   "recording_from_seconds": 0,
  *   "coverage": "This session was recorded from the start.",
- *   "stopped_reason": null
+ *   "stopped_reason": null,
+ *   "patient_consent_url": null
  * }
  * ```
+ *
+ * 🔴 F6: on a live key the partner's "given" is recorded as the PARTNER's and
+ * records nothing; `patient_consent_url` is our page where the patient, signed
+ * in to their own account, answers themselves, and only that answer opens a
+ * recording. Call again (or read GET) to see the boundary once they have.
  *
  * 🔴 `coverage` is a SENTENCE the partner can put on a screen, in our words, because
  * three surfaces have to say the same thing about what was recorded and a partner
@@ -110,6 +117,16 @@ export async function POST(request: Request) {
     return fail("That session reference belongs to the other environment. Use its key.", 409);
   }
 
+  /*
+   * 🔴 F6: A PARTNER'S YES IS FILED AS THE PARTNER'S, AND IT OPENS NOTHING.
+   *
+   * The partner vouching for its patient is kept (`source: "partner"`) so the
+   * history says what the platform told us, and it never opens a recording on a
+   * live key: the patient answers for themselves on our page, from the
+   * `patient_consent_url` below, signed in to their own account. A sandbox key's
+   * subject is nobody, so its yes is a test and counts. A withdrawal from the
+   * partner always counts: stopping is the safe direction.
+   */
   const recorded = await recordConsent({
     partnerId: guard.key.partnerId,
     externalSessionRef: session,
@@ -117,6 +134,7 @@ export async function POST(request: Request) {
     state,
     answeredAt: answered,
     offsetSeconds: offset,
+    source: partnerAnswerSource(guard.key.environment),
   });
 
   if (recorded.error) return fail(recorded.error, 400);
@@ -148,6 +166,10 @@ export async function POST(request: Request) {
     await purgeSessionMaterial({ partnerId: guard.key.partnerId, externalSessionRef: session });
   }
 
+  /* F6: a live yes still needs the patient's own; this is where they give it. */
+  const needsPatient =
+    state === "given" && guard.key.environment === "live" && opened.recordingFromSeconds === null && !opened.stoppedReason;
+
   return NextResponse.json({
     recording_from_seconds: opened.recordingFromSeconds,
     coverage: opened.coverage,
@@ -155,6 +177,17 @@ export async function POST(request: Request) {
     stopped_reason: opened.stoppedReason,
     /* Board 606: whether anything new will be written from this session. */
     new_work: state === "given" && opened.recordingFromSeconds !== null,
+    /* 🔴 F6: null once the patient has answered themselves, or on a sandbox key. */
+    patient_consent_url: needsPatient
+      ? patientConsentUrl({
+          partnerId: guard.key.partnerId,
+          externalSessionRef: session,
+          externalSubjectRef: subject,
+          offsetSeconds: offset,
+          /* Review fix: a subject already linked binds the link to that one person. */
+          personId: await linkedPersonOf({ partnerId: guard.key.partnerId, externalSubjectRef: subject }),
+        })
+      : null,
   });
 }
 
@@ -186,6 +219,8 @@ export async function GET(request: Request) {
       state: event.state,
       answered_at: event.answeredAt.toISOString(),
       offset_seconds: event.offsetSeconds,
+      /* F6: "patient" (their own answer here), "partner" (yours, kept, records nothing) or "sandbox". */
+      source: event.source ?? "partner",
     })),
   });
 }

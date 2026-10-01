@@ -334,7 +334,17 @@ async function main() {
      */
     const { readFileSync } = await import("node:fs");
     const authSource = readSource("lib/patient-auth/actions.ts");
-    const messages = [...authSource.matchAll(/error: "(That[^"]*)"/g)].map((m) => m[1]);
+    /*
+     * The failures are dictionary keys now (perr.*, so an Arabic reader is not
+     * handed English): the credential failures are the keys whose English
+     * starts "That", and there must still be exactly one.
+     */
+    const { en } = await import("../lib/i18n/messages");
+    const keys = [...authSource.matchAll(/error: t\("(perr\.[A-Za-z]+)"/g)].map((m) => m[1]!);
+    const messages = [
+      ...[...authSource.matchAll(/error: "(That[^"]*)"/g)].map((m) => m[1]),
+      ...keys.filter((key) => String((en as Record<string, string>)[key] ?? "").startsWith("That")),
+    ];
     check(
       "13R.9 sign-in has exactly one failure message, not one per handle",
       new Set(messages).size === 1,

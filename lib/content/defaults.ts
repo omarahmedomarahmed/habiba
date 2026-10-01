@@ -109,7 +109,7 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "Sessions held anywhere",
-          ours: "Our room, in person on a phone, or Zoom, Meet and Teams.",
+          ours: "Our room, or in person on one phone. Zoom is built but not switched on yet; Meet and Teams are not built.",
           theirs: "Built around its own telehealth.",
         },
       ],
@@ -202,7 +202,7 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "What the employer sees",
-          ours: "The pot, the therapists paid and the amounts. Never who went.",
+          ours: "What the pot paid, what is left, and who joined. Never who attended, when, or with whom.",
           theirs: "Aggregate utilisation reporting.",
         },
         {
@@ -279,7 +279,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             label: "Patients",
             clause: "for the person who owns it",
-            body: "Every bright dot on the radar is a verified clinician who says they are free right now. Pick one, say what to call you, and you are in a session. No account, no waiting list, no form about your insurance.",
+            body: "Every bright dot on the radar is a verified clinician who says they are free right now. Pick one, say what to call you, and pay; in Egypt that is a bank transfer our staff confirm. No account, no waiting list, no form about your insurance.",
             href: "/for-patients",
             hrefLabel: "How it works for patients",
             demo: "patient-app",
@@ -303,7 +303,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             label: "Companies",
             clause: "your people are covered by",
-            body: "Fund a pot and watch it spend. You see what you paid and what is left. You never learn who went, and attendance cannot be required through us.",
+            body: "Fund a pot and watch it spend. You see what you paid, what is left, and who joined. Never who attended, when or with whom, and attendance cannot be required through us.",
             href: "/for-companies",
             hrefLabel: "How it works for companies",
             demo: "company",
@@ -340,7 +340,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             audience: "Patient",
             title: "Somebody who is free now",
-            body: "The radar, filtered by language and by what you need help with. Pick someone free, pay, and you are in a session.",
+            body: "The radar, filtered by language and by what you need help with. Pick someone free and pay, and the session opens once the payment is confirmed.",
             demo: "radar",
           },
           {
@@ -352,7 +352,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           {
             audience: "Company",
             title: "The pot, and what is left in it",
-            body: "What you funded, what has been spent, and how many people have used it. Never who they are and never when.",
+            body: "What you funded, what has been spent, and how many people have used it. Never which of them, and never when.",
             demo: "company-pot",
           },
           {
@@ -540,7 +540,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             q: "Do I pay to use 24Therapy?",
-            a: "No. You pay the therapist the price shown before you book. Our share comes from them.",
+            a: "No. 24Therapy charges you nothing: you pay the therapist the price shown before you book, and our share comes from them. Paying by card adds the card gateway's fee, shown before you pay.",
           },
           {
             q: "Can I pay in Egyptian pounds?",
@@ -680,7 +680,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             q: "Is a BAA included?",
-            a: "Yes, on every plan. We process protected health information on your behalf, so a business associate agreement is not something we could reasonably charge extra for.",
+            a: "Not yet. No business associate agreement is signed, with you or with any of our providers, so 24Therapy is not HIPAA compliant today. Do not put US protected health information into it yet. The compliance page shows where each agreement stands.",
           },
         ],
       },
@@ -902,7 +902,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         heading: "What we can help with",
         items: [
           { title: "Getting started", body: "Setting up your practice and running your first session.", icon: "zap" },
-          { title: "Compliance", body: "BAAs, subprocessors and how patient data is handled.", icon: "shield" },
+          { title: "Compliance", body: "Where the HIPAA work stands, our subprocessors, and how patient data is handled.", icon: "shield" },
           /* 51.1 — "bundles" is the pre-46 word. Credit, plans, invoices. */
           { title: "Billing", body: "Credit, plans, invoices, payouts and anything that looks wrong on your bill.", icon: "chart" },
         ],
@@ -936,34 +936,35 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "Your notes are yours",
-            body: "A clinician sees the patients they treat. Nobody else at 24Therapy reads a note unless you ask us to look at something.",
+            body: "A clinician sees the patients they treat. Our staff can open a chart only through an emergency access that asks for a reason and writes it to the audit log.",
             icon: "lock",
           },
           {
-            title: "Nothing trains a model",
-            body: "Session audio and text go to our AI provider so the note can be written, and are never used to train anything.",
+            title: "We train no models",
+            body: "Session audio and text go to our AI provider so the note can be written. We do not train models on them, and the provider's API terms say API data is not used to train its models.",
             icon: "shield",
           },
           {
-            title: "You can take it or delete it",
-            body: "A patient can export their record or ask us to erase it, and we do both rather than pointing at a clinician.",
+            title: "A copy, and closing your account",
+            body: "A patient can get a copy of their record and delete their account from the app. The notes a clinician keeps stay with that clinician, as the law requires; any other erasure request is decided by our staff.",
             icon: "check",
           },
         ],
       },
       {
         type: "prose",
-        body: "This page is a starting point maintained by your administrator, not legal advice. Review it with counsel before you accept a real patient.",
+        heading: "The status of this page",
+        body: "This policy has not yet been reviewed by a lawyer, including against Egyptian data protection law, and it does not yet name the legal entity responsible for your data, its registered address, or a named contact for data requests. Until those are added here, send any request about your data through the contact page, where a named person answers it.",
       },
       {
         type: "prose",
         heading: "What we store",
-        body: "Account details for clinicians (name, email, hashed password, licence details you choose to add). For patients: a first name, optionally a last name and email, plus the clinical record created by sessions, transcripts, notes, and risk assessments.",
+        body: "Account details for clinicians (name, email, hashed password, licence details you choose to add). For patients: a first name, a phone number if they open an account, optionally a last name and email, plus the clinical record created by sessions, transcripts, notes, and risk assessments.",
       },
       {
         type: "prose",
         heading: "What we send elsewhere",
-        body: "Session audio and transcript text are sent to our AI provider to produce transcription and notes. Patient reports are sent by email through our email provider. Video sessions are carried by our video provider. Each of these is a subprocessor covered by a business associate agreement.",
+        body: "Session audio and transcript text are sent to our AI provider to produce transcription and notes. Patient reports are sent by email through our email provider. Video sessions are carried by our video provider. None of these subprocessors has yet signed a business associate agreement or a data processing agreement with us; the compliance page lists each one and where it stands. Everything is held in the United States, in Oregon, including the records of patients in Egypt.",
       },
       {
         type: "prose",
@@ -973,14 +974,14 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "prose",
         heading: "Access and deletion",
-        body: "Clinicians can export or delete a patient record from the patient page. Deletion removes the chart, its sessions, transcripts and notes. Audit records of who accessed what are retained for six years, as required.",
+        body: "A patient can ask for a copy of their whole record from the app, and a link to it is sent to them. Clinicians cannot delete a patient or a session: a therapy record is a clinical document with a legal retention period. A patient can delete their account from the app. They are signed out everywhere, their email is released, check-in messages stop, and every clinician they let read their history loses that access; the sessions and notes their clinicians keep stay as those clinicians' record. To ask for anything else to be erased, write to us from the contact page: a member of our staff decides each request against the retention law that applies and tells you the outcome. Audit records of who accessed what are kept for six years.",
       },
     ],
   },
   {
     slug: "terms",
     title: "Terms of Service",
-    description: "The agreement between 24Therapy and the clinicians who use it.",
+    description: "The agreement between 24Therapy and the clinicians, patients and companies who use it.",
     layout: "document",
     navLabel: "Terms",
     navOrder: 11,
@@ -999,7 +1000,23 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       },
       {
         type: "prose",
-        body: "This page is a starting point maintained by your administrator, not legal advice. Review it with counsel before you accept a real patient.",
+        heading: "The status of this page",
+        body: "These terms have not yet been reviewed by a lawyer, and they do not yet name the legal entity you contract with or its registered address. Until those are added here, they describe how the service works today. Questions go through the contact page.",
+      },
+      {
+        type: "prose",
+        heading: "Who these terms cover",
+        body: "Everyone who uses 24Therapy: clinicians and practices, patients, and companies that fund sessions for their people. The sections below say which parts apply to whom.",
+      },
+      {
+        type: "prose",
+        heading: "If you are a patient",
+        body: "24Therapy is software and a booking service. It is not a healthcare provider and not an emergency service: your care is given by the clinician you choose, who is responsible for it, and in an emergency you should call your local emergency number. You pay the price shown before you book; 24Therapy charges you nothing on top, and paying by card adds the card gateway's fee, shown before you pay. Refunds are decided by our staff when you ask. You can get a copy of your record and delete your account from the app.",
+      },
+      {
+        type: "prose",
+        heading: "If you are a company",
+        body: "You fund a pot by bank transfer, credited once we confirm it arrived. The pot pays for sessions only and is never paid to anyone as cash. Unspent money stops funding sessions on the expiry date agreed when the pot opened; a refund of an unused balance is on request, under the refund terms agreed with you in writing, and is handled by our staff. You see what the pot paid and who joined the benefit. You never see who attended a session, when, with whom, or anything clinical.",
       },
       {
         type: "prose",
@@ -1082,17 +1099,17 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "prose",
         heading: "What is already built",
-        body: "None of this depends on a signature and all of it can be inspected. Access to any chart requires an authenticated, non-expired session; sessions expire after 30 minutes of inactivity and 8 hours absolute. Every read and write of clinical data is recorded in an append-only audit log with actor, patient, resource and timestamp. Passwords are stored as scrypt hashes. Video rooms are private and require a per-participant token. Patients are asked to agree to being recorded before they enter the room, and their answer is stored with a timestamp and the wording they saw. Clinicians cannot delete a patient or a session, and cannot send clinical text to an address they type.",
+        body: "None of this depends on a signature and all of it can be inspected. Access to any chart requires an authenticated, non-expired session; a clinician's sign in expires after 30 minutes of inactivity and 8 hours absolute, except that a session started near the limit may run up to two hours past it so it is not cut off. Reads and writes of clinical data are recorded in an audit log with actor, patient, resource and timestamp, and the database refuses to edit a row of it or to delete one younger than six years. Passwords are stored as scrypt hashes. Video rooms are private and require a per-participant token. Patients are asked to agree to being recorded before they enter the room, and their answer is stored with a timestamp and the wording they saw. Clinicians cannot delete a patient or a session, and cannot send clinical text to an address they type.",
       },
       {
         type: "prose",
         heading: "Where your data is held",
-        body: "Amazon Web Services in Oregon, United States (us-west-2). If your regulator requires patient data to remain inside your own country, as the UAE does for health information under Federal Law No. 2 of 2019, this deployment does not meet that requirement, and a region inside your jurisdiction is available on request. HIPAA is a United States statute and does not itself govern a practice in Dubai or Riyadh; we are meeting the US standard first because it is the higher bar, and because clearing it makes everything that follows easier to answer.",
+        body: "Amazon Web Services in Oregon, United States (us-west-2). If your regulator requires patient data to remain inside your own country, as the UAE does for health information under Federal Law No. 2 of 2019, this deployment does not meet that requirement. The code can hold a jurisdiction's records in a database of its own, but no region outside the United States is open yet. HIPAA is a United States statute and does not itself govern a practice in Dubai or Riyadh; we are meeting the US standard first because it is the higher bar, and because clearing it makes everything that follows easier to answer.",
       },
       {
         type: "prose",
         heading: "Retention and recovery",
-        body: "Audit records are retained for six years. Clinical records are retained until deleted by the practice. Database point-in-time recovery currently covers the last 24 hours and will be extended before general availability.",
+        body: "Audit records are retained for six years. Clinical records are kept: no clinician or practice can delete one, and a request to erase one is decided by our staff against the retention law that applies. Database point-in-time recovery currently covers the last 24 hours and will be extended before general availability.",
       },
     ],
   },
@@ -1122,7 +1139,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "Every read is written down",
-            body: "Opening a chart appends a row to a log nobody can edit, including us.",
+            body: "Opening a chart appends a row to the audit log. The database refuses to edit a row, or to delete one before six years.",
             icon: "shield",
           },
           {
@@ -1140,12 +1157,12 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "prose",
         heading: "Authentication",
-        body: "Sessions are opaque tokens stored as hashes, held in an httpOnly, Secure, SameSite cookie. There is no token in browser storage for a script to read. Signing out, changing a password or resetting a password revokes every existing session immediately.",
+        body: "Sessions are opaque tokens stored as hashes, held in an httpOnly, Secure, SameSite cookie. There is no token in browser storage for a script to read. Signing out ends that session at once; changing or resetting a password ends every session.",
       },
       {
         type: "prose",
         heading: "Authorisation",
-        body: "Roles are an explicit allowlist rather than a hierarchy of numbers, so an unrecognised role is denied rather than silently permitted. Every query for clinical data is scoped to the practice that owns it, and the scoping is applied by the data layer rather than remembered by each caller.",
+        body: "Roles are an explicit allowlist rather than a hierarchy of numbers, so an unrecognised role is denied rather than silently permitted. Every query for clinical data is scoped to the practice that owns it, and the scoping is applied by the data layer rather than remembered by each caller. The one exception is our staff's emergency access, which asks for a reason and writes it to the audit log.",
       },
       {
         /*

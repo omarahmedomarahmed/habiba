@@ -19,6 +19,7 @@ import { env } from "@/lib/env";
 import { wordsFor } from "@/lib/i18n/message-words";
 import { callerKey, consume } from "@/lib/rate-limit";
 import { getPatientActor } from "@/lib/patient-auth/session";
+import { say } from "@/lib/i18n/say";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -207,7 +208,7 @@ export async function takeReplacement(
     .limit(1);
   if (!held) return notYours();
   const offered = await replacementsFor({ sessionId, paidCents: held.priceCents, excludeUserId: held.therapistId });
-  if (!offered.some((r) => r.userId === userId)) return { error: "That clinician is no longer available. Choose again." };
+  if (!offered.some((r) => r.userId === userId)) return { error: await say("perr.clinicianGone") };
 
   const result = await reassignSession({ sessionId, toUserId: userId });
   if (!result.ok) return { error: result.error };

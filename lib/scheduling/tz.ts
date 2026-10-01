@@ -74,6 +74,27 @@ export const REGION_ZONES: Readonly<Record<string, string>> = { eg: "Africa/Cair
  * at the whole practice. The `source` still says which step answered, so the
  * screen can name the zone it fell back to.
  */
+export function resolveVisitorZone(
+  readerZone: string | null | undefined,
+  clinicianZone: string | null | undefined,
+  visitorCountry: string | null | undefined,
+): Zone {
+  /*
+   * 🔴 Due diligence F21: a SIGNED-OUT visitor to a public profile, whose
+   * server render (and any browser that reports UTC, which is every headless
+   * one and a few privacy modes) showed the hours in UTC. A browser saying
+   * "UTC" tells us nothing about where somebody is, so it does not count as
+   * their zone here. A visitor in Egypt, or one whose country we cannot tell
+   * (the default is Egypt, `lib/visitor-country.ts`), reads Cairo time, and the
+   * calendar says so in words.
+   */
+  const meaningful = usable(readerZone) && !/^(Etc\/)?(UTC|GMT|Universal|Zulu)$/i.test(readerZone!);
+  if (meaningful) return { name: readerZone!, source: "reader" };
+  const country = (visitorCountry ?? "EG").trim().toUpperCase() || "EG";
+  if (country === "EG") return { name: "Africa/Cairo", source: "region" };
+  return resolveZone(null, clinicianZone);
+}
+
 export function resolveViewerZone(
   readerZone: string | null | undefined,
   region: string | null | undefined,

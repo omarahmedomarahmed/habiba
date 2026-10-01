@@ -31,7 +31,7 @@ import { DarkBand, Glow, Lede, Rise, SiteCard, SiteTitle, btn } from "@/componen
 import { FaqList } from "@/components/public/site-motion";
 import { cn } from "@/lib/utils";
 import { safeImageUrl } from "@/lib/content/url";
-import type { ContentBlock, ContentDemo } from "@/lib/db/schema";
+import { TICKET_TOPICS, type ContentBlock, type ContentDemo } from "@/lib/db/schema";
 
 /**
  * Renders CMS content.
@@ -952,13 +952,13 @@ async function ContactBlock({
         "contact.countryAria",
         "contact.phone",
         "contact.topic",
-        "contact.topic.account",
-        "contact.topic.billing",
-        "contact.topic.my_record",
-        "contact.topic.a_session",
-        "contact.topic.a_therapist",
-        "contact.topic.joining_as_a_therapist",
-        "contact.topic.something_else",
+        /*
+         * 🔴 Due diligence F18: from the topic list itself. Seven topics were
+         * typed out here by hand, 0178 added two more to `TICKET_TOPICS`, and
+         * /contact printed `contact.topic.a_partnership` and
+         * `contact.topic.a_company` as raw keys in both languages.
+         */
+        ...TICKET_TOPICS.map((topic) => `contact.topic.${topic}` as const),
         "contact.entity",
         "contact.entityHint",
         "contact.entityUs",

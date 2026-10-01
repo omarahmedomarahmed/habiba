@@ -3,12 +3,13 @@ import "server-only";
 import { and, asc, desc, eq, inArray, ne, or } from "drizzle-orm";
 
 import { classifyRisk } from "@/lib/ai/risk";
-import { logUsage } from "@/lib/ai/client";
+import { MODELS, logUsage } from "@/lib/ai/client";
+import { aiPausedForPatient } from "@/lib/data/ai-consent";
 import { levelFor, recommendedAction, shouldAlert } from "@/lib/crisis/level";
 import { raiseCrisisAlert, scanForCrisisLanguage } from "@/lib/crisis/alerts";
 import { dbFor } from "@/lib/db";
 import { regionOfOrganization, regionOfPatient } from "@/lib/db/directory";
-import { patients, riskAssessments, transcriptSegments } from "@/lib/db/schema";
+import { patients, riskAssessments, sessions, transcriptSegments } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 
 /**
@@ -99,28 +100,56 @@ export async function assessSessionRisk(opts: {
   const started = Date.now();
   let classification: Awaited<ReturnType<typeof classifyRisk>> | null = null;
 
-  try {
-    classification = await classifyRisk(transcript);
-    await logUsage({
-      organizationId: opts.organizationId,
-      userId: opts.therapistId,
-      sessionId: opts.sessionId,
-      kind: "risk",
-      model: classification.model,
-      inputTokens: classification.inputTokens,
-      outputTokens: classification.outputTokens,
-      durationMs: Date.now() - started,
-      status: "success",
-    });
-  } catch (error) {
-    /*
-     * 🔴 The classifier failing must not make the session quieter than it was
-     * before sprint 35 existed. The floor stands on its own.
-     */
-    log.warn("risk classification unavailable, falling back to the keyword floor", {
-      session: ref(opts.sessionId),
-      reason: safeErrorMessage(error),
-    });
+  /*
+   * 🔴 Due diligence F3: a patient who withdrew consent to processing abroad is
+   * not sent to the model. Not a failure (nothing was attempted), so the
+   * session is not marked as one; the keyword floor below still runs, locally.
+   */
+  const paused = await aiPausedForPatient(opts.patientId);
+
+  if (!paused) {
+    try {
+      classification = await classifyRisk(transcript);
+      await logUsage({
+        organizationId: opts.organizationId,
+        userId: opts.therapistId,
+        sessionId: opts.sessionId,
+        kind: "risk",
+        model: classification.model,
+        inputTokens: classification.inputTokens,
+        outputTokens: classification.outputTokens,
+        durationMs: Date.now() - started,
+        status: "success",
+      });
+      await markRiskCheck(db, opts.sessionId, null);
+    } catch (error) {
+      /*
+       * 🔴 The classifier failing must not make the session quieter than it was
+       * before sprint 35 existed. The floor stands on its own.
+       *
+       * 🔴 Due diligence F13: and it must not LOOK like a clean result either.
+       * An outage or an unreadable answer used to leave the session exactly as a
+       * session with no findings looks. It is now an explicit state on the
+       * session, shown to the clinician as "risk check failed", and an error in
+       * the log rather than a warning.
+       */
+      log.error("risk check failed, the keyword floor stands alone", {
+        session: ref(opts.sessionId),
+        reason: safeErrorMessage(error),
+      });
+      await logUsage({
+        organizationId: opts.organizationId,
+        userId: opts.therapistId,
+        sessionId: opts.sessionId,
+        patientId: opts.patientId,
+        kind: "risk",
+        model: MODELS.risk,
+        durationMs: Date.now() - started,
+        status: "error",
+        errorCode: error instanceof Error ? error.name : "unknown",
+      });
+      await markRiskCheck(db, opts.sessionId, new Date());
+    }
   }
 
   const findings = classification?.findings ?? [];
@@ -185,6 +214,26 @@ export async function assessSessionRisk(opts: {
   }
 
   return { level, findings: findings.length, unquoted: classification?.unquoted ?? 0 };
+}
+
+/**
+ * F13: set or clear `sessions.risk_check_failed_at`. Never throws: the state is
+ * for the clinician's screen, and failing to write it must not take the alert
+ * path down with it.
+ */
+async function markRiskCheck(
+  db: ReturnType<typeof dbFor>,
+  sessionId: string,
+  failedAt: Date | null,
+): Promise<void> {
+  try {
+    await db.update(sessions).set({ riskCheckFailedAt: failedAt }).where(eq(sessions.id, sessionId));
+  } catch (error) {
+    log.error("could not record the risk check state", {
+      session: ref(sessionId),
+      reason: safeErrorMessage(error),
+    });
+  }
 }
 
 /**

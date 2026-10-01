@@ -147,7 +147,15 @@ async function main() {
     await page.fill("#lastName", "Check");
     await page.fill("#email", EMAIL);
     await page.fill("#password", PASSWORD);
+    await page.check('input[name="terms"]');
     await page.getByRole("button", { name: "Create account" }).click();
+    await dismissAlarmPrompt(page);
+    /* F14: signup now answers "check your inbox"; the account signs in with its password. */
+    await page.waitForSelector("text=Check your inbox", { timeout: 30_000 });
+    await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded" });
+    await page.fill("#email", EMAIL);
+    await page.fill("#password", PASSWORD);
+    await page.getByRole("button", { name: "Sign in" }).click();
     await dismissAlarmPrompt(page);
     await page.waitForURL(/\/onboarding/, { timeout: 30_000 });
 

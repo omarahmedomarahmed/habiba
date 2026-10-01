@@ -40,6 +40,7 @@ export function alertWords(key: string): AlertWords {
   }
   if (key === "server-errors") return { key: "aops.serverErrors", values: {} };
   if (key === "digest:one-hand") return { key: "aops.oneHand", values: {} };
+  if (key === "private-store-missing") return { key: "aops.privateStoreMissing", values: {} };
   return { key: "aops.other", values: { key } };
 }
 

@@ -1,6 +1,7 @@
 import {
   CRISIS_LINES,
   EMERGENCY_LINES,
+  SUPPORT_LINES,
   countryForNumber,
   crisisLine,
   lineForNumber,
@@ -70,7 +71,18 @@ export function sosLinesFor(input: {
       line: emergency,
       open: lineOpenAt(emergency, now),
     }));
-    return main[0]?.open === false ? [...always, ...main] : [...main, ...always];
+    /*
+     * 🔴 F5: the mental health support lines, after the crisis line when it is
+     * open and after the always-open numbers when it is likely closed. Their
+     * hours are unknown, so they never lead.
+     */
+    const support = (SUPPORT_LINES[code] ?? []).map((line) => ({
+      country: code,
+      countryName,
+      line,
+      open: lineOpenAt(line, now),
+    }));
+    return main[0]?.open === false ? [...always, ...support, ...main] : [...main, ...support, ...always];
   };
 
   /* Their own number. The verified table first (C184), then what operators configured. */
@@ -108,4 +120,31 @@ export function sosLinesFor(input: {
     ? rows.filter((row) => row.enabled).map((row) => row.code.trim().toUpperCase())
     : Object.keys(CRISIS_LINES);
   return everywhere.flatMap(entriesFor);
+}
+
+/**
+ * Names as a reader would say them, beside a flag, in the reader's language.
+ * 🔴 Board 872: "مصر · Egypt" put an English word on the Arabic sheet; the
+ * English sheet says Egypt and the Arabic one مصر. Shared by the orb and the
+ * server-rendered `/sos` page, so the two never name a country differently.
+ */
+const COUNTRY_LABEL: Record<string, { en: string; ar: string }> = {
+  US: { en: "United States", ar: "الولايات المتحدة" },
+  EG: { en: "Egypt", ar: "مصر" },
+};
+
+export function countryLabel(country: string, locale: string): string | null {
+  const known = COUNTRY_LABEL[country];
+  if (known) return locale === "ar" ? known.ar : known.en;
+  try {
+    return new Intl.DisplayNames([locale], { type: "region" }).of(country) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** A flag from the ISO code, for any country an operator configures. */
+export function flagOf(code: string): string {
+  if (!/^[A-Z]{2}$/.test(code)) return "";
+  return String.fromCodePoint(...[...code].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65));
 }

@@ -15,6 +15,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
+import { auditFixtures } from "./_audit-fixtures";
 
 import { connect, schema } from "./db";
 
@@ -392,7 +393,7 @@ async function main() {
     await db
       .delete(auditLog)
       .where(
-        sql`actor_account_id IN (SELECT id FROM patient_accounts WHERE email LIKE ${`${TAG}%`})`,
+        sql`${auditFixtures()} AND actor_account_id IN (SELECT id FROM patient_accounts WHERE email LIKE ${`${TAG}%`})`,
       );
     await db.delete(patients).where(sql`last_name = ${TAG}`);
     await db.delete(patientAccounts).where(sql`email LIKE ${`${TAG}%`}`);

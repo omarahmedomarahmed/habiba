@@ -5,6 +5,7 @@ import { ChevronRight, DoorOpen, Star } from "lucide-react";
 import type { RadarEntry } from "@/components/radar/types";
 import { cn, fullName, initials } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import { specialtyLabel } from "@/lib/i18n/taxonomy-label";
 import { Money } from "@/components/ui/money";
 
 /** One clinician, on the dark hero board or the light radar page. */
@@ -140,7 +141,7 @@ export function TherapistCard({
                   dark ? "bg-white/10 text-white/85" : "bg-slate-100 text-slate-600",
                 )}
               >
-                {item}
+                {specialtyLabel(item, t)}
               </span>
             ))}
             {entry.specialties.length > 2 ? (

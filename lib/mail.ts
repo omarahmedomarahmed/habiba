@@ -432,6 +432,52 @@ export async function sendPasswordReset(opts: {
   return send({ to: opts.to, subject: t("tmsg.reset.subject"), html });
 }
 
+/**
+ * 🔴 Due diligence F14: somebody signed up with an address that already has an
+ * account. The form answers exactly as it does for a new one ("check your
+ * inbox"), so it cannot be used to find out who is registered, and the person
+ * who owns the address learns what happened here instead.
+ */
+export async function sendExistingAccountNotice(opts: {
+  to: string;
+  signInUrl: string;
+  locale?: string | null;
+}): Promise<boolean> {
+  const words = await mailWords(opts.locale);
+  const { t } = words;
+  const html = layout(
+    t("tmsg.existing.title"),
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">${esc(t("tmsg.existing.title"))}</p>
+     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">${esc(t("tmsg.existing.body"))}</p>
+     <a href="${esc(opts.signInUrl)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(t("tmsg.existing.button"))}</a>
+     <p style="margin:20px 0 0;color:#64748b;font-size:13px;">${esc(t("tmsg.existing.reset"))}</p>
+     <p style="margin:8px 0 0;color:#64748b;font-size:13px;">${esc(t("tmsg.existing.ignore"))}</p>`,
+    footerFor(words, { reader: "clinician", occasion: "asked" }),
+    words,
+  );
+  return send({ to: opts.to, subject: t("tmsg.existing.subject"), html });
+}
+
+/** F14: the other half of the same answer, for an address that was new. */
+export async function sendSignupWelcome(opts: {
+  to: string;
+  url: string;
+  locale?: string | null;
+}): Promise<boolean> {
+  const words = await mailWords(opts.locale);
+  const { t } = words;
+  const html = layout(
+    t("tmsg.welcome.title"),
+    `<p style="margin:0 0 4px;font-size:20px;font-weight:700;">${esc(t("tmsg.welcome.title"))}</p>
+     <p style="margin:0 0 20px;color:#64748b;font-size:14px;">${esc(t("tmsg.welcome.body"))}</p>
+     <a href="${esc(opts.url)}" style="display:inline-block;background:#2EC4B6;color:#0A2342;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${esc(t("tmsg.welcome.button"))}</a>
+     <p style="margin:20px 0 0;color:#64748b;font-size:13px;">${esc(t("tmsg.welcome.ignore"))}</p>`,
+    footerFor(words, { reader: "clinician", occasion: "asked" }),
+    words,
+  );
+  return send({ to: opts.to, subject: t("tmsg.welcome.subject"), html });
+}
+
 /** The role an account link names, as its dictionary key. */
 const ROLE_KEY: Record<string, MessageKey> = {
   admin: "mail.role.admin",

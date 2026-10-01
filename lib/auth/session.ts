@@ -25,16 +25,30 @@ export const SESSION_COOKIE = "24t_session";
 /**
  * Sliding idle window. Touching the app resets it.
  *
- * Two hours, not thirty minutes. Automatic logoff is a HIPAA safeguard against
- * an unattended workstation, and two hours still satisfies that on a device a
- * clinician is sitting at — but thirty minutes logged people out *during a
- * session*, between starting the recording and writing up the note, which is
- * the one moment the product must not interrupt. A safeguard that makes people
- * reach for "remember my password" has made things worse, not better.
+ * 🔴 Thirty minutes, which is what /hipaa says, and it no longer interrupts a
+ * session. It was two hours because thirty logged people out *during a
+ * session*, between starting the recording and writing up the note. That
+ * reason is gone: the room polls `/api/sessions/[id]/state` every five seconds
+ * for as long as it is open, and uploads audio every eight while it records,
+ * both through `requireUserApi`, which touches `last_seen_at`. A clinician in
+ * a session is never idle in this sense. Thirty minutes now only ends a sign
+ * in on a screen nobody is touching, the unattended workstation the safeguard
+ * is for.
  */
-const IDLE_MS = 2 * 60 * 60 * 1000;
-/** Hard ceiling regardless of activity. */
-const ABSOLUTE_MS = 12 * 60 * 60 * 1000;
+const IDLE_MS = 30 * 60 * 1000;
+/** Hard ceiling regardless of activity: eight hours from sign in. */
+const ABSOLUTE_MS = 8 * 60 * 60 * 1000;
+/**
+ * 🔴 THE ONE EXCEPTION TO THE CEILING: A SESSION ALREADY STARTED FINISHES.
+ *
+ * A clinician who signed in at nine and starts a session at half past four
+ * would otherwise be signed out at five, mid sentence, by a clock that knows
+ * nothing about the patient in the room. Starting a session pushes the ceiling
+ * to two hours after the start (a session is fifty minutes, and the note is
+ * read after it), and never past two hours beyond the original eight, so
+ * starting session after session cannot keep one sign in alive for ever.
+ */
+const LIVE_SESSION_GRACE_MS = 2 * 60 * 60 * 1000;
 /** Don't write to the database on every single request just to bump lastSeen. */
 const TOUCH_THROTTLE_MS = 60 * 1000;
 
@@ -69,6 +83,15 @@ export type Actor = {
    * report as UTC rather than quietly using the server's clock.
    */
   timezone: string | null;
+  /**
+   * 🔴 F6: set only on a session a PARTNER opened (`created_via =
+   * 'partner_launch'`). Such a session is restricted: fifteen minutes, read
+   * only, and only the landing page and the charts of that partner's own
+   * patients (`lib/partner/launch-scope.ts`, enforced in `requireUser`).
+   * `getActor` returns null for it, so any surface that does not go through
+   * the guard treats it as signed out.
+   */
+  partnerScope?: { partnerId: string };
 };
 
 function hashToken(token: string): string {
@@ -121,6 +144,8 @@ export async function createSession(userId: string): Promise<string> {
  */
 export async function getActor(): Promise<Actor | null> {
   const state = await getSessionState();
+  /* 🔴 F6: a partner-opened session only exists through `requireUser`'s scope check. */
+  if (state?.actor.partnerScope) return null;
   return state && !state.pendingSecondFactor ? state.actor : null;
 }
 
@@ -186,6 +211,8 @@ export async function sessionStateForToken(token: string): Promise<SessionState 
       sessionId: authSessions.id,
       lastSeenAt: authSessions.lastSeenAt,
       secondFactorAt: authSessions.secondFactorAt,
+      launchedBy: authSessions.partnerId,
+      createdVia: authSessions.createdVia,
       userId: users.id,
       organizationId: users.organizationId,
       region: organizations.region,
@@ -249,6 +276,9 @@ export async function sessionStateForToken(token: string): Promise<SessionState 
     verificationStatus: row.verificationStatus,
     region: isRegion(row.region) ? row.region : DEFAULT_REGION,
     timezone: row.timezone,
+    ...(row.createdVia === "partner_launch" && row.launchedBy
+      ? { partnerScope: { partnerId: row.launchedBy } }
+      : {}),
   };
 
   return {
@@ -264,6 +294,53 @@ async function revokeSessionById(id: string) {
     .update(authSessions)
     .set({ revokedAt: new Date() })
     .where(eq(authSessions.id, id));
+}
+
+/**
+ * Called when a clinician starts a session (`goLive`): the absolute ceiling of
+ * the sign in they are using moves to at least two hours from now, capped at
+ * two hours past the original eight. See `LIVE_SESSION_GRACE_MS`. The cookie's
+ * own lifetime moves with it, because a browser drops a cookie at its max-age
+ * whatever the server would still have accepted.
+ *
+ * Never throws: failing to extend leaves a sign in on its usual clock, and that
+ * must not stop a session from starting.
+ */
+export async function keepSignedInThroughSession(): Promise<void> {
+  try {
+    const store = await cookies();
+    const token = store.get(SESSION_COOKIE)?.value;
+    if (!token) return;
+    const [row] = await db
+      .select({
+        id: authSessions.id,
+        createdAt: authSessions.createdAt,
+        absoluteExpiresAt: authSessions.absoluteExpiresAt,
+      })
+      .from(authSessions)
+      .where(and(eq(authSessions.tokenHash, hashToken(token)), isNull(authSessions.revokedAt)))
+      .limit(1);
+    if (!row) return;
+    const now = Date.now();
+    const wanted = Math.min(
+      now + LIVE_SESSION_GRACE_MS,
+      row.createdAt.getTime() + ABSOLUTE_MS + LIVE_SESSION_GRACE_MS,
+    );
+    if (wanted <= row.absoluteExpiresAt.getTime()) return;
+    await db
+      .update(authSessions)
+      .set({ absoluteExpiresAt: new Date(wanted) })
+      .where(eq(authSessions.id, row.id));
+    store.set(SESSION_COOKIE, token, {
+      httpOnly: true,
+      secure: env.isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: Math.max(1, Math.floor((wanted - now) / 1000)),
+    });
+  } catch {
+    /* The ordinary ceiling still applies; the session itself starts regardless. */
+  }
 }
 
 export async function destroyCurrentSession(): Promise<void> {

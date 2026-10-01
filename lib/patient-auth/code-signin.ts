@@ -16,6 +16,7 @@ import { log, ref } from "@/lib/logger";
 import { patientLanding } from "@/lib/routing";
 
 import { createPatientSession } from "./session";
+import { say } from "@/lib/i18n/say";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -105,13 +106,13 @@ export async function requestSignInCode(
   const handle = String(formData.get("handle") ?? "").trim();
   const country = String(formData.get("handleCountry") ?? "") || null;
 
-  if (!handle) return { error: "Enter the phone number or email you use here." };
+  if (!handle) return { error: await say("perr.enterHandleUse") };
 
   const verdict = await consume(await callerKey("patient:code"), 5, 15 * 60);
   if (!verdict.allowed) {
     const minutes = Math.max(1, Math.ceil(verdict.retryAfter / 60));
     return {
-      error: `Too many codes asked for from this connection. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      error: await say("perr.tooManyCodesMinutes", { minutes }),
     };
   }
 
@@ -177,12 +178,12 @@ export async function signInWithCode(
   if (!verdict.allowed) {
     const minutes = Math.max(1, Math.ceil(verdict.retryAfter / 60));
     return {
-      error: `Too many attempts from this connection. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      error: await say("perr.tooManyAttemptsConnMinutes", { minutes }),
     };
   }
 
   const account = await findAccount(handle, country);
-  const wrong = { error: "That code is wrong or has expired. Ask for a new one." };
+  const wrong = { error: await say("perr.codeWrong") };
   if (!account) return wrong;
 
   const [row] = await db
@@ -208,7 +209,7 @@ export async function signInWithCode(
         .update(patientAuthTokens)
         .set({ usedAt: new Date() })
         .where(eq(patientAuthTokens.id, row.id));
-      return { error: "Too many wrong codes. Ask for a new one." };
+      return { error: await say("perr.tooManyWrongCodes") };
     }
     await db
       .update(patientAuthTokens)

@@ -28,6 +28,8 @@ import {
 } from "../lib/settings/defs";
 import { SIMULATION_BRANCH, SIMULATION_ENDPOINT, inspectEnv } from "../lib/env";
 import { log, ref } from "../lib/logger";
+/* F6, F7, F9 of the independent due diligence, run with the safety suite. */
+import "./due-diligence.test";
 
 /* ------------------------------------------------------------ crisis safety */
 
@@ -49,6 +51,48 @@ test("crisis scan covers the phrasings patients actually use", () => {
     "I want it to end",
   ]) {
     assert.ok(scanForCrisisLanguage(phrase).length > 0, `should match: "${phrase}"`);
+  }
+});
+
+/*
+ * 🔴 F5 (due diligence): feminine and dialect Arabic, Franco-Arab, and the
+ * English shorthand people type. Each must alert; the controls below must not.
+ * A native-speaker clinician still has to review this list (RULINGS.md).
+ */
+test("F5 crisis scan reads the feminine, the dialect, Franco-Arab and the shorthand", () => {
+  for (const phrase of [
+    "عايزة أموت",
+    "عاوزة أموت",
+    "نفسي أموت",
+    "أنا هنتحر",
+    "هموت نفسي",
+    "مش عايز أعيش",
+    "مش عايزة أعيش",
+    "ana 3ayza amot",
+    "ana hantehar",
+    "I took all my pills",
+    "took all my pills an hour ago",
+    "I think I will overdose",
+    "honestly kms",
+    "kms.",
+    "I want to kill myself",
+    "I just want to end it all",
+    "I want to unalive myself",
+  ]) {
+    assert.ok(scanForCrisisLanguage(phrase).length > 0, `should match: "${phrase}"`);
+  }
+});
+
+test("F5 the short forms need a word, not three letters inside one or a distance", () => {
+  for (const phrase of [
+    "I ran 5 kms this morning",
+    "it is 12 kms away",
+    "about 3.5 kms",
+    "speed in kms/h",
+    "هنتحرك بكرة الصبح",
+    "إحنا هنتحرك دلوقتي",
+  ]) {
+    assert.deepEqual(scanForCrisisLanguage(phrase), [], `should not match: "${phrase}"`);
   }
 });
 
@@ -306,6 +350,49 @@ test("no page or component can print the database host (B1)", async () => {
     "the walk must reach the banner, or it proves nothing",
   );
   assert.deepEqual(offenders, []);
+});
+
+test("nothing the product runs can open the audit log's fixture door (0184)", async () => {
+  /*
+   * `audit_log` refuses UPDATE and DELETE (drizzle/0184), and /hipaa says the
+   * product cannot rewrite it. The one exception is `app.audit_fixtures`, which
+   * scripts set to tidy the rows their own invented fixtures wrote. If a file
+   * the product runs ever set it, the sentence on /hipaa would be false, so the
+   * walk covers app/, components/ and lib/, and the control proves it reads.
+   */
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const root = join(__dirname, "..");
+  const offenders: string[] = [];
+  let sawCron = false;
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) walk(path);
+      else if (/\.tsx?$/.test(entry)) {
+        const text = readFileSync(path, "utf8");
+        if (path.endsWith(join("cron", "[job]", "route.ts"))) sawCron = /delete\(auditLog\)/.test(text);
+        if (/app\.audit_fixtures|_audit-fixtures/.test(text)) offenders.push(path);
+      }
+    }
+  };
+  walk(join(root, "app"));
+  walk(join(root, "components"));
+  walk(join(root, "lib"));
+  assert.ok(sawCron, "the walk must reach the retention job, or it proves nothing");
+  assert.deepEqual(offenders, []);
+  /* And the trigger the sentence rests on is in a migration the journal lists. */
+  const migration = readFileSync(join(root, "drizzle", "0184_the_audit_log_cannot_be_rewritten.sql"), "utf8");
+  assert.match(migration, /BEFORE UPDATE OR DELETE ON "audit_log"/);
+  assert.match(readFileSync(join(root, "drizzle", "meta", "_journal.json"), "utf8"), /0184_the_audit_log_cannot_be_rewritten/);
+});
+
+test("a clinician's sign in lasts what /hipaa says it does (30 minutes idle, 8 hours)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const source = readFileSync(join(__dirname, "..", "lib", "auth", "session.ts"), "utf8");
+  assert.match(source, /const IDLE_MS = 30 \* 60 \* 1000;/);
+  assert.match(source, /const ABSOLUTE_MS = 8 \* 60 \* 60 \* 1000;/);
 });
 
 /* ------------------------------------------------------------------ billing */

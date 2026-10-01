@@ -1,5 +1,7 @@
 "use server";
 
+import { say } from "@/lib/i18n/say";
+
 export type FeedbackState = { error?: string; ok?: boolean; sent?: boolean };
 
 /**
@@ -22,7 +24,7 @@ export async function rateSession(input: {
 }): Promise<FeedbackState> {
   const { callerKey, consume } = await import("@/lib/rate-limit");
   const attempt = await consume(await callerKey("feedback"), 20, 600);
-  if (!attempt.allowed) return { error: "Too many submissions from this connection." };
+  if (!attempt.allowed) return { error: await say("perr.tooManySubmissions") };
 
   const { submitFeedback, feedbackContext, releaseBrief } = await import("@/lib/data/feedback");
 
@@ -64,7 +66,7 @@ export async function reportSession(input: {
 }): Promise<FeedbackState & { noShow?: "refunded" | "review" }> {
   const { callerKey, consume } = await import("@/lib/rate-limit");
   const attempt = await consume(await callerKey("report"), 10, 600);
-  if (!attempt.allowed) return { error: "Too many reports from this connection." };
+  if (!attempt.allowed) return { error: await say("perr.tooManyReports") };
 
   const { fileReport, countNoShows, suspensionFor, suspendFromRadar } = await import(
     "@/lib/data/feedback"

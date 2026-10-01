@@ -557,7 +557,7 @@ export async function seedEvent(ctx: { db: Db; adminId: string }): Promise<void>
     const t0 = await since();
     const opened = await openPot({
       sponsorId: sponsor.id,
-      refundPolicy: "Unused balance is refunded within 30 days of written notice.",
+      refundPolicy: "Unused balance is refunded on request, by our staff.",
       expiresAt: new Date(seedStart.getTime() + 330 * DAY),
       overdraftCents: 1_000,
       welcomeCreditCents: opts.welcomeCents,

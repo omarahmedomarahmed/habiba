@@ -244,7 +244,18 @@ export async function SiteFooter() {
           </FooterColumn>
         </div>
 
-        <div className="mt-14 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
+        {/*
+          🔴 F5: the crisis numbers, reachable from every public page as a plain
+          link to a server-rendered page of `tel:` links. It works with no
+          JavaScript, which the patient app's SOS sheet needs.
+        */}
+        <p className="mt-10">
+          <a href="/sos" className="text-[15px] font-semibold text-white underline underline-offset-4">
+            {t("footer.sos")}
+          </a>
+        </p>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
           <p className="text-[13px] text-white/70">
             © {new Date().getFullYear()} {BRAND}. {t("nav.rights")}
           </p>

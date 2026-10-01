@@ -12,6 +12,14 @@
  *
  *   { "nextAt": "2026-10-01T19:00:00.000Z" | null, "writtenAt": "..." }
  *
+ * 🔴 F2: and, only while a crisis alert is open, a third timestamp,
+ * `crisisDueAt`: when its escalation to a backup falls due (or now, for an
+ * out-of-band send to retry). A due `crisisDueAt` runs the tick whatever the
+ * sessions say, so an unacknowledged alert escalates within a minute of its
+ * deadline while the database still sleeps through every minute before it.
+ * It is lowered after the alert row is committed (`noteCrisisDue`) and written
+ * again from the database by every refresh, exactly like `nextAt`.
+ *
  * The tick reads it (no database) and skips when the marker is FRESH (written
  * inside `MARKER_FRESH_MINUTES`) and the next session is more than
  * `LOOKAHEAD_MINUTES` away, or there is none. Anything else runs the database
@@ -41,6 +49,13 @@ export type ReminderMarker = {
   nextAt: string | null;
   /** When `nextAt` was last read from the database. Lowering it by a booking keeps this. */
   writtenAt: string;
+  /**
+   * 🔴 F2: the soonest moment a crisis alert needs the tick: an unacknowledged
+   * alert's escalation coming due, or an out-of-band send to retry. ABSENT,
+   * never null, when there is none, so a marker with no open alert is the same
+   * two timestamps it always was and every existing marker still parses.
+   */
+  crisisDueAt?: string;
 };
 
 /** A marker older than this is no marker. Longer than the hour between two refreshes. */
@@ -70,7 +85,9 @@ export type TickReason =
   /** Run: the marker is older than `MARKER_FRESH_MINUTES` or from the future. */
   | "stale"
   /** Run: the hourly minute, for the heartbeat and a refresh. */
-  | "hourly";
+  | "hourly"
+  /** Run: 🔴 F2, a crisis alert's escalation or out-of-band retry is due. */
+  | "crisis";
 
 export type TickDecision = { run: boolean; reason: TickReason };
 
@@ -92,20 +109,36 @@ export function parseMarker(text: string | null | undefined): ReminderMarker | n
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
   const keys = Object.keys(record).sort();
-  if (keys.length !== 2 || keys[0] !== "nextAt" || keys[1] !== "writtenAt") return null;
+  /* Exactly the two timestamps, or those and 🔴 F2's crisis timestamp; nothing else. */
+  const two = keys.length === 2 && keys[0] === "nextAt" && keys[1] === "writtenAt";
+  const three = keys.length === 3 && keys[0] === "crisisDueAt" && keys[1] === "nextAt" && keys[2] === "writtenAt";
+  if (!two && !three) return null;
   if (isoMs(record.writtenAt) === null) return null;
   if (record.nextAt !== null && isoMs(record.nextAt) === null) return null;
-  return { nextAt: record.nextAt as string | null, writtenAt: record.writtenAt as string };
+  if (three && isoMs(record.crisisDueAt) === null) return null;
+  return {
+    nextAt: record.nextAt as string | null,
+    writtenAt: record.writtenAt as string,
+    ...(three ? { crisisDueAt: record.crisisDueAt as string } : {}),
+  };
 }
 
-/** The blob's text. Only the two fields, whatever the object carried. */
+/** The blob's text. Only the timestamps, whatever the object carried. */
 export function serializeMarker(marker: ReminderMarker): string {
-  return JSON.stringify({ nextAt: marker.nextAt, writtenAt: marker.writtenAt });
+  return JSON.stringify(
+    marker.crisisDueAt
+      ? { nextAt: marker.nextAt, writtenAt: marker.writtenAt, crisisDueAt: marker.crisisDueAt }
+      : { nextAt: marker.nextAt, writtenAt: marker.writtenAt },
+  );
 }
 
 /** A marker read from the database just now. */
-export function markerFrom(nextAt: Date | null, now: Date): ReminderMarker {
-  return { nextAt: nextAt ? nextAt.toISOString() : null, writtenAt: now.toISOString() };
+export function markerFrom(nextAt: Date | null, now: Date, crisisDueAt: Date | null = null): ReminderMarker {
+  return {
+    nextAt: nextAt ? nextAt.toISOString() : null,
+    writtenAt: now.toISOString(),
+    ...(crisisDueAt ? { crisisDueAt: crisisDueAt.toISOString() } : {}),
+  };
 }
 
 /** Is this marker recent enough to be believed at `now`? */
@@ -129,6 +162,15 @@ export function tickDecision(marker: ReminderMarker | null, now: Date): TickDeci
   if (!marker) return { run: true, reason: "missing" };
   const at = now.getTime();
   if (!markerIsFresh(marker, at)) return { run: true, reason: "stale" };
+  /*
+   * 🔴 F2: a crisis alert whose escalation (or retry) is due runs the tick, at
+   * the minute it falls due, whatever the sessions say. Not yet due, it is
+   * ignored, so an open alert costs no wakes before its time.
+   */
+  if (marker.crisisDueAt !== undefined) {
+    const crisis = isoMs(marker.crisisDueAt);
+    if (crisis === null || crisis <= at) return { run: true, reason: "crisis" };
+  }
   if (marker.nextAt === null) return { run: false, reason: "idle" };
   const next = isoMs(marker.nextAt);
   if (next === null) return { run: true, reason: "missing" };
@@ -149,5 +191,24 @@ export function lowerMarker(marker: ReminderMarker, startsAt: Date, now: Date): 
   if (Number.isNaN(start) || start <= now.getTime()) return null;
   const held = marker.nextAt === null ? null : isoMs(marker.nextAt);
   if (held !== null && held <= start) return null;
-  return { nextAt: startsAt.toISOString(), writtenAt: marker.writtenAt };
+  return {
+    nextAt: startsAt.toISOString(),
+    writtenAt: marker.writtenAt,
+    /* A booking never touches the crisis timestamp. */
+    ...(marker.crisisDueAt ? { crisisDueAt: marker.crisisDueAt } : {}),
+  };
+}
+
+/**
+ * 🔴 F2: a crisis alert was raised (or upgraded, or its send failed) and needs
+ * the tick at `dueAt`. `crisisDueAt` becomes the sooner of the two; the
+ * sessions half and `writtenAt` are kept. Null when nothing changes. Unlike a
+ * booking, a due time already past is written: it means "the next tick".
+ */
+export function lowerCrisisDue(marker: ReminderMarker, dueAt: Date): ReminderMarker | null {
+  const due = dueAt.getTime();
+  if (Number.isNaN(due)) return null;
+  const held = marker.crisisDueAt === undefined ? null : isoMs(marker.crisisDueAt);
+  if (held !== null && held <= due) return null;
+  return { nextAt: marker.nextAt, writtenAt: marker.writtenAt, crisisDueAt: dueAt.toISOString() };
 }

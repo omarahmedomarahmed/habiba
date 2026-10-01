@@ -222,6 +222,36 @@ export async function saveCopilot(
   return { ok: "Saved." };
 }
 
+/**
+ * 🔴 F2: the minutes before an unacknowledged crisis alert goes to a backup.
+ * Refused, not clamped, outside 1 to 240: a typed 0 must not save as 1.
+ */
+export async function saveCrisis(
+  _prev: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const actor = await requireRole("super_admin");
+  const { getI18n } = await import("@/lib/i18n/server");
+  const { t } = await getI18n();
+
+  const minutes = Number(String(formData.get("escalateAfterMinutes") ?? "").trim());
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 240) {
+    return { error: t("acrisis.invalid") };
+  }
+
+  await writeSettingsGroup({ group: "crisis", value: { escalateAfterMinutes: minutes }, updatedBy: actor.userId });
+  await audit({
+    actor,
+    category: "admin",
+    action: "settings.crisis",
+    resourceType: "platform_settings",
+    resourceId: "crisis",
+  });
+
+  revalidatePath("/admin/settings");
+  return { ok: t("acrisis.saved") };
+}
+
 /** 16.1 / 20.3 — the payout rails, which §3c said must be configuration. */
 export async function savePayouts(
   _prev: SettingsFormState,

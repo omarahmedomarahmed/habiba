@@ -1,7 +1,7 @@
 import "server-only";
 
 import { RISK_INDICATORS, type Finding, type RiskIndicator } from "@/lib/crisis/level";
-import { MODELS, logUsage, openai, parseJson } from "./client";
+import { MODELS, MalformedModelOutputError, logUsage, openai, parseJsonStrict } from "./client";
 
 /**
  * The risk classifier. PLAN.md 35.1.
@@ -138,6 +138,26 @@ export function traceable(
 }
 
 /**
+ * 🔴 Due diligence F13: what the model said, or a THROWN failure. Never "none".
+ *
+ * This used to parse with a fallback of `{ findings: [] }`, so a reply that was
+ * not JSON, or JSON without a findings array, came out as "no indicators" and the
+ * session looked clean. An empty array the model actually sent is a real answer
+ * and stays one; anything else throws, and `assessSessionRisk` records the
+ * session as "risk check failed" for the clinician and logs it.
+ */
+export function readRiskOutput(
+  content: string | null | undefined,
+): { indicator?: unknown; quote?: unknown; confidence?: unknown }[] {
+  const parsed = parseJsonStrict<{ findings?: unknown }>(content, "risk-classification");
+  if (!parsed.ok) throw new MalformedModelOutputError("risk-classification", parsed.reason);
+  if (!Array.isArray(parsed.value.findings)) {
+    throw new MalformedModelOutputError("risk-classification", "missing a findings array");
+  }
+  return parsed.value.findings as { indicator?: unknown; quote?: unknown; confidence?: unknown }[];
+}
+
+/**
  * Classify one session's transcript.
  *
  * Usage is returned rather than logged, for the same reason as
@@ -156,16 +176,8 @@ export async function classifyRisk(transcript: string): Promise<RiskClassificati
     ],
   });
 
-  const raw = parseJson<{ findings?: { indicator?: unknown; quote?: unknown; confidence?: unknown }[] }>(
-    completion.choices[0]?.message?.content,
-    { findings: [] },
-    "risk-classification",
-  );
-
-  const { kept, dropped } = traceable(
-    Array.isArray(raw.findings) ? raw.findings : [],
-    transcript,
-  );
+  const findings = readRiskOutput(completion.choices[0]?.message?.content);
+  const { kept, dropped } = traceable(findings, transcript);
 
   return {
     findings: kept,

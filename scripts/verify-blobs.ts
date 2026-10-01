@@ -54,16 +54,27 @@ async function main() {
   );
   const uploads = read("lib/uploads.ts");
   /*
-   * 🔴 Two public writes, both here: the headshot's, and the fallback while no
-   * private store is configured, which a configured store never reaches.
+   * 🔴 F9: ONE public write, the headshot's. The fallback that put a sensitive
+   * file on the public store when no private store was configured is gone: the
+   * private writer refuses instead (`PrivateStoreMissingError`).
    */
-  const fallbackAt = uploads.indexOf("if (process.env.BLOB_PRIVATE_READ_WRITE_TOKEN) throw error;");
+  const privateWriter = uploads.slice(
+    uploads.indexOf("export async function putPrivate"),
+    uploads.indexOf("export async function fetchStored"),
+  );
   check(
-    "🔴 public writes are the headshot's and the no-private-store fallback, nowhere else",
-    publicWrites.length === 2 && publicWrites.every((file) => file === "lib/uploads.ts") && fallbackAt > 0 &&
-      uploads.indexOf('access: "public"', fallbackAt) > fallbackAt &&
-      uploads.indexOf('access: "public"', fallbackAt) - fallbackAt < 500,
+    "🔴 F9 the only public write is the headshot's; no sensitive file falls back to the public store",
+    publicWrites.length === 1 &&
+      publicWrites[0] === "lib/uploads.ts" &&
+      !/access:\s*"public"/.test(privateWriter) &&
+      /if \(!privateStoreConfigured\(\)\) \{[\s\S]{0,300}throw new PrivateStoreMissingError\(\)/.test(privateWriter),
     publicWrites.join(", "),
+  );
+  check(
+    "🔴 F9 an upload of a private kind without the private store is refused before any write, in the reader's language",
+    /if \(isPrivateKind\(opts\.kind\) && !privateStoreConfigured\(\)\) \{[\s\S]{0,300}return \{ error: await privateStoreRefusal\(\) \}/.test(
+      uploads,
+    ),
   );
   const publicAt = uploads.indexOf('access: "public"', uploads.indexOf("export async function uploadDocument"));
   const before = uploads.slice(Math.max(0, publicAt - 400), publicAt);
@@ -78,19 +89,19 @@ async function main() {
   /*
    * 🔴 The one blob that is not a file: the minute tick's marker. Its access is
    * computed (private once a private store exists), so the count above cannot
-   * see it; this says what it may hold: two timestamps and nothing else.
+   * see it; this says what it may hold: timestamps and nothing else (the crisis deadline only while an alert is open).
    */
   const markerData = read("lib/data/reminder-marker.ts");
   const markerRule = read("lib/sessions/reminder-marker.ts");
   const markerWrites = [...markerData.matchAll(/writeMarkerBlob\(([^;]*)\);/g)].map((m) => m[1]!);
   const markerWriters = files.filter((file) => /writeMarkerBlob\(/.test(read(file)));
   check(
-    "🔴 the minute tick's marker is written only as two timestamps, from one module",
+    "🔴 the minute tick's marker is written only as timestamps (two, or three while a crisis alert is open), from one module",
     /export async function writeMarkerBlob\(path: string, text: string/.test(uploads) &&
       markerWriters.every((file) => file === "lib/uploads.ts" || file === "lib/data/reminder-marker.ts") &&
       markerWrites.length > 0 &&
       markerWrites.every((args) => /^markerPath\(\), serializeMarker\(/.test(args)) &&
-      /return JSON\.stringify\(\{ nextAt: marker\.nextAt, writtenAt: marker\.writtenAt \}\);/.test(markerRule),
+      /\{ nextAt: marker\.nextAt, writtenAt: marker\.writtenAt, crisisDueAt: marker\.crisisDueAt \}\s*: \{ nextAt: marker\.nextAt, writtenAt: marker\.writtenAt \}/.test(markerRule),
     markerWriters.join(", "),
   );
   const documents = read("lib/data/documents.ts");
@@ -153,7 +164,7 @@ async function main() {
       if (Number(rows[0]?.n ?? 0) > 0) left.push(`${table}.${column}: ${rows[0]!.n}`);
     }
     check(
-      "🔴 no personal column still points at a public blob (move older ones with `npm run blobs:private -- --apply`)",
+      "🔴 no personal column still points at a public blob (move them with `npm run blobs:migrate-private -- --apply`)",
       left.length === 0,
       left.join(", "),
     );

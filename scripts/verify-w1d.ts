@@ -8,6 +8,7 @@
  * (H29), and nothing here may run against production.
  */
 import { sql } from "drizzle-orm";
+import { auditFixtures } from "./_audit-fixtures";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
 import { stubModules } from "./_render";
@@ -253,7 +254,7 @@ async function totalView(db: ReturnType<typeof connect>["db"]) {
   const forged = await holds("00000000-0000-4000-8000-000000000000", operator.id, session.id);
   await db.execute(sql`
     UPDATE audit_log SET created_at = now() - make_interval(mins => ${INVESTIGATION_WINDOW_MINUTES + 1})
-     WHERE id = ${grantId}`);
+     WHERE ${auditFixtures()} AND id = ${grantId}`);
   const stale = await holds(grantId, operator.id, session.id);
   check(
     "🔴 an investigation opens on this reader's own break-glass row for this session, and only inside its window",
@@ -613,7 +614,7 @@ async function potAlerts(db: ReturnType<typeof connect>["db"]) {
       `${await sent("empty")} empty alert(s) over two runs`,
     );
   } finally {
-    await db.execute(sql`DELETE FROM audit_log WHERE resource_id IN
+    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN
       (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsorId})`);
     await db.execute(sql`DELETE FROM delivery_attempts
       WHERE kind IN ('sponsor.pot_empty', 'sponsor.pot_low') AND created_at >= ${started}`);
@@ -730,9 +731,9 @@ async function main() {
     await potAlerts(db);
     await companyCounters(db);
   } finally {
-    await db.execute(sql`DELETE FROM audit_log WHERE actor_user_id IN
+    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND actor_user_id IN
       (SELECT id FROM users WHERE email LIKE ${`%${fixture}%`})`);
-    await db.execute(sql`DELETE FROM audit_log WHERE actor_clinic_manager_id IN
+    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND actor_clinic_manager_id IN
       (SELECT id FROM clinic_managers WHERE email LIKE ${`%${fixture}%`})`);
     await db.execute(sql`DELETE FROM clinic_managers WHERE email LIKE ${`%${fixture}%`}`);
     await db.execute(sql`DELETE FROM copilot_messages WHERE thread_id IN

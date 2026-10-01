@@ -64,6 +64,9 @@ export const FOOTING_OF_KIND: Record<MessageKind, Footing> = {
   "ops.receiptAsked": { reader: "staff", occasion: "account" },
   "ops.returnAsked": { reader: "staff", occasion: "account" },
   "ops.watchdog": { reader: "staff", occasion: "account" },
+  /* F2: to the clinician; an escalation to the back office passes `reader: "staff"`. */
+  "crisis.alert": { reader: "clinician", occasion: "account" },
+  "crisis.escalated": { reader: "clinician", occasion: "account" },
   "licence.expired": { reader: "clinician", occasion: "account" },
   "licence.expiring": { reader: "clinician", occasion: "account" },
   "renewal.due_soon": { reader: "clinician", occasion: "account" },

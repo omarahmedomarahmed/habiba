@@ -48,7 +48,7 @@ test("shoot T1: the therapist signup prints the terms line once", () => {
   const page = readSource("app/(auth)/signup/page.tsx");
   const form = readSource("components/auth/forms.tsx");
   assert.doesNotMatch(page, /tauth\.terms"/, "the page prints it as well as the form");
-  assert.match(form, /tauth\.terms"/, "the form keeps it under Create account");
+  assert.match(form, /tauth\.terms"|<SignupConsent /, "the form keeps it (now inside the required consent) under Create account");
 });
 
 test("shoot C2: the top-up figure shrinks as it grows, and Submit stays in view", () => {

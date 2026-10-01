@@ -65,8 +65,11 @@ import { subjectKey } from "@/lib/rate-limit";
  * | May see | Never sees |
  * |---|---|
  * | Their **name** | Whether they have ever booked |
- * | **When they were last verified** | When they joined |
+ * | Their own pause of it | When they joined, or last re-verified |
  * | Nothing else | Any clinical fact, in any form |
+ *
+ * 🔴 F7: the last-verified date left this shape too: it is stamped when one
+ * person re-proves their employment, usually on their way to a booking.
  *
  * "Nothing else" is why this type has three fields. The id is here because
  * removal needs a handle, and it is an enrolment id rather than a person id so
@@ -78,18 +81,9 @@ export type RosterEntry = {
   enrolmentId: string;
   name: string;
   /**
-   * 🔴 The same date for everybody in this organisation (C256).
-   *
-   * Null until the first cycle runs. Rendered as "not yet checked", which is
-   * true and carries no signal, rather than as a blank.
-   */
-  lastVerifiedAt: Date | null;
-  /** Whether their funding is paused. C247 — they were not reached. */
-  paused: boolean;
-  /**
    * 🔴 W2-S11: paused BY THIS COMPANY, which is its own act and so its own to
-   * see and to undo. A re-verification pause (`paused`) is not: the page never
-   * renders that one (E2), because it is stamped when one person comes back.
+   * see and to undo. Nothing here says whether, when or how often anybody
+   * USED the benefit.
    */
   heldByYou: boolean;
 };
@@ -107,8 +101,12 @@ export async function roster(sponsorId: string): Promise<RosterEntry[]> {
       enrolmentId: enrolments.id,
       firstName: people.firstName,
       lastName: people.lastName,
-      lastVerifiedAt: enrolments.lastVerifiedAt,
-      pausedAt: enrolments.pausedAt,
+      /*
+       * 🔴 F7: no `lastVerifiedAt` and no `pausedAt` either. Both are stamped
+       * when one person re-proves their employment, which in practice is when
+       * they come back to book: a per-person "last used" by another name. The
+       * company manages its own staff list; it never learns who used it.
+       */
       /*
        * W2-S11: a boolean, never the state itself: `provisional` is somebody
        * who enrolled in the last few days, which is the join date by another
@@ -133,8 +131,6 @@ export async function roster(sponsorId: string): Promise<RosterEntry[]> {
   return rows.map((row) => ({
     enrolmentId: row.enrolmentId,
     name: `${row.firstName} ${row.lastName ?? ""}`.trim(),
-    lastVerifiedAt: row.lastVerifiedAt,
-    paused: row.pausedAt !== null,
     heldByYou: row.heldByYou === true,
   }));
 }

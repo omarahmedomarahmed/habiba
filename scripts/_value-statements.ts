@@ -71,7 +71,7 @@ export const VALUE_STATEMENTS: ValueStatement[] = [
   {
     id: "P1",
     audience: "patient",
-    says: "Pick someone free, pay, and you are in a session.",
+    says: "Pick someone free and pay, and the session opens once the payment is confirmed.",
     where: "`/`, the radar card: “Somebody who is free now”",
     proof:
       "From the app's home screen to a live video room, counting the taps out loud. Every step that is not picking, paying or going in is the finding.",

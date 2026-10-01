@@ -227,6 +227,13 @@ export async function generateNoteContent(opts: {
   /** W2-F01: the format to draft in. Absent is SOAP. */
   format?: NoteFormat;
 }): Promise<{ content: NoteContent; language: string; contentEn: NoteContent | null; model: string }> {
+  /*
+   * 🔴 Due diligence F3: every note drafter goes through here, so this is the
+   * one place a withdrawn consent stops the model for every one of them.
+   */
+  const { AiPausedError, aiPausedForPatient } = await import("@/lib/data/ai-consent");
+  if (await aiPausedForPatient(opts.patientId)) throw new AiPausedError();
+
   const started = Date.now();
   const { context, transcript } = await buildContext(opts.sessionId);
 
@@ -387,6 +394,24 @@ export async function generateAndStoreNote(opts: {
   patientId: string | null;
 }): Promise<void> {
   try {
+    /*
+     * 🔴 Due diligence F3: a patient who withdrew consent to processing abroad
+     * gets no AI note, no diarisation and no profile rebuild. The session is
+     * left with no note rather than a failed one: the clinician writes it, and
+     * the session page says why.
+     */
+    const { aiPausedForPatient } = await import("@/lib/data/ai-consent");
+    if (await aiPausedForPatient(opts.patientId)) {
+      await db
+        .update(sessions)
+        .set({ noteStatus: "none", updatedAt: new Date() })
+        .where(eq(sessions.id, opts.sessionId));
+      log.info("note generation skipped: AI processing is paused for this patient", {
+        session: ref(opts.sessionId),
+      });
+      return;
+    }
+
     /*
      * 🔴 T17: NOTHING IS GENERATED OVER A SIGNED PRIMARY NOTE.
      *

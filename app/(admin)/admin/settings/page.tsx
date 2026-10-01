@@ -8,6 +8,7 @@ import { detailsLockedBy } from "@/lib/billing/manual";
 import {
   CopilotEditor,
   CountryEditor,
+  CrisisEditor,
   PayoutsEditor,
   PricingEditor,
   SessionEditor,
@@ -226,6 +227,8 @@ export default async function SettingsPage() {
       <RulesEditor rules={settings.rules} history={await rulesHistory()} />
       <SessionEditor {...settings.session} />
       <CopilotEditor {...settings.copilot} />
+      {/* 🔴 F2: when an unacknowledged crisis alert goes to a backup. */}
+      <CrisisEditor {...settings.crisis} />
       <PayoutsEditor {...settings.payouts} />
 
       {/*

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { lt } from "drizzle-orm";
+import { lt, sql } from "drizzle-orm";
 
-import { sweepUndeliveredAlerts } from "@/lib/crisis/alerts";
+import { escalateCrisisAlerts, sweepUndeliveredAlerts } from "@/lib/crisis/alerts";
 import { purgeExpiredSessions } from "@/lib/auth/session";
 import { reconcileMissingCharges } from "@/lib/billing/service";
 import { sweepRadar } from "@/lib/data/radar";
@@ -55,7 +55,8 @@ export const maxDuration = 300;
  *   tick       every minute  🔴 0183: the 60, 30 and 15 minute reminders and
  *                     the "you can go in now" at 5, for booked sessions. It
  *                     reads a marker in Vercel Blob first and does not touch
- *                     the database unless a session starts within the hour.
+ *                     the database unless a session starts within the hour,
+ *                     or (F2) a crisis alert's escalation or retry is due.
  *
  * 🔴 0165: `crisis` WAS DAILY, and that was a launch blocker. A crisis alert
  * whose notification failed waited up to a day for its retry. It runs on the
@@ -166,6 +167,8 @@ const JOBS = {
      */
     const failed: string[] = [];
     const delivered = await step(failed, "sweepUndeliveredAlerts", () => sweepUndeliveredAlerts());
+    /* 🔴 F2: the hourly backstop for the tick's escalation, should the tick be down. */
+    const escalatedHourly = await step(failed, "escalateCrisisAlerts", () => escalateCrisisAlerts());
     // Folded in rather than scheduled separately — see the note above. Both
     // are cheap sweeps and the expensive part is waking the database at all.
     // Flattened rather than nested: the log field type is a flat map, and a
@@ -220,6 +223,7 @@ const JOBS = {
     return {
       failedSteps: failed.join(",") || undefined,
       delivered: delivered ?? undefined,
+      escalated: escalatedHourly?.escalated,
       released: swept?.released,
       wentOffline: swept?.offline,
       abandoned: swept?.abandoned,
@@ -491,12 +495,15 @@ const JOBS = {
    * table, and wrapped the query in `.catch(() => [])` — so it threw on every
    * run, swallowed the error, reported success, and had never deleted a single
    * row. Here the column is real and the error is not swallowed.
+   *
+   * 🔴 0184: the cutoff is the database's own clock and the same interval the
+   * append-only trigger checks, so this delete can never ask for a row the
+   * trigger refuses. A cutoff from this machine's clock could, by a second.
    */
   async retention() {
-    const cutoff = new Date(Date.now() - 6 * 365 * 24 * 60 * 60 * 1000);
     const purged = await db
       .delete(auditLog)
-      .where(lt(auditLog.createdAt, cutoff))
+      .where(lt(auditLog.createdAt, sql`now() - interval '2190 days'`))
       .returning({ id: auditLog.id });
 
     const sessionsPurged = await purgeExpiredSessions();
@@ -884,6 +891,14 @@ const JOBS = {
     const gate = await tickGate();
     if (!gate.run) return { skipped: true, gate: gate.reason };
 
+    /*
+     * 🔴 F2: crisis alerts nobody acknowledged go to a backup, and sends that
+     * did not leave are retried, FIRST, before the reminders. The marker's
+     * `crisisDueAt` is what woke this tick for them; the refresh below writes
+     * it again from the database, so it clears once nothing is due.
+     */
+    const crisis = await step(failed, "escalateCrisisAlerts", () => escalateCrisisAlerts());
+
     const { sweepSessionReminders } = await import("@/lib/data/session-reminders");
     const reminders = await step(failed, "sweepSessionReminders", () => sweepSessionReminders());
     /* After the sweep, from the database: the next session still ahead. Never throws. */
@@ -892,6 +907,8 @@ const JOBS = {
       gate: gate.reason,
       markerWritten: marked,
       failedSteps: failed.join(",") || undefined,
+      crisisEscalated: crisis?.escalated,
+      crisisRetried: crisis?.retried,
       remindersDue: reminders?.due,
       remindersSent: reminders?.sent,
       remindersUnreachable: reminders?.unreachable,

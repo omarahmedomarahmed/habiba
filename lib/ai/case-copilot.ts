@@ -563,6 +563,22 @@ export async function askPatientCopilot(opts: {
    */
   liveSince?: Date | null;
 }): Promise<CopilotAnswer> {
+  /*
+   * 🔴 Due diligence F3: nothing about a patient who withdrew consent to
+   * processing abroad is sent to the model. The clinician is told why, in a
+   * sentence, rather than handed an empty answer.
+   */
+  const { aiPausedForPatient } = await import("@/lib/data/ai-consent");
+  if (await aiPausedForPatient(opts.patientId)) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return {
+      answer: (await getI18n()).t("portal.copilot.aiPaused"),
+      citations: [],
+      documentRefs: [],
+      suggestedPrompts: [],
+    };
+  }
+
   const started = Date.now();
   const language = opts.replyLanguage ?? "auto";
   const standing = opts.guidance?.trim() ?? "";
