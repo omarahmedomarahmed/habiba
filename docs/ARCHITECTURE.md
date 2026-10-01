@@ -102,7 +102,8 @@ no mock fallback: without `OPENAI_API_KEY` the call fails.
 - **A failed risk check is visible**: `sessions.risk_check_failed_at`, shown to the clinician
   (ruling DD6).
 - **Consent gates.** Recording needs the patient's per-session consent (`lib/consent.ts`); the
-  AI fee is charged only then. A withdrawn cross-border consent stops every model call about
+  AI fee is charged only then. It also needs a confirmation that the patient is 18 or over, on
+  the session, the chart or the patient's own account (`lib/data/adult.ts`, ruling B1-6). A withdrawn cross-border consent stops every model call about
   that person while the keyword floor keeps running (`lib/data/ai-consent.ts`, ruling DD3).
   Signup stores the terms version naming the processors (`lib/consent/terms.ts`, ruling DD1).
 - **Known gap.** Speaker separation is arithmetic over tracks (`lib/diarisation/`); no
