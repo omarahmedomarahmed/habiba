@@ -150,9 +150,7 @@ async function main() {
   if (failed > 0) process.exit(1);
 }
 
-if (process.argv[1]?.endsWith("migrate-private-blobs.ts")) {
-  main().catch((error) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exit(1);
-  });
-}
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});
