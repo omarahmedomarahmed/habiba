@@ -255,6 +255,8 @@ export async function POST(
       speaker,
       sequence: result.sequence ?? sequenceRaw,
       crisis: result.crisis,
+      /* 🔴 F2: the clinician's own alert, to acknowledge from the room. Never on the token branch. */
+      alertId: result.alertId ?? null,
       suggestions,
     });
   } catch (error) {

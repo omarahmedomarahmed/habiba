@@ -34,6 +34,7 @@ export function RiskBanner({
   onDismiss,
   className,
   line = null,
+  acknowledgeHref = null,
 }: {
   level: "moderate" | "elevated" | "high" | "critical";
   indicators?: string[];
@@ -48,6 +49,12 @@ export function RiskBanner({
    * instead of the number, which is true everywhere.
    */
   line?: CrisisLine | null;
+  /**
+   * 🔴 F2: where this alert is acknowledged. Opens in a new tab so the room
+   * stays live. Unacknowledged, the alert goes to a backup after the
+   * configured minutes, so dismissing the banner is not acknowledging it.
+   */
+  acknowledgeHref?: string | null;
 }) {
   const t = useT();
   return (
@@ -92,6 +99,16 @@ export function RiskBanner({
               {t("risk.noLine")}
             </p>
           )}
+          {acknowledgeHref ? (
+            <a
+              href={acknowledgeHref}
+              target="_blank"
+              rel="noopener"
+              className="tap-target mt-2.5 ms-2 inline-flex items-center rounded-lg border border-red-300 bg-white px-3 text-sm font-semibold text-red-700"
+            >
+              {t("calert.ack")}
+            </a>
+          ) : null}
         </div>
         {onDismiss ? (
           <button

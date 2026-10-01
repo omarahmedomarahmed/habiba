@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import {
   saveCopilot,
   saveCountry,
+  saveCrisis,
   savePayouts,
   savePricing,
   saveSession,
@@ -281,6 +282,38 @@ export function CopilotEditor({
             type="number"
             min="0"
             defaultValue={generalMessagesPerMonth}
+          />
+        </Field>
+        <div className="sm:col-span-3 space-y-2">
+          <Result state={state} />
+          <Save />
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+/**
+ * 🔴 F2: the minutes before an unacknowledged crisis alert goes to a backup.
+ * Labelled in the reader's language (`acrisis.*`), English and Arabic.
+ */
+export function CrisisEditor({ escalateAfterMinutes }: { escalateAfterMinutes: number }) {
+  const t = useT();
+  const [state, action] = useActionState(saveCrisis, INITIAL);
+
+  return (
+    <Card className="p-4">
+      <p className="text-sm font-semibold text-slate-900">{t("acrisis.title")}</p>
+      <p className="mt-1 text-xs text-slate-500">{t("acrisis.hint")}</p>
+      <form action={action} className="mt-3 grid gap-2 sm:grid-cols-3">
+        <Field label={t("acrisis.escalateAfter")} htmlFor="escalateAfterMinutes">
+          <Input
+            id="escalateAfterMinutes"
+            name="escalateAfterMinutes"
+            type="number"
+            min="1"
+            max="240"
+            defaultValue={escalateAfterMinutes}
           />
         </Field>
         <div className="sm:col-span-3 space-y-2">

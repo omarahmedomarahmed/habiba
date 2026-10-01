@@ -513,6 +513,20 @@ export type PlatformSettings = {
     measuredSince: string | null;
   };
   /**
+   * 🔴 F2: WHEN AN UNACKNOWLEDGED CRISIS ALERT GOES TO A BACKUP.
+   *
+   * Every crisis alert goes out of band to its clinician at once with a link to
+   * acknowledge it. If nobody has acknowledged it after this many minutes it
+   * goes to the clinic's other clinicians and managers (a clinician on their
+   * own skips that stage), and after as many again to the platform's managers.
+   * APPLIED by `lib/crisis/alerts.ts`, driven by the minute tick. Labelled in
+   * both languages on `/admin/settings` (`acrisis.*`). Bounded 1 to 240 by
+   * `lib/crisis/escalation.ts`.
+   */
+  crisis: {
+    escalateAfterMinutes: number;
+  };
+  /**
    * 🔴 0161 — THE RULES, AS SETTINGS (docs/DECISIONS.md, rounds one and two).
    *
    * Every tax, document, provider, timing and approval rule the founder ruled
@@ -1027,6 +1041,10 @@ export const SETTINGS_DEFAULTS: PlatformSettings = {
     /* One in five. Past that the channel halts rather than reporting. */
     muteRateHalt: 0.2,
     measuredSince: null,
+  },
+  /* 🔴 F2: fifteen minutes, then a backup. */
+  crisis: {
+    escalateAfterMinutes: 15,
   },
   rules: RULES_DEFAULTS,
 };
@@ -1647,6 +1665,11 @@ export function parseGroup<G extends SettingsGroup>(
         measuredSince: since && !Number.isNaN(since.getTime()) ? since.toISOString() : null,
       } as PlatformSettings[G];
     }
+
+    case "crisis":
+      return {
+        escalateAfterMinutes: int(v.escalateAfterMinutes, d.crisis.escalateAfterMinutes, { min: 1, max: 240 }),
+      } as PlatformSettings[G];
 
     case "rules":
       return parseRules(value) as PlatformSettings[G];

@@ -175,6 +175,17 @@ const PORTALS: Record<string, readonly string[]> = {
      * therapist chooses their unpaid sessions from.
      */
     "bill",
+    /*
+     * 🔴 F2: `calert` is the crisis alert a CLINICIAN reads: the email and
+     * WhatsApp sent out of band, and the page they acknowledge it on.
+     *
+     *   grep -rn 'calert\.' app components lib
+     *
+     * comes back as `lib/crisis/alerts.ts` (the messages to the clinician and
+     * their backups), `app/(app)/notifications/alerts/[id]/page.tsx` and the
+     * room's risk banner. The letter rule has nothing for `c`.
+     */
+    "calert",
   ],
   clinic: ["clinic", "records"],
   /*

@@ -52,6 +52,41 @@ test("crisis scan covers the phrasings patients actually use", () => {
   }
 });
 
+/*
+ * 🔴 F5 (due diligence): feminine and dialect Arabic, Franco-Arab, and the
+ * English shorthand people type. Each must alert; the controls below must not.
+ * A native-speaker clinician still has to review this list (RULINGS.md).
+ */
+test("F5 crisis scan reads the feminine, the dialect, Franco-Arab and the shorthand", () => {
+  for (const phrase of [
+    "عايزة أموت",
+    "عاوزة أموت",
+    "نفسي أموت",
+    "أنا هنتحر",
+    "هموت نفسي",
+    "مش عايز أعيش",
+    "مش عايزة أعيش",
+    "ana 3ayza amot",
+    "ana hantehar",
+    "I took all my pills",
+    "took all my pills an hour ago",
+    "I think I will overdose",
+    "honestly kms",
+    "kms.",
+    "I want to kill myself",
+    "I just want to end it all",
+    "I want to unalive myself",
+  ]) {
+    assert.ok(scanForCrisisLanguage(phrase).length > 0, `should match: "${phrase}"`);
+  }
+});
+
+test("F5 the short forms need a word, not three letters inside one or a distance", () => {
+  for (const phrase of ["I ran 5 kms this morning", "it is 12 kms away", "about 3.5 kms", "speed in kms/h"]) {
+    assert.deepEqual(scanForCrisisLanguage(phrase), [], `should not match: "${phrase}"`);
+  }
+});
+
 test("crisis scan does not fire on ordinary clinical talk", () => {
   assert.deepEqual(scanForCrisisLanguage("I've been feeling low but I'm managing"), []);
   assert.deepEqual(scanForCrisisLanguage("Work has been killing my motivation"), []);

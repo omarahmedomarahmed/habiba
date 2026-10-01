@@ -197,6 +197,15 @@ export type Message = {
      * per day. A count, a route and a scrubbed message: never patient data.
      */
     | "ops.watchdog"
+    /**
+     * 🔴 F2: A CRISIS ALERT, OUT OF BAND, the moment it is raised, to the
+     * clinician responsible. A sentence and a link to acknowledge it: no
+     * patient name, no matched words, no level. The link opens a signed-in
+     * page, so whoever else reads the phone learns only that an alert exists.
+     */
+    | "crisis.alert"
+    /** 🔴 F2: nobody acknowledged it in time; to a backup. The clinician's name and a link. */
+    | "crisis.escalated"
     /** 🔴 W1-16: a clinician's licence ran out, or will within 30 days. */
     | "licence.expired"
     | "licence.expiring"

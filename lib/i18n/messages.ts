@@ -5655,6 +5655,43 @@ export const en = {
   "psession.change": "Reschedule or cancel",
   "psession.cancelledByYou": "You cancelled it.",
   "psession.cancelledByThem": "Your therapist cancelled it.",
+  /* ------------------------------------- 🔴 F2 / F5: crisis alerts and SOS */
+  "crisis.helpLine": "Help line",
+  "meta.sos": "Help now",
+  "footer.sos": "In crisis? Phone numbers for help now",
+  "crisis.reply.notified": "We have told your therapist.",
+  "crisis.reply.notNotified": "No therapist has been told about this message yet.",
+  "crisis.reply.callLocal": "If you need help right now, call your local emergency number. It is free from any phone.",
+  "crisis.reply.anyTime": "If you need help right now, you can call or text {line} at any time.",
+  "crisis.reply.lineOrLocal": "If you need help right now, you can call {line}, or your local emergency number at any time.",
+  "crisis.reply.openNow": "If you need help right now, you can call {line} now, or {always} at any time.",
+  "crisis.reply.closed": "If you need help right now, call {always} at any time. {line} answers during office hours.",
+  "crisis.reply.support": "Mental health support lines: {lines}.",
+  "calert.subject": "Safety alert: please respond now",
+  "calert.body":
+    "Language linked to risk was detected for one of your patients. Open the alert to reach the session and tell us you have it. If nobody acknowledges it within {minutes} minutes, a backup is told.",
+  "calert.ack": "Open and acknowledge",
+  "calert.escSubject": "Safety alert not acknowledged",
+  "calert.escBody":
+    "A safety alert for a patient of {clinician} has not been acknowledged in {minutes} minutes. Please reach {clinician} now, and acknowledge the alert once somebody has it in hand.",
+  "calert.escBodyManager":
+    "A safety alert for a patient of {clinician} has not been acknowledged in {minutes} minutes. Please reach {clinician} now.",
+  "meta.alert": "Safety alert",
+  "calert.pageTitle": "Safety alert",
+  "calert.raisedAt": "Raised {when}",
+  "calert.levelLine": "Level: {level}",
+  "calert.forPatientOf": "For a patient of {clinician}",
+  "calert.openSession": "Open the session",
+  "calert.ackButton": "I have it: acknowledge",
+  "calert.acked": "Acknowledged by {who}, {when}",
+  "calert.notYours": "This alert is not one you can open.",
+  "calert.escalatedNote": "It was not acknowledged in time, so a backup was told.",
+  "acrisis.title": "Crisis alerts",
+  "acrisis.hint":
+    "An alert nobody acknowledges goes to a backup after this many minutes: the clinic's other clinicians and managers, or the platform's managers for a clinician on their own.",
+  "acrisis.escalateAfter": "Minutes before a backup is told",
+  "acrisis.saved": "Saved.",
+  "acrisis.invalid": "A whole number of minutes from 1 to 240.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -10457,6 +10494,43 @@ export const ar: Record<MessageKey, string> = {
   "psession.change": "إعادة جدولة أو إلغاء",
   "psession.cancelledByYou": "ألغيتها أنت.",
   "psession.cancelledByThem": "ألغاها معالجك.",
+  /* ------------------------------------- 🔴 F2 / F5: crisis alerts and SOS */
+  "crisis.helpLine": "خط المساعدة",
+  "meta.sos": "مساعدة الآن",
+  "footer.sos": "في أزمة؟ أرقام هاتف للمساعدة الآن",
+  "crisis.reply.notified": "أبلغنا معالجك.",
+  "crisis.reply.notNotified": "لم يُبلَّغ أي معالج بهذه الرسالة بعد.",
+  "crisis.reply.callLocal": "إن كنت تحتاج مساعدة الآن، اتصل برقم الطوارئ في بلدك. وهو مجاني من أي هاتف.",
+  "crisis.reply.anyTime": "إن كنت تحتاج مساعدة الآن، يمكنك الاتصال بـ {line} أو مراسلته في أي وقت.",
+  "crisis.reply.lineOrLocal": "إن كنت تحتاج مساعدة الآن، يمكنك الاتصال بـ {line}، أو برقم الطوارئ في بلدك في أي وقت.",
+  "crisis.reply.openNow": "إن كنت تحتاج مساعدة الآن، يمكنك الاتصال بـ {line} الآن، أو بـ {always} في أي وقت.",
+  "crisis.reply.closed": "إن كنت تحتاج مساعدة الآن، اتصل بـ {always} في أي وقت. يرد {line} في ساعات العمل.",
+  "crisis.reply.support": "خطوط دعم الصحة النفسية: {lines}.",
+  "calert.subject": "تنبيه سلامة: يرجى الاستجابة الآن",
+  "calert.body":
+    "رُصدت عبارات مرتبطة بالخطر لدى أحد مرضاك. افتح التنبيه للوصول إلى الجلسة وأخبرنا أنك تتابعه. إن لم يؤكد أحد استلامه خلال {minutes} دقيقة، يُبلَّغ شخص احتياطي.",
+  "calert.ack": "افتح وأكّد الاستلام",
+  "calert.escSubject": "تنبيه سلامة لم يُؤكَّد استلامه",
+  "calert.escBody":
+    "لم يُؤكَّد استلام تنبيه سلامة لمريض لدى {clinician} خلال {minutes} دقيقة. يرجى التواصل مع {clinician} الآن، وتأكيد استلام التنبيه حين يتولاه أحد.",
+  "calert.escBodyManager":
+    "لم يُؤكَّد استلام تنبيه سلامة لمريض لدى {clinician} خلال {minutes} دقيقة. يرجى التواصل مع {clinician} الآن.",
+  "meta.alert": "تنبيه سلامة",
+  "calert.pageTitle": "تنبيه سلامة",
+  "calert.raisedAt": "أُطلق {when}",
+  "calert.levelLine": "المستوى: {level}",
+  "calert.forPatientOf": "لمريض لدى {clinician}",
+  "calert.openSession": "افتح الجلسة",
+  "calert.ackButton": "أتولاه الآن: تأكيد الاستلام",
+  "calert.acked": "أكّد الاستلام {who}، {when}",
+  "calert.notYours": "لا يمكنك فتح هذا التنبيه.",
+  "calert.escalatedNote": "لم يُؤكَّد استلامه في الوقت المحدد، فأُبلغ شخص احتياطي.",
+  "acrisis.title": "تنبيهات الأزمات",
+  "acrisis.hint":
+    "التنبيه الذي لا يؤكد أحد استلامه يذهب إلى شخص احتياطي بعد هذا العدد من الدقائق: باقي معالجي العيادة ومديريها، أو مديري المنصة للمعالج الذي يعمل وحده.",
+  "acrisis.escalateAfter": "الدقائق قبل إبلاغ الشخص الاحتياطي",
+  "acrisis.saved": "حُفظ.",
+  "acrisis.invalid": "عدد صحيح من الدقائق بين 1 و240.",
 };
 
 export const DICTIONARIES = { en, ar } as const;

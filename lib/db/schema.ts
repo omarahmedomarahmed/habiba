@@ -1598,10 +1598,28 @@ export const riskAssessments = pgTable(
     acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
     acknowledgedBy: uuid("acknowledged_by").references(() => users.id, { onDelete: "set null" }),
 
+    /**
+     * 🔴 0185 / F2: the alert leaves the building, and goes to a backup when
+     * nobody acknowledges it. `escalate_at` is when the next stage is due
+     * (null once acknowledged, once the platform has been told, and on every
+     * row from before 0185); `escalation_stage` is 0 clinician only, 1 the
+     * clinic's backups told, 2 the platform told. `escalated_to` holds the
+     * user ids told, never a name. `out_of_band_at` is when the email or
+     * WhatsApp to the clinician actually left; attempts count the tries.
+     */
+    escalateAt: timestamp("escalate_at", { withTimezone: true }),
+    escalationStage: integer("escalation_stage").notNull().default(0),
+    escalatedAt: timestamp("escalated_at", { withTimezone: true }),
+    escalatedTo: jsonb("escalated_to").$type<string[]>().notNull().default([]),
+    outOfBandAt: timestamp("out_of_band_at", { withTimezone: true }),
+    outOfBandAttempts: integer("out_of_band_attempts").notNull().default(0),
+    outOfBandChannels: jsonb("out_of_band_channels").$type<string[]>().notNull().default([]),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     index("risk_assessments_session_idx").on(t.sessionId),
+    index("risk_assessments_escalate_idx").on(t.escalateAt).where(sql`acknowledged_at IS NULL`),
     index("risk_assessments_alert_status_idx").on(t.alertStatus, t.createdAt),
     index("risk_assessments_therapist_idx").on(t.therapistId, t.createdAt),
   ],

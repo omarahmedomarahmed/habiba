@@ -147,7 +147,8 @@ test("🔴 W1-09 a configured line reaches its own country, by page country or b
 test("🔴 W1-09 Egypt never gets 105 alone, and outside its hours the always-open numbers lead", async () => {
   const { sosLinesFor } = await import("../lib/crisis/sos");
   const open = sosLinesFor({ country: "EG", countries: COUNTRIES, now: MONDAY_NOON });
-  assert.deepEqual(open.map((entry) => entry.line.tel).sort(), ["105", "112", "123"]);
+  /* F5: the two General Secretariat support lines sit beside 105 and the emergency numbers. */
+  assert.deepEqual(open.map((entry) => entry.line.tel).sort(), ["0220816831", "08008880700", "105", "112", "123"]);
   assert.equal(open[0]!.line.tel, "105");
   assert.equal(open[0]!.open, true);
 

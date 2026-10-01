@@ -111,6 +111,14 @@ export const CRISIS_LINES: Record<string, CrisisLine> = {
   EG: {
     label: "105",
     tel: "105",
+    /*
+     * 🔴 F5: WHAT 105 IS, said plainly. The sheet used to put "نجدة" over it,
+     * which an Egyptian reads as the police emergency service (شرطة النجدة,
+     * 122). 105 is the unified Ministry of Health and Population hotline,
+     * which covers mental health and addiction (RESEARCH-2 section 1, Ahram
+     * Online). It is named as that, in both languages.
+     */
+    name: { en: "Health ministry hotline", ar: "الخط الساخن لوزارة الصحة" },
     steps: {
       en: "Press 1 for Arabic, then 1 for mental health.",
       ar: "اضغط ١ للعربية، ثم ١ للصحة النفسية.",
@@ -135,6 +143,31 @@ export const EMERGENCY_LINES: Record<string, CrisisLine[]> = {
   EG: [
     { label: "123", tel: "123", hours: "always", name: { en: "Ambulance", ar: "الإسعاف" } },
     { label: "112", tel: "112", hours: "always", name: { en: "Emergency", ar: "الطوارئ" } },
+  ],
+};
+
+/**
+ * 🔴 F5: MENTAL HEALTH SUPPORT LINES, per country, shown beside the crisis line.
+ *
+ * Egypt's General Secretariat of Mental Health and Addiction Treatment runs
+ * psychological support lines on 08008880700 and 0220816831
+ * (takeover/design/RESEARCH-2.md section 1, citing Daily News Egypt). The
+ * source gives no hours, so none are written here and the sheet labels them
+ * neither open nor closed. They are support lines, not emergency numbers: the
+ * always-open numbers above still sit beside them.
+ */
+export const SUPPORT_LINES: Record<string, CrisisLine[]> = {
+  EG: [
+    {
+      label: "0800 888 0700",
+      tel: "08008880700",
+      name: { en: "Mental health support", ar: "دعم الصحة النفسية" },
+    },
+    {
+      label: "02 2081 6831",
+      tel: "0220816831",
+      name: { en: "Mental health support", ar: "دعم الصحة النفسية" },
+    },
   ],
 };
 
@@ -234,6 +267,8 @@ export function crisisLine(
       ...(sameNumber && built?.steps ? { steps: built.steps } : {}),
       /* W1-09: and its hours, on the same rule: known for that number only. */
       ...(sameNumber && built?.hours ? { hours: built.hours } : {}),
+      /* F5: and what the number is, on the same rule. */
+      ...(sameNumber && built?.name ? { name: built.name } : {}),
     };
   }
 
