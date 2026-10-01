@@ -593,8 +593,21 @@ async function potAlerts(db: ReturnType<typeof connect>["db"]) {
      * 🔴 C7: the live balance crossing the line is not enough. The warning reads
      * the balance the company's own page shows, so its arrival dates nobody's
      * session.
+     *
+     * DD-2 B1: the published balance is now the live one with every session
+     * movement since the last published period added back. So the fall is a
+     * real pot spend in the ledger, dated in the last complete week, with no
+     * period published yet: the company still sees 10000.
      */
-    await db.execute(sql`UPDATE sponsor_pots SET balance_cents = 1000, published_balance_cents = 10000 WHERE sponsor_id = ${sponsorId}`);
+    const { lastCompleteWeek } = await import("../lib/sponsor/ledger");
+    const week = lastCompleteWeek(new Date());
+    const spentAt = new Date(Date.parse(`${week}T12:00:00Z`) + 24 * 60 * 60 * 1000);
+    const txnId = crypto.randomUUID();
+    await db.execute(sql`
+      INSERT INTO ledger_entries (txn_id, txn_kind, account, amount_cents, currency, ref_type, ref_id, memo, created_at)
+      VALUES (${txnId}, 'session_payment', 'sponsor_pot', 9000, 'usd', 'sponsor', ${sponsorId}, 'W1D pot spend', ${spentAt}),
+             (${txnId}, 'session_payment', 'cash', -9000, 'usd', 'sponsor', ${sponsorId}, 'W1D pot spend', ${spentAt})`);
+    await db.execute(sql`UPDATE sponsor_pots SET balance_cents = 1000 WHERE sponsor_id = ${sponsorId}`);
     await alertPots();
     check(
       "🔴 C7 a pot whose LIVE balance fell, and whose published one has not, is not warned",
@@ -602,7 +615,13 @@ async function potAlerts(db: ReturnType<typeof connect>["db"]) {
       `${await sent("low")} low`,
     );
 
-    await db.execute(sql`UPDATE sponsor_pots SET published_balance_cents = 1000 WHERE sponsor_id = ${sponsorId}`);
+    /* That week clears the people floor (five different people), so the spend is published. */
+    for (let person = 0; person < 5; person += 1) {
+      await db.execute(sql`
+        INSERT INTO sponsor_money_entries
+          (sponsor_id, kind, week_start, price_cents, coverage_bps, covered_cents, employee_cents, shuffle, person_tag)
+        VALUES (${sponsorId}, 'session', ${week}, 1800, 10000, 1800, 0, ${person}, ${`w1d-${fixture}-${person}`})`);
+    }
     await alertPots();
     await alertPots();
     check(
