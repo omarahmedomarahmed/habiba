@@ -10,7 +10,8 @@ founder's direction, and every change now reaches production through a pull requ
 3. Before merging, the change is reviewed (an AI code review of the diff, recorded on the pull
    request as an AI review, never presented as a human one). Findings are fixed or answered first.
 4. Before a merge that will deploy, run the full local gates (`npm run gates`, with the secrets file),
-   and apply production migrations first with `npm run on:production -- db:migrate`.
+   apply production migrations first with `npm run on:production -- db:migrate`, then store new
+   settings with `npm run on:production -- settings:seed`.
 5. Merge with a merge commit. Only `main` deploys (see `vercel.json`); nothing pushes to `main` by
    any other route.
 6. Product, clinical, legal and money decisions are proposed in the pull request and recorded in

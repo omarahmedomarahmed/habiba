@@ -27,6 +27,10 @@ npm run db:migrate && npm run settings:seed && SEED_ADMIN_EMAIL=ci-admin@example
 Variables set in the shell win over `.env.local`, so this never reaches dev. `npm run gates` is run locally before a merge that deploys; it
 takes a long time, so between edits run only the narrow check for what you touched.
 
+When a run needs the secrets file, keep it outside the repository (it is public) and load it in a
+subshell so no value is expanded onto a command line, where `ps` and shell history would show it:
+`(set -a; . ~/24therapy-secrets.env; set +a; npm run gates)`. Never `env $(xargs < file) ...`.
+
 `npm test` alone runs the safety and due diligence suites (`tests/safety.test.ts`,
 `tests/due-diligence.test.ts`, `tests/due-diligence-consent.test.ts`).
 

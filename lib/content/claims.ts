@@ -72,6 +72,9 @@ export const FORBIDDEN_CLAIMS: ClaimRule[] = [
 
 export type ClaimHit = { where: string; rule: string; why: string; text: string };
 
+/** Block keys whose values are not copy a reader reads: kinds, links, images, ids. */
+export const NON_COPY_KEYS: readonly string[] = ["type", "icon", "demo", "slug", "backgroundImage", "ctaHref", "entity"];
+
 /**
  * Every string a reader could see in a block tree. A FAQ item is also read as
  * its question and answer together, because "Is a BAA included?" and "Yes"
@@ -83,7 +86,7 @@ export function claimStrings(value: unknown, path = ""): { path: string; text: s
   if (value && typeof value === "object") {
     const record = value as Record<string, unknown>;
     const own = Object.entries(record).flatMap(([key, entry]) =>
-      ["type", "icon", "demo", "slug", "backgroundImage", "ctaHref", "entity"].includes(key)
+      NON_COPY_KEYS.includes(key)
         ? []
         : claimStrings(entry, path ? `${path}.${key}` : key),
     );
@@ -115,6 +118,47 @@ export function forbiddenClaimsIn(label: string, blocks: unknown): ClaimHit[] {
   return claimStrings(blocks).flatMap((entry) =>
     claimsIn(`${label}${entry.path ? ` ${entry.path}` : ""}`, entry.text),
   );
+}
+
+type PageText = { slug: string; title: string; description: string | null; blocks: unknown };
+
+/** Every forbidden claim a published page makes: its title, its description and its blocks. */
+export function pageClaims(label: string, page: Omit<PageText, "slug">): ClaimHit[] {
+  return [
+    ...claimsIn(`${label} title`, page.title),
+    ...(page.description ? claimsIn(`${label} description`, page.description) : []),
+    ...forbiddenClaimsIn(label, page.blocks),
+  ];
+}
+
+/**
+ * DD-2: what a published row may show. A row with no false claim as it is. A
+ * row with one is replaced by its code default when there is one; a CMS-only
+ * page has none, so it is served with each offending block left out, and a
+ * false title or description is replaced by the slug or dropped. Either way
+ * `hits` is not empty and the caller reports it.
+ */
+export function guardedPage<P extends PageText>(
+  label: string,
+  row: P,
+  fallback: P | null | undefined,
+): { page: P; hits: ClaimHit[]; served: "row" | "default" | "trimmed" } {
+  const hits = pageClaims(label, row);
+  if (hits.length === 0) return { page: row, hits, served: "row" };
+  if (fallback) return { page: fallback, hits, served: "default" };
+  const blocks = Array.isArray(row.blocks)
+    ? row.blocks.filter((block) => forbiddenClaimsIn(label, block).length === 0)
+    : row.blocks;
+  return {
+    page: {
+      ...row,
+      title: claimsIn(label, row.title).length > 0 ? row.slug : row.title,
+      description: row.description && claimsIn(label, row.description).length > 0 ? null : row.description,
+      blocks,
+    } as P,
+    hits,
+    served: "trimmed",
+  };
 }
 
 /** What an admin reads when a save is refused. */

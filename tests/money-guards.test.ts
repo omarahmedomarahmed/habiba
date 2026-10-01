@@ -5,6 +5,12 @@ import { test } from "node:test";
 
 import { egpBackFor, egpShortfall, egpWithdrawable, payableEgpFor, stillHeldCents } from "../lib/billing/egp-books";
 import { payoutSeparationProblem } from "../lib/billing/four-eyes";
+import {
+  classifyRecheck,
+  nextNoRecordSince,
+  NO_RECORD_ALERT_HOURS,
+  noRecordAlertDue,
+} from "../lib/billing/payout-unknown";
 import { stripCommentsKeepingLines } from "../scripts/_dashes";
 
 /**
@@ -124,9 +130,8 @@ test("a send with no answer is unknown, and nothing sends or marks it until the 
   // The claim to send again only takes a request that is not unknown.
   assert.match(send, /providerState\} IS NULL OR \$\{payoutRequests\.providerState\} = 'failed'/);
   assert.match(payouts, /NOT IN \('sending', 'sent', 'unknown'\)/, "a reject must not land on money in flight");
-  const recheck = bodyOf(payouts, "export async function recheckPayout(");
-  assert.match(recheck, /fetchByReference\(row\.id\)/);
-  assert.match(recheck, /providerState: "failed"/);
+  assert.match(bodyOf(payouts, "async function askProviderAgain("), /fetchByReference\(row\.id\)/);
+  assert.match(bodyOf(payouts, "async function applyRecheckAnswer("), /providerState: "failed"/);
   assert.match(code("app/api/cron/[job]/route.ts"), /recheckUnknownPayouts\(\)/);
 });
 
@@ -193,4 +198,77 @@ test("nothing the product runs updates or deletes a ledger row", () => {
   assert.deepEqual(offenders, []);
   // Control: the pattern catches the shape it is for.
   assert.match("await db.update(ledgerEntries).set({})", /\.(update|delete)\(ledgerEntries\)/);
+});
+
+/* ---------------------------------- 0195: the exit from unknown, and the alarm -- */
+
+test("whoever pressed Send does not confirm it was not sent, while the separation rule is on", () => {
+  const base = { act: "confirm_not_sent" as const, transferConfirmers: [], approvedByUserId: "cat" };
+  assert.equal(payoutSeparationProblem({ ...base, actorUserId: "ann", sentByUserId: "ann", separate: true }), "sent_it");
+  assert.equal(payoutSeparationProblem({ ...base, actorUserId: "bob", sentByUserId: "ann", separate: true }), null);
+  assert.equal(payoutSeparationProblem({ ...base, actorUserId: "ann", sentByUserId: "ann", separate: false }), null);
+});
+
+test("a re-check says what it found, and only a record stops the no-record clock", () => {
+  assert.equal(classifyRecheck({ sentWith: "paymob", providerNow: null }), "no_provider");
+  assert.equal(classifyRecheck({ sentWith: "paymob", providerNow: "fake" }), "provider_changed");
+  assert.equal(classifyRecheck({ sentWith: "paymob", providerNow: "paymob", asked: "no_record" }), "no_record");
+  assert.equal(classifyRecheck({ sentWith: "paymob", providerNow: "paymob", asked: "record" }), "answered");
+  assert.equal(classifyRecheck({ sentWith: "paymob", providerNow: "paymob", asked: "error" }), "no_answer");
+
+  const t0 = new Date("2026-10-01T00:00:00Z");
+  const later = new Date(t0.getTime() + 5 * 3_600_000);
+  assert.equal(nextNoRecordSince(null, "no_record", t0), t0);
+  assert.equal(nextNoRecordSince(t0, "no_record", later), t0, "a run keeps its start");
+  assert.equal(nextNoRecordSince(t0, "provider_changed", later), t0);
+  assert.equal(nextNoRecordSince(t0, "no_answer", later), t0, "no answer is not evidence either way");
+  assert.equal(nextNoRecordSince(null, "no_answer", later), null);
+  assert.equal(nextNoRecordSince(t0, "answered", later), null);
+
+  assert.equal(noRecordAlertDue(null, later), false);
+  assert.equal(noRecordAlertDue(t0, new Date(t0.getTime() + (NO_RECORD_ALERT_HOURS - 1) * 3_600_000)), false);
+  assert.equal(noRecordAlertDue(t0, new Date(t0.getTime() + NO_RECORD_ALERT_HOURS * 3_600_000)), true);
+});
+
+test("confirming not sent is guarded, audited, re-asks first, and never runs on its own", () => {
+  const payouts = code("lib/billing/payouts.ts");
+  const confirm = bodyOf(payouts, "export async function confirmPayoutNotSent(");
+  assert.match(confirm, /fourEyes\(row, input\.actorUserId/);
+  assert.match(confirm, /act: "confirm_not_sent"/);
+  assert.match(confirm, /askProviderAgain\(row\)/);
+  assert.match(confirm, /eq\(payoutRequests\.providerState, "unknown"\)/);
+  assert.match(confirm, /payoutRequestEvents/);
+  // The hourly job raises it; it never fails money itself.
+  const job = bodyOf(payouts, "export async function recheckUnknownPayouts(");
+  assert.match(job, /recordError\(/);
+  assert.doesNotMatch(job, /confirmPayoutNotSent|providerState: "failed"/);
+  assert.match(bodyOf(code("app/(admin)/admin/payouts/actions.ts"), "export async function confirmNotSent("), /audit\(/);
+});
+
+test("every payout separation refusal says how to proceed, in both languages", async () => {
+  const { en, ar } = await import("../lib/i18n/messages");
+  for (const key of ["aaccess.fourApprover", "aaccess.fourTransfer", "aaccess.fourNotSent"] as const) {
+    assert.match(en[key], /Ask another staff member, or a super admin can turn off 'Transfer, approve and send by different people' in Rules\./);
+    assert.match(ar[key], /موظف آخر/);
+    assert.match(ar[key], /Transfer, approve and send by different people/);
+  }
+});
+
+test("the earnings page says when the held amount carries sessions the summary does not count", () => {
+  const page = code("app/(app)/earnings/page.tsx");
+  assert.match(page, /missedUnrefundedNetCents\(actor\.userId\)/);
+  assert.match(page, /portal\.earnings\.missedHeld/);
+  const fn = bodyOf(code("lib/billing/connect.ts"), "export async function missedUnrefundedNetCents(");
+  assert.match(fn, /NOT \$\{sessionMayHaveTakenPlaceSql\(\)\}/);
+  assert.match(fn, /eq\(sessionPayments\.status, "paid"\)/);
+});
+
+test("a statement figure that differs from the row says so, even with nothing else expected", () => {
+  const body = bodyOf(code("lib/billing/manual.ts"), "export async function confirmPayment(");
+  const check = body.indexOf("await statementDiffersFromRow(input.paymentId, input.statementMinor)) return { error: STATEMENT_DIFFERS }");
+  const update = body.indexOf(".update(manualPayments)");
+  assert.ok(check > 0, "the row's amount is not compared with the statement");
+  assert.ok(check < update, "the comparison must come before the guarded update");
+  const helper = bodyOf(code("lib/billing/manual.ts"), "async function statementDiffersFromRow(");
+  assert.match(helper, /current\.amountCents !== statementMinor/);
 });

@@ -536,6 +536,17 @@ export type Decision = {
 /** 0188: the bank statement figure staff typed is not this transfer's amount. A dictionary key. */
 export const STATEMENT_DIFFERS = "atransfer.statementDiffers";
 
+/** Whether the statement figure staff typed is not the row's declared amount. */
+async function statementDiffersFromRow(paymentId: string, statementMinor: number | null | undefined): Promise<boolean> {
+  if (statementMinor == null) return false;
+  const [current] = await db
+    .select({ amountCents: manualPayments.amountCents })
+    .from(manualPayments)
+    .where(eq(manualPayments.id, paymentId))
+    .limit(1);
+  return Boolean(current && current.amountCents !== statementMinor);
+}
+
 export async function confirmPayment(input: {
   paymentId: string;
   byUserId: string;
@@ -556,6 +567,12 @@ export async function confirmPayment(input: {
   if (input.statementMinor != null && input.expected && input.statementMinor !== input.expected.amountCents) {
     return { error: STATEMENT_DIFFERS };
   }
+  /*
+   * 🔴 Against the row too, before the update: without `expected` the guarded
+   * UPDATE below matched nothing and the operator read "not waiting for a
+   * decision" instead of "the statement says a different amount".
+   */
+  if (await statementDiffersFromRow(input.paymentId, input.statementMinor)) return { error: STATEMENT_DIFFERS };
   /*
    * 🔴 78.6 — `decided_at` IS THE DATABASE'S CLOCK, NOT THIS PROCESS'S, AND A
    * COMPANY'S TRANSFER WENT MISSING BECAUSE IT WAS NOT.

@@ -2035,6 +2035,27 @@ export async function earningsSummary(therapistId: string): Promise<Earnings> {
 }
 
 /**
+ * DD-2: the clinician's share of paid, unrefunded sessions that did not take
+ * place. The summary leaves them out as not earned; the held balance is the
+ * ledger and still carries them until a refund moves the money, so the
+ * earnings page says so when this is above zero.
+ */
+export async function missedUnrefundedNetCents(therapistId: string): Promise<number> {
+  const [row] = await db
+    .select({ net: sql<number>`COALESCE(SUM(${sessionPayments.therapistNetCents}), 0)::int` })
+    .from(sessionPayments)
+    .innerJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
+    .where(
+      and(
+        eq(sessionPayments.therapistId, therapistId),
+        eq(sessionPayments.status, "paid"),
+        sql`NOT ${sessionMayHaveTakenPlaceSql()}`,
+      ),
+    );
+  return row?.net ?? 0;
+}
+
+/**
  * 🔴 46.15 / C243 — the therapist's ledger shows the PATIENT, never the PAYER.
  *
  * This selected `payerName`, and `components/billing/ledger.tsx` rendered it

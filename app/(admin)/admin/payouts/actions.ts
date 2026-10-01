@@ -224,3 +224,28 @@ export async function recheckWithProvider(_prev: QueueState, formData: FormData)
           : "apayout.recheckStill";
   return { ok: true, note: await say(key) };
 }
+
+/**
+ * 🔴 0195: the provider confirms a payout left `unknown` was never sent. It
+ * moves to `failed`, so it can be sent again; a second person, a reason, and
+ * what the provider check found, all on the audit record.
+ */
+export async function confirmNotSent(_prev: QueueState, formData: FormData): Promise<QueueState> {
+  const actor = await requireStaff();
+  const requestId = String(formData.get("requestId") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+  const { confirmPayoutNotSent } = await import("@/lib/billing/payouts");
+  const result = await confirmPayoutNotSent({ requestId, actorUserId: actor.userId, reason });
+  if (result.error) return { error: await say(result.error) };
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "payout.provider_confirmed_not_sent",
+    resourceType: "payout_request",
+    resourceId: requestId,
+    reason: `${reason.trim()} (provider check: ${result.found ?? "none"})`,
+  });
+  revalidatePath("/admin/payouts");
+  return { ok: true, note: await say("apayout.notSentDone") };
+}

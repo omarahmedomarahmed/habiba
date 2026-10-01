@@ -5913,6 +5913,12 @@ export const payoutRequests = pgTable(
     providerSenderUserId: uuid("provider_sender_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    /**
+     * 0195: when re-checks of an `unknown` payout started finding nothing (no
+     * record, or a provider that cannot be asked). Past 72 hours the errors
+     * board hears of it; a record clears it.
+     */
+    providerNoRecordSince: timestamp("provider_no_record_since", { withTimezone: true }),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

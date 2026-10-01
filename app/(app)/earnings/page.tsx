@@ -12,6 +12,7 @@ import {
   accountBalance,
   earningsSummary,
   getConnectAccount,
+  missedUnrefundedNetCents,
   recentPayments,
 } from "@/lib/billing/connect";
 import { heldForTherapist, transfersForTherapist } from "@/lib/billing/ledger";
@@ -67,6 +68,8 @@ export default async function EarningsPage() {
   /* 🔴 0188: and not what is still inside its holding period after the session. */
   const holdingCents = await stillHeldFor(actor.userId, settings.rules.earnings.holdDays);
   const availableCents = availableToWithdraw(held, requests, holdingCents);
+  /* DD-2: the summary leaves out sessions that did not take place; the held balance still carries them. */
+  const missedCents = held > 0 ? await missedUnrefundedNetCents(actor.userId) : 0;
 
   /*
    * 🔴 76.34 — does this practice bill on the manual rail. The same question
@@ -100,6 +103,12 @@ export default async function EarningsPage() {
           heldCents={earnings.heldCents}
           manualRail={needsTransfer}
         />
+
+        {missedCents > 0 ? (
+          <p className="rounded-xl bg-navy-50 px-3.5 py-2.5 text-sm text-navy-500">
+            {rich(t("portal.earnings.missedHeld", { amount: slot(0) }), [<Money key="missed" cents={missedCents} />])}
+          </p>
+        ) : null}
 
         {/*
           The one thing a held balance can do before it is released.
