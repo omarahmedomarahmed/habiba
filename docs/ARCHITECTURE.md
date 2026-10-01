@@ -143,8 +143,11 @@ transaction whose legs do not sum to zero. Accounts: `cash`, `therapist_payable`
 | Alert raised from the phrase list or the risk ladder, written before anyone is notified | `lib/crisis/alerts.ts` (`raiseCrisisAlert`) |
 | Out of band at once: email, and WhatsApp where a channel and an approved template exist | same, through `notify()` (ruling CR1) |
 | Escalation if unacknowledged after `crisis.escalateAfterMinutes` (default 15): clinic colleagues and managers, then the platform's managers and super admins | `lib/crisis/escalation.ts` (rulings CR2, CR3) |
+| Out-of-band sends all failed: escalate at once, recorded on `/admin/errors` | `escalateNowIfExhausted`, `afterFailedSend` (ruling CR11) |
+| A journal hit raises the same alert, per grant holder, or straight to the platform with none | `lib/data/journals.ts` (ruling CR10, migration 0192) |
 | A higher level inside 10 minutes upgrades the alert and notifies again | `dedupDecision` (ruling CR5) |
-| Acknowledge on a signed-in page, never by opening a link | ruling CR1 |
+| Acknowledge on a signed-in page, never by opening a link; only the clinician, a clinician in the practice or the platform on-call | `mayAcknowledge` (rulings CR1, CR12) |
+| A patient who paused AI: no transcription, and the room and the session say live risk detection is off | `sessions.live_risk_off_at` (ruling CR13) |
 | SOS numbers per country; `/sos` works without JavaScript | `lib/crisis/sos.ts`, `lib/crisis/line.ts`, `app/sos/page.tsx` |
 | The crisis path never depends on money | Rule C235; the `crisis` demo position walks it (promise P5, `docs/DEMO.md`) |
 | The patient's crisis reply says who was told, in their language | `lib/crisis/patient-message.ts` (ruling CR8) |

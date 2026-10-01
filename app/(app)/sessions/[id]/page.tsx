@@ -290,6 +290,12 @@ export default async function SessionDetailPage({
             {t("portal.session.aiPaused")}
           </p>
         ) : null}
+        {/* 🔴 Due diligence: the record says this session ran with no live risk detection, even after AI resumes. */}
+        {row.session.liveRiskOffAt ? (
+          <p role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
+            {t("portal.session.liveRiskOff")}
+          </p>
+        ) : null}
         {live ? (
           <Card className="overflow-hidden p-0">
             <div className="relative flex flex-col items-start gap-4 overflow-hidden bg-navy-900 p-5 text-white">

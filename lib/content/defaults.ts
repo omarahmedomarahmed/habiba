@@ -65,7 +65,7 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "On-demand sessions",
-          ours: "Crisis Radar: a patient books whoever is free right now.",
+          ours: "Radar: a patient sees who is free right now and books them.",
           theirs: "Appointments are scheduled. No on-demand marketplace.",
         },
         {
@@ -141,7 +141,7 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "On-demand sessions",
-          ours: "Crisis Radar, and an employer can fund it.",
+          ours: "Radar: who is free right now, and an employer can fund it.",
           theirs: "No on-demand marketplace.",
         },
         {
@@ -606,8 +606,8 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             demo: "copilot",
           },
           {
-            title: "Crisis language raises a flag",
-            body: "To you and only you. A patient sees a supportive message and a crisis line, never a level.",
+            title: "Some crisis language raises a flag",
+            body: "To you and only you, and it can miss things. A patient sees a supportive message and emergency numbers, never a level.",
             icon: "alert",
             demo: "risk",
           },

@@ -5,9 +5,9 @@ import { and, desc, eq, gt, isNull, lt, or } from "drizzle-orm";
 import { audit } from "@/lib/audit";
 import { dbFor } from "@/lib/db";
 import { regionOfPerson } from "@/lib/db/directory";
-import { historyGrants, journals, notifications, people } from "@/lib/db/schema";
+import { historyGrants, journals, patients, people, users } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
-import { scanForCrisisLanguage } from "@/lib/crisis/alerts";
+import { raiseCrisisAlert, scanForCrisisLanguage } from "@/lib/crisis/alerts";
 
 
 
@@ -37,9 +37,9 @@ import { scanForCrisisLanguage } from "@/lib/crisis/alerts";
  * they are alone with a phone number on the screen. The crisis line is always
  * on screen, which is the part we can actually keep.
  *
- * `raiseCrisisAlert` is deliberately NOT used: it hangs off a session, and a
- * journal has none. The notification here is the same shape and says what it
- * is.
+ * 🔴 Due diligence: the alert is `raiseCrisisAlert`, the same one a session
+ * raises (0192 lets a risk row hang off a journal), so it leaves the app and
+ * escalates. The patient still sees nothing about it, per C123.
  */
 
 export type JournalEntry = {
@@ -148,10 +148,17 @@ export async function writeJournal(input: {
  * person uses: a clinician with no current access is not told what somebody
  * wrote tonight.
  *
- * The notification names the journal and does **not** quote it. A crisis
- * notification is read in a list, sometimes on a lock screen, and a patient's
- * words about wanting to die do not belong there. The clinician opens the
- * record to read it, which is also where the audit trail records that they did.
+ * 🔴 Due diligence: a journal hit used to be an in-app row and nothing else.
+ * It is now a crisis alert like a session's (`raiseCrisisAlert`): an in-app
+ * row, an email (and WhatsApp where configured) to each clinician holding a
+ * live grant, and the escalation ladder to their practice and then the
+ * platform on-call when nobody acknowledges it. With no clinician holding a
+ * grant it goes straight to the platform on-call.
+ *
+ * Nothing quotes the entry. A crisis notification is read in a list, sometimes
+ * on a lock screen, and a patient's words about wanting to die do not belong
+ * there. The clinician opens the record to read it, which is also where the
+ * audit trail records that they did.
  */
 async function alertGrantHolders(
   personId: string,
@@ -162,8 +169,9 @@ async function alertGrantHolders(
   const db = dbFor(await regionOfPerson(personId));
 
   const holders = await db
-    .selectDistinct({ userId: historyGrants.therapistUserId })
+    .selectDistinct({ userId: historyGrants.therapistUserId, organizationId: users.organizationId })
     .from(historyGrants)
+    .innerJoin(users, eq(users.id, historyGrants.therapistUserId))
     .where(
       and(
         eq(historyGrants.personId, personId),
@@ -174,38 +182,53 @@ async function alertGrantHolders(
          * so those clinicians were never told. Same rule as `isLiveGrant`.
          */
         or(isNull(historyGrants.expiresAt), gt(historyGrants.expiresAt, now)),
+        eq(users.status, "active"),
+        isNull(users.deletedAt),
       ),
     );
-
-  if (holders.length === 0) return;
 
   const [person] = await db
     .select({ firstName: people.firstName, lastName: people.lastName })
     .from(people)
     .where(eq(people.id, personId))
     .limit(1);
-
   const name = [person?.firstName, person?.lastName].filter(Boolean).join(" ");
+  const journal = { journalId, personId, name };
+  const shared = { level: "high" as const, source: "keyword" as const, indicators };
 
-  /* 🔴 K22: each clinician in their own language (Ruling 8). */
-  const { wordsFor } = await import("@/lib/i18n/message-words");
-  await db.insert(notifications).values(
-    await Promise.all(
-      holders.map(async (holder) => {
-        const { t } = await wordsFor({ userId: holder.userId });
-        return {
-          userId: holder.userId,
-          kind: "crisis" as const,
-          title: t("talert.journalTitle", { name: name || t("talert.aPatient") }),
-          body:
-            indicators.length === 1
-              ? t("talert.journalBodyOne")
-              : t("talert.journalBody", { count: indicators.length }),
-          actionUrl: `/people/${personId}`,
-        };
-      }),
-    ),
-  );
+  /* Nobody holds a grant: the platform on-call, at once. */
+  if (holders.length === 0) {
+    await raiseCrisisAlert({ ...shared, journal, therapistId: null, organizationId: null, patientId: null });
+    return;
+  }
+
+  for (const holder of holders) {
+    /* Their chart for this person, so the alert opens the record they read journals in. */
+    const [chart] = await db
+      .select({ id: patients.id })
+      .from(patients)
+      .where(
+        and(
+          eq(patients.personId, personId),
+          eq(patients.organizationId, holder.organizationId),
+          isNull(patients.deletedAt),
+        ),
+      )
+      .orderBy(desc(eq(patients.therapistId, holder.userId)))
+      .limit(1);
+    try {
+      await raiseCrisisAlert({
+        ...shared,
+        journal,
+        therapistId: holder.userId,
+        organizationId: holder.organizationId,
+        patientId: chart?.id ?? null,
+      });
+    } catch (error) {
+      /* One clinician's alert failing does not stop the next one. */
+      log.error("journal alert to one clinician failed", { journal: ref(journalId), reason: safeErrorMessage(error) });
+    }
+  }
 }
 
 /**

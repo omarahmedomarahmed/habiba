@@ -1614,10 +1614,13 @@ test("the crisis message never says a line with office hours answers at any time
   assert.ok(egypt.message.includes("123"), "an always-open number is named");
   assert.deepEqual(Object.keys(egypt).sort(), ["helpline", "message"]);
 
-  // Tuesday 11:00 in Cairo: 105 is likely open, and the emergency number is still there.
+  // Tuesday 11:00 in Cairo: 105's hours are unconfirmed, so it is offered with "check its hours", after 123.
   const tuesdayMorning = new Date("2026-09-22T08:00:00Z");
   const open = patientFacingCrisisMessage("EG", null, tuesdayMorning);
   assert.ok(open.message.includes("105") && open.message.includes("123"), open.message);
+  assert.ok(open.message.indexOf("123") < open.message.indexOf("105"), open.message);
+  assert.match(open.message, /check its hours/);
+  assert.equal(open.helpline, "123");
 
   // 988 answers around the clock, so "at any time" is true there.
   assert.ok(patientFacingCrisisMessage("US").message.includes("at any time"));

@@ -15,6 +15,7 @@ import { bearerFrom, ingestDecision } from "@/lib/ingest/token";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { mayRecord } from "@/lib/sessions/may-record";
 import { aiPausedForPatient } from "@/lib/data/ai-consent";
+import { markLiveRiskOff } from "@/lib/data/sessions";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -149,9 +150,14 @@ export async function POST(
      * 🔴 Due diligence F3: a patient who withdrew consent to processing abroad
      * is not sent to OpenAI in the United States. Checked here, before the audio
      * is read, on every chunk, so a withdrawal mid-session stops the next one.
+     *
+     * 🔴 Due diligence: that also turns off live crisis detection, which reads
+     * the transcript. The patient's choice stands; the session records it and
+     * the room shows it (the client reads `ai_paused`), so it is never silent.
      */
     if (await aiPausedForPatient(session.patientId)) {
-      return NextResponse.json({ error: "ai_paused" }, { status: 409 });
+      await markLiveRiskOff(session.id);
+      return NextResponse.json({ error: "ai_paused", liveRiskOff: true }, { status: 409 });
     }
 
     const form = await request.formData();

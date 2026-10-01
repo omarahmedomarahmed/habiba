@@ -78,6 +78,13 @@ export function patientFacingCrisisMessage(
     };
   }
   const open = lineOpenAt(line, now);
+  /* Due diligence: hours nobody has confirmed are not guessed; the always-open number leads. */
+  if (open === null) {
+    return {
+      message: `${lead} ${say("crisis.reply.checkHours", { line: line.label, always: always.label })}${tail}`,
+      helpline: always.label,
+    };
+  }
   return {
     message:
       open === true

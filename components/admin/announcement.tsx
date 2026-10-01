@@ -68,7 +68,7 @@ export function AnnouncementComposer({ recipientCount }: { recipientCount: numbe
             id="announce-subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            placeholder="Crisis Radar is live"
+            placeholder="The radar is live"
           />
         </Field>
 

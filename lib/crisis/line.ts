@@ -124,12 +124,15 @@ export const CRISIS_LINES: Record<string, CrisisLine> = {
       ar: "اضغط ١ للعربية، ثم ١ للصحة النفسية.",
     },
     /*
-     * 🔴 W1-09: 105 IS NOT A 24 HOUR LINE. Ahram Online gives Monday to
-     * Thursday, 9am to 5pm (takeover/design/RESEARCH-2.md section 1). So it is
-     * never offered alone: `EMERGENCY_LINES` below always sits beside it, and
-     * leads outside these hours.
+     * 🔴 W1-09: 105 IS NOT A 24 HOUR LINE, so it is never offered alone:
+     * `EMERGENCY_LINES` below always sits beside it, and leads.
+     *
+     * 🔴 Due diligence: its hours are NOT written here. The one source (Ahram
+     * Online, RESEARCH-2 section 1) gave Monday to Thursday, 9am to 5pm, which
+     * leaves out Sunday, an Egyptian working day, so it cannot be right as
+     * stated. Unknown hours read "check hours", never open or closed. Hours go
+     * back only from somebody who has confirmed them.
      */
-    hours: { timeZone: "Africa/Cairo", days: [1, 2, 3, 4], from: 9, to: 17 },
   },
 };
 

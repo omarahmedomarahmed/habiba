@@ -455,7 +455,8 @@ async function main() {
 
   check(
     "17.3 the free-to-use statement and the radar line are on the page",
-    text.includes("Joining is free") && text.includes("Crisis Radar"),
+    /* Due diligence: "Crisis Radar" implied a staffed crisis service; the radar line now says "radar". */
+    text.includes("Joining is free") && text.includes("on the radar") && !text.includes("Crisis Radar"),
   );
 
   /* ------------------------------------------------------------- C69 */

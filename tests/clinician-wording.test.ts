@@ -24,11 +24,11 @@ test("K22 the copilot limit card does not promise a monthly reset or an Unlimite
 
 test("K22 the 'patient was waiting' email names the radar only for a radar session", () => {
   for (const key of ["tmsg.waiting.bodyBooked", "tmsg.radarOff.abandonedBooked"] as const) {
-    assert.doesNotMatch(en[key], /booked you on the Crisis Radar/, key);
+    assert.doesNotMatch(en[key], /booked you on the radar/, key);
     assert.ok(ar[key] && ar[key] !== en[key], `${key} has no Arabic`);
   }
   // Control: the radar wording that was sent for every session still exists for radar ones.
-  assert.match(en["tmsg.waiting.body"], /booked you on the Crisis Radar/);
+  assert.match(en["tmsg.waiting.body"], /booked you on the radar/);
   const sweep = strip(readFileSync("lib/data/feedback.ts", "utf8"));
   assert.match(sweep, /sessionType: sessions\.sessionType/);
   assert.match(sweep, /radar \? "tmsg\.waiting\.body" : "tmsg\.waiting\.bodyBooked"/);
@@ -43,7 +43,9 @@ test("K22 risk alerts are written in the clinician's language, never English lit
       /Risk language detected|may need a call|Pause and assess directly|"A patient"/,
       `${file} still writes an English alert`,
     );
-    assert.match(code, /wordsFor\(\{ userId/, `${file} does not pick the reader's language`);
+    /* A journal hands its alert to `raiseCrisisAlert`, which picks the language (due diligence). */
+    const pattern = file === "lib/data/journals.ts" ? /raiseCrisisAlert\(\{/ : /wordsFor\(\{ userId/;
+    assert.match(code, pattern, `${file} does not pick the reader's language`);
   }
   for (const key of ["talert.riskTitle", "talert.riskBodyLive", "talert.journalTitle", "talert.questionnaireTitle"] as const) {
     assert.ok(ar[key] && ar[key] !== en[key], `${key} has no Arabic`);

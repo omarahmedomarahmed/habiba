@@ -359,17 +359,17 @@ export function SosOrb({
                   </span>
                   {/*
                     🔴 W1-09: whether somebody is likely to answer, only where a
-                    source gave the hours. Unknown hours say nothing.
+                    source gave the hours. Unknown hours say "check hours" (due diligence: never invented).
                   */}
-                  {entry.open !== null ? (
-                    <span className="text-[11px] font-semibold">
-                      {entry.line.hours === "always"
+                  <span className="text-[11px] font-semibold">
+                    {entry.open === null
+                      ? t("crisis.checkHours")
+                      : entry.line.hours === "always"
                         ? t("crisis.anyTime")
                         : entry.open
                           ? t("crisis.openNow")
                           : t("crisis.closedNow")}
-                    </span>
-                  ) : null}
+                  </span>
                   {/*
                     🔴 C350 — the menu, on the button, before the call.
                     Egypt's 105 answers with a menu and the mental health
