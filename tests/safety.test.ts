@@ -809,11 +809,15 @@ test("🔴 E1 the company overview prints no live total, only the published snap
 
   const sponsors = readFileSync("lib/data/sponsors.ts", "utf8");
   const body = sponsors.slice(sponsors.indexOf("export async function potBalance"));
-  // The spend is the spend of the PUBLISHED count, in both branches.
-  assert.match(body, /potSpentThrough\(sponsorId, sessions\)/);
-  assert.match(body, /potSpentThrough\(sponsorId, pot\.publishedSessions\)/);
-  // Control: the floor that decides when the count moves is still there.
-  assert.match(body, /sessions - pot\.publishedSessions >= floor/);
+  /*
+   * DD-2 B1: the publication is now the people-floored ledger periods. The
+   * totals are those periods' figures, and the balance is the one at the end of
+   * the last of them, so one session never moves any company figure.
+   */
+  assert.match(body, /const view = await publishedLedger\(sponsorId, now\);/);
+  assert.match(body, /spentCents: view\.stats\.spendCents/);
+  // Control: session movement since the last published period is added back.
+  assert.match(body, /sessionMovementSince\(sponsorId, since\)/);
 });
 
 test("🔴 E2 the company's people list carries a name per person and nothing about their use of it", async () => {
