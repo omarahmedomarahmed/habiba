@@ -251,6 +251,7 @@
     "test:partner-doors": "node --import tsx --test tests/partner-doors.test.ts",
     "test:safe-redirect": "node --import tsx --test tests/safe-redirect.test.ts",
     "test:attempts": "node --import tsx --test tests/attempts.test.ts",
+    "test:public-url": "node --import tsx --conditions=react-server --test tests/public-url.test.ts",
     "test:admin-access": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/admin-access.test.ts",
     "test:staff-2fa": "node --env-file-if-exists=.env.local --import tsx --test tests/staff-2fa.test.ts",
     "verify:staff-2fa": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-staff-2fa.ts",
@@ -325,6 +326,7 @@
     "stripe": "^17.5.0",
     "tailwind-merge": "^2.6.0",
     "three": "^0.186.0",
+    "undici": "^6.23.0",
     "unpdf": "^1.8.1",
     "ws": "^8.21.3",
     "zod": "^3.24.1"
