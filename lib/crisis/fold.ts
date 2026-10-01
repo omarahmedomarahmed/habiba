@@ -200,8 +200,14 @@ function foldArabizi(text: string): string {
  * normalisers, and both times it turned a scanner into something that alerted
  * on everything. A third normaliser gets the guard at birth.
  */
-export function containsArabizi(haystack: string, needle: string): boolean {
+export function containsArabizi(haystack: string, needle: string, opts: { wordEnd?: boolean } = {}): boolean {
   const folded = foldArabizi(needle);
   if (folded.length === 0) return false;
-  return foldArabizi(haystack).includes(folded);
+  const text = foldArabizi(haystack);
+  if (!opts.wordEnd) return text.includes(folded);
+  /* Review: up to a word end, so "hant7ar" is not read inside "hant7arak". */
+  for (let at = text.indexOf(folded); at >= 0; at = text.indexOf(folded, at + 1)) {
+    if (!/[a-z0-9]/.test(text.charAt(at + folded.length))) return true;
+  }
+  return false;
 }

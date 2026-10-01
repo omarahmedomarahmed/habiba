@@ -134,6 +134,41 @@ const CRISIS_PHRASES = [
   "jump off a bridge",
   "ending it all",
   /*
+   * 🔴 Review: the phrase classes a probe of 121 sentences found missing.
+   * Each is a concept (not being here, no point, an end, a plan or means), and
+   * where a bare form is everyday speech the collocation is listed instead:
+   * "disappear forever", not "disappear".
+   */
+  "killed myself",
+  "want to be here anymore",
+  "want to be here any more",
+  "want to be around anymore",
+  "want to exist anymore",
+  "disappear forever",
+  "disappear for good",
+  "no point in living",
+  "no point living",
+  "no point to living",
+  "no point in life",
+  "no point in going on",
+  "want it all to end",
+  "want everything to end",
+  "done with life",
+  "done with living",
+  "tired of living",
+  "sick of living",
+  "isn't worth living",
+  "isnt worth living",
+  "pills saved up",
+  "saved up pills",
+  "saving up pills",
+  "stockpiling pills",
+  "take all the pills",
+  "take all of my pills",
+  "took all the pills",
+  "rope ready",
+  "noose",
+  /*
    * 🔴 32.x — perceived burdensomeness, which the list did not carry in EITHER
    * language until Arabic cases exposed the gap.
    *
@@ -295,6 +330,49 @@ const CRISIS_PHRASES = [
   "لا يوجد سبب للعيش",
   "لا شيء اعيش من اجله",
   "مفيش حاجه اعيش عشانها",
+
+  /*
+   * 🔴 Review: Egyptian and MSA forms the probe found missing. Stored folded
+   * (أ إ آ to ا, ة to ه, ى to ي), and written as the shortest piece that is
+   * still the concept, so the prefixes (ا ه ح ب, "I", "will", "-ing") and the
+   * feminine endings all match: "رمي نفسي من" is ارمي, هرمي and برمي.
+   */
+  "رمي نفسي من",
+  "رمي نفسي قدام",
+  "رمي نفسي تحت",
+  "اخلص من الدنيا",
+  "اخلص من نفسي",
+  "اخلص من عمري",
+  "ياريتني اموت",
+  "يا ريتني اموت",
+  "ياريت اموت",
+  "يا ريت اموت",
+  "ياريتني كنت ميت",
+  "يا ريتني كنت ميت",
+  "اتمني لو كنت ميت",
+  "اتمني لو مت",
+  "لم اعد ارغب في الحياه",
+  "لا ارغب في الحياه",
+  "لم اعد اريد العيش",
+  "لا اريد العيش",
+  "لم اعد اريد ان اعيش",
+  "الحياه لا تستحق",
+  "الحياه مش مستاهله",
+  "الحياه ماتستاهلش",
+  "مش قادر اعيش",
+  "مش قادره اعيش",
+  "قطع شرايني",
+  "قطع شرايين",
+  "قطع عروقي",
+  "اذي نفسي",
+  "ءذي نفسي",
+  "جرح نفسي",
+  "عبء علي الكل",
+  "عبء علي الجميع",
+  "عبء علي كل الناس",
+  "جرعه زياده",
+  "جرعه زايده",
+  "جرعه مفرطه",
 ] as const;
 
 /**
@@ -365,15 +443,11 @@ const ARABIZI_PHRASES = [
   "yarab amoot",
   "el mot ar7am",
 
-  /* end my life, kill myself */
-  "an7ar",
-  "hant7er",
-  /* 🔴 F5: the same "I will kill myself" with the vowels written out. */
-  "hantehar",
-  "hante7ar",
-  /* DD-2: the same with the vowel dropped, "I will kill myself" Egyptian style, and hanging. */
-  "hant7r",
-  "hantehr",
+  /*
+   * end my life, kill myself. Review: the "kill myself" verb is in
+   * `ARABIZI_VERB` below, matched up to a word end. "an7ar" is gone: it is
+   * inside "an7araf" (swerved).
+   */
   "hamawet nafsy",
   "hmawet nafsy",
   "amawet nafsy",
@@ -382,18 +456,21 @@ const ARABIZI_PHRASES = [
   "ha2tel nafsy",
   "a2tel nafsy",
   "ba2tel nafsy",
+  "ha2tl nafsy",
+  "h2tl nafsy",
+  "h2tel nafsy",
+  "a2tl nafsy",
+  "hamoot nafsy",
+  "hamut nafsy",
+  "hashna2 nafsy",
+  "ashna2 nafsy",
+  "a5ls 3ala nafsy",
+  "a5las 3ala nafsy",
   "anhy 7ayaty",
   "anhi 7ayati",
   "akhls 3ala nafsy",
 
-  /* do not want to live */
-  "mesh 3ayez a3eesh",
-  "msh 3ayez a3eesh",
-  "mesh 3ayz a3eesh",
-  "msh 3ayz a3eesh",
-  "mesh 3ayza a3eesh",
-  "msh 3ayza a3eesh",
-  "mesh 3ayez a3ish",
+  /* do not want to live: see `ARABIZI_COMBINED` below for every spelling. */
 
   /* cannot carry on */
   "mesh 2ader akmel",
@@ -401,6 +478,10 @@ const ARABIZI_PHRASES = [
   "mesh 2adra akmel",
   "msh 2adra akmel",
   "mesh 2ader astamer",
+  "mesh 2adra akamel",
+  "msh 2adra akamel",
+  "mesh 2ader akamel",
+  "msh 2ader akamel",
   "ta3abt men el 7ayah",
   "te3ebt men el 7ayah",
   "ta3abt mn el 7aya",
@@ -421,7 +502,31 @@ const ARABIZI_PHRASES = [
   "a2za nafsy",
   "gar7t nafsy",
   "bagra7 nafsy",
+  "a2zy nafsy",
+  "azy nafsy",
 ] as const;
+
+/*
+ * 🔴 Review: the spellings, generated rather than typed one by one. Arabizi
+ * has no standard spelling, and a list that has "3ayez amoot" but not "3aiz
+ * amoot" misses the person who types it the other way.
+ */
+const ARABIZI_WANT = ["3ayez", "3ayz", "3aiz", "3ayza", "3ayzah", "3awez", "3awz", "3awza", "nefsy", "nfsy", "nifsy"];
+const ARABIZI_DIE = ["amoot", "amut", "a mot", "a moot"];
+const ARABIZI_NOT = ["mesh", "msh", "mish"];
+const ARABIZI_LIVE = ["a3eesh", "a3ish", "a3esh"];
+const ARABIZI_COMBINED: readonly string[] = [
+  ...ARABIZI_WANT.flatMap((want) => ARABIZI_DIE.map((die) => `${want} ${die}`)),
+  ...ARABIZI_NOT.flatMap((not) => ARABIZI_WANT.slice(0, 8).flatMap((want) => ARABIZI_LIVE.map((live) => `${not} ${want} ${live}`))),
+];
+
+/**
+ * 🔴 Review: "I will kill myself" / "kill myself" as one Arabizi verb, matched
+ * up to a word end. As a plain substring "hant7ar" is inside "hant7arak" (we
+ * will get you moving), the same trap "هنتحرك" is in Arabic script. The start
+ * is left open so "hant7ar", "7ant7ar" and "wana ant7ar" all match.
+ */
+const ARABIZI_VERB = ["ant7ar", "anta7ar", "ant7r", "ant7er", "anta7er", "antehar", "antehr", "anteher", "ante7ar"];
 
 
 /** Ten minutes. Re-alerting on every mention turns the alert into noise. */
@@ -446,7 +551,7 @@ const DEDUP_WINDOW_MS = 10 * 60 * 1000;
  */
 export function scanForCrisisLanguage(text: string): string[] {
   const script = CRISIS_PHRASES.filter(
-    (phrase) => contains(text, phrase) && stillCounts(text, phrase),
+    (phrase) => contains(text, phrase) && notOnlyIdiom(text, phrase) && stillCounts(text, phrase),
   );
 
   /*
@@ -462,15 +567,64 @@ export function scanForCrisisLanguage(text: string): string[] {
    * specific, and skipping it here would make Arabizi the one register where a
    * quoted lyric pages a clinician at 3am.
    */
-  const arabizi = ARABIZI_PHRASES.filter(
+  const arabizi = [...ARABIZI_PHRASES, ...ARABIZI_COMBINED].filter(
     (phrase) => containsArabizi(text, phrase) && stillCounts(text, phrase),
+  );
+  const verb = ARABIZI_VERB.filter(
+    (phrase) => containsArabizi(text, phrase, { wordEnd: true }) && stillCounts(text, phrase),
   );
 
   const patterns = CRISIS_PATTERNS.filter(
     (pattern) => pattern.re.test(fold(text)) && stillCounts(text, pattern.label),
   ).map((pattern) => pattern.label);
 
-  return [...script, ...arabizi, ...patterns];
+  return [...new Set([...script, ...arabizi, ...verb, ...patterns])];
+}
+
+/**
+ * 🔴 Review: what may follow a phrase and make it something else. Checked per
+ * occurrence, so one idiom does not hide a second, real mention. Narrow on
+ * purpose: "I don't want to live in this world" and "kill me with a knife"
+ * still alert.
+ */
+const LAUGHTER = /^\s*(?:من\s+الضحك|من\s+الكسوف|of\s+laughter|laughing|of\s+embarrassment|from\s+embarrassment)/u;
+const IDIOM_AFTER: { phrases: string[]; after: RegExp; before?: RegExp }[] = [
+  {
+    phrases: ["want to die", "wanted to die", "عايز اموت", "عايزه اموت", "عاوز اموت", "عاوزه اموت", "نفسي اموت"],
+    after: LAUGHTER,
+  },
+  {
+    phrases: ["don't want to live", "dont want to live", "do not want to live", "no longer want to live"],
+    after:
+      /^\s+(?:(?:in|at|near)\s+(?!(?:this|the)\s+(?:world|pain|misery|body|life|agony|hell)|pain|misery|agony|fear|hell)|with\s+(?!(?:this|the|myself|that|it)(?![a-z]))|there(?![a-z])|here\s+with(?![a-z]))/,
+  },
+  {
+    phrases: ["مش عايز اعيش", "مش عايزه اعيش", "مش عاوز اعيش", "مش عاوزه اعيش", "مبقتش عايز اعيش", "مبقتش عايزه اعيش", "مابقتش عايز اعيش"],
+    after:
+      /^\s+(?:مع\s+(?!نفسي|الوجع|الالم|العذاب)|في\s+(?!الدنيا|العالم|الحياه|الوجع|الالم|العذاب|الدنيا))/u,
+  },
+  /* Only the idioms: "kill me with a knife" is not one. */
+  {
+    phrases: ["kill me"],
+    after: /^\s+(?:with\s+(?:kindness|laughter|your\s+jokes)(?![a-z])|laughing(?![a-z]))/,
+    /* "don't kill me with the homework": a plea, then "with". "don't kill me" alone still alerts. */
+    before: /(?:^|[^a-z])(?:don'?t|do not)\s+$/,
+  },
+  { phrases: ["kill him", "kill her", "kill them"], after: /^\s+with\s+kindness/ },
+];
+
+function notOnlyIdiom(text: string, phrase: string): boolean {
+  const rule = IDIOM_AFTER.find((entry) => entry.phrases.includes(phrase));
+  if (!rule) return true;
+  const haystack = fold(text);
+  const needle = fold(phrase);
+  for (let at = haystack.indexOf(needle); at >= 0; at = haystack.indexOf(needle, at + 1)) {
+    const rest = haystack.slice(at + needle.length);
+    const idiom =
+      rule.after.test(rest) || (Boolean(rule.before?.test(haystack.slice(0, at))) && /^\s+with(?![a-z])/.test(rest));
+    if (!idiom) return true;
+  }
+  return false;
 }
 
 /**
@@ -496,10 +650,46 @@ export const CRISIS_PATTERNS: { label: string; re: RegExp }[] = [
   },
   /* DD-2: "I wanna die", never "I wanna diet". */
   { label: "wanna die", re: /(?<![a-z])wanna die(?![a-z])/ },
-  /* DD-2: "take my (own) life", never "take my life back". */
+  /*
+   * DD-2: "take my (own) life", never "take my life back". Review: "again",
+   * "over this", "in an hour" were excluded too, so "I tried to take my life
+   * again" raised nothing. Only the safe exclusions remain, each a whole word.
+   */
   {
     label: "take my life",
-    re: /(?<![a-z])(?:take|taking|took) my (?:own )?life(?![a-z])(?!\s+(?:back|in|into|forward|seriously|over|again))/,
+    re: /(?<![a-z])(?:take|taking|took|taken) my (?:own )?life(?![a-z'])(?!\s+(?:back|into my own hands|in my own hands|savings|insurance)(?![a-z]))/,
+  },
+  /* Review: "I want to end it", never "end it with him". */
+  {
+    label: "end it",
+    re: /(?<![a-z])(?:want|wanna|going|gonna|plan|planning) to end it(?![a-z])(?!\s+(?:with|between)(?![a-z]))|(?<![a-z])(?:gonna|wanna) end it(?![a-z])(?!\s+(?:with|between)(?![a-z]))/,
+  },
+  /* Review: a fall, a train: a method named. */
+  {
+    label: "jump off",
+    re: /(?<![a-z])jump(?:ing)? (?:off|from) (?:the |a |my |our |this )?(?:roof|building|balcony|bridge|cliff|tower|window)(?![a-z])/,
+  },
+  {
+    label: "in front of a train",
+    re: /(?<![a-z])(?:jump|jumping|throw myself|step|stepping|walk|lie down) in front of (?:a|the) (?:train|car|bus|truck|lorry|metro|subway|tram)(?![a-z])/,
+  },
+  /*
+   * Review: Egyptian forms that need more than a substring. "Sleep and not
+   * wake up" (نفسي انام وما اصحاش, ومصحاش), "I am done, I cannot" said as the
+   * whole sentence (خلاص مش قادره), and an overdose: "all the pills", never
+   * "I took my pill".
+   */
+  {
+    label: "انام وما اصحاش",
+    re: /انام\s+و\s*ما?\s*ا?صحا?ش|انام\s+ولا\s+(?:اصحو|استيقظ)/u,
+  },
+  {
+    label: "خلاص مش قادر",
+    re: /خلاص\s+(?:مش|مبقتش|مابقتش)\s+قادر[ه]?(?=\s*(?:$|[.!؟?،,]|(?:خلاص|تعبت|بجد|استحمل)))/u,
+  },
+  {
+    label: "كل البرشام",
+    re: /(?:خدت|خت|بلعت|شربت|هاخد|حاخد|هخد|هبلع|حبلع|ابلع|اخد)\s+(?:كل\s+(?:ال)?(?:برشام|حبوب|اقراص|دوا)|(?:علبه|علب|شريط|شرايط)\s+(?:ال)?(?:برشام|حبوب|اقراص|دوا))/u,
   },
 ];
 
