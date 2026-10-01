@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import { partnerClinicians, partnerSessions, partnerSubjects } from "@/lib/db/schema";
@@ -290,23 +290,48 @@ async function sessionFor(input: {
 export const UNLINKED =
   "This person has unlinked from your platform, so nothing about them is read for it.";
 
+type SubjectRow = { externalRef: string; personId: string | null; revokedAt: Date | null };
+
 /**
- * DD-2 B1: has the person cut this partner's link? By the partner's reference,
- * or by the person when the session is linked to one. One revoked row is
- * enough, even if a later placeholder with the same reference is still open.
+ * DD-2 B1 (review fix): has the person cut this partner's link, as it stands
+ * now? The session's own reference row decides, and so does any row for the
+ * person. Unlinked when one of them was revoked and the person has no live
+ * link to this partner today. A person who unlinked and later confirmed a new
+ * link (a new reference: the unique index keeps the old one) is linked again,
+ * which is what `deliverableNoteQuery` already answers from the live row.
+ * Pure, for the test.
  */
+export function unlinkedFrom(
+  rows: SubjectRow[],
+  input: { externalSubjectRef: string; personId?: string | null },
+): boolean {
+  const mine = rows.filter(
+    (row) =>
+      row.externalRef === input.externalSubjectRef || (input.personId != null && row.personId === input.personId),
+  );
+  const revoked = mine.some((row) => row.revokedAt !== null);
+  if (!revoked) return false;
+  /* Live again only through the person's own confirmed link, never a placeholder. */
+  const relinked =
+    input.personId != null && mine.some((row) => row.revokedAt === null && row.personId === input.personId);
+  return !relinked;
+}
+
 export async function subjectUnlinked(input: {
   partnerId: string;
   externalSubjectRef: string;
   personId?: string | null;
 }): Promise<boolean> {
-  const [revoked] = await controlDb
-    .select({ id: partnerSubjects.id })
+  const rows = await controlDb
+    .select({
+      externalRef: partnerSubjects.externalRef,
+      personId: partnerSubjects.personId,
+      revokedAt: partnerSubjects.revokedAt,
+    })
     .from(partnerSubjects)
     .where(
       and(
         eq(partnerSubjects.partnerId, input.partnerId),
-        isNotNull(partnerSubjects.revokedAt),
         input.personId
           ? or(
               eq(partnerSubjects.externalRef, input.externalSubjectRef),
@@ -315,8 +340,8 @@ export async function subjectUnlinked(input: {
           : eq(partnerSubjects.externalRef, input.externalSubjectRef),
       ),
     )
-    .limit(1);
-  return Boolean(revoked);
+    .limit(50);
+  return unlinkedFrom(rows, input);
 }
 
 export async function mayAnswer(input: {

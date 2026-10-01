@@ -74,6 +74,10 @@ export async function confirmAdultForSession(actor: Actor, sessionId: string): P
     resourceType: "session",
     resourceId: sessionId,
   });
+
+  /* Review fix: a yes to recording that waited on this confirmation now sends the meeting's recorder. */
+  const { sendBotOnceAdult } = await import("@/lib/meetings/dispatch");
+  await sendBotOnceAdult(sessionId);
   return true;
 }
 

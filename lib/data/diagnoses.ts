@@ -92,7 +92,7 @@ export async function listOwnDiagnoses(personId: string): Promise<DiagnosisView[
 export async function diagnosesForClinician(actor: Actor, patientId: string): Promise<DiagnosisView[]> {
   const { accessFor } = await import("@/lib/data/grants");
   const access = await accessFor(actor, patientId);
-  if (!access.personId || !maySeeSharedRecord(access.state)) return [];
+  if (!access.personId || !maySeeSharedRecord(access.state, access.soleChart)) return [];
   return listOwnDiagnoses(access.personId);
 }
 

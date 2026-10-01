@@ -183,7 +183,8 @@ export type HomeworkTrend = {
  * A rate of 40% could be four good weeks and six bad ones in any order; three
  * skips in a row is a conversation to have on Thursday.
  */
-export async function homeworkTrend(personId: string): Promise<HomeworkTrend> {
+export async function homeworkTrend(personId: string, assignedBy?: string): Promise<HomeworkTrend> {
+  const scope = homeworkScope(personId, assignedBy);
   const [counts] = await db
     .select({
       open: sql<number>`COUNT(*) FILTER (WHERE status = 'open')::int`,
@@ -191,14 +192,12 @@ export async function homeworkTrend(personId: string): Promise<HomeworkTrend> {
       skipped: sql<number>`COUNT(*) FILTER (WHERE status = 'skipped')::int`,
     })
     .from(homeworkItems)
-    .where(eq(homeworkItems.personId, personId));
+    .where(scope);
 
   const closed = await db
     .select({ status: homeworkItems.status })
     .from(homeworkItems)
-    .where(
-      and(eq(homeworkItems.personId, personId), inArray(homeworkItems.status, ["done", "skipped"])),
-    )
+    .where(and(scope, inArray(homeworkItems.status, ["done", "skipped"])))
     .orderBy(desc(homeworkItems.completedAt))
     .limit(20);
 
@@ -221,12 +220,24 @@ export async function homeworkTrend(personId: string): Promise<HomeworkTrend> {
   };
 }
 
+/**
+ * Review fix: a clinician without the shared record sees only the steps they
+ * set. Other clinics' homework and the patient's notes back on it follow the
+ * grant like the files. `assignedBy` absent means the whole person (the
+ * patient's own export, or a clinician the grant opens it for).
+ */
+function homeworkScope(personId: string, assignedBy?: string) {
+  return assignedBy
+    ? and(eq(homeworkItems.personId, personId), eq(homeworkItems.assignedByUserId, assignedBy))
+    : eq(homeworkItems.personId, personId);
+}
+
 /** Every item, with its outcome and the patient's own note. Clinician side. */
-export async function listHomework(personId: string): Promise<HomeworkItem[]> {
+export async function listHomework(personId: string, assignedBy?: string): Promise<HomeworkItem[]> {
   return db
     .select()
     .from(homeworkItems)
-    .where(eq(homeworkItems.personId, personId))
+    .where(homeworkScope(personId, assignedBy))
     .orderBy(desc(homeworkItems.createdAt))
     .limit(100);
 }

@@ -77,6 +77,15 @@ export function weekAfter(week: string): Date {
   return new Date(Date.parse(`${week}T00:00:00Z`) + 7 * DAY_MS);
 }
 
+/** Every week start from `from` to `to` inclusive (`YYYY-MM-DD` Mondays). */
+export function weeksBetween(from: string, to: string): string[] {
+  const out: string[] = [];
+  for (let at = Date.parse(`${from}T00:00:00Z`); at <= Date.parse(`${to}T00:00:00Z`); at += 7 * DAY_MS) {
+    out.push(new Date(at).toISOString().slice(0, 10));
+  }
+  return out;
+}
+
 /** How many different people these entries are. Untagged rows count as one between them. */
 export function distinctPeople(entries: LedgerEntry[]): number {
   const tags = new Set<string>();
@@ -335,9 +344,16 @@ export function companyView(input: {
   const entries = input.entries.filter((entry) => entry.weekStart <= through);
   const { periods, heldBack } = ledgerPeriods(entries, floor, "week");
   const closing = new Map(periods.map((period) => [period.to, period.spendCents]));
-  const series = [...new Set(entries.map((entry) => entry.weekStart))]
-    .sort()
-    .map((weekStart) => ({ weekStart, spendCents: closing.get(weekStart) ?? null }));
+  /*
+   * Review fix: every week from the first published period to `through`, one
+   * contiguous run, so a held-back week looks exactly like a week nobody used.
+   * A cell only for weeks with entries told the company when somebody had a
+   * session. Nothing published yet: no chart at all.
+   */
+  const series = periods.length === 0 ? [] : weeksBetween(periods[0]!.from, through).map((weekStart) => ({
+    weekStart,
+    spendCents: closing.get(weekStart) ?? null,
+  }));
   return {
     through,
     floor,
