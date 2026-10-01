@@ -105,6 +105,12 @@ const ALLOWED: Record<string, Allowed> = {
     why: "replaces the named block types on one page and proves nothing else changed",
     destroys: { unless: ["--dry"] },
   },
+  /* DD-2: one exact phrase in hand-written blocks that have no code default to sync from. */
+  "content:rename": {
+    writes: true,
+    why: "replaces one exact phrase in block text, refusing any other change",
+    destroys: { unless: ["--dry"] },
+  },
   /*
    * It opens a copilot thread against real patients from the run and asks the
    * model about them, which is a write, and the thread it leaves behind is part

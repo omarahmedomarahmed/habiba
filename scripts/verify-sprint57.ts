@@ -482,6 +482,12 @@ async function main() {
      * Dry run unless `--apply`.
      */
     "scripts/migrate-private-blobs.ts",
+    /*
+     * DD-2, THE NINTH DOOR: one exact phrase in published block text, for copy with no
+     * code default to sync from ("Crisis Radar" in a hand-written hero). String values
+     * only; it refuses a row whose block types or keys would change. Dry with `--dry`.
+     */
+    "scripts/content-rename.ts",
   ];
 
   check(

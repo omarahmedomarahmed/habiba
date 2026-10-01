@@ -178,6 +178,7 @@
     "verify:sprint29": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint29.ts",
     "ship:content": "node --env-file-if-exists=.env.local --import tsx scripts/ship-content.ts",
     "content:sync": "node --env-file-if-exists=.env.local --import tsx scripts/sync-blocks.ts",
+    "content:rename": "node --env-file-if-exists=.env.local --import tsx scripts/content-rename.ts",
     "mail:preview": "node --env-file-if-exists=.env.local --import tsx --import ./scripts/_render-preload.mjs scripts/mail-preview.ts",
     "verify:sprint30": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint30.ts",
     "verify:c285": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-c285.ts",
