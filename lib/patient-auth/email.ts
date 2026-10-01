@@ -5,12 +5,13 @@ import { and, desc, eq, gt, isNull, ne } from "drizzle-orm";
 
 import { dbFor } from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { patientAccounts, patientAuthTokens, RESET_CODE_ATTEMPTS } from "@/lib/db/schema";
+import { patientAccounts, patientAuthTokens } from "@/lib/db/schema";
 import { normaliseEmail } from "@/lib/data/people";
 import { wordsFor } from "@/lib/i18n/message-words";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 import { say } from "@/lib/i18n/say";
+import { spendCodeGuess } from "./code-attempts";
 
 /*
  * ⚠️ 30.1: NOT ROUTED YET, and counted rather than hidden, like every other
@@ -132,43 +133,21 @@ export async function confirmEmailCode(
   const wrong = { ok: false as const, error: await say("perr.codeWrong") };
   if (!email || code.length !== 6) return wrong;
 
-  const [row] = await db
-    .select()
-    .from(patientAuthTokens)
-    .where(
-      and(
-        eq(patientAuthTokens.patientAccountId, accountId),
-        eq(patientAuthTokens.purpose, "email_add"),
-        eq(patientAuthTokens.channel, "email"),
-        isNull(patientAuthTokens.usedAt),
-        gt(patientAuthTokens.expiresAt, new Date()),
-      ),
-    )
-    .orderBy(desc(patientAuthTokens.createdAt))
-    .limit(1);
-  if (!row) return wrong;
-
-  if (row.tokenHash !== bound(code, email)) {
-    const spent = row.attempts + 1;
-    await db
-      .update(patientAuthTokens)
-      .set(spent > RESET_CODE_ATTEMPTS ? { usedAt: new Date() } : { attempts: spent })
-      .where(eq(patientAuthTokens.id, row.id));
-    return wrong;
-  }
+  /* DD-2 B2.2: the guess is counted by the database before it is compared, and a right code is spent once. */
+  const guess = await spendCodeGuess(db, {
+    accountId,
+    purpose: "email_add",
+    channel: "email",
+    matches: (tokenHash) => tokenHash === bound(code, email),
+  });
+  if (guess.outcome !== "match") return wrong;
 
   const now = new Date();
   try {
-    await db.transaction(async (tx) => {
-      await tx
-        .update(patientAuthTokens)
-        .set({ usedAt: now })
-        .where(eq(patientAuthTokens.id, row.id));
-      await tx
-        .update(patientAccounts)
-        .set({ email, emailVerifiedAt: now, updatedAt: now })
-        .where(eq(patientAccounts.id, accountId));
-    });
+    await db
+      .update(patientAccounts)
+      .set({ email, emailVerifiedAt: now, updatedAt: now })
+      .where(eq(patientAccounts.id, accountId));
   } catch {
     /* Taken by another account since the code went out. Same sentence, no oracle. */
     return wrong;

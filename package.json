@@ -250,6 +250,7 @@
     "test:partner-console": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/partner-console.test.ts",
     "test:partner-doors": "node --import tsx --test tests/partner-doors.test.ts",
     "test:safe-redirect": "node --import tsx --test tests/safe-redirect.test.ts",
+    "test:attempts": "node --import tsx --test tests/attempts.test.ts",
     "test:admin-access": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/admin-access.test.ts",
     "test:staff-2fa": "node --env-file-if-exists=.env.local --import tsx --test tests/staff-2fa.test.ts",
     "verify:staff-2fa": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-staff-2fa.ts",

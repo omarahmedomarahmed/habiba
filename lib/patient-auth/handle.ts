@@ -5,7 +5,7 @@ import { and, desc, eq, gt, isNull } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { patientAccounts, patientAuthTokens, RESET_CODE_ATTEMPTS } from "@/lib/db/schema";
+import { patientAccounts, patientAuthTokens } from "@/lib/db/schema";
 import { wordsFor } from "@/lib/i18n/message-words";
 import { notify } from "@/lib/notify";
 import { handleDelivery } from "./handle-delivery";
@@ -17,6 +17,7 @@ import { log, ref } from "@/lib/logger";
 
 import { requirePatient } from "./guard";
 import { say } from "@/lib/i18n/say";
+import { spendCodeGuess } from "./code-attempts";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -182,38 +183,15 @@ export async function confirmHandleCode(
     };
   }
 
-  const [row] = await db
-    .select()
-    .from(patientAuthTokens)
-    .where(
-      and(
-        eq(patientAuthTokens.patientAccountId, actor.accountId),
-        eq(patientAuthTokens.purpose, "handle_verify"),
-        isNull(patientAuthTokens.usedAt),
-        gt(patientAuthTokens.expiresAt, new Date()),
-      ),
-    )
-    .orderBy(desc(patientAuthTokens.createdAt))
-    .limit(1);
-
-  const wrong = { error: await say("perr.codeWrong") };
-  if (!row) return wrong;
-
-  if (row.tokenHash !== hash(code)) {
-    const spent = row.attempts + 1;
-    if (spent > RESET_CODE_ATTEMPTS) {
-      await db
-        .update(patientAuthTokens)
-        .set({ usedAt: new Date() })
-        .where(eq(patientAuthTokens.id, row.id));
-      return { error: await say("perr.tooManyWrongCodes") };
-    }
-    await db
-      .update(patientAuthTokens)
-      .set({ attempts: spent })
-      .where(eq(patientAuthTokens.id, row.id));
-    return wrong;
-  }
+  /* DD-2 B2.2: the guess is counted by the database before it is compared. */
+  const guess = await spendCodeGuess(db, {
+    accountId: actor.accountId,
+    purpose: "handle_verify",
+    matches: (tokenHash) => tokenHash === hash(code),
+  });
+  if (guess.outcome === "exhausted") return { error: await say("perr.tooManyWrongCodes") };
+  if (guess.outcome !== "match") return { error: await say("perr.codeWrong") };
+  const row = { id: guess.id, channel: guess.channel };
 
   /*
    * The channel the code went out on is the handle it proves. A code that
@@ -230,11 +208,6 @@ export async function confirmHandleCode(
           : { emailVerifiedAt: now, updatedAt: now },
       )
       .where(eq(patientAccounts.id, actor.accountId));
-
-    await tx
-      .update(patientAuthTokens)
-      .set({ usedAt: now })
-      .where(eq(patientAuthTokens.id, row.id));
   });
 
   log.info("handle verified", { account: ref(actor.accountId), channel: row.channel });

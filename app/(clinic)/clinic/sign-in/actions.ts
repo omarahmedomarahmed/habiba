@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 
 import { checkClinicPassword } from "@/lib/data/clinic-admin";
 import { createClinicSession, revokeClinicSession } from "@/lib/clinic-auth/session";
-import { callerKey, consume } from "@/lib/rate-limit";
+import { minutesToWait } from "@/lib/auth/attempts";
+import { getI18n } from "@/lib/i18n/server";
+import { accountAttempt, accountSignedIn, callerKey, consume } from "@/lib/rate-limit";
 
 export type ClinicSignInState = { error?: string };
 
@@ -22,14 +24,20 @@ export async function signInClinic(
   const throttle = await consume(await callerKey("clinic-sign-in"), 8, 15 * 60);
   if (!throttle.allowed) return { error: "Too many attempts. Try again in a few minutes." };
 
-  const result = await checkClinicPassword(
-    String(formData.get("email") ?? ""),
-    String(formData.get("password") ?? ""),
-  );
+  const email = String(formData.get("email") ?? "");
+  /* DD-2 B2.2: per account too, keyed on the address as typed, so an unknown one locks the same way. */
+  const perAccount = await accountAttempt("clinic-sign-in", email);
+  if (!perAccount.allowed) {
+    const { t } = await getI18n();
+    return { error: t("auth.tooManyForSignIn", { minutes: minutesToWait(perAccount.retryAfter) }) };
+  }
+
+  const result = await checkClinicPassword(email, String(formData.get("password") ?? ""));
 
   if (result.error || !result.clinicManagerId) {
     return { error: result.error ?? "That email address and password do not match." };
   }
+  await accountSignedIn("clinic-sign-in", email);
 
   await createClinicSession(result.clinicManagerId);
   redirect("/clinic");

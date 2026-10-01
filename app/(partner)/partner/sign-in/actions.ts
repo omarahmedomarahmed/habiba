@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 
 import { checkPartnerPassword } from "@/lib/data/partner-admin";
 import { createPartnerSession, revokePartnerSession } from "@/lib/partner-auth/session";
-import { callerKey, consume } from "@/lib/rate-limit";
+import { minutesToWait } from "@/lib/auth/attempts";
+import { getI18n } from "@/lib/i18n/server";
+import { accountAttempt, accountSignedIn, callerKey, consume } from "@/lib/rate-limit";
 
 export type PartnerSignInState = { error?: string };
 
@@ -23,14 +25,20 @@ export async function signInPartner(
   const throttle = await consume(await callerKey("partner-sign-in"), 8, 15 * 60);
   if (!throttle.allowed) return { error: "Too many attempts. Try again in a few minutes." };
 
-  const result = await checkPartnerPassword(
-    String(formData.get("email") ?? ""),
-    String(formData.get("password") ?? ""),
-  );
+  const email = String(formData.get("email") ?? "");
+  /* DD-2 B2.2: per account too, keyed on the address as typed, so an unknown one locks the same way. */
+  const perAccount = await accountAttempt("partner-sign-in", email);
+  if (!perAccount.allowed) {
+    const { t } = await getI18n();
+    return { error: t("auth.tooManyForSignIn", { minutes: minutesToWait(perAccount.retryAfter) }) };
+  }
+
+  const result = await checkPartnerPassword(email, String(formData.get("password") ?? ""));
 
   if (result.error || !result.partnerUserId) {
     return { error: result.error ?? "That email address and password do not match." };
   }
+  await accountSignedIn("partner-sign-in", email);
 
   await createPartnerSession(result.partnerUserId);
   redirect("/partner");
