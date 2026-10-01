@@ -44,6 +44,10 @@ export default async function SosPage({
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-navy-700">{t("crisis.sheetTitle")}</h1>
         <p className="mt-1 text-[15px] leading-relaxed text-navy-500">{t("crisis.sheetBody")}</p>
+        {/* Due diligence: said plainly, so nobody reads the radar or the app as a crisis service. */}
+        <p className="mt-2 text-[15px] font-semibold leading-relaxed text-navy-700" data-not-emergency>
+          {t("sos.notEmergency")}
+        </p>
       </div>
       <SosList
         entries={entries}
@@ -53,6 +57,7 @@ export default async function SosPage({
           anyTime: t("crisis.anyTime"),
           openNow: t("crisis.openNow"),
           closedNow: t("crisis.closedNow"),
+          checkHours: t("crisis.checkHours"),
         }}
       />
       <p className="rounded-2xl bg-navy-50 px-3.5 py-3 text-sm leading-relaxed text-navy-600">

@@ -320,6 +320,8 @@ async function main() {
           /every claim on this page|كل ما نقوله هنا شاشة/i,
         ],
         ["`minutes rather than weeks`", /minutes rather than weeks|دقائق بدل أسابيع/i],
+        /* Due diligence (claim 23): "Crisis" implied a staffed crisis service. Red until the published rows are edited too. */
+        ["`Crisis Radar`, a crisis service nobody staffs", /Crisis Radar|رادار الأزمات/i],
       ];
 
       for (const [what, pattern] of BANNED) {
@@ -338,7 +340,7 @@ async function main() {
        */
       check(
         "🔴 CONTROL the same search finds a sentence that IS published",
-        /Crisis Radar|رادار الأزمات/i.test(published),
+        /radar|الرادار/i.test(published),
         "the absence checks above are searching real content",
       );
 

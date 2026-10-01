@@ -185,6 +185,38 @@ test("🔴 the pipeline pulls a spent alert forward, records the failure, and a 
   assert.match(raise, /if \(noClinician\) \{\s*await tellPlatformNow\(riskId, now\)/);
 });
 
+test("🔴 a patient who paused AI is not transcribed, and the room and the record say live risk detection is off", () => {
+  const route = readFileSync("app/api/sessions/[id]/transcribe/route.ts", "utf8");
+  const paused = route.slice(route.indexOf("if (await aiPausedForPatient(session.patientId))"));
+  assert.ok(paused.indexOf("await markLiveRiskOff(session.id)") < paused.indexOf('error: "ai_paused"'), "recorded, then refused");
+  assert.ok(paused.indexOf('error: "ai_paused"') < paused.indexOf("transcribeChunk("), "refused before any audio is sent");
+  const room = readFileSync("components/session/session-room.tsx", "utf8");
+  assert.match(room, /refused\?\.error === "ai_paused"\) setLiveRiskOff\(true\)/, "a mid-session pause shows at once");
+  assert.match(room, /\{liveRiskOff \? \(/);
+  assert.match(readFileSync("app/(room)/sessions/[id]/room/page.tsx", "utf8"), /liveRiskOff=\{row\.session\.liveRiskOffAt !== null \|\|/);
+  assert.match(readFileSync("app/(app)/sessions/[id]/page.tsx", "utf8"), /row\.session\.liveRiskOffAt \?/);
+  assert.match(readFileSync("app/(app)/sessions/actions.ts", "utf8"), /markLiveRiskOffIfPaused\(sessionId\)/, "recorded at the start too");
+  for (const key of ["troom.liveRiskOff", "troom.liveRiskOffBody", "portal.session.liveRiskOff"] as const) {
+    assert.ok(en[key] && /[؀-ۿ]/.test(ar[key]), `${key} in both languages`);
+  }
+  assert.match(en["portal.session.aiPaused"], /no live risk detection/);
+});
+
+test("🔴 claim 23: nothing calls the radar a crisis service or promises an answer", () => {
+  const crisisRadar = /crisis radar|رادار الأزمات|talk to a therapist now/i;
+  for (const [key, value] of Object.entries(en)) assert.doesNotMatch(value, crisisRadar, `en ${key}`);
+  for (const [key, value] of Object.entries(ar)) assert.doesNotMatch(value, crisisRadar, `ar ${key}`);
+  assert.doesNotMatch(readFileSync("lib/content/defaults.ts", "utf8"), /Crisis Radar|رادار الأزمات/);
+  assert.doesNotMatch(readFileSync("lib/content/defaults-ar.ts", "utf8"), /رادار الأزم/);
+  assert.equal(en["radar.pageTitle"], "Radar: see who is free to talk now");
+  assert.match(en["radar.metaDescription"], /not an emergency service/);
+  assert.match(ar["radar.metaDescription"], /ليست خدمة طوارئ/);
+  const radar = readFileSync("app/(public)/radar/page.tsx", "utf8");
+  assert.match(radar, /title: t\("radar\.pageTitle"\), description: t\("radar\.metaDescription"\)/);
+  /* Control: the pattern does match the old title. */
+  assert.match("Crisis Radar, talk to a therapist now", crisisRadar);
+});
+
 /* ---------------------------------------------------- the upgrade, not deduped */
 
 test("🔴 a higher level inside the window upgrades and notifies again; the same or lower is deduped", () => {
@@ -333,9 +365,12 @@ test("🔴 F5 the no-JS SOS page is server HTML with a tel: link for every line,
     createElement(SosList, {
       entries,
       locale: "ar",
-      words: { helpLine: "خط المساعدة", anyTime: "في أي وقت", openNow: "مفتوح", closedNow: "مغلق" },
+      words: { helpLine: "خط المساعدة", anyTime: "في أي وقت", openNow: "مفتوح", closedNow: "مغلق", checkHours: "تأكد من المواعيد" },
     }),
   );
+  /* Due diligence: unconfirmed hours (105, the support lines) say "check hours", never open or closed. */
+  assert.ok(html.includes("تأكد من المواعيد"));
+  assert.ok(!html.includes("مغلق"), "nothing is called closed on hours nobody confirmed");
   for (const tel of ["123", "112", "08008880700", "0220816831", "105"]) {
     assert.ok(html.includes(`href="tel:${tel}"`), `tel:${tel} in the HTML`);
   }
@@ -343,6 +378,13 @@ test("🔴 F5 the no-JS SOS page is server HTML with a tel: link for every line,
 
   const page = readFileSync("app/sos/page.tsx", "utf8");
   assert.doesNotMatch(page, /"use client"/);
+  /* Due diligence: the page says plainly that 24Therapy is not an emergency service, in both languages. */
+  assert.match(page, /t\("sos\.notEmergency"\)/);
+  assert.match(en["sos.notEmergency"], /^24Therapy is not an emergency service\./);
+  assert.match(ar["sos.notEmergency"], /ليست خدمة طوارئ/);
+  /* And "works with no SIM" is gone: without a SIM most networks connect only 112. */
+  assert.doesNotMatch(en["crisis.anywhereElse"], /SIM/);
+  assert.doesNotMatch(ar["crisis.anywhereElse"], /شريحة/);
   assert.match(page, /<SosList\b/);
   assert.doesNotMatch(readFileSync("components/crisis/sos-list.tsx", "utf8"), /"use client"|useState|onClick/);
   /* Reachable with scripts off: the orb's noscript, and the public footer. */

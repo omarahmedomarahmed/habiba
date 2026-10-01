@@ -94,6 +94,11 @@ its old and new value. Provider keys stay in the environment.
 | CR7 | A server-rendered `/sos` page lists the numbers as plain links; the orb and footer link to it | The orb needs JavaScript |
 | CR8 | The patient's crisis reply is in their language and says the therapist was told only when that is true | It used to claim so to everyone |
 | CR9 | "kms" matches only as a whole word, never after a number or before a slash | "I ran 5 kms" must not page anyone |
+| CR10 | Proposed: a journal crisis hit raises the same alert as a session (email, then practice, then platform), one per clinician holding a live grant; with no grant holder it goes straight to the platform on-call. The patient is still told nothing about it (C123) | Journal hits never left the app |
+| CR11 | Proposed: when every out-of-band send to the clinician fails (5 attempts), the alert escalates at once and the failure is shown on `/admin/errors`; so is a stage that emailed nobody | Spent retries used to wait silently for the deadline |
+| CR12 | Proposed: only the treating clinician, a clinician (role `therapist`) in the same practice, or the platform on-call (manager, super admin) may acknowledge. `staff` may not. There is no clinical or on-call staff role, so the on-call list is the one CR3 already uses | An acknowledgement stops every escalation |
+| CR13 | Proposed: a patient who paused AI is not transcribed; the room shows "Live risk detection is off" and the session keeps `live_risk_off_at` | Pausing AI silently turned off crisis detection |
+| CR14 | Proposed: no copy calls the radar a crisis service ("Crisis Radar" is now "Radar"); `/sos` says 24Therapy is not an emergency service; 105's hours are shown as "check hours" until confirmed; "works with no SIM" is gone | There is no 24/7 staffing behind the word "crisis" |
 
 ## Sign-up and security
 
@@ -125,7 +130,10 @@ Open items only, as recorded on 2026-10-01.
 | F9 | Legal entity, address and data contact for `/privacy` and `/terms`, a lawyer's review (including Egypt's data protection law) and Arabic versions | Legal |
 | F10 | BAAs and DPAs with Vercel, Neon, OpenAI, Daily and Resend (needs the US entity) | Contracts and money |
 | F-CR1 | A native Arabic-speaking clinician reviews the crisis phrase list in `lib/crisis/alerts.ts` | Only a clinician can say it is complete and safe |
-| F-CR3 | Dial 08008880700, 0220816831 and 105 once and confirm they answer; correct them in settings if not | A crisis number nobody has dialled is a risk |
+| F-CR3 | Dial 08008880700, 0220816831 and 105 once and confirm they answer; correct them in settings if not. Also confirm 105's days and hours (including Sunday) so they can be shown again | A crisis number nobody has dialled is a risk |
+| F-CR4 | Decide the 24/7 position: either staff an on-call rota, or accept that the last stage (managers and super admins, by email) is best effort and keep "crisis" out of all positioning (CR14). Also: who acts on a journal alert for a patient no clinician holds a grant to (CR10), since the on-call cannot read the journal | Staffing and clinical responsibility |
+| F-CR5 | A qualified clinician reviews the new crisis and live-risk wording (CR10 to CR14) in both languages before real patients see it | Clinical wording |
+| F-CR6 | Edit the published CMS rows for the home and for-patients pages, which still say "Crisis Radar" / "رادار الأزمات"; `verify:sprint57` is red until they do | Published content is edited in the console, not in code |
 | F-DNS | Change the DMARC record for 24therapy.app from `p=none` to `p=quarantine` before 2026-10-06 (daily reports from Google and Zoho show all mail passing). `verify:email-dns` in CI fails from that date while it is `p=none` | Only the domain owner can edit DNS |
 | FD1 | Confirm by phone that Egypt's Child Helpline is 16000 | It is in the under-18 refusal |
 | FD2 | Counsel reads the signup notice, privacy notice and terms so they name the same processors | Legal text |

@@ -22,7 +22,7 @@ const BOOK_ERRORS: Record<string, MessageKey> = {
   "Too many attempts. Wait a moment and try again.": "bookerr.tooMany",
   "That time is getting a lot of attempts right now. Try another.": "bookerr.crowded",
   "That time is no longer on the calendar.": "bookerr.gone",
-  "This calendar is busy. Try again shortly, or use the crisis radar.": "bookerr.busy",
+  "This calendar is busy. Try again shortly, or see who is free on the radar.": "bookerr.busy",
   "Please enter your first name.": "bookerr.name",
   "That name is a little long.": "bookerr.nameLong",
   "Add an email or a phone number so we can send you the link.": "bookerr.contact",
@@ -105,7 +105,7 @@ export async function book(input: {
   const perTherapist = await consume(subjectKey("book:therapist", owner), 40, 60 * 60);
   if (!perTherapist.allowed) {
     return {
-      error: await said("This calendar is busy. Try again shortly, or use the crisis radar."),
+      error: await said("This calendar is busy. Try again shortly, or see who is free on the radar."),
     };
   }
 

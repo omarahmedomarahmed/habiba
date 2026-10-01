@@ -144,18 +144,24 @@ test("🔴 W1-09 a configured line reaches its own country, by page country or b
   assert.deepEqual(byPhone.map((entry) => entry.line.tel), ["8004673"], "their own number beats the page");
 });
 
-test("🔴 W1-09 Egypt never gets 105 alone, and outside its hours the always-open numbers lead", async () => {
+test("🔴 W1-09 Egypt never gets 105 alone, and the always-open numbers lead whatever the day", async () => {
   const { sosLinesFor } = await import("../lib/crisis/sos");
-  const open = sosLinesFor({ country: "EG", countries: COUNTRIES, now: MONDAY_NOON });
-  /* F5: the two General Secretariat support lines sit beside 105 and the emergency numbers. */
-  assert.deepEqual(open.map((entry) => entry.line.tel).sort(), ["0220816831", "08008880700", "105", "112", "123"]);
-  assert.equal(open[0]!.line.tel, "105");
-  assert.equal(open[0]!.open, true);
+  for (const now of [MONDAY_NOON, FRIDAY_NOON, new Date("2026-09-20T09:00:00Z") /* Sunday, a working day */]) {
+    const entries = sosLinesFor({ country: "EG", countries: COUNTRIES, now });
+    /* F5: the two General Secretariat support lines sit beside 105 and the emergency numbers. */
+    assert.deepEqual(entries.map((entry) => entry.line.tel).sort(), ["0220816831", "08008880700", "105", "112", "123"]);
+    assert.equal(entries[0]!.line.tel, "123", "an always-open number is the first button");
+    assert.equal(entries[0]!.open, true);
+    /* Due diligence: 105's hours were never confirmed (the source left out Sunday), so neither open nor closed. */
+    assert.equal(entries.find((entry) => entry.line.tel === "105")?.open, null);
+  }
+});
 
-  const closed = sosLinesFor({ country: "EG", countries: COUNTRIES, now: FRIDAY_NOON });
-  assert.notEqual(closed[0]!.line.tel, "105", "a line that is likely closed is not the first button");
-  assert.equal(closed[0]!.open, true);
-  assert.equal(closed.find((entry) => entry.line.tel === "105")?.open, false);
+test("🔴 a line with a known closed hour still never leads the always-open numbers", async () => {
+  const { lineOpenAt } = await import("../lib/crisis/line");
+  const officeHours = { label: "9", tel: "9", hours: { timeZone: "Africa/Cairo", days: [0, 1, 2, 3, 4], from: 9, to: 17 } };
+  assert.equal(lineOpenAt(officeHours, new Date("2026-09-20T09:00:00Z")), true, "Sunday counts as a working day");
+  assert.equal(lineOpenAt(officeHours, FRIDAY_NOON), false);
 });
 
 test("W1-09 a line with unknown hours is not labelled open or closed", async () => {
