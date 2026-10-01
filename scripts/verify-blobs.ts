@@ -78,19 +78,19 @@ async function main() {
   /*
    * 🔴 The one blob that is not a file: the minute tick's marker. Its access is
    * computed (private once a private store exists), so the count above cannot
-   * see it; this says what it may hold: two timestamps and nothing else.
+   * see it; this says what it may hold: timestamps and nothing else (the crisis deadline only while an alert is open).
    */
   const markerData = read("lib/data/reminder-marker.ts");
   const markerRule = read("lib/sessions/reminder-marker.ts");
   const markerWrites = [...markerData.matchAll(/writeMarkerBlob\(([^;]*)\);/g)].map((m) => m[1]!);
   const markerWriters = files.filter((file) => /writeMarkerBlob\(/.test(read(file)));
   check(
-    "🔴 the minute tick's marker is written only as two timestamps, from one module",
+    "🔴 the minute tick's marker is written only as timestamps (two, or three while a crisis alert is open), from one module",
     /export async function writeMarkerBlob\(path: string, text: string/.test(uploads) &&
       markerWriters.every((file) => file === "lib/uploads.ts" || file === "lib/data/reminder-marker.ts") &&
       markerWrites.length > 0 &&
       markerWrites.every((args) => /^markerPath\(\), serializeMarker\(/.test(args)) &&
-      /return JSON\.stringify\(\{ nextAt: marker\.nextAt, writtenAt: marker\.writtenAt \}\);/.test(markerRule),
+      /\{ nextAt: marker\.nextAt, writtenAt: marker\.writtenAt, crisisDueAt: marker\.crisisDueAt \}\s*: \{ nextAt: marker\.nextAt, writtenAt: marker\.writtenAt \}/.test(markerRule),
     markerWriters.join(", "),
   );
   const documents = read("lib/data/documents.ts");
