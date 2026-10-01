@@ -8,6 +8,7 @@ import { requirePatient } from "@/lib/patient-auth/guard";
 /**
  * 🔴 F6: the patient's own answer about a session on a partner's platform. The
  * person id is from their session; the token names only the session asked about.
+ * A session that is not this patient's is refused with its own sentence.
  */
 export async function answerPartnerConsent(token: string, state: "given" | "withdrawn"): Promise<void> {
   const actor = await requirePatient();
@@ -17,6 +18,7 @@ export async function answerPartnerConsent(token: string, state: "given" | "with
     accountId: actor.accountId,
     state: state === "given" ? "given" : "withdrawn",
   });
-  const outcome = "error" in result ? "dead" : state === "given" ? "yes" : "no";
+  const outcome =
+    "error" in result ? (result.error === "not_yours" ? "notyours" : "dead") : state === "given" ? "yes" : "no";
   redirect(`/patient/partner-consent/${encodeURIComponent(token)}?done=${outcome}`);
 }

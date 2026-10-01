@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { consentHistory, partnerAnswerSource, recordConsent } from "@/lib/partner/consent";
-import { patientConsentUrl } from "@/lib/partner/patient-consent";
+import { linkedPersonOf, patientConsentUrl } from "@/lib/partner/patient-consent";
 import { openSession, otherEnvironment } from "@/lib/partner/platform";
 import { fail, withKey } from "@/lib/partner/route";
 
@@ -184,6 +184,8 @@ export async function POST(request: Request) {
           externalSessionRef: session,
           externalSubjectRef: subject,
           offsetSeconds: offset,
+          /* Review fix: a subject already linked binds the link to that one person. */
+          personId: await linkedPersonOf({ partnerId: guard.key.partnerId, externalSubjectRef: subject }),
         })
       : null,
   });

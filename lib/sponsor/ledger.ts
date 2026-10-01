@@ -103,13 +103,23 @@ export type HeldBack = { sessions: number; spendCents: number };
 export type LedgerUnit = "week" | "month";
 
 /**
- * 🔴 F7: GATHER WEEKS (OR MONTHS) INTO PERIODS OF AT LEAST `floor` PEOPLE.
+ * 🔴 F7: GATHER WEEKS INTO PERIODS OF AT LEAST `floor` PEOPLE.
  *
  * Oldest first, each week is added to the open period; the period is reported
  * once the DISTINCT people in it reach the floor (`privacyFloor`). A short
  * period is merged forward rather than dropped (a dropped one could be
  * recovered by subtracting the shown ones from a total). What is still short
  * at the end is returned as `heldBack`, a total for the reconciliation line.
+ *
+ * 🔴 Review fix: THE MONTH VIEW IS BUILT FROM THE PUBLISHED WEEKS, NEVER FROM
+ * THE ENTRIES. Each view used to merge up to the floor on its own, so a month
+ * could clear the floor while its last weeks were still held back, and "the
+ * month minus the weeks shown inside it" printed those held-back weeks alone,
+ * which can be one person. Now a month is the sum of whole weekly periods that
+ * are already published (`monthsFromWeeks`), and the held-back figure is the
+ * same one total in both views. So any difference between two published
+ * figures, in either view, is a sum of whole published weekly periods, each of
+ * which already cleared the floor, and never a group below it.
  */
 export function ledgerPeriods(
   entries: LedgerEntry[],
@@ -117,11 +127,9 @@ export function ledgerPeriods(
   unit: LedgerUnit = "week",
 ): { periods: LedgerPeriod[]; heldBack: HeldBack | null } {
   const floor = privacyFloor(floorSetting);
-  const keyOf = (entry: LedgerEntry) => (unit === "month" ? entry.weekStart.slice(0, 7) : entry.weekStart);
   const byKey = new Map<string, LedgerEntry[]>();
   for (const entry of entries) {
-    const key = keyOf(entry);
-    byKey.set(key, [...(byKey.get(key) ?? []), entry]);
+    byKey.set(entry.weekStart, [...(byKey.get(entry.weekStart) ?? []), entry]);
   }
   const periods: LedgerPeriod[] = [];
   let open: LedgerEntry[] = [];
@@ -134,10 +142,31 @@ export function ledgerPeriods(
     open = [];
     first = null;
   }
-  return {
-    periods,
-    heldBack: open.length > 0 ? { sessions: sessionsIn(open), spendCents: spendIn(open) } : null,
-  };
+  const heldBack = open.length > 0 ? { sessions: sessionsIn(open), spendCents: spendIn(open) } : null;
+  return { periods: unit === "month" ? monthsFromWeeks(periods) : periods, heldBack };
+}
+
+/**
+ * 🔴 Review fix: THE MONTHS, AS SUMS OF WHOLE PUBLISHED WEEKLY PERIODS.
+ *
+ * A weekly period belongs to the month its LAST week starts in, so a period
+ * that runs across a month end is counted once, in the later month, whose
+ * `from` then names the earlier month honestly. Nothing here reads an entry:
+ * a month can only ever say what the weekly view already says, added up.
+ */
+export function monthsFromWeeks(weeks: LedgerPeriod[]): LedgerPeriod[] {
+  const months: LedgerPeriod[] = [];
+  for (const week of [...weeks].sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0))) {
+    const month = week.to.slice(0, 7);
+    const last = months.at(-1);
+    if (last && last.to === month) {
+      last.sessions += week.sessions;
+      last.spendCents += week.spendCents;
+    } else {
+      months.push({ from: week.from.slice(0, 7), to: month, sessions: week.sessions, spendCents: week.spendCents });
+    }
+  }
+  return months;
 }
 
 /* ------------------------------------------------------ filters and sorting -- */
@@ -215,7 +244,8 @@ export function ledgerAnalytics(input: {
 }): LedgerAnalytics {
   const floor = privacyFloor(input.floor);
   const { periods } = ledgerPeriods(input.entries, floor, "week");
-  const { periods: months } = ledgerPeriods(input.entries, floor, "month");
+  /* Review fix: the burn reads the same published weeks, summed by month. */
+  const months = monthsFromWeeks(periods);
   const reported = periods.length > 0;
 
   /* A coverage bucket is a count over people too, so it has the same floor. */

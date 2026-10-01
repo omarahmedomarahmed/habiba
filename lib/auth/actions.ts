@@ -388,16 +388,23 @@ export async function requestPasswordReset(
    *
    * Per connection, refused out loud: this tells nobody anything about which
    * addresses exist. Per address, silent: the answer stays "check your inbox"
-   * either way, and the address simply stops receiving resets for an hour, so
-   * this form cannot be used to bury somebody's inbox.
+   * either way.
+   *
+   * 🔴 Review fix: the per-address limit used to be one bucket for the whole
+   * internet, so a stranger could spend it and lock the owner out of resets
+   * for an hour. It is now per address AND network, plus one email per address
+   * every two minutes, and a suppressed request always has a working link from
+   * the last two minutes in that inbox. See `lib/auth/reset-throttle.ts`.
    */
-  const perConnection = await consume(await callerKey("password-reset"), 5, 15 * 60);
+  const network = await callerKey("password-reset");
+  const perConnection = await consume(network, 5, 15 * 60);
   if (!perConnection.allowed) {
     const { t } = await getI18n();
     return { error: t("tauth.err.tooMany", { minutes: minutesFrom(perConnection.retryAfter) }) };
   }
-  const perAddress = await consume(subjectKey("password-reset:address", email), 3, 60 * 60);
-  if (!perAddress.allowed) return { ok: true };
+  const { resetMailVerdict } = await import("./reset-throttle");
+  const verdict = await resetMailVerdict({ email, network, consume, keyOf: subjectKey });
+  if (verdict !== "send") return { ok: true };
 
   const [user] = await db
     .select({ id: users.id })

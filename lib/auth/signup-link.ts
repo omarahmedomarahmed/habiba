@@ -18,8 +18,10 @@ import { createSession } from "./session";
  * used to land them directly.
  *
  * Deliberately not in `lib/auth/actions.ts`: every export of a "use server"
- * module is a server action a browser can call, and this is reached only by
- * the link (`app/(auth)/signup/confirm/route.ts`).
+ * module is a server action a browser can call, and this is reached only from
+ * the link's page, by its "Continue" button (`app/(auth)/signup/confirm/`).
+ * Opening the link spends nothing, so a mail scanner fetching it first leaves
+ * the token for the person (review fix).
  *
  * The token is claimed and spent in one conditional UPDATE, so two clicks of
  * the same link cannot both sign somebody in.

@@ -9,6 +9,7 @@ import {
   lastPublishedWeek,
   ledgerAnalytics,
   ledgerPeriods,
+  monthsFromWeeks,
   privacyFloor,
   type HeldBack,
   type LedgerAnalytics,
@@ -76,7 +77,8 @@ export async function publishedLedger(
   const weekly = ledgerPeriods(rows, floor, "week");
   return {
     weeks: weekly.periods,
-    months: ledgerPeriods(rows, floor, "month").periods,
+    /* Review fix: months are the published weeks summed, never merged on their own. */
+    months: monthsFromWeeks(weekly.periods),
     heldBack: weekly.heldBack,
     stats: ledgerAnalytics({ entries: rows, floor, ...context }),
     through,
