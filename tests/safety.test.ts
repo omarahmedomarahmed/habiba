@@ -82,7 +82,14 @@ test("F5 crisis scan reads the feminine, the dialect, Franco-Arab and the shorth
 });
 
 test("F5 the short forms need a word, not three letters inside one or a distance", () => {
-  for (const phrase of ["I ran 5 kms this morning", "it is 12 kms away", "about 3.5 kms", "speed in kms/h"]) {
+  for (const phrase of [
+    "I ran 5 kms this morning",
+    "it is 12 kms away",
+    "about 3.5 kms",
+    "speed in kms/h",
+    "هنتحرك بكرة الصبح",
+    "إحنا هنتحرك دلوقتي",
+  ]) {
     assert.deepEqual(scanForCrisisLanguage(phrase), [], `should not match: "${phrase}"`);
   }
 });

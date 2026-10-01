@@ -175,8 +175,11 @@ const CRISIS_PHRASES = [
    */
   "عايزه اموت",
   "عاوزه اموت",
-  /* 🔴 F5: the Egyptian future, "I will kill myself", in two common shapes. */
-  "هنتحر",
+  /*
+   * 🔴 F5: the Egyptian future, "I will kill myself". "هنتحر" is matched as a
+   * whole word in CRISIS_PATTERNS below, because as a substring it is inside
+   * "هنتحرك" ("we'll get moving").
+   */
   "هموت نفسي",
   "اريد ان اموت",
   "بدي اموت",
@@ -394,6 +397,8 @@ export function scanForCrisisLanguage(text: string): string[] {
  */
 const CRISIS_PATTERNS: { label: string; re: RegExp }[] = [
   { label: "kms", re: /(?<![0-9][\s.,]*)(?<![a-z0-9])kms(?![a-z0-9/])/ },
+  /* "I will kill myself", never "هنتحرك" ("we'll get moving"). */
+  { label: "هنتحر", re: /(?<![\u0621-\u064A])هنتحر(?![\u0621-\u064A])/u },
 ];
 
 /** What raising an alert actually did, so a caller can tell the patient the truth. */
@@ -600,6 +605,25 @@ async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> 
       .limit(1);
     if (!row) return false;
 
+    /*
+     * Claim this attempt before sending. The hourly crisis job and the minute
+     * tick both retry unsent alerts, and once an hour they overlap: whichever
+     * moves the attempt count first sends, the other sees zero rows and stops,
+     * so a clinician is never emailed twice and the attempt budget is spent once.
+     */
+    const claimed = await db
+      .update(riskAssessments)
+      .set({ outOfBandAttempts: row.attempts + 1 })
+      .where(
+        and(
+          eq(riskAssessments.id, riskId),
+          eq(riskAssessments.outOfBandAttempts, row.attempts),
+          isNull(riskAssessments.outOfBandAt),
+        ),
+      )
+      .returning({ id: riskAssessments.id });
+    if (claimed.length === 0) return false;
+
     const { wordsFor } = await import("@/lib/i18n/message-words");
     const { t, locale } = await wordsFor({ userId: row.therapistId });
     const { notify } = await import("@/lib/notify");
@@ -626,7 +650,6 @@ async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> 
     await db
       .update(riskAssessments)
       .set({
-        outOfBandAttempts: row.attempts + 1,
         outOfBandAt: delivery.sent ? new Date() : null,
         outOfBandChannels: delivery.channels,
       })
@@ -986,12 +1009,20 @@ export async function acknowledgeCrisisAlert(
 ): Promise<boolean> {
   const viewed = await alertForViewer(riskId, actor);
   if (!viewed) return false;
-  if (viewed.acknowledgedAt) return true;
+  /*
+   * True only for the press that actually recorded the acknowledgement. An
+   * alert someone else already acknowledged, or a second press that loses the
+   * race, returns false, so the caller writes no audit row for a person the
+   * alert does not name.
+   */
+  if (viewed.acknowledgedAt) return false;
 
-  await db
+  const recorded = await db
     .update(riskAssessments)
     .set({ acknowledgedAt: new Date(), acknowledgedBy: actor.userId, alertStatus: "acknowledged", escalateAt: null })
-    .where(and(eq(riskAssessments.id, riskId), isNull(riskAssessments.acknowledgedAt)));
+    .where(and(eq(riskAssessments.id, riskId), isNull(riskAssessments.acknowledgedAt)))
+    .returning({ id: riskAssessments.id });
+  if (recorded.length === 0) return false;
 
   try {
     const { refreshReminderMarker } = await import("@/lib/data/reminder-marker");
