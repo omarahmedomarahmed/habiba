@@ -198,6 +198,8 @@ async function main() {
     ["…in Arabic", "أخي انتحر من سنتين."],
     ["something said to be over", "When I was nineteen I used to cut myself. That is over and it has not come back."],
     ["…in Arabic", "زمان كنت أجرح نفسي، لكن ذلك انتهى ولم أعد أفعله."],
+    ["DD-2 'we will get moving', which هنتحر must never read as", "هنتحرك بكرة الصبح"],
+    ["DD-2 an idiom about a brother", "أخويا كان عايز يموت من الضحك"],
   ];
 
   for (const [what, text] of suppressed) {
@@ -212,6 +214,19 @@ async function main() {
     ["🔴 a relative in the sentence does not silence the speaker", "My brother worries about me and I have been thinking I want to die."],
     ["a plain disclosure is untouched", "I want to die."],
     ["…in Arabic", "أتمنى أن أموت."],
+    /*
+     * 🔴 DD-2: the sentences the due diligence ran through the shipped scanner
+     * and found silenced. A family word inside another word, a first-person
+     * phrase after a relative, "no longer" before an inability, and the clitic
+     * that af5343f's whole-word pattern lost.
+     */
+    ["🔴 DD-2 'قدامي' is not 'امي'", "السكينة قدامي وعايز اموت"],
+    ["🔴 DD-2 a first-person phrase after a relative", "زوجي ضربني وعايزة اموت"],
+    ["🔴 DD-2 'no longer can' is not resolved", "I used to cope but I no longer can, I want to die"],
+    ["🔴 DD-2 the clitic in front of هنتحر", "انا تعبت وهنتحر النهارده"],
+    ["DD-2 the missing forms", "I wanna die"],
+    ["…hanging", "هشنق نفسي"],
+    ["…Arabizi", "3ayez amut"],
   ];
 
   for (const [what, text] of mustAlert) {
