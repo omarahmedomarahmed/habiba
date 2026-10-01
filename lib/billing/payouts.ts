@@ -25,10 +25,20 @@ import { wordsFor } from "@/lib/i18n/message-words";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { notify } from "@/lib/notify";
+import { recordError } from "@/lib/observability/errors";
 import { getSettings } from "@/lib/settings";
 
 import { egpShortfall, egpWithdrawable, stillHeldCents } from "./egp-books";
 import { fourEyesProblem, payoutSeparationProblem } from "./four-eyes";
+import type { PayoutEvent } from "./gateway/types";
+import {
+  classifyRecheck,
+  describeRecheck,
+  nextNoRecordSince,
+  NO_RECORD_ALERT_HOURS,
+  noRecordAlertDue,
+  type RecheckFinding,
+} from "./payout-unknown";
 import { quoteFor } from "./fx";
 import {
   heldForTherapist,
@@ -96,6 +106,8 @@ export type PayoutQueueRow = {
   /** 64.1: the payouts provider's side, when one is sending it. */
   providerState: PayoutProviderState | null;
   providerError: string | null;
+  /** 0195: hours of re-checks that found nothing, while `unknown`. */
+  noRecordHours: number | null;
 };
 
 /* ---------------------------------------------------------- the details -- */
@@ -1024,28 +1036,55 @@ export async function applyPayoutEvent(
  * sent with). `sent` is applied exactly as its callback would be; `failed` is
  * definitive and lets it be sent again or by hand; `pending` means the provider
  * has it, so it is `sending` and its callback finishes it. No record, or no
- * answer, leaves it `unknown`.
+ * answer, leaves it `unknown`; 0195 times a run of "nothing found" so it is
+ * raised after 72 hours, and a second person can confirm it was not sent
+ * (`confirmPayoutNotSent`).
  */
 export async function recheckPayout(requestId: string): Promise<{ state: PayoutProviderState | "gone" }> {
   const row = await requestRow(requestId);
   if (!row) return { state: "gone" };
   if (row.providerState !== "unknown" || !row.provider) return { state: row.providerState ?? "gone" };
+  const probe = await askProviderAgain(row);
+  if (probe.finding !== "answered" || !probe.asked || !probe.providerName) {
+    await noteNothingFound(row, probe.finding);
+    return { state: "unknown" };
+  }
+  return applyRecheckAnswer(row, probe.providerName, probe.asked);
+}
+
+/** What the provider says now about an `unknown` payout, without changing anything. */
+async function askProviderAgain(
+  row: PayoutRequest,
+): Promise<{ finding: RecheckFinding; providerName: string | null; asked?: PayoutEvent }> {
   const { payoutProvider } = await import("./gateway");
   const provider = await payoutProvider();
-  if (!provider || provider.name !== row.provider) return { state: "unknown" };
+  const providerName = provider?.name ?? null;
+  const before = classifyRecheck({ sentWith: row.provider, providerNow: providerName });
+  if (!provider || before === "no_provider" || before === "provider_changed") return { finding: before, providerName };
 
   const ours = !row.providerRef || row.providerRef.startsWith("claim:");
-  const asked = await (ours ? provider.fetchByReference(row.id) : provider.fetchStatus(row.providerRef!)).catch(
-    () => null,
-  );
-  if (!asked || "ok" in asked) return { state: "unknown" };
+  let threw = false;
+  const asked = await (ours ? provider.fetchByReference(row.id) : provider.fetchStatus(row.providerRef!)).catch(() => {
+    threw = true;
+    return null;
+  });
+  const kind = threw || (asked && "ok" in asked) ? "error" : asked ? "record" : "no_record";
+  const finding = classifyRecheck({ sentWith: row.provider, providerNow: providerName, asked: kind });
+  return { finding, providerName, asked: asked && !("ok" in asked) ? asked : undefined };
+}
 
+async function applyRecheckAnswer(
+  row: PayoutRequest,
+  providerName: string,
+  asked: PayoutEvent,
+): Promise<{ state: PayoutProviderState | "gone" }> {
   if (asked.outcome === "failed") {
     await db
       .update(payoutRequests)
       .set({
         providerState: "failed",
         providerError: `the provider confirms it failed: ${asked.failure ?? "failed"}`.slice(0, 300),
+        providerNoRecordSince: null,
         updatedAt: new Date(),
       })
       .where(and(eq(payoutRequests.id, row.id), eq(payoutRequests.providerState, "unknown")));
@@ -1054,30 +1093,141 @@ export async function recheckPayout(requestId: string): Promise<{ state: PayoutP
   /* The provider has it: `sending` again, with its own id, so its callback or the answer below finishes it. */
   const [moved] = await db
     .update(payoutRequests)
-    .set({ providerState: "sending", providerRef: asked.providerRef || row.providerRef, updatedAt: new Date() })
+    .set({
+      providerState: "sending",
+      providerRef: asked.providerRef || row.providerRef,
+      providerNoRecordSince: null,
+      updatedAt: new Date(),
+    })
     .where(and(eq(payoutRequests.id, row.id), eq(payoutRequests.providerState, "unknown")))
     .returning({ id: payoutRequests.id });
   if (!moved) return { state: (await requestRow(row.id))?.providerState ?? "gone" };
   if (asked.outcome === "sent") {
-    await applyPayoutEvent(provider.name, { ...asked, reference: row.id });
+    await applyPayoutEvent(providerName, { ...asked, reference: row.id });
     return { state: "sent" };
   }
   return { state: "sending" };
 }
 
-/** 🔴 0188: every payout left `unknown`, asked again. Hourly, from the `reminders` job. */
-export async function recheckUnknownPayouts(): Promise<{ asked: number; resolved: number }> {
+/** 0195: start (or keep) the clock on a run of re-checks that found nothing. */
+async function noteNothingFound(row: PayoutRequest, finding: RecheckFinding): Promise<void> {
+  const since = nextNoRecordSince(row.providerNoRecordSince, finding, new Date());
+  if ((since?.getTime() ?? null) === (row.providerNoRecordSince?.getTime() ?? null)) return;
+  await db
+    .update(payoutRequests)
+    .set({ providerNoRecordSince: since })
+    .where(and(eq(payoutRequests.id, row.id), eq(payoutRequests.providerState, "unknown")));
+}
+
+/**
+ * 🔴 0188: every payout left `unknown`, asked again. Hourly, from the `reminders` job.
+ *
+ * 0195: one that has found nothing for 72 hours is raised on /admin/errors.
+ * Money is never failed on its own: a person confirms it with the provider.
+ */
+export async function recheckUnknownPayouts(): Promise<{ asked: number; resolved: number; stale: number }> {
   const rows = await db
     .select({ id: payoutRequests.id })
     .from(payoutRequests)
     .where(and(eq(payoutRequests.status, "approved"), eq(payoutRequests.providerState, "unknown")))
     .limit(50);
   let resolved = 0;
+  let stale = 0;
+  const now = new Date();
   for (const row of rows) {
     const { state } = await recheckPayout(row.id);
-    if (state !== "unknown") resolved += 1;
+    if (state !== "unknown") {
+      resolved += 1;
+      continue;
+    }
+    const after = await requestRow(row.id);
+    if (after && noRecordAlertDue(after.providerNoRecordSince, now)) stale += 1;
   }
-  return { asked: rows.length, resolved };
+  if (stale > 0) {
+    log.error("payouts unknown with nothing found at the provider", { stale });
+    await recordError({
+      error: new Error(
+        `${String(stale)} payout(s) have been unknown for ${String(NO_RECORD_ALERT_HOURS)}+ hours and the provider has no record of them (or cannot be asked). Check with the provider; if it confirms nothing was sent, a second staff member presses "Provider confirms it was not sent" in the payout queue.`,
+      ),
+      path: "/admin/payouts",
+    });
+  }
+  return { asked: rows.length, resolved, stale };
+}
+
+/**
+ * 🔴 0195: THE EXIT FROM `unknown` WHEN THE PROVIDER HAS NO RECORD.
+ *
+ * A staff member who has checked with the provider (its dashboard, its
+ * support line) records that the transfer was not made, which moves the
+ * provider state to `failed` so it can be sent again or by hand. The same
+ * four-eyes rules as sending, and with the separation rule on, never the
+ * person who pressed Send. The provider is asked once more first: if it has a
+ * record now, that answer is applied and nothing is failed by hand. What the
+ * check found goes on the event and the audit record.
+ */
+export async function confirmPayoutNotSent(input: {
+  requestId: string;
+  actorUserId: string;
+  reason: string;
+}): Promise<{ ok?: boolean; error?: string; found?: string }> {
+  const reason = input.reason.trim();
+  if (reason.length < MIN_REASON) return { error: "apayout.notSentReason" satisfies MessageKey };
+  const row = await requestRow(input.requestId);
+  if (!row) return { error: "That request no longer exists." };
+  if (row.status !== "approved" || row.providerState !== "unknown") {
+    return { error: "apayout.notSentNotUnknown" satisfies MessageKey };
+  }
+  const refused = await fourEyes(row, input.actorUserId, false);
+  if (refused) return refused;
+  const settings = await getSettings();
+  const sentIt = payoutSeparationProblem({
+    act: "confirm_not_sent",
+    actorUserId: input.actorUserId,
+    transferConfirmers: [],
+    approvedByUserId: row.approvedByUserId,
+    sentByUserId: row.providerSenderUserId,
+    separate: settings.rules.approvals.payoutSeparation,
+  });
+  if (sentIt) return { error: "aaccess.fourNotSent" satisfies MessageKey };
+
+  const probe = await askProviderAgain(row);
+  if (probe.finding === "answered" && probe.asked && probe.providerName) {
+    await applyRecheckAnswer(row, probe.providerName, probe.asked);
+    return { error: "apayout.notSentHasRecord" satisfies MessageKey };
+  }
+  const found = describeRecheck(probe.finding, row.provider, probe.providerName);
+
+  const done = await db.transaction(async (tx) => {
+    const [moved] = await tx
+      .update(payoutRequests)
+      .set({
+        providerState: "failed",
+        providerError: `staff confirmed with the provider that it was not sent (check: ${found})`.slice(0, 300),
+        providerNoRecordSince: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(payoutRequests.id, row.id),
+          eq(payoutRequests.status, "approved"),
+          eq(payoutRequests.providerState, "unknown"),
+        ),
+      )
+      .returning({ id: payoutRequests.id });
+    if (!moved) return false;
+    await tx.insert(payoutRequestEvents).values({
+      requestId: row.id,
+      fromStatus: "approved",
+      toStatus: "approved",
+      actorUserId: input.actorUserId,
+      note: `Provider confirms it was not sent (check: ${found}). ${reason}`.slice(0, 1000),
+    });
+    return true;
+  });
+  if (!done) return { error: "That request has already moved on. Reload the queue." };
+  log.warn("payout confirmed not sent by staff", { request: ref(row.id), check: probe.finding });
+  return { ok: true, found };
 }
 
 /** The clinician says it arrived, or the team confirms the bank did. */
@@ -1331,6 +1481,7 @@ export async function manualQueue(): Promise<PayoutQueueRow[]> {
       proofUrl: payoutRequests.proofUrl,
       providerState: payoutRequests.providerState,
       providerError: payoutRequests.providerError,
+      providerNoRecordSince: payoutRequests.providerNoRecordSince,
     })
     .from(payoutRequests)
     .innerJoin(users, eq(users.id, payoutRequests.therapistId))
@@ -1366,6 +1517,8 @@ export async function manualQueue(): Promise<PayoutQueueRow[]> {
       proofUrl: row.proofUrl,
       providerState: row.providerState,
       providerError: row.providerError,
+      noRecordHours:
+        row.providerNoRecordSince === null ? null : Math.floor((now - row.providerNoRecordSince.getTime()) / 3_600_000),
     };
   });
 }

@@ -215,11 +215,12 @@ export async function noteFromTranscript(input: {
 
 /**
  * Thrown when the model's reply cannot be a note: cut off at the token limit,
- * stopped by the content filter, unreadable, or (near) empty. The caller marks
- * the note failed, so the clinician sees "try again" rather than a blank draft.
+ * stopped by the content filter, unreadable, or empty. The caller marks the
+ * note failed, and the clinician sees "try again" and "write it myself" (a
+ * blank draft in their format) rather than an empty note posing as a draft.
  */
 export class UnusableNoteError extends Error {
-  constructor(readonly reason: "length" | "content_filter" | "empty" | "unparseable" | "not_object" | "too_short") {
+  constructor(readonly reason: "length" | "content_filter" | "empty" | "unparseable" | "not_object") {
     super(`note reply unusable: ${reason}`);
     this.name = "UnusableNoteError";
   }
@@ -238,9 +239,6 @@ export function readNoteReply(choice: ReplyChoice, context: string): Record<stri
   return parsed.value;
 }
 
-/** Fewer characters than this across the clinical fields is not a note. */
-export const MIN_NOTE_CHARACTERS = 40;
-
 /** The clinical record's text: SOAP or the format's sections, and the summary. */
 export function clinicalText(note: NoteContent): string {
   return [
@@ -256,11 +254,13 @@ export function clinicalText(note: NoteContent): string {
     .trim();
 }
 
-/** Refuses an empty or near-empty note. */
+/**
+ * Refuses a note with no clinical text at all. A short one is kept: a brief
+ * session can have a brief note, and the clinician edits a draft before
+ * signing it.
+ */
 export function assertNoteUsable(note: NoteContent): void {
-  const text = clinicalText(note);
-  if (!text) throw new UnusableNoteError("empty");
-  if (text.length < MIN_NOTE_CHARACTERS) throw new UnusableNoteError("too_short");
+  if (!clinicalText(note)) throw new UnusableNoteError("empty");
 }
 
 /** The heading `lib/clinical/context.ts` puts over what was known before. */

@@ -7,6 +7,7 @@ import { AlertTriangle, ShieldAlert, UserCheck } from "lucide-react";
 import {
   approve,
   confirm,
+  confirmNotSent,
   didNotArrive,
   markSent,
   recheckWithProvider,
@@ -63,6 +64,8 @@ export type QueueRow = {
   proofUrl: string | null;
   providerState: "sending" | "sent" | "failed" | "unknown" | null;
   providerError: string | null;
+  /** 0195: hours of re-checks that found nothing at the provider. */
+  noRecordHours?: number | null;
 };
 
 export type AutomatedRow = {
@@ -181,6 +184,7 @@ function ManualRow({ row, providerReady }: { row: QueueRow; providerReady: boole
   const [returnState, returnAction] = useActionState(didNotArrive, INITIAL);
   const [providerState, providerAction] = useActionState(sendThroughProvider, INITIAL);
   const [recheckState, recheckAction] = useActionState(recheckWithProvider, INITIAL);
+  const [notSentState, notSentAction] = useActionState(confirmNotSent, INITIAL);
   const t = useT();
   /* 🔴 0188: no answer from the provider blocks every way of sending, like sending does. */
   const sending = row.providerState === "sending" || row.providerState === "unknown";
@@ -193,7 +197,8 @@ function ManualRow({ row, providerReady }: { row: QueueRow; providerReady: boole
     confirmState.error ??
     rejectState.error ??
     returnState.error ??
-    recheckState.error;
+    recheckState.error ??
+    notSentState.error;
 
   return (
     <li>
@@ -267,6 +272,28 @@ function ManualRow({ row, providerReady }: { row: QueueRow; providerReady: boole
                 <Go label={t("apayout.recheck")} tone="quiet" />
               </form>
               {recheckState.ok ? <p className="w-full text-xs text-slate-600">{recheckState.note}</p> : null}
+              {row.noRecordHours != null ? (
+                <p className="w-full text-xs text-amber-700">
+                  {t("apayout.noRecordFor", { hours: String(row.noRecordHours) })}
+                </p>
+              ) : null}
+              {/*
+                🔴 0195: the exit when the provider has no record. A second
+                person (never whoever pressed Send, while the separation rule
+                is on), a reason, and the provider asked once more first.
+              */}
+              <form action={notSentAction} className="flex w-full items-end gap-2">
+                <input type="hidden" name="requestId" value={row.id} />
+                <Input
+                  name="reason"
+                  placeholder={t("apayout.notSentReasonHint")}
+                  required
+                  minLength={MIN_REASON}
+                  className="h-8 w-64 text-xs"
+                />
+                <Go label={t("apayout.notSent")} tone="quiet" />
+              </form>
+              {notSentState.ok ? <p className="w-full text-xs text-slate-600">{notSentState.note}</p> : null}
             </>
           ) : null}
           {row.providerState === "failed" && row.providerError ? (

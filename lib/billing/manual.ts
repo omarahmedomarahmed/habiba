@@ -557,6 +557,19 @@ export async function confirmPayment(input: {
     return { error: STATEMENT_DIFFERS };
   }
   /*
+   * 🔴 Against the row too, before the update: without `expected` the guarded
+   * UPDATE below matched nothing and the operator read "not waiting for a
+   * decision" instead of "the statement says a different amount".
+   */
+  if (input.statementMinor != null) {
+    const [current] = await db
+      .select({ amountCents: manualPayments.amountCents })
+      .from(manualPayments)
+      .where(eq(manualPayments.id, input.paymentId))
+      .limit(1);
+    if (current && current.amountCents !== input.statementMinor) return { error: STATEMENT_DIFFERS };
+  }
+  /*
    * 🔴 78.6 — `decided_at` IS THE DATABASE'S CLOCK, NOT THIS PROCESS'S, AND A
    * COMPANY'S TRANSFER WENT MISSING BECAUSE IT WAS NOT.
    *
