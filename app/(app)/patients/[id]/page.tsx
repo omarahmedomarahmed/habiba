@@ -27,6 +27,7 @@ import { notesForSessions } from "@/lib/data/sessions";
 import { builtInFormat } from "@/lib/notes/formats";
 import { getI18n } from "@/lib/i18n/server";
 import { SessionBadge } from "@/components/sessions/status-badge";
+import { missedBooking } from "@/lib/sessions/doors";
 import { NoteOrigin } from "@/components/notes/provenance";
 
 /** W3: the tab title in the reader's language. A join or pay link is never indexed. */
@@ -436,7 +437,10 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
                       both languages.
                     */}
                     {session.status !== "completed" ? (
-                      <SessionBadge status={session.status} />
+                      <SessionBadge
+                        status={session.status}
+                        missed={missedBooking({ status: session.status, scheduledAt: session.scheduledAt ?? null, startedAt: session.startedAt ?? null }, Date.now())}
+                      />
                     ) : null}
                     <ChevronRight className="h-4 w-4 shrink-0 text-navy-300 rtl:rotate-180" aria-hidden />
                   </Link>

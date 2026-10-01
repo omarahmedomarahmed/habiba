@@ -107,6 +107,16 @@ export default async function SessionDetailPage({
   const { startWindow } = await import("@/lib/sessions/start-window");
   const notStarted = row.session.status === "scheduled";
   const ahead = notStarted && startWindow(row.session.scheduledAt, Date.now(), rules.start) === "booked";
+  /*
+   * DD-2: a booked hour that passed with nobody starting it did not take
+   * place. The patient's screens say so (`missedBooking`); this one offered
+   * "Not started yet / Open room" days later.
+   */
+  const { missedBooking } = await import("@/lib/sessions/doors");
+  const missed = missedBooking(
+    { status: row.session.status, scheduledAt: row.session.scheduledAt ?? null, startedAt: row.session.startedAt ?? null },
+    Date.now(),
+  );
   /* B64: the booked hour first; the end only for a session nobody booked. */
   const sessionTime = row.session.scheduledAt ?? row.session.endedAt ?? row.session.createdAt;
   const startedOffBooking = Boolean(
@@ -281,7 +291,7 @@ export default async function SessionDetailPage({
           ) : null}
         </div>
         </div>
-        <SessionBadge status={row.session.status} />
+        <SessionBadge status={row.session.status} missed={missed} />
       </div>
 
       <div className="space-y-4 px-4 sm:px-6">
@@ -290,7 +300,19 @@ export default async function SessionDetailPage({
             {t("portal.session.aiPaused")}
           </p>
         ) : null}
-        {live ? (
+        {missed ? (
+          <Card className="p-5">
+            <p className="text-[17px] font-bold text-navy-700">{t("portal.session.missed")}</p>
+            <p className="mt-1 text-sm text-navy-400">
+              {t("portal.session.missedBody", {
+                when: formatDateTime(row.session.scheduledAt, actor.timezone, locale),
+              })}
+            </p>
+            <div className="mt-3">
+              <CancelSession sessionId={id} paid={row.session.paymentStatus === "paid"} />
+            </div>
+          </Card>
+        ) : live ? (
           <Card className="overflow-hidden p-0">
             <div className="relative flex flex-col items-start gap-4 overflow-hidden bg-navy-900 p-5 text-white">
               <Glow className="-end-16 -top-16 h-52 w-52 opacity-60" />

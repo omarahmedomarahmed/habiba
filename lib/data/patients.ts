@@ -153,6 +153,9 @@ export async function getPatientHistory(actor: Actor, patientId: string) {
       modality: sessions.modality,
       endedAt: sessions.endedAt,
       createdAt: sessions.createdAt,
+      /* DD-2: so the list can say a missed booking did not take place. */
+      scheduledAt: sessions.scheduledAt,
+      startedAt: sessions.startedAt,
       durationMinutes: sessions.durationMinutes,
       noteStatus: sessions.noteStatus,
       noteSummary: sessionNotes.content,

@@ -16,13 +16,17 @@ import { getI18n } from "@/lib/i18n/server";
 export async function SessionBadge({
   status,
   noteStatus,
+  missed = false,
 }: {
   status: string;
   /** When given, a finished session shows what its note is doing instead. */
   noteStatus?: string;
+  /** DD-2: a booking whose hour passed with nobody starting it (`missedBooking`). */
+  missed?: boolean;
 }) {
   const { t } = await getI18n();
 
+  if (missed) return <Badge tone="slate">{t("portal.status.missed")}</Badge>;
   if (status === "in_progress") return <Badge tone="red">{t("portal.status.live")}</Badge>;
   if (status === "scheduled") return <Badge tone="amber">{t("portal.status.notStarted")}</Badge>;
   if (status === "cancelled") return <Badge tone="slate">{t("portal.status.cancelled")}</Badge>;

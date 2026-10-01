@@ -22,6 +22,7 @@ import { collectionCurrencyFor, collectionRailFor } from "./money";
 import { quoteFor } from "./fx";
 import { fundingLegs } from "./split-refund";
 import { getStripe } from "./stripe";
+import { BOOKED_HOUR_MS } from "@/lib/sessions/doors";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -1978,6 +1979,23 @@ export type Earnings = {
   heldCents: number;
 };
 
+/**
+ * DD-2: false for a session that did not take place: cancelled, or a booking
+ * whose hour passed with nobody starting it (`missedBooking` in
+ * `lib/sessions/doors.ts`, the rule the patient's screens use). A payment with
+ * no session row is kept. Used by the earnings summary so a missed session is
+ * not counted as earned; what happens to the money is the refund path's.
+ */
+export function sessionMayHaveTakenPlaceSql() {
+  return sql`(${sessions.id} IS NULL OR NOT (
+    ${sessions.status} = 'cancelled'
+    OR (${sessions.status} = 'scheduled'
+        AND ${sessions.startedAt} IS NULL
+        AND ${sessions.scheduledAt} IS NOT NULL
+        AND ${sessions.scheduledAt} <= ${new Date(Date.now() - BOOKED_HOUR_MS).toISOString()}::timestamptz)
+  ))`;
+}
+
 export async function earningsSummary(therapistId: string): Promise<Earnings> {
   const startOfMonth = new Date();
   startOfMonth.setUTCDate(1);
@@ -1993,7 +2011,15 @@ export async function earningsSummary(therapistId: string): Promise<Earnings> {
       count: sql<number>`COUNT(*)::int`,
     })
     .from(sessionPayments)
-    .where(and(eq(sessionPayments.therapistId, therapistId), eq(sessionPayments.status, "paid")));
+    .leftJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
+    .where(
+      and(
+        eq(sessionPayments.therapistId, therapistId),
+        eq(sessionPayments.status, "paid"),
+        /* DD-2: a session that did not take place is not earned. */
+        sessionMayHaveTakenPlaceSql(),
+      ),
+    );
 
   const { heldForTherapist } = await import("./ledger");
 
