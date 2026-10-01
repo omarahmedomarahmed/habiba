@@ -1498,3 +1498,41 @@ export async function ensureRoom(session: {
     ? { ok: true, url: winner.url, name: winner.name }
     : { ok: false, reason: "unreachable" };
 }
+
+/**
+ * 🔴 Due diligence: LIVE RISK DETECTION OFF, AND THE RECORD SAYS SO.
+ *
+ * A patient who paused AI is not transcribed (their choice), and live crisis
+ * detection reads the transcript, so it is off for them too. That used to be
+ * silent. The session now keeps when it was first off for that reason
+ * (`sessions.live_risk_off_at`), and the room and the session page say so.
+ * Written once; a second call changes nothing. Never throws.
+ */
+export async function markLiveRiskOff(sessionId: string): Promise<void> {
+  try {
+    await db
+      .update(sessions)
+      .set({ liveRiskOffAt: new Date() })
+      .where(and(eq(sessions.id, sessionId), isNull(sessions.liveRiskOffAt)));
+  } catch (error) {
+    log.warn("live risk off not recorded", { session: ref(sessionId), reason: error instanceof Error ? error.name : "unknown" });
+  }
+}
+
+/** At the start of a session: record it when this session's patient has paused AI. Never throws. */
+export async function markLiveRiskOffIfPaused(sessionId: string): Promise<boolean> {
+  try {
+    const [row] = await db
+      .select({ patientId: sessions.patientId })
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
+    const { aiPausedForPatient } = await import("@/lib/data/ai-consent");
+    if (!row || !(await aiPausedForPatient(row.patientId))) return false;
+    await markLiveRiskOff(sessionId);
+    return true;
+  } catch (error) {
+    log.warn("live risk check at start failed", { session: ref(sessionId), reason: error instanceof Error ? error.name : "unknown" });
+    return false;
+  }
+}

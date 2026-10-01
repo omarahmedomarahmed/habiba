@@ -796,7 +796,7 @@ async function afterFailedSend(riskId: string, now: Date = new Date()): Promise<
           isNull(riskAssessments.acknowledgedAt),
           isNull(riskAssessments.outOfBandAt),
           eq(riskAssessments.escalationStage, row.escalationStage),
-          row.escalateAt ? eq(riskAssessments.escalateAt, row.escalateAt) : isNull(riskAssessments.escalateAt),
+          or(isNull(riskAssessments.escalateAt), gt(riskAssessments.escalateAt, now)),
         ),
       )
       .returning({ id: riskAssessments.id });

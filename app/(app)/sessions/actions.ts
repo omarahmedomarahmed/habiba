@@ -420,6 +420,11 @@ export async function goLive(sessionId: string): Promise<SessionActionState> {
       resourceType: "session",
       resourceId: sessionId,
     });
+    /* 🔴 Due diligence: a patient who paused AI has no live risk detection; the record says so from the start. */
+    if (startedNow) {
+      const { markLiveRiskOffIfPaused } = await import("@/lib/data/sessions");
+      await markLiveRiskOffIfPaused(sessionId);
+    }
     /*
      * 🔴 A sign in near its eight hour ceiling is not cut off mid session: the
      * ceiling moves to two hours after this start (`lib/auth/session.ts`).

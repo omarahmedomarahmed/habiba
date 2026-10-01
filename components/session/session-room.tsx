@@ -51,6 +51,8 @@ type RoomProps = {
   patientAlreadyJoined: boolean;
   /** Null for sessions that predate the consent step, or that never used the join form. */
   recordingConsent: "granted" | "declined" | null;
+  /** 🔴 Due diligence: the patient paused AI, so nothing is transcribed and live risk detection is off. */
+  liveRiskOff: boolean;
   /** ISO, so the countdown survives a refresh mid-session. */
   startedAt: string | null;
   /** 🔴 0183: when both people were there and the clock began. Null until then. */
@@ -154,6 +156,8 @@ export function SessionRoom(props: RoomProps) {
    */
   const [now, setNow] = useState(() => props.serverNow);
   const [crisis, setCrisis] = useState(false);
+  /* 🔴 Due diligence: set from the page, or by the first chunk refused because the patient paused AI mid-session. */
+  const [liveRiskOff, setLiveRiskOff] = useState(props.liveRiskOff);
   /* 🔴 F2: the alert the last crisis flag raised, so the banner can acknowledge it. */
   const [alertId, setAlertId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -222,7 +226,13 @@ export function SessionRoom(props: RoomProps) {
           credentials: "same-origin",
         });
 
-        if (!response.ok) return;
+        if (!response.ok) {
+          if (response.status === 409) {
+            const refused = (await response.json().catch(() => null)) as { error?: string } | null;
+            if (refused?.error === "ai_paused") setLiveRiskOff(true);
+          }
+          return;
+        }
 
         const data = (await response.json()) as {
           text?: string;
@@ -697,6 +707,21 @@ export function SessionRoom(props: RoomProps) {
         be the most obvious thing on the screen — and needs to know it was the
         patient's decision rather than a bug, or they will simply "fix" it.
       */}
+      {/* 🔴 Due diligence: risk detection off is said where it cannot be missed, with the reason being the patient's choice. */}
+      {liveRiskOff ? (
+        <p
+          role="status"
+          data-live-risk-off
+          className="relative mx-4 mt-3 flex items-start gap-2.5 rounded-2xl bg-amber-400/15 px-4 py-3 text-sm leading-relaxed text-amber-100 ring-1 ring-amber-400/30 sm:mx-6"
+        >
+          <MicOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden />
+          <span>
+            <strong className="font-semibold">{t("troom.liveRiskOff", { name: props.patientLabel })}</strong>{" "}
+            {t("troom.liveRiskOffBody")}
+          </span>
+        </p>
+      ) : null}
+
       {props.modality === "in_person" && consent === null ? (
         <div
           className="relative mx-4 mt-3 rounded-3xl border border-teal-400/30 bg-teal-400/10 p-4 sm:mx-6"

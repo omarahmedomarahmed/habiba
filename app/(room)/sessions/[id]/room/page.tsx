@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { SessionRoom } from "@/components/session/session-room";
 import { requireUser } from "@/lib/auth/guard";
+import { aiPausedForPatient } from "@/lib/data/ai-consent";
 import { lineId } from "@/lib/sessions/live-lines";
 import { markSessionNotificationsRead } from "@/lib/data/notifications";
 import { ensureRoom, getSession, getTranscript, unpaidInPerson } from "@/lib/data/sessions";
@@ -132,6 +133,8 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
         recording made anyway.
       */
       recordingConsent={row.session.recordingConsent}
+      /* 🔴 Due diligence: a patient who paused AI has no live risk detection, and the room says so. */
+      liveRiskOff={row.session.liveRiskOffAt !== null || (await aiPausedForPatient(row.session.patientId))}
       transcriptLanguage={row.session.transcriptLanguage}
       /* 🔴 The start ruling: the booked time in the clinician's zone, and when Start appears. */
       booking={
