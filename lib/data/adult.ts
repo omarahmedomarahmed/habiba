@@ -6,6 +6,7 @@ import { audit } from "@/lib/audit";
 import type { Actor } from "@/lib/auth/session";
 import { adultConfirmedFrom } from "@/lib/consent/adult";
 import { controlDb } from "@/lib/db";
+import { qualified } from "@/lib/db/qualified";
 import { patientAccounts, patients, sessions } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 
@@ -22,7 +23,7 @@ export async function adultConfirmedForSession(sessionId: string): Promise<boole
         chart: patients.adultConfirmedAt,
         account: sql<Date | null>`(
           SELECT MAX(a.adult_confirmed_at) FROM ${patientAccounts} a
-           WHERE a.person_id = ${patients.personId}
+           WHERE a.person_id = ${qualified(patients.personId)}
         )`,
       })
       .from(sessions)

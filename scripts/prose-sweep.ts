@@ -264,6 +264,8 @@ const PORTALS: Record<string, readonly string[]> = {
      * A visitor booking from a public profile reads them, so they are public.
      */
     "bookerr",
+    /* /sos, read by anyone without signing in (DD-2: "not an emergency service"). */
+    "sos",
     /*
      * 🔴 B32: the Arabic shell of the legal pages and the integrations page:
      *
