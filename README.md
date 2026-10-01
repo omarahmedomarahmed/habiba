@@ -76,10 +76,11 @@ npm run dev
 `CLAUDE.md` is the rule. In short:
 
 1. Work on a branch and open a pull request into `main`.
-2. GitHub Actions runs `npm run ci` (`.github/workflows/ci.yml`). Red blocks the merge.
+2. GitHub Actions runs `npm run ci` and the database suites (`.github/workflows/ci.yml`). Red blocks the merge.
 3. An AI code review of the diff is recorded on the pull request, labelled as AI.
 4. Before a merge that deploys: `npm run gates` locally, then
-   `npm run on:production -- db:migrate` (production migrations go first).
+   `npm run on:production -- db:status` and, if it lists any, `npm run on:production -- db:migrate`
+   (production migrations go first; `docs/OPERATIONS.md` has the deploy steps).
 5. Merge with a merge commit. Only `main` deploys (`vercel.json`).
 
 ## Documentation

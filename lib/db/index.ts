@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 
 import { env } from "@/lib/env";
+import { applyLocalProxy } from "./local-proxy";
 import { connectionStringFor, DEFAULT_REGION, REGIONS, type Region } from "./region";
 import * as schema from "./schema";
 
@@ -20,6 +21,9 @@ import * as schema from "./schema";
  * both need.
  */
 neonConfig.webSocketConstructor = ws;
+
+/* CI only: a plain Postgres behind a local WebSocket proxy. A no-op when DATABASE_WS_PROXY is unset. */
+applyLocalProxy(neonConfig);
 
 /**
  * 🔴 30.1 / C118 — there is no `db` export any more, and that is the sprint.

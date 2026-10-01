@@ -7,11 +7,24 @@ an npm script, so one command runs one check.
 
 | Pass | Command | Needs | Runs |
 | --- | --- | --- | --- |
-| Static | `npm run ci` | Nothing but the repository (and Chromium for the alarm suite) | `typecheck`, every `test:*` suite except the database ones, `prose`, and the static verifiers listed in `scripts/ci.ts` |
+| Static | `npm run ci` | Nothing but the repository (and Chromium for the alarm suite) | `typecheck`, every `test:*` suite except the database ones, `prose`, and the static verifiers listed in `scripts/_ci-lists.ts` |
+| Database | `npm run ci:db` | A Postgres on this machine behind Neon's WebSocket proxy (`DATABASE_WS_PROXY`), migrated and seeded | Every suite in `NEEDS_DATABASE_SUITES` (`scripts/_ci-lists.ts`) except `test:e2e`. Refuses any database host that is not local |
 | Full | `npm run gates` | `.env.local` with `DATABASE_URL` on the dev branch | Every gate in `scripts/_gates.ts`, which includes `suites` (every unit suite), `verifiers` (every `verify:*` that is not a gate) and the build-and-serve checks |
 
-GitHub Actions runs `npm run ci` on every pull request and on `main`
-(`.github/workflows/ci.yml`). `npm run gates` is run locally before a merge that deploys; it
+GitHub Actions runs both on every pull request and on `main` (`.github/workflows/ci.yml`): the
+static pass, and a "Database checks" job that starts `postgres:18` (Neon runs 18) with
+`ghcr.io/neondatabase/wsproxy` in front of it, runs `db:migrate`, `settings:seed` and
+`db:seed`, then `npm run ci:db`. No secret is involved. To run the database pass locally:
+
+```
+docker network create ci
+docker run -d --network ci --network-alias postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=ci -p 5432:5432 postgres:18
+docker run -d --network ci -e APPEND_PORT=postgres:5432 -e ALLOW_ADDR_REGEX='.*' -p 5488:80 ghcr.io/neondatabase/wsproxy:latest
+export DATABASE_URL=postgres://postgres:postgres@localhost:5432/ci DATABASE_WS_PROXY=localhost:5488
+npm run db:migrate && npm run settings:seed && SEED_ADMIN_EMAIL=ci-admin@example.com SEED_ADMIN_PASSWORD=<any> npm run db:seed && npm run ci:db
+```
+
+Variables set in the shell win over `.env.local`, so this never reaches dev. `npm run gates` is run locally before a merge that deploys; it
 takes a long time, so between edits run only the narrow check for what you touched.
 
 `npm test` alone runs the safety and due diligence suites (`tests/safety.test.ts`,
@@ -60,8 +73,8 @@ in the pull request.
 
 | To add | Do |
 | --- | --- |
-| A unit suite | `tests/<name>.test.ts` and a `test:<name>` script. `suites` fails on a test file no script runs. If it needs a database, add it to `NEEDS_DATABASE_SUITES` in `scripts/ci.ts` |
-| A verifier | `scripts/verify-<name>.ts` using `reporter()` and `readSource()` from `scripts/_verify.ts`, and a `verify:<name>` script. `verifiers` picks it up automatically. If it needs no database, add it to `STATIC_VERIFIERS` in `scripts/ci.ts` so CI runs it |
+| A unit suite | `tests/<name>.test.ts` and a `test:<name>` script. `suites` fails on a test file no script runs. If it needs a database, add it to `NEEDS_DATABASE_SUITES` in `scripts/_ci-lists.ts`; CI then runs it in the database job against an empty, migrated and seeded database, so it must plant its own fixtures |
+| A verifier | `scripts/verify-<name>.ts` using `reporter()` and `readSource()` from `scripts/_verify.ts`, and a `verify:<name>` script. `verifiers` picks it up automatically. If it needs no database, add it to `STATIC_VERIFIERS` in `scripts/_ci-lists.ts` so CI runs it |
 | A gate | An entry in `GATES` in `scripts/_gates.ts` with a one-line reason |
 | A script that writes | Call `writesTo()` so it refuses production; only `scripts/on-production.ts` lets a command through |
 
