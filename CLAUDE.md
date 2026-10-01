@@ -1,23 +1,22 @@
-# Standing orders for every session (2026-09-25 night, from the founder)
+# How changes reach production (from 2026-10-01)
 
-The founder is asleep and has made this session the owner of the launch. Every session that picks
-up this repository, including one continued after a context compaction, follows these orders
-without asking and without stopping:
+The night run's standing orders are retired. This repository is built with AI coding agents under the
+founder's direction, and every change now reaches production through a pull request.
 
-1. Read `docs/simulation-run/NIGHT-PLAN.md` first. It says which stage is done, which is running,
-   and how many full gate runs are left (three at most after G0: one after round 2 fixes, one after
-   the redesign, one after the post-redesign walkthrough fixes). Never run a fourth.
-2. Keep going until every stage in that plan is done: round 2 (round 3 folded in) on the live site,
-   every bug fixed, the redesign of the patient app, therapist portal and website first, then clinic,
-   company and partner, deployed to main, then rounds 1 and 2 walked again on the new design, every
-   bug from that fixed, deployed, and confirmed live.
-3. Rule on every decision yourself and record it in `docs/simulation-run/RULINGS.md` with the
-   reason. Record anything that truly needs the founder (keys, legal data, money in real accounts)
-   in the same file under "Needs the founder", and carry on around it.
-4. Background agents and workflows can die on a usage limit. When work resumes, check every
-   worktree under `.claude/worktrees/` and every `worktree-agent-*` branch: merge any committed work
-   before removing a worktree, and finish any stage an agent left half done yourself.
-5. After every stage: update `NIGHT-PLAN.md`, commit, push `claude/lucid-fermi-pwdz7f`. Push `main`
-   only after a full gate run passes and production migrations are applied first.
-6. The founder reads only short tables. When everything is done and live, the final message is a
-   table of what shipped, a table of every ruling and why, and a table of what needs the founder.
+1. Work on a branch, never directly on `main`. Open a pull request into `main` that says what changed,
+   why, how it was tested, and anything that needs the founder.
+2. GitHub Actions runs `npm run ci` on every pull request: typecheck, every unit suite that needs no
+   database, the prose ratchet and every static verifier. A red CI blocks the merge.
+3. Before merging, the change is reviewed (an AI code review of the diff, recorded on the pull
+   request as an AI review, never presented as a human one). Findings are fixed or answered first.
+4. Before a merge that will deploy, run the full local gates (`npm run gates`, with the secrets file),
+   and apply production migrations first with `npm run on:production -- db:migrate`.
+5. Merge with a merge commit. Only `main` deploys (see `vercel.json`); nothing pushes to `main` by
+   any other route.
+6. Product, clinical, legal and money decisions are proposed in the pull request and recorded in
+   `docs/simulation-run/RULINGS.md`; clinical wording and safety thresholds need review by a qualified
+   clinician before real patients use them. Anything that needs the founder (keys, legal data, real
+   money, regulators) goes under "Needs the founder" in the same file.
+7. Never touch production except through `npm run on:production -- <command>` and its allow-list.
+   No secret is ever committed: the repository is public.
+8. The founder reads short tables. Report what shipped, what was decided and what needs them.
