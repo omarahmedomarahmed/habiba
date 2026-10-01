@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Mail, Pencil, Plus, RefreshCw, Sparkles, Trash2, User } from "lucide-react";
 
@@ -87,6 +87,9 @@ export type PatientCopy = Pick<NoteContent, "patientBrief" | "patientSteps" | "p
  * headers carry each side's state so nobody has to open one to find out whether
  * it still needs them.
  */
+/** DD-2 B2.5: how often an editor being typed in tells the server somebody is here. */
+const KEEP_ALIVE_MS = 5 * 60 * 1000;
+
 export function NoteReview(props: Props) {
   const router = useRouter();
   const t = useT();
@@ -103,17 +106,25 @@ export function NoteReview(props: Props) {
 
   /*
    * A clinician typing a note makes no request until they save, and the sign in
-   * ends after thirty idle minutes. While the editor is open, a light state
-   * check every five minutes counts as activity, so a long note is never lost
-   * to the idle timer; a screen left unattended with the editor closed still
-   * signs out as it should.
+   * ends after thirty idle minutes. DD-2 B2.5: every five minutes, and only if
+   * they actually typed in the editor since the last check, one request counts
+   * as their activity. An open editor nobody is typing in signs out as it should.
    */
+  const typedAt = useRef(0);
   useEffect(() => {
     if (!editing && !editingBrief) return;
+    const typed = () => {
+      typedAt.current = Date.now();
+    };
+    document.addEventListener("input", typed, true);
     const keepAlive = setInterval(() => {
+      if (Date.now() - typedAt.current > KEEP_ALIVE_MS) return;
       void fetch(`/api/sessions/${props.sessionId}/state`, { cache: "no-store" }).catch(() => {});
-    }, 5 * 60 * 1000);
-    return () => clearInterval(keepAlive);
+    }, KEEP_ALIVE_MS);
+    return () => {
+      document.removeEventListener("input", typed, true);
+      clearInterval(keepAlive);
+    };
   }, [editing, editingBrief, props.sessionId]);
   const [error, setError] = useState<string | null>(null);
   const [sent] = useState(props.reportSent);

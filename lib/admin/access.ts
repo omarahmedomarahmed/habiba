@@ -1,3 +1,4 @@
+import { isSafeNext } from "@/lib/auth/safe-redirect";
 import { BACK_OFFICE_ROLES, type Role } from "@/lib/db/schema";
 
 /**
@@ -102,6 +103,13 @@ export function mayOpen(role: Role | null | undefined, path: string): boolean {
  */
 export function landingFor(role: Role | null | undefined): string {
   return mayOpen(role, "/admin") ? "/admin" : "/admin/transfers";
+}
+
+/** DD-2 B2.1: a back office `next`, only when it is safe, in the console, and theirs to open. */
+export function staffDestination(role: Role | null | undefined, next: unknown): string {
+  if (!isSafeNext(next)) return landingFor(role);
+  const path = next.split(/[?#]/)[0]!;
+  return (path === "/admin" || path.startsWith("/admin/")) && mayOpen(role, next) ? next : landingFor(role);
 }
 
 export function isBackOffice(role: Role | null | undefined): boolean {

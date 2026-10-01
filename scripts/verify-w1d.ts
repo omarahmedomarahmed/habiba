@@ -8,7 +8,6 @@
  * (H29), and nothing here may run against production.
  */
 import { sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
 import { stubModules } from "./_render";
@@ -252,10 +251,17 @@ async function totalView(db: ReturnType<typeof connect>["db"]) {
   const someoneElse = await holds(grantId, therapist.id, session.id);
   const otherSession = await holds(grantId, operator.id, patient.id);
   const forged = await holds("00000000-0000-4000-8000-000000000000", operator.id, session.id);
-  await db.execute(sql`
-    UPDATE audit_log SET created_at = now() - make_interval(mins => ${INVESTIGATION_WINDOW_MINUTES + 1})
-     WHERE ${auditFixtures()} AND id = ${grantId}`);
-  const stale = await holds(grantId, operator.id, session.id);
+  /*
+   * DD-2 B2.7: the audit log cannot be rewritten even by a script now, so an
+   * old grant is written old rather than aged: the same row, dated past the window.
+   */
+  const aged = await db.execute<{ id: string }>(sql`
+    INSERT INTO audit_log (organization_id, actor_user_id, category, action, resource_type, resource_id, patient_id, reason, created_at)
+    SELECT organization_id, actor_user_id, category, action, resource_type, resource_id, patient_id, reason,
+           now() - make_interval(mins => ${INVESTIGATION_WINDOW_MINUTES + 1})
+      FROM audit_log WHERE id = ${grantId}
+    RETURNING id`);
+  const stale = await holds(aged.rows[0]?.id ?? null, operator.id, session.id);
   check(
     "🔴 an investigation opens on this reader's own break-glass row for this session, and only inside its window",
     mine && !someoneElse && !otherSession && !forged && !stale,
@@ -614,8 +620,6 @@ async function potAlerts(db: ReturnType<typeof connect>["db"]) {
       `${await sent("empty")} empty alert(s) over two runs`,
     );
   } finally {
-    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN
-      (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsorId})`);
     await db.execute(sql`DELETE FROM delivery_attempts
       WHERE kind IN ('sponsor.pot_empty', 'sponsor.pot_low') AND created_at >= ${started}`);
     await db.execute(sql`DELETE FROM ledger_entries WHERE ref_id = ${sponsorId}`);
@@ -731,10 +735,6 @@ async function main() {
     await potAlerts(db);
     await companyCounters(db);
   } finally {
-    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND actor_user_id IN
-      (SELECT id FROM users WHERE email LIKE ${`%${fixture}%`})`);
-    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND actor_clinic_manager_id IN
-      (SELECT id FROM clinic_managers WHERE email LIKE ${`%${fixture}%`})`);
     await db.execute(sql`DELETE FROM clinic_managers WHERE email LIKE ${`%${fixture}%`}`);
     await db.execute(sql`DELETE FROM copilot_messages WHERE thread_id IN
       (SELECT id FROM copilot_threads WHERE organization_id IN

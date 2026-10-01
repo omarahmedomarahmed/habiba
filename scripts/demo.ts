@@ -17,7 +17,6 @@
 
 import { randomBytes } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 // The real hasher, not a copy of it. A second implementation here would drift
 // from the one that verifies at login, and the failure mode is a fixture
@@ -295,7 +294,6 @@ async function purge() {
       sql`DELETE FROM invoices WHERE organization_id IN (${list})`,
       sql`DELETE FROM subscriptions WHERE organization_id IN (${list})`,
       sql`DELETE FROM ai_request_logs WHERE organization_id IN (${list})`,
-      sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND organization_id IN (${list})`,
       sql`DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE organization_id IN (${list}))`,
       sql`DELETE FROM auth_sessions WHERE user_id IN (SELECT id FROM users WHERE organization_id IN (${list}))`,
       sql`DELETE FROM auth_tokens WHERE user_id IN (SELECT id FROM users WHERE organization_id IN (${list}))`,

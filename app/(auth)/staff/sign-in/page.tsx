@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { safeNext } from "@/lib/auth/safe-redirect";
 import { getI18n } from "@/lib/i18n/server";
 import { Suspense } from "react";
 
@@ -46,7 +47,7 @@ export default async function StaffSignInPage({
   return (
     <QuietAuthShell>
       <Suspense>
-        <StaffSignInForm next={params.next} notice={notice} />
+        <StaffSignInForm next={safeNext(params.next, "")} notice={notice} />
       </Suspense>
     </QuietAuthShell>
   );

@@ -19,7 +19,7 @@ import {
   type WebhookEvent,
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
-import { publicHttpsProblem, resolvesPublic } from "@/lib/net/public-url";
+import { pinnedDispatcher, publicHttpsProblem, resolvePublicAddress } from "@/lib/net/public-url";
 
 import { retryWaitMinutes } from "./retry";
 
@@ -330,6 +330,7 @@ async function attempt(delivery: {
   } catch (error) {
     return { ok: false, status: null, error: safeErrorMessage(error).slice(0, 300) };
   }
+  let dispatcher: ReturnType<typeof pinnedDispatcher> | undefined;
   const body = JSON.stringify({
     event: delivery.event,
     id: delivery.subjectId,
@@ -338,9 +339,12 @@ async function attempt(delivery: {
   });
 
   try {
-    if (!(await resolvesPublic(delivery.url))) {
+    /* 🔴 DD-2 B2.6: resolved once, every address checked, and the socket goes to the one checked. */
+    const pinned = await resolvePublicAddress(delivery.url);
+    if (!pinned) {
       return { ok: false, status: null, error: "The endpoint does not resolve to a public address." };
     }
+    dispatcher = pinnedDispatcher(pinned);
     const timestamp = Math.floor(Date.now() / 1000);
     const secret = decryptSecret(delivery.secretSealed);
     /*
@@ -365,11 +369,14 @@ async function attempt(delivery: {
       /* 🔴 C16: a redirect is a second address nobody checked. It counts as a failure. */
       redirect: "manual",
       signal: AbortSignal.timeout(10_000),
-    });
+      dispatcher,
+    } as RequestInit);
 
     return { ok: response.ok, status: response.status, error: null };
   } catch (error) {
     return { ok: false, status: null, error: safeErrorMessage(error).slice(0, 300) };
+  } finally {
+    await dispatcher?.close().catch(() => undefined);
   }
 }
 

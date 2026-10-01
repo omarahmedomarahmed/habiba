@@ -22,7 +22,9 @@ import { sendExistingAccountNotice, sendPasswordReset, sendSignupWelcome } from 
 import { TERMS_VERSION, signupConsentProblem } from "@/lib/consent/terms";
 import { localiseShared, minutesFrom } from "@/lib/i18n/errors";
 import { getI18n } from "@/lib/i18n/server";
-import { callerKey, consume, subjectKey } from "@/lib/rate-limit";
+import { accountAttempt, accountSignedIn, callerKey, consume, subjectKey } from "@/lib/rate-limit";
+import { minutesToWait } from "./attempts";
+import { safeNext } from "./safe-redirect";
 import { hashPassword, validatePassword, verifyPassword } from "./password";
 import {
   createSession,
@@ -255,6 +257,19 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
     };
   }
 
+  /*
+   * DD-2 B2.2: the per-account lockout, counted before the password is
+   * checked and keyed on the address as typed, so an address with no account
+   * locks exactly like one with an account and the message reveals nothing.
+   * It replaces the read-then-write `failed_login_count`, which parallel
+   * guesses all read as the same number.
+   */
+  const perAccount = await accountAttempt("login", email, LOCKOUT_THRESHOLD, LOCKOUT_MINUTES * 60);
+  if (!perAccount.allowed) {
+    const { t } = await getI18n();
+    return { error: t("auth.tooManyForSignIn", { minutes: minutesToWait(perAccount.retryAfter) }) };
+  }
+
   const [user] = await db
     .select()
     .from(users)
@@ -271,31 +286,15 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
     return generic;
   }
 
-  if (user.lockedUntil && user.lockedUntil > new Date()) {
-    return { error: "Too many attempts. Try again in a few minutes." };
-  }
+  const valid = await verifyPassword(password, user.passwordHash);
+  if (!valid) return generic;
 
+  /* After the password, so "suspended" is told only to whoever holds it. */
   if (user.status !== "active") {
     return { error: "This account has been suspended. Contact your administrator." };
   }
 
-  const valid = await verifyPassword(password, user.passwordHash);
-
-  if (!valid) {
-    const failures = user.failedLoginCount + 1;
-    await db
-      .update(users)
-      .set({
-        failedLoginCount: failures,
-        lockedUntil:
-          failures >= LOCKOUT_THRESHOLD
-            ? new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000)
-            : null,
-      })
-      .where(eq(users.id, user.id));
-    return generic;
-  }
-
+  await accountSignedIn("login", email);
   await db
     .update(users)
     .set({ failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() })
@@ -340,8 +339,8 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
      * `/admin`, which is the owner's, so a staff sign-in bounced out of the
      * console on its first screen.
      */
-    const { landingFor, mayOpen } = await import("@/lib/admin/access");
-    const wantedByStaff = next.startsWith("/admin") && mayOpen(user.role, next) ? next : landingFor(user.role);
+    const { staffDestination } = await import("@/lib/admin/access");
+    const wantedByStaff = staffDestination(user.role, next);
     /*
      * 🔴 Task 40: the password was step one. The session exists but is
      * pending, and every guard treats it as signed out until the second step
@@ -357,7 +356,13 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
     await practiceState(user.id),
   );
 
-  const wanted = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+  const wanted = safeNext(next, "/dashboard");
+  /* DD-2 B2.4: a clinician who added an authenticator app gives its code next. */
+  const { secondFactorStatus } = await import("./second-factor");
+  if ((await secondFactorStatus(user.id)).enrolled) {
+    const { STAFF_SECOND_STEP } = await import("@/lib/routing");
+    redirect(`${STAFF_SECOND_STEP}?next=${encodeURIComponent(cleared ? wanted : "/onboarding")}`);
+  }
   redirect(cleared ? wanted : "/onboarding");
 }
 
@@ -452,28 +457,31 @@ export async function resetPassword(
   }
 
   const tokenHash = createHash("sha256").update(token).digest("hex");
-
-  const [row] = await db
-    .select()
-    .from(authTokens)
-    .where(
-      and(
-        eq(authTokens.tokenHash, tokenHash),
-        eq(authTokens.purpose, "password_reset"),
-        isNull(authTokens.usedAt),
-        gt(authTokens.expiresAt, new Date()),
-      ),
-    )
-    .limit(1);
-
-  if (!row) return { error: "That reset link is invalid or has expired. Request a new one." };
-
   const passwordHash = await hashPassword(password);
 
-  await db.transaction(async (tx) => {
-    await tx.update(users).set({ passwordHash }).where(eq(users.id, row.userId));
-    await tx.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, row.id));
+  /*
+   * DD-2 B2.2: the token is spent by the statement that finds it. The old
+   * select-then-update let two submissions of one link both set a password.
+   */
+  const row = await db.transaction(async (tx) => {
+    const [spent] = await tx
+      .update(authTokens)
+      .set({ usedAt: new Date() })
+      .where(
+        and(
+          eq(authTokens.tokenHash, tokenHash),
+          eq(authTokens.purpose, "password_reset"),
+          isNull(authTokens.usedAt),
+          gt(authTokens.expiresAt, new Date()),
+        ),
+      )
+      .returning({ id: authTokens.id, userId: authTokens.userId });
+    if (!spent) return null;
+    await tx.update(users).set({ passwordHash }).where(eq(users.id, spent.userId));
+    return spent;
   });
+
+  if (!row) return { error: "That reset link is invalid or has expired. Request a new one." };
 
   // Revoke every existing session. The old implementation reset the password
   // and left all refresh tokens alive, so an attacker's session survived the

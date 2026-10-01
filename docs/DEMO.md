@@ -15,8 +15,8 @@ and `docs/simulation/01-THE-CAST.md` from the cast files; edit the cast files, n
 
 Three everyday logins never take the published password: the platform admin, the support
 account and the company. Their password is `DEMO_PRIVATE_PASSWORD` in the operator's
-`.env.local`; without it the seed gives them a random one. Console logins also ask for a second
-step.
+`.env.local`; without it the seed gives them a random one. Console logins also ask for a code
+from an authenticator app.
 
 ## The five test positions
 
@@ -137,8 +137,9 @@ deliberately and `verify:demo` fails if anything gives her a login.
 
 #### Console accounts ask for a second step
 
-After the password, the admin and support accounts ask for a code: from an authenticator
-app once one is added at `/admin/security`, otherwise by email. The support account's
-address is invented, so its email code arrives nowhere. To walk it, add an authenticator
-to it while signed in, or give it an address that receives mail.
+After the password, the admin and support accounts ask for a code from an authenticator
+app; there is no emailed code. An account with no app sets one up on that page at its first
+sign-in (scan the QR code, keep the recovery codes). With `DEMO_TOTP_SECRET` (base32) in
+`.env.local` when seeding, the support account starts enrolled and `npm run -s totp:now`
+prints its current code.
 <!-- logins:demo-cast:end -->

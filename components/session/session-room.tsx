@@ -1,5 +1,6 @@
 "use client";
 
+import { backgroundFetch } from "@/lib/auth/activity";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, Copy, Link2, Loader2, Mic, MicOff, Square, Video, X } from "lucide-react";
@@ -216,7 +217,7 @@ export function SessionRoom(props: RoomProps) {
       try {
         // Credentials ride on the httpOnly session cookie, so there is no token
         // to read, refresh or accidentally capture in a stale closure.
-        const response = await fetch(`/api/sessions/${props.sessionId}/transcribe`, {
+        const response = await backgroundFetch(`/api/sessions/${props.sessionId}/transcribe`, {
           method: "POST",
           body: form,
           credentials: "same-origin",
@@ -426,7 +427,7 @@ export function SessionRoom(props: RoomProps) {
          * rather than only the lines this browser uploaded itself.
          */
         const after = lastSequence(linesRef.current);
-        const response = await fetch(`/api/sessions/${props.sessionId}/state?after=${after}`, {
+        const response = await backgroundFetch(`/api/sessions/${props.sessionId}/state?after=${after}`, {
           credentials: "same-origin",
         });
         if (!response.ok) return;

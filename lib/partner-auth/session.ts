@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 
 import { cookies, headers } from "next/headers";
+import { isUserActivity } from "@/lib/auth/activity";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
@@ -123,10 +124,13 @@ export async function getPartnerActor(): Promise<PartnerActor | null> {
 
   if (!row) return null;
 
-  await controlDb
-    .update(partnerAuthSessions)
-    .set({ lastSeenAt: now })
-    .where(eq(partnerAuthSessions.tokenHash, hashToken(token)));
+  /* DD-2 B2.5: only the person's own requests extend the idle window. */
+  if (isUserActivity(await headers())) {
+    await controlDb
+      .update(partnerAuthSessions)
+      .set({ lastSeenAt: now })
+      .where(eq(partnerAuthSessions.tokenHash, hashToken(token)));
+  }
 
   return row;
 }

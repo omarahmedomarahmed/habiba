@@ -4,9 +4,12 @@ import { redirect } from "next/navigation";
 
 import { checkClinicPassword } from "@/lib/data/clinic-admin";
 import { createClinicSession, revokeClinicSession } from "@/lib/clinic-auth/session";
-import { callerKey, consume } from "@/lib/rate-limit";
+import { minutesToWait } from "@/lib/auth/attempts";
+import { getI18n } from "@/lib/i18n/server";
+import { challengeAfterPassword, passPortalChallenge } from "@/lib/auth/portal-second-step";
+import { accountAttempt, accountSignedIn, callerKey, consume } from "@/lib/rate-limit";
 
-export type ClinicSignInState = { error?: string };
+export type ClinicSignInState = { error?: string; challenge?: string };
 
 /**
  * The clinic's door. PLAN.md 54.2, C259, C264.
@@ -19,17 +22,41 @@ export async function signInClinic(
   _prev: ClinicSignInState,
   formData: FormData,
 ): Promise<ClinicSignInState> {
+  /* DD-2 B2.4: the second half, when the password was right and this account has an app. */
+  if (formData.get("challenge")) {
+    const throttle = await consume(await callerKey("clinic-sign-in"), 8, 15 * 60);
+    if (!throttle.allowed) return { error: "Too many attempts. Try again in a few minutes." };
+    const { t } = await getI18n();
+    const passed = await passPortalChallenge("clinic", formData.get("challenge"), String(formData.get("code") ?? ""));
+    if (!passed.ok) {
+      return passed.expired
+        ? { error: t(passed.error) }
+        : { error: t(passed.error), challenge: String(formData.get("challenge")) };
+    }
+    await createClinicSession(passed.id);
+    redirect("/clinic");
+  }
+
   const throttle = await consume(await callerKey("clinic-sign-in"), 8, 15 * 60);
   if (!throttle.allowed) return { error: "Too many attempts. Try again in a few minutes." };
 
-  const result = await checkClinicPassword(
-    String(formData.get("email") ?? ""),
-    String(formData.get("password") ?? ""),
-  );
+  const email = String(formData.get("email") ?? "");
+  /* DD-2 B2.2: per account too, keyed on the address as typed, so an unknown one locks the same way. */
+  const perAccount = await accountAttempt("clinic-sign-in", email);
+  if (!perAccount.allowed) {
+    const { t } = await getI18n();
+    return { error: t("auth.tooManyForSignIn", { minutes: minutesToWait(perAccount.retryAfter) }) };
+  }
+
+  const result = await checkClinicPassword(email, String(formData.get("password") ?? ""));
 
   if (result.error || !result.clinicManagerId) {
     return { error: result.error ?? "That email address and password do not match." };
   }
+  await accountSignedIn("clinic-sign-in", email);
+
+  const challenge = await challengeAfterPassword("clinic", result.clinicManagerId);
+  if (challenge) return { challenge };
 
   await createClinicSession(result.clinicManagerId);
   redirect("/clinic");

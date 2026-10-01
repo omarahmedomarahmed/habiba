@@ -14,9 +14,10 @@
  * and `requireRole` decide with). Neither is a copy. The source checks at the
  * end hold the wiring between them and the guards.
  *
- * Then it walks the step itself, with real rows: an emailed code, the twelve
- * hour limit, enrolment with a sealed secret, a replayed code refused, a
- * recovery code spent once, and the reset rule. Fixture people are created on
+ * Then it walks the step itself, with real rows: no way past it without an
+ * app (DD-2 B2.3 removed the emailed code), enrolment with a sealed secret on
+ * the step itself, the twelve hour limit, a replayed code refused, a recovery
+ * code spent once, a clinician's optional app (DD-2 B2.4), and the reset rule. Fixture people are created on
  * example.com and deleted at the end, whatever happened.
  *
  * Refuses production (`writesTo`).
@@ -123,67 +124,27 @@ async function main() {
     const c1 = await signIn(clinician);
     const clinicianState = await sessionStateForToken(c1.token);
     check(
-      "clinicians are unaffected: a password is still the whole of it",
+      "clinicians without an app are unaffected: a password is still the whole of it",
       clinicianState?.pendingSecondFactor === false && admission(clinicianState, ["therapist"]) === "admit",
     );
 
-    /* The email fallback, with a code this script knows. */
-    const sent = await sf.emailSecondStepCode(state!.actor, s1.sessionId);
-    const issued = await db
-      .select({ sessionId: schema.staffEmailCodes.sessionId, hash: schema.staffEmailCodes.codeHash, expires: schema.staffEmailCodes.expiresAt })
-      .from(schema.staffEmailCodes)
-      .where(eq(schema.staffEmailCodes.userId, staff));
-    check(
-      "asking for an email code writes one hashed row, bound to this session, for ten minutes",
-      issued.length === 1 &&
-        issued[0]!.sessionId === s1.sessionId &&
-        /^[0-9a-f]{64}$/.test(issued[0]!.hash) &&
-        Math.abs(issued[0]!.expires.getTime() - Date.now() - 10 * 60_000) < 60_000,
-      `delivered on this machine: ${sent.ok ? "yes" : "no (no mail provider on dev)"}`,
-    );
-
-    const known = "314159";
-    await db.insert(schema.staffEmailCodes).values({
-      userId: staff,
-      sessionId: s1.sessionId,
-      codeHash: totp.hashEmailCode(known),
-      expiresAt: new Date(Date.now() + 10 * 60_000),
-    });
-
-    const wrong = await sf.passSecondStep(state!.actor, s1.sessionId, "000000");
-    check(
-      "a wrong code is refused, and the failure is an audit row",
-      !wrong.ok && (await audited(staff, "second_factor.failed")) === 1,
-    );
-
-    const right = await sf.passSecondStep(state!.actor, s1.sessionId, known);
-    state = await sessionStateForToken(s1.token);
-    check(
-      "🔴 the right code passes: the time is on the session, and the same admin action is admitted",
-      right.ok && state?.secondFactorAt instanceof Date && admission(state, ADMIN) === "admit",
-      `admission ${admission(state, ADMIN)}`,
-    );
-
-    const s1b = await signIn(staff);
-    const again = await sf.passSecondStep(state!.actor, s1b.sessionId, known);
-    check("an emailed code works once, and only for the session that asked", !again.ok);
-
-    await db
-      .update(schema.authSessions)
-      .set({ secondFactorAt: new Date(Date.now() - 12 * 60 * 60 * 1000 - 60_000) })
-      .where(eq(schema.authSessions.id, s1.sessionId));
-    state = await sessionStateForToken(s1.token);
-    check(
-      "🔴 twelve hours after the step, it is asked for again",
-      state?.pendingSecondFactor === true && admission(state, ADMIN) === "second_step",
-    );
-    await db.update(schema.authSessions).set({ secondFactorAt: new Date() }).where(eq(schema.authSessions.id, s1.sessionId));
-
     /* ============================================================ */
-    /*  Enrolment, sealed, with ten recovery codes                  */
+    /*  🔴 DD-2 B2.3: no app, no way in but enrolling one            */
     /* ============================================================ */
 
-    const who = (await sessionStateForToken(s1.token))!.actor;
+    const guessed = await sf.passSecondStep(state!.actor, s1.sessionId, "314159");
+    check(
+      "🔴 without an app no six digits pass the step (the emailed code is gone), and the failure is an audit row",
+      !guessed.ok && (await audited(staff, "second_factor.failed")) === 1,
+    );
+    check(
+      "🔴 the email fallback no longer exists in the code",
+      !("emailSecondStepCode" in sf) &&
+        !/staffEmailCodes\)\s*\.values|notify\(/.test(readSource("lib/auth/second-factor.ts")) &&
+        !/sendSecondStepCode/.test(readSource("lib/auth/second-step-actions.ts")),
+    );
+
+    const who = state!.actor;
     await sf.beginEnrolment(who);
     const pending = required(await sf.pendingEnrolment(who), "a pending enrolment");
     const [stored] = await db
@@ -218,9 +179,23 @@ async function main() {
         hashes.every((row) => !codes.some((code) => row.hash.includes(totp.normaliseRecoveryCode(code)))),
     );
     check("the enrolment is an audit row", (await audited(staff, "second_factor.enrolled")) === 1);
+    state = await sessionStateForToken(s1.token);
+    check(
+      "🔴 enrolling on the second step passes it: the same admin action is admitted",
+      state?.secondFactorAt instanceof Date && state.secondFactorEnrolled && admission(state, ADMIN) === "admit",
+      `admission ${admission(state, ADMIN)}`,
+    );
 
-    const fallback = await sf.emailSecondStepCode(who, s1.sessionId);
-    check("once an app is enrolled the email fallback is refused", !fallback.ok && fallback.error === "tauth.secondUseApp");
+    await db
+      .update(schema.authSessions)
+      .set({ secondFactorAt: new Date(Date.now() - 12 * 60 * 60 * 1000 - 60_000) })
+      .where(eq(schema.authSessions.id, s1.sessionId));
+    state = await sessionStateForToken(s1.token);
+    check(
+      "🔴 twelve hours after the step, it is asked for again",
+      state?.pendingSecondFactor === true && admission(state, ADMIN) === "second_step",
+    );
+    await db.update(schema.authSessions).set({ secondFactorAt: new Date() }).where(eq(schema.authSessions.id, s1.sessionId));
 
     const s2 = await signIn(staff);
     const replay = await sf.passSecondStep(who, s2.sessionId, enrolCode);
@@ -244,6 +219,35 @@ async function main() {
       "🔴 a recovery code passes once and is refused the second time",
       recovery.ok && !recoveryAgain.ok && (await sf.secondFactorStatus(staff)).recoveryLeft === 9,
     );
+
+    /* ============================================================ */
+    /*  🔴 DD-2 B2.4: a clinician's optional app                    */
+    /* ============================================================ */
+
+    const clinicianWho = clinicianState!.actor;
+    await sf.beginEnrolment(clinicianWho);
+    const clinicianKey = totp.base32Decode(required(await sf.pendingEnrolment(clinicianWho), "a clinician enrolment").key.replace(/\s/g, ""));
+    const clinicianOn = await sf.confirmEnrolment(clinicianWho, c1.sessionId, totp.totpAt(clinicianKey, Date.now()));
+    const c2 = await signIn(clinician);
+    const owed = await sessionStateForToken(c2.token);
+    check(
+      "🔴 once a clinician turns an app on, a new sign-in owes the step",
+      clinicianOn.ok && owed?.pendingSecondFactor === true && admission(owed, ["therapist"]) === "second_step",
+    );
+    const clinicianPass = await sf.passSecondStep(clinicianWho, c2.sessionId, totp.hotp(clinicianKey, totp.stepAt(Date.now()) + 1));
+    check(
+      "...and the app's next code admits them",
+      clinicianPass.ok && admission(await sessionStateForToken(c2.token), ["therapist"]) === "admit",
+    );
+    const offWrong = await sf.removeOwnFactor(clinicianWho, "000000");
+    const offRight = clinicianOn.ok ? await sf.removeOwnFactor(clinicianWho, clinicianOn.recoveryCodes[0]!) : { ok: false };
+    const c3 = await signIn(clinician);
+    check(
+      "a clinician turns it off only with a code from it, and then a password is enough again",
+      !offWrong.ok && offRight.ok && (await sessionStateForToken(c3.token))?.pendingSecondFactor === false,
+    );
+    const staffOff = await sf.removeOwnFactor(who, codes[1]!);
+    check("🔴 a back office member cannot turn their own app off", !staffOff.ok && (await sf.secondFactorStatus(staff)).enrolled);
 
     /* ============================================================ */
     /*  🔴 The reset rule                                           */

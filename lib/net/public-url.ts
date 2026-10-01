@@ -3,6 +3,8 @@ import "server-only";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
+import { Agent } from "undici";
+
 /**
  * 🔴 C16 — A PARTNER'S WEBHOOK URL IS A REQUEST WE MAKE FROM INSIDE.
  *
@@ -80,15 +82,54 @@ export const resolver = {
   lookup: (host: string) => lookup(host, { all: true, verbatim: true }),
 };
 
-/** The send-time check: every address the name resolves to must be public. */
-export async function resolvesPublic(raw: string): Promise<boolean> {
-  if (publicHttpsProblem(raw)) return false;
+/**
+ * 🔴 DD-2 B2.6: RESOLVE ONCE, CHECK EVERY ADDRESS, CONNECT TO THE ONE CHECKED.
+ *
+ * The send-time check used to resolve the name and then let `fetch` resolve
+ * it again. A name with a short TTL could answer public to the first and
+ * 10.0.0.5 to the second (DNS rebinding). Now the answer that was checked is
+ * the one connected to: `pinnedDispatcher` hands the socket a lookup that
+ * returns only that address, and TLS still checks the certificate against the
+ * name.
+ */
+export type PinnedAddress = { address: string; family: 4 | 6 };
+
+export async function resolvePublicAddress(raw: string): Promise<PinnedAddress | null> {
+  if (publicHttpsProblem(raw)) return null;
   const host = new URL(raw).hostname.replace(/^\[|\]$/g, "");
-  if (isIP(host)) return !addressBlocked(host);
+  const literal = isIP(host);
+  if (literal) return addressBlocked(host) ? null : { address: host, family: literal === 6 ? 6 : 4 };
   try {
     const found = await resolver.lookup(host);
-    return found.length > 0 && found.every((entry) => !addressBlocked(entry.address));
+    if (found.length === 0 || !found.every((entry) => !addressBlocked(entry.address))) return null;
+    const first = found[0]!;
+    return { address: first.address, family: isIP(first.address) === 6 ? 6 : 4 };
   } catch {
-    return false;
+    return null;
   }
+}
+
+/** The send-time check: every address the name resolves to must be public. */
+export async function resolvesPublic(raw: string): Promise<boolean> {
+  return (await resolvePublicAddress(raw)) !== null;
+}
+
+type LookupCallback = (
+  error: NodeJS.ErrnoException | null,
+  address: string | { address: string; family: number }[],
+  family?: number,
+) => void;
+
+/** A `lookup` for `net.connect` that answers with the checked address and nothing else. */
+export function pinnedLookup(pinned: PinnedAddress) {
+  return (_host: string, options: unknown, callback: LookupCallback): void => {
+    const all = typeof options === "object" && options !== null && (options as { all?: boolean }).all === true;
+    if (all) callback(null, [{ address: pinned.address, family: pinned.family }]);
+    else callback(null, pinned.address, pinned.family);
+  };
+}
+
+/** A dispatcher for one request, whose every connection goes to `pinned`. Close it after. */
+export function pinnedDispatcher(pinned: PinnedAddress): Agent {
+  return new Agent({ connect: { lookup: pinnedLookup(pinned) as never }, connections: 1 });
 }

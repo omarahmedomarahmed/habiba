@@ -1,5 +1,6 @@
 "use client";
 
+import { backgroundFetch } from "@/lib/auth/activity";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   Copy,
@@ -113,7 +114,7 @@ export function CopilotChat({
 
     const poll = async () => {
       try {
-        const response = await fetch(`/copilot/live?patient=${patientId}`, {
+        const response = await backgroundFetch(`/copilot/live?patient=${patientId}`, {
           cache: "no-store",
         });
         if (!response.ok) return;

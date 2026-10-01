@@ -32,12 +32,12 @@ which cookie owns which path; the real check is the guard on every page.
 
 | Principal | Table | Cookie | Guard | Notes |
 | --- | --- | --- | --- | --- |
-| Therapist | `users` (role `therapist`) | `24t_session` | `lib/auth/guard.ts` | 30 minute idle, 8 hour ceiling, a started session finishes (`lib/auth/session.ts`). Must be verified to practise (`requireVerified`) |
-| Our staff | `users` (roles `staff`, `manager`, `super_admin`) | `24t_session` | `lib/auth/guard.ts` | Second step required: authenticator app or emailed code (`lib/auth/totp.ts`) |
+| Therapist | `users` (role `therapist`) | `24t_session` | `lib/auth/guard.ts` | 30 minute idle counted from the person's own requests, not polls (`lib/auth/activity.ts`), 8 hour ceiling, a started session finishes (`lib/auth/session.ts`). Optional authenticator app, asked for at sign-in once on. Must be verified to practise (`requireVerified`) |
+| Our staff | `users` (roles `staff`, `manager`, `super_admin`) | `24t_session` | `lib/auth/guard.ts` | Second step required: authenticator app or a recovery code; one without an app enrols on the step page (`lib/auth/totp.ts`, `lib/auth/second-factor.ts`) |
 | Patient | `patient_accounts` for a `people` row | `24t_patient` | `lib/patient-auth/` | Phone or email, password or one-time code |
-| Clinic manager and staff | `clinic_managers`, `clinic_roles` | `24t_clinic` | `lib/clinic-auth/` | Capabilities checked on the resource (`lib/clinic-auth/capabilities.ts`); up to two custom roles |
+| Clinic manager and staff | `clinic_managers`, `clinic_roles` | `24t_clinic` | `lib/clinic-auth/` | Capabilities checked on the resource (`lib/clinic-auth/capabilities.ts`); up to two custom roles. Optional authenticator app (`portal_second_factors`) |
 | Company | `sponsor_users` | `24t_sponsor` | `lib/sponsor-auth/` | Roles `admin`, `viewer` |
-| Partner | `partner_users`, `partner_api_keys` | `24t_partner` | `lib/partner-auth/` | Roles `admin`, `developer`; the API takes a key |
+| Partner | `partner_users`, `partner_api_keys` | `24t_partner` | `lib/partner-auth/` | Roles `admin`, `developer`; the API takes a key. Optional authenticator app (`portal_second_factors`) |
 | Token holder | the link row | none | the page | `/join`, `/pay`, `/welcome`, `/records`, `/feedback`: the token is the whole credential |
 
 A person who is both a clinician and a clinic manager holds two linked principal rows and

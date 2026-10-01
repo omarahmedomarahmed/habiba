@@ -459,6 +459,7 @@ export const authSessions = pgTable(
 
 /**
  * 🔴 0167: a back office member's authenticator app. One per person.
+ * DD-2 B2.4: and a clinician's, when they choose to add one.
  *
  * The secret is sealed with `lib/crypto/secretbox.ts`: it must be used again
  * to check every code, so it cannot be hashed, and a table of plain secrets
@@ -496,6 +497,9 @@ export const staffRecoveryCodes = pgTable(
 /**
  * 🔴 0167: the fallback until an app is enrolled: six digits by email, bound
  * to the one session that asked, ten minutes, used once.
+ *
+ * DD-2 B2.3: retired. Nothing writes or reads it since the console requires
+ * an authenticator; kept so the rows already there stay readable.
  */
 export const staffEmailCodes = pgTable(
   "staff_email_codes",
@@ -8711,6 +8715,45 @@ export const partnerAuthSessions = pgTable(
     uniqueIndex("partner_auth_sessions_token_hash_unique").on(t.tokenHash),
     index("partner_auth_sessions_user_idx").on(t.partnerUserId),
   ],
+);
+
+/**
+ * DD-2 B2.4 (0189): an authenticator app for a clinic manager or a partner
+ * user, the same construction as `staff_second_factors` (sealed secret,
+ * confirmed by the first code, `last_step` against replay). Exactly one owner
+ * column is set. Clinicians use `staff_second_factors`, being `users` rows.
+ */
+export const portalSecondFactors = pgTable(
+  "portal_second_factors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clinicManagerId: uuid("clinic_manager_id").references(() => clinicManagers.id, { onDelete: "cascade" }),
+    partnerUserId: uuid("partner_user_id").references(() => partnerUsers.id, { onDelete: "cascade" }),
+    secretSealed: text("secret_sealed").notNull(),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    lastStep: integer("last_step"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("portal_second_factors_clinic_unique").on(t.clinicManagerId),
+    uniqueIndex("portal_second_factors_partner_unique").on(t.partnerUserId),
+  ],
+);
+
+/** DD-2 B2.4 (0189): ten recovery codes per portal enrolment, hashed, spent by one UPDATE. */
+export const portalRecoveryCodes = pgTable(
+  "portal_recovery_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    factorId: uuid("factor_id")
+      .notNull()
+      .references(() => portalSecondFactors.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("portal_recovery_codes_hash_unique").on(t.factorId, t.codeHash)],
 );
 
 /**
