@@ -222,8 +222,9 @@ test("🔴 F6 a launched session is fifteen minutes, read only, and only this pa
   const session = source("lib/auth/session.ts");
   assert.match(session, /if \(state\?\.actor\.partnerScope\) return null;/, "getActor hands a launched session out");
   const guard = source("lib/auth/guard.ts");
-  assert.match(guard, /if \(state!\.actor\.partnerScope\) await holdToLaunchScope/);
-  assert.match(guard, /if \(state\.actor\.partnerScope\) throw new AuthorizationError/);
+  assert.match(guard, /if \(isLaunchedSession\(state!\.actor\)\) await holdLaunchedSession\(state!\.actor\)/);
+  assert.match(guard, /if \(isLaunchedSession\(state\.actor\)\) throw new AuthorizationError/);
+  assert.match(readFileSync("lib/auth/launch-hold.ts", "utf8"), /return Boolean\(actor\.partnerScope\)/);
 });
 
 test("🔴 F6 a partner's vouched yes never records; the patient's own does; anybody's withdrawal stops it", async () => {
