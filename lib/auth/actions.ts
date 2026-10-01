@@ -23,6 +23,7 @@ import { TERMS_VERSION, signupConsentProblem } from "@/lib/consent/terms";
 import { localiseShared, minutesFrom } from "@/lib/i18n/errors";
 import { getI18n } from "@/lib/i18n/server";
 import { callerKey, consume, subjectKey } from "@/lib/rate-limit";
+import { safeNext } from "./safe-redirect";
 import { hashPassword, validatePassword, verifyPassword } from "./password";
 import {
   createSession,
@@ -340,8 +341,8 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
      * `/admin`, which is the owner's, so a staff sign-in bounced out of the
      * console on its first screen.
      */
-    const { landingFor, mayOpen } = await import("@/lib/admin/access");
-    const wantedByStaff = next.startsWith("/admin") && mayOpen(user.role, next) ? next : landingFor(user.role);
+    const { staffDestination } = await import("@/lib/admin/access");
+    const wantedByStaff = staffDestination(user.role, next);
     /*
      * 🔴 Task 40: the password was step one. The session exists but is
      * pending, and every guard treats it as signed out until the second step
@@ -357,7 +358,7 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
     await practiceState(user.id),
   );
 
-  const wanted = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+  const wanted = safeNext(next, "/dashboard");
   redirect(cleared ? wanted : "/onboarding");
 }
 

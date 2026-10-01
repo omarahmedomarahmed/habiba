@@ -5,7 +5,7 @@
 
 import { redirect } from "next/navigation";
 
-import { landingFor, mayOpen } from "@/lib/admin/access";
+import { staffDestination } from "@/lib/admin/access";
 import { getI18n } from "@/lib/i18n/server";
 import { emailSecondStepCode, passSecondStep } from "./second-factor";
 import { getSessionState } from "./session";
@@ -30,8 +30,8 @@ async function pendingStaff() {
 }
 
 /** Only a console path this role can open, so the step is never an open redirect. */
-function destination(role: Parameters<typeof landingFor>[0], next: string): string {
-  return next.startsWith("/admin") && mayOpen(role, next) ? next : landingFor(role);
+function destination(role: Parameters<typeof staffDestination>[0], next: string): string {
+  return staffDestination(role, next);
 }
 
 export async function sendSecondStepCode(

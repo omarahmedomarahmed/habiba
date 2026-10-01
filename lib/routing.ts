@@ -11,6 +11,7 @@
  * present, never whether a session is live. `requireUser` / `requirePatient` do
  * the real check on every page.
  */
+import { isSafeNext, safeNext } from "./auth/safe-redirect";
 
 export const SESSION_COOKIE = "24t_session";
 /**
@@ -115,8 +116,7 @@ const PATIENT_LANDINGS = ["/patient", "/join", "/pay", "/feedback", "/j"];
 
 export function patientLanding(next: unknown): string {
   const home = "/patient";
-  if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//")) return home;
-  if (next.includes("\\")) return home;
+  if (!isSafeNext(next)) return home;
   const path = next.split(/[?#]/)[0]!;
   if (PATIENT_AUTH_ROUTES.includes(path) || isUnder(path, "/patient/session-expired")) return home;
   return PATIENT_LANDINGS.some((prefix) => isUnder(path, prefix)) ? next : home;
@@ -133,7 +133,7 @@ export function bounceNext(pathname: string, search: string): string {
 }
 
 export function patientBounce(hasCookie: boolean, path: string): string {
-  const next = path.startsWith("/") && !path.startsWith("//") ? path : "";
+  const next = safeNext(path, "");
   const query = next ? `?next=${encodeURIComponent(next)}` : "";
   return hasCookie ? `/patient/session-expired${query}` : `/patient/login${query}`;
 }

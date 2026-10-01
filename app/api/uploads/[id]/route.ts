@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { audit } from "@/lib/audit";
+import { isSafeNext } from "@/lib/auth/safe-redirect";
 import { getActor } from "@/lib/auth/session";
 import {
   identityReadDecision,
@@ -82,7 +83,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
      */
     if (!decision.storedUrl.startsWith("https://")) {
       const local = decision.storedUrl;
-      if (!local.startsWith("/") || local.startsWith("//")) {
+      if (!isSafeNext(local)) {
         log.warn("identity document has a stored path that is not same-origin", {
           verification: ref(reference.verificationId),
         });

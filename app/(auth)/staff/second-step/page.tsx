@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { QuietAuthShell } from "@/components/auth/auth-shell";
 import { SecondStepForm } from "@/components/auth/second-step-form";
-import { landingFor, mayOpen } from "@/lib/admin/access";
+import { staffDestination } from "@/lib/admin/access";
 import { secondFactorStatus } from "@/lib/auth/second-factor";
 import { getSessionState } from "@/lib/auth/session";
 import { needsSecondFactor } from "@/lib/auth/totp";
@@ -37,7 +37,7 @@ export default async function SecondStepPage({
   if (!state) redirect(`${STAFF_SIGN_IN}${next ? `?next=${encodeURIComponent(next)}` : ""}`);
   if (!needsSecondFactor(state.actor.role)) redirect("/dashboard");
   if (!state.pendingSecondFactor) {
-    redirect(next.startsWith("/admin") && mayOpen(state.actor.role, next) ? next : landingFor(state.actor.role));
+    redirect(staffDestination(state.actor.role, next));
   }
 
   const status = await secondFactorStatus(state.actor.userId);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isSafeNext } from "@/lib/auth/safe-redirect";
 import { env } from "@/lib/env";
 import { destroyPatientSession } from "@/lib/patient-auth/session";
 
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   const target = new URL("/patient/login", env.appUrl);
   target.searchParams.set("expired", "1");
   // A path on this origin only: an absolute URL here is an open redirect.
-  if (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/patient/session-expired")) {
+  if (isSafeNext(next) && !next.startsWith("/patient/session-expired")) {
     target.searchParams.set("next", next);
   }
 
