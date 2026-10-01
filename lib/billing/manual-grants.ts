@@ -119,6 +119,7 @@ async function grantSession(payment: ManualPayment): Promise<void> {
         paidAt: payment.decidedAt ?? new Date(),
         logRef: payment.id,
         retry: true,
+        collected: collectedBy(payment),
       });
       return;
     }
@@ -174,6 +175,7 @@ async function grantSession(payment: ManualPayment): Promise<void> {
     settlesCents: payment.settlesCents,
     paidAt: payment.decidedAt ?? new Date(),
     logRef: payment.id,
+    collected: collectedBy(payment),
   });
   if (outcome === "duplicate") {
     log.warn("manual session payment: a payment row already existed", {
@@ -184,6 +186,19 @@ async function grantSession(payment: ManualPayment): Promise<void> {
     const { flagException } = await import("./rail-exceptions");
     await flagException(payment.id, "not_payable", "the session was already paid another way");
   }
+}
+
+/**
+ * 0188: what a transfer brought in, in pounds, and the rate it was charged at
+ * (its own two figures, never today's rate). Null for a transfer not in pounds.
+ */
+function collectedBy(payment: ManualPayment): { egpMinor: number; fxRateMicro: number; key: string } | null {
+  if (payment.currency.toUpperCase() !== "EGP" || payment.amountCents <= 0 || payment.settlesCents <= 0) return null;
+  return {
+    egpMinor: payment.amountCents,
+    fxRateMicro: Math.round((payment.amountCents * 1_000_000) / payment.settlesCents),
+    key: `manual_payment:${payment.id}:session`,
+  };
 }
 
 /**
@@ -204,7 +219,13 @@ export async function postPatientSettlement(input: {
    * not already hold is posted.
    */
   retry?: boolean;
+  /** 0188: the pounds the transfer brought, its rate, and the posting key for it. */
+  collected?: { egpMinor: number; fxRateMicro: number; key: string } | null;
 }): Promise<"posted" | "duplicate"> {
+  const collected = input.collected
+    ? { egpMinor: input.collected.egpMinor, fxRateMicro: input.collected.fxRateMicro }
+    : null;
+  const postingKey = input.collected?.key;
   /*
    * 🔴 AND THE BOOKS, WHICH FOR TWO SPRINTS THIS DID NOT DO AT ALL.
    *
@@ -332,6 +353,8 @@ export async function postPatientSettlement(input: {
           platformFeeCents: priorPayment.platformFeeCents,
           settledInvoiceCents: 0,
           therapistNetCents: priorPayment.therapistNetCents,
+          postingKey,
+          collected,
         });
       }
       return "posted";
@@ -412,7 +435,7 @@ export async function postPatientSettlement(input: {
      * booked whole before W2-M01 gets only the VAT (`bookEmployeeShare`).
      */
     const { bookEmployeeShare } = await import("./employee-share");
-    await bookEmployeeShare({ paymentId: priorPayment.id, capture: "platform", vatCents });
+    await bookEmployeeShare({ paymentId: priorPayment.id, capture: "platform", vatCents, postingKey, collected });
 
     log.info("manual session payment settled a sponsored session's patient share", {
       paymentId: input.logRef,
@@ -510,6 +533,8 @@ export async function postPatientSettlement(input: {
     platformFeeCents: money.platformCutCents,
     settledInvoiceCents: 0,
     therapistNetCents: money.therapistNetCents,
+    postingKey,
+    collected,
   });
 
   log.info("manual session payment posted to the ledger", {
