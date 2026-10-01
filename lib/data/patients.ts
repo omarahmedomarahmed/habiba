@@ -153,6 +153,9 @@ export async function getPatientHistory(actor: Actor, patientId: string) {
       modality: sessions.modality,
       endedAt: sessions.endedAt,
       createdAt: sessions.createdAt,
+      /* DD-2: so the list can say a missed booking did not take place. */
+      scheduledAt: sessions.scheduledAt,
+      startedAt: sessions.startedAt,
       durationMinutes: sessions.durationMinutes,
       noteStatus: sessions.noteStatus,
       noteSummary: sessionNotes.content,
@@ -259,6 +262,8 @@ export async function updatePatient(
     lastName?: string | null;
     email?: string | null;
     phone?: string | null;
+    /** DD-2: how notes refer to them in a gendered language. */
+    addressAs?: "female" | "male" | null;
     clinical?: PatientClinical;
   },
 ) {
@@ -271,6 +276,7 @@ export async function updatePatient(
   if (input.lastName !== undefined) patch.lastName = input.lastName?.trim() || null;
   if (input.email !== undefined) patch.email = input.email?.trim().toLowerCase() || null;
   if (input.phone !== undefined) patch.phone = input.phone?.trim() || null;
+  if (input.addressAs !== undefined) patch.addressAs = input.addressAs;
 
   if (input.clinical !== undefined) {
     /*

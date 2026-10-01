@@ -878,18 +878,19 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         heading: "Who you are dealing with",
         items: [
           {
-            title: "24Therapy Inc.",
+            /* DD-2: no company is registered yet, so none is named. */
+            title: "Outside Egypt",
             entity: "us",
-            body: "The international entity, for anything outside Egypt.",
+            body: "For anything outside Egypt. 24Therapy is not yet a registered company; this page will name the legal entity once one is registered.",
             address: "",
             phone: "",
             email: "support@24therapy.app",
             hours: "Sunday to Thursday, 09:00-18:00 UTC",
           },
           {
-            title: "24Therapy Egypt",
+            title: "In Egypt",
             entity: "eg",
-            body: "The Egyptian entity. Payments in Egyptian pounds, and payouts by InstaPay or wallet.",
+            body: "Payments in Egyptian pounds, and payouts by InstaPay or wallet. No Egyptian company is registered yet.",
             address: "",
             phone: "",
             email: "egypt@24therapy.app",
@@ -965,6 +966,12 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "prose",
         heading: "What we send elsewhere",
         body: "Session audio and transcript text are sent to our AI provider to produce transcription and notes. Patient reports are sent by email through our email provider. Video sessions are carried by our video provider. None of these subprocessors has yet signed a business associate agreement or a data processing agreement with us; the compliance page lists each one and where it stands. Everything is held in the United States, in Oregon, including the records of patients in Egypt.",
+      },
+      {
+        /* DD-2: said plainly, as its own section. */
+        type: "prose",
+        heading: "Where your data is held",
+        body: "Your data is hosted in the United States, in Oregon: the application runs on Vercel and the database is Neon. This includes the records of patients in Egypt. Session audio and transcript text are processed by OpenAI in the United States to write transcripts and notes.",
       },
       {
         type: "prose",
@@ -1099,7 +1106,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "prose",
         heading: "What is already built",
-        body: "None of this depends on a signature and all of it can be inspected. Access to any chart requires an authenticated, non-expired session; a clinician's sign in expires after 30 minutes of inactivity and 8 hours absolute, except that a session started near the limit may run up to two hours past it so it is not cut off. Reads and writes of clinical data are recorded in an audit log with actor, patient, resource and timestamp, and the database refuses to edit a row of it or to delete one younger than six years. Passwords are stored as scrypt hashes. Video rooms are private and require a per-participant token. Patients are asked to agree to being recorded before they enter the room, and their answer is stored with a timestamp and the wording they saw. Clinicians cannot delete a patient or a session, and cannot send clinical text to an address they type.",
+        body: "None of this depends on a signature and all of it can be inspected. Access to any chart requires an authenticated, non-expired session; a clinician's sign in expires after 30 minutes of inactivity and 8 hours absolute, except that a session started near the limit may run up to two hours past it so it is not cut off. Reads and writes of clinical data are recorded in an audit log with actor, patient, resource and timestamp. The log is append-only, enforced by a database trigger that refuses to edit a row or to delete one younger than six years, and every access by our staff is logged in it too. Passwords are stored as scrypt hashes. Video rooms are private and require a per-participant token. Patients are asked to agree to being recorded before they enter the room, and their answer is stored with a timestamp and the wording they saw. Clinicians cannot delete a patient or a session, and cannot send clinical text to an address they type.",
       },
       {
         type: "prose",
@@ -1139,7 +1146,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "Every read is written down",
-            body: "Opening a chart appends a row to the audit log. The database refuses to edit a row, or to delete one before six years.",
+            body: "Opening a chart appends a row to the audit log, and so does every access by our staff. The log is append-only, enforced by a database trigger.",
             icon: "shield",
           },
           {

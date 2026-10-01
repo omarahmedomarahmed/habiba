@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { writeBackSession } from "@/lib/partner/api";
+import { readSessionBody } from "@/lib/partner/bodies";
 import { fail, withKey } from "@/lib/partner/route";
 
 export const runtime = "nodejs";
@@ -33,32 +34,17 @@ export async function POST(request: Request) {
     return fail("Send JSON.", 400);
   }
 
-  const ref = body.subject;
-  const email = body.clinician;
-  const startedAt = body.started_at;
-  const minutes = body.duration_minutes;
-  const meetingId = body.meeting_id;
-
-  if (
-    typeof ref !== "string" ||
-    typeof email !== "string" ||
-    typeof startedAt !== "string" ||
-    typeof minutes !== "number" ||
-    typeof meetingId !== "string"
-  ) {
-    return fail(
-      "Send subject, clinician, started_at, duration_minutes and meeting_id.",
-      400,
-    );
-  }
+  /* DD-2: read by the same function the docs' example is tested against. */
+  const read = readSessionBody(body);
+  if (!read.ok) return fail(read.error, 400);
 
   const result = await writeBackSession({
     key: guard.key,
-    externalRef: ref,
-    clinicianEmail: email,
-    startedAt: new Date(startedAt),
-    durationMinutes: minutes,
-    externalMeetingId: meetingId,
+    externalRef: read.value.subject,
+    clinicianEmail: read.value.clinician,
+    startedAt: read.value.startedAt,
+    durationMinutes: read.value.durationMinutes,
+    externalMeetingId: read.value.meetingId,
   });
 
   if ("error" in result) return fail(result.error, result.status);

@@ -6,7 +6,7 @@ import { CalendarClock, X } from "lucide-react";
 import { Avatar } from "@/components/radar/therapist-card";
 import type { RadarOfflineEntry } from "@/components/radar/types";
 import { useLocale, useT } from "@/lib/i18n/client";
-import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
+import { DEFAULT_READER_ZONE, formatWhen, resolveZone } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { fullName } from "@/lib/utils";
 
@@ -36,7 +36,8 @@ export function OfflineCard({
 }) {
   const t = useT();
   const locale = useLocale();
-  const zone = resolveZone(useReaderZone());
+  /* DD-2: Cairo until the browser says otherwise, never the server's UTC. */
+  const zone = resolveZone(useReaderZone(DEFAULT_READER_ZONE));
   const name = fullName(entry.firstName, entry.lastName, t("radar.clinicianFallback"));
 
   return (

@@ -27,5 +27,5 @@ export const STATIC_VERIFIERS = [
   "verify:claims", "verify:reachable", "verify:principals", "verify:sprint59", "verify:sprint60",
   "verify:sprint61", "verify:boundary", "verify:sprint77", "verify:finance", "verify:plan",
   "verify:rail", "verify:blobs", "verify:whatsapp", "verify:launch", "verify:qualified",
-  "verify:orb", "verify:money", "verify:notices", "verify:prove", "verify:journal",
+  "verify:orb", "verify:money", "verify:notices", "verify:prove", "verify:journal", "verify:claims-defaults",
 ];

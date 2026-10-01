@@ -6,6 +6,7 @@ import { DarkBand, Glow, btn } from "@/components/public/site-ui";
 import { Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
+import { PARTNER_DOC_EXAMPLES, exampleJson } from "@/lib/partner/bodies";
 import { PARTNER_LAUNCH_TARGETS } from "@/lib/partner/launch";
 import { PARTNER_APPLY, PARTNER_SIGN_IN } from "@/lib/routing";
 
@@ -133,14 +134,10 @@ targets: ${PARTNER_LAUNCH_TARGETS.join(", ")}`}
           exampleLabel={t("devs.example")}
           example={`POST /api/partner/v1/sessions
 
-{ "subjectRef": "YOUR-REF",
-  "clinicianEmail": "dr@example.com",
-  "startedAt": "2026-09-12T14:00:00Z",
-  "durationMinutes": 50,
-  "externalMeetingId": "M-8814" }
+${exampleJson(PARTNER_DOC_EXAMPLES.session)}
 
 201 { "sessionId": "..." }
-same externalMeetingId again -> the same sessionId`}
+same meeting_id again -> the same sessionId`}
         />
 
         {/* 🔴 55.8 — approved, or 404. There is no draft in this response. */}
@@ -224,9 +221,7 @@ GET /api/partner/v1/notes/<sessionId>
         <p className="mt-1.5 text-[15px] leading-relaxed text-navy-500">{t("devs.midConsentBody")}</p>
         <pre className="mt-3 overflow-x-auto rounded-2xl bg-navy-900 p-5 font-mono text-[13px] leading-relaxed text-brand-100 ring-1 ring-navy-700">
 {`POST /api/partner/v1/consent
-{ "session": "S-1024", "subject": "P-77",
-  "state": "given", "answered_at": "2026-09-14T10:40:00Z",
-  "offset_seconds": 600 }
+${exampleJson(PARTNER_DOC_EXAMPLES.consent)}
 
 live key, before the patient's own yes:
 200 { "recording_from_seconds": null,

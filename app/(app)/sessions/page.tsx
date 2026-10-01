@@ -15,6 +15,7 @@ import { fullName, relativeDay } from "@/lib/utils";
 import { getI18n } from "@/lib/i18n/server";
 import { countKey } from "@/lib/i18n/count-form";
 import { SessionBadge } from "@/components/sessions/status-badge";
+import { missedBooking } from "@/lib/sessions/doors";
 
 /** W3: the tab title in the reader's language. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -108,7 +109,11 @@ export default async function SessionsPage({
             </p>
           </div>
 
-          <SessionBadge status={session.status} noteStatus={session.noteStatus} />
+          <SessionBadge
+            status={session.status}
+            noteStatus={session.noteStatus}
+            missed={missedBooking({ status: session.status, scheduledAt: session.scheduledAt ?? null, startedAt: session.startedAt ?? null }, Date.now())}
+          />
           <ChevronRight className={now ? "h-4 w-4 shrink-0 text-white/60 rtl:rotate-180" : "h-4 w-4 shrink-0 text-navy-300 rtl:rotate-180"} aria-hidden />
         </Link>
       </li>

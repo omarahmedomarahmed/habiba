@@ -21,6 +21,7 @@ import {
 } from "@/lib/db/schema";
 import { ensurePersonForPatient, normalisePhone } from "@/lib/data/people";
 import { log, ref } from "@/lib/logger";
+import { FRESH_CONTENT_EN } from "@/lib/notes/fresh-translation";
 import { capSeconds, clockAnchor, sessionClock, type SessionClock } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
 import { isUuid } from "@/lib/uuid";
@@ -1025,12 +1026,13 @@ export async function nextSequence(sessionId: string): Promise<number> {
  */
 export async function getNotes(actor: Actor, sessionId: string) {
   const rows = await db
-    .select({ note: sessionNotes })
+    .select({ note: sessionNotes, contentEn: FRESH_CONTENT_EN })
     .from(sessionNotes)
     .innerJoin(sessions, eq(sessions.id, sessionNotes.sessionId))
     .where(and(scope(actor), eq(sessionNotes.sessionId, sessionId)))
     .orderBy(desc(sessionNotes.isPrimary), asc(sessionNotes.createdAt));
-  return rows.map((row) => row.note);
+  /* DD-2: a translation of words the clinician has since changed is not shown. */
+  return rows.map((row) => ({ ...row.note, contentEn: row.contentEn }));
 }
 
 /**

@@ -5,6 +5,7 @@ import { Star } from "lucide-react";
 import { Avatar, StatusPill } from "@/components/radar/therapist-card";
 import type { RadarEntry } from "@/components/radar/types";
 import { useT, useLocale } from "@/lib/i18n/client";
+import { languageLabel } from "@/lib/i18n/taxonomy-label";
 /*
  * 🔴 C84 / 12.3 — THE SHARED FORMATTER, NOT AN `Intl` CALL OF ITS OWN.
  *
@@ -14,7 +15,7 @@ import { useT, useLocale } from "@/lib/i18n/client";
  * and there is no way to fix every one of them at once. `formatTime` is the repository's
  * one answer and it takes the zone explicitly.
  */
-import { formatTime } from "@/lib/scheduling/tz";
+import { DEFAULT_READER_ZONE, formatTime } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { cn, fullName, relativeDay } from "@/lib/utils";
 import { Money } from "@/components/ui/money";
@@ -59,7 +60,8 @@ export function RadarList({
 }) {
   const t = useT();
   const locale = useLocale();
-  const zone = useReaderZone();
+  /* DD-2: Cairo until the browser says otherwise, never the server's UTC. */
+  const zone = useReaderZone(DEFAULT_READER_ZONE);
 
   return (
     <ul className="flex flex-col gap-2">
@@ -105,7 +107,7 @@ export function RadarList({
                     key={language}
                     className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium text-white/85"
                   >
-                    {language}
+                    {languageLabel(language, t)}
                   </span>
                 ))
               ) : (

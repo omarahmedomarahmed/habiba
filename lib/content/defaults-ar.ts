@@ -715,18 +715,18 @@ export const DEFAULT_PAGES_AR: DefaultPage[] = [
         heading: "مع من تتعامل",
         items: [
           {
-            title: "24Therapy Inc.",
+            title: "خارج مصر",
             entity: "us",
-            body: "الكيان الدولي، لكل ما هو خارج مصر.",
+            body: "لكل ما هو خارج مصر. 24Therapy ليست شركة مسجلة بعد، وستذكر هذه الصفحة الكيان القانوني بمجرد تسجيله.",
             address: "",
             phone: "",
             email: "support@24therapy.app",
             hours: "الأحد إلى الخميس، 09:00-18:00 بتوقيت غرينتش",
           },
           {
-            title: "24Therapy Egypt",
+            title: "داخل مصر",
             entity: "eg",
-            body: "الكيان المصري. الدفع بالجنيه المصري، والتحويل عبر إنستاباي أو المحفظة.",
+            body: "الدفع بالجنيه المصري، والتحويل عبر إنستاباي أو المحفظة. لا توجد شركة مصرية مسجلة بعد.",
             address: "",
             phone: "",
             email: "egypt@24therapy.app",

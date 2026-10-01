@@ -108,6 +108,8 @@ export async function savePatient(
     phoneCountry?: string;
     diagnoses: string[];
     goals: string[];
+    /** DD-2: "female", "male", or anything else for not said. */
+    addressAs?: string;
   },
 ): Promise<PatientActionState> {
   const actor = await requireUser();
@@ -134,6 +136,7 @@ export async function savePatient(
       lastName: input.lastName || null,
       email: input.email || null,
       phone,
+      addressAs: input.addressAs === "female" || input.addressAs === "male" ? input.addressAs : null,
       clinical: {
         diagnoses: input.diagnoses.filter(Boolean),
         goals: input.goals.filter(Boolean),

@@ -1224,6 +1224,13 @@
       "idx": 174,
       "version": "7",
       "when": 1789966152000,
+      "tag": "0191_a_translation_follows_the_note",
+      "breakpoints": true
+    },
+    {
+      "idx": 175,
+      "version": "7",
+      "when": 1789966153000,
       "tag": "0192_journal_alerts_and_live_risk_off",
       "breakpoints": true
     }

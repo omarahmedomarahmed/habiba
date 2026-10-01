@@ -252,10 +252,11 @@ async function main() {
 
   const contact = html["contact.en-x-staging"] ?? "";
   check(
-    "🔴 18R.2 the rendered contact page carries a real form and both companies",
+    "🔴 18R.2 the rendered contact page carries a real form and both desks, naming no unregistered company (DD-2)",
     /<form/.test(contact) &&
-      contact.includes("24Therapy Inc.") &&
-      contact.includes("24Therapy Egypt"),
+      contact.includes("Outside Egypt") &&
+      contact.includes("In Egypt") &&
+      !/24Therapy (Inc|Egypt)/.test(contact),
   );
   check(
     "🔴 18R.4 …with the urgent warning above the box, not under the button",
@@ -336,7 +337,7 @@ async function main() {
     "Finding clinicians",
     "Do not send anything urgent",
     "Not an emergency service",
-    "Who are you writing to?",
+    "Where are you writing from?",
     "Joining is free",
   ];
 

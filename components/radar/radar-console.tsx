@@ -14,7 +14,7 @@ import { TherapistCard } from "@/components/radar/therapist-card";
 import type { RadarEntry, RadarOfflineEntry } from "@/components/radar/types";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { FirstHour } from "@/lib/data/scheduling";
-import { formatWhen, resolveZone } from "@/lib/scheduling/tz";
+import { DEFAULT_READER_ZONE, formatWhen, resolveZone } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { cn } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
@@ -460,7 +460,8 @@ function Panel({
 function FirstHours({ hours }: { hours: FirstHour[] }) {
   const t = useT();
   const locale = useLocale();
-  const zone = resolveZone(useReaderZone());
+  /* DD-2: Cairo until the browser says otherwise, never the server's UTC. */
+  const zone = resolveZone(useReaderZone(DEFAULT_READER_ZONE));
 
   return (
     <div className="rounded-2xl bg-white/5 p-4">

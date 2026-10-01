@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
-import { draftNoteInFormat, generateAndStoreNote } from "@/lib/ai/notes";
+import { draftNoteInFormat, generateAndStoreNote, refreshSessionTranslations } from "@/lib/ai/notes";
 import { emptyContent } from "@/lib/notes/formats";
 import { audit, auditPhi } from "@/lib/audit";
 import { requireUser, requireVerified } from "@/lib/auth/guard";
@@ -776,6 +776,8 @@ export async function approveNote(
   /* 🔴 W2-F01: the note named, in this session, or the session's own. */
   const result = await signNote(actor, sessionId, noteId);
   if (!result.ok) return { error: await refusalText(result.reason, "clinical") };
+  /* DD-2: the English copy follows the words that were signed. */
+  after(() => refreshSessionTranslations(sessionId));
 
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath("/notes");
@@ -825,6 +827,7 @@ export async function approvePatientNote(sessionId: string): Promise<SessionActi
   const result = await releasePatientCopy(actor, sessionId);
   if (!result.ok) return { error: await refusalText(result.reason, "patient") };
 
+  after(() => refreshSessionTranslations(sessionId));
   after(async () => {
     try {
       const sent = await releaseBrief(sessionId);

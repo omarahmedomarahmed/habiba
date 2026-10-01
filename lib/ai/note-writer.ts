@@ -3,7 +3,7 @@ import "server-only";
 import { NOTE_LANGUAGES, type NoteContent } from "@/lib/db/schema";
 import { isSoap, type NoteFormat } from "@/lib/notes/formats";
 
-import { MODELS, openai, parseJson } from "./client";
+import { MODELS, openai, parseJsonStrict } from "./client";
 
 /**
  * The note generator, and NOTHING THAT TOUCHES A DATABASE. PLAN.md 68.6, 58.6, C336.
@@ -87,6 +87,20 @@ Respond with a single JSON object with exactly these keys:
  */
 export const PATIENT_GENDER_UNRECORDED =
   "Patient's gender and pronouns: not recorded. Follow the GRAMMATICAL GENDER rules: take them from the transcript, and where it does not show them, assume none.";
+
+/**
+ * DD-2: the context line for the patient's gender. The clinician's answer
+ * (`patients.address_as`) when there is one, otherwise the unrecorded line.
+ */
+export function patientGenderContext(addressAs: string | null | undefined): string {
+  if (addressAs === "female") {
+    return 'Patient\'s gender: female, as recorded by the clinician. Use feminine forms for the patient in every field: in Arabic, "المريضة" with feminine verbs, adjectives and pronouns, and feminine address ("إنتِ", "عليكِ") in the patient\'s copy.';
+  }
+  if (addressAs === "male") {
+    return 'Patient\'s gender: male, as recorded by the clinician. Use masculine forms for the patient in every field: in Arabic, "المريض" with masculine verbs, adjectives and pronouns, and masculine address in the patient\'s copy.';
+  }
+  return PATIENT_GENDER_UNRECORDED;
+}
 
 /** The heading over the steps the patient already has open. Board 722. */
 export const OPEN_STEPS_HEADING = "STEPS ALREADY SET AND STILL OPEN";
@@ -173,13 +187,11 @@ export async function noteFromTranscript(input: {
     ],
   });
 
-  const raw = parseJson<Record<string, unknown>>(
-    completion.choices[0]?.message?.content,
-    {},
-    "note-generation",
-  );
+  /* DD-2: a cut-off, filtered or unreadable reply is a failed note, never an empty draft. */
+  const raw = readNoteReply(completion.choices[0], "note-generation");
 
   const normalised = normaliseNote(raw, input.format);
+  assertNoteUsable(normalised);
   /*
    * 🔴 Board 462: a first session's Assessment read "This differs from any
    * previous record if it did not mention work-related stress". With no
@@ -199,6 +211,56 @@ export async function noteFromTranscript(input: {
     inputTokens: completion.usage?.prompt_tokens ?? 0,
     outputTokens: completion.usage?.completion_tokens ?? 0,
   };
+}
+
+/**
+ * Thrown when the model's reply cannot be a note: cut off at the token limit,
+ * stopped by the content filter, unreadable, or (near) empty. The caller marks
+ * the note failed, so the clinician sees "try again" rather than a blank draft.
+ */
+export class UnusableNoteError extends Error {
+  constructor(readonly reason: "length" | "content_filter" | "empty" | "unparseable" | "not_object" | "too_short") {
+    super(`note reply unusable: ${reason}`);
+    this.name = "UnusableNoteError";
+  }
+}
+
+type ReplyChoice =
+  | { finish_reason?: string | null; message?: { content?: string | null } | null }
+  | undefined;
+
+/** The JSON object of a reply that finished normally, or a thrown UnusableNoteError. */
+export function readNoteReply(choice: ReplyChoice, context: string): Record<string, unknown> {
+  const finish = choice?.finish_reason;
+  if (finish === "length" || finish === "content_filter") throw new UnusableNoteError(finish);
+  const parsed = parseJsonStrict<Record<string, unknown>>(choice?.message?.content, context);
+  if (!parsed.ok) throw new UnusableNoteError(parsed.reason);
+  return parsed.value;
+}
+
+/** Fewer characters than this across the clinical fields is not a note. */
+export const MIN_NOTE_CHARACTERS = 40;
+
+/** The clinical record's text: SOAP or the format's sections, and the summary. */
+export function clinicalText(note: NoteContent): string {
+  return [
+    note.soap.subjective,
+    note.soap.objective,
+    note.soap.assessment,
+    note.soap.plan,
+    ...(note.sections ?? []).map((section) => section.text),
+    note.summary,
+  ]
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Refuses an empty or near-empty note. */
+export function assertNoteUsable(note: NoteContent): void {
+  const text = clinicalText(note);
+  if (!text) throw new UnusableNoteError("empty");
+  if (text.length < MIN_NOTE_CHARACTERS) throw new UnusableNoteError("too_short");
 }
 
 /** The heading `lib/clinical/context.ts` puts over what was known before. */

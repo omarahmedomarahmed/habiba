@@ -15,6 +15,8 @@ type Initial = {
   phone: string;
   diagnoses: string[];
   goals: string[];
+  /** DD-2: how notes refer to them in a gendered language. "" is not said. */
+  addressAs: "" | "female" | "male";
 };
 
 export function PatientEditor({
@@ -132,6 +134,19 @@ export function PatientEditor({
             )
           }
         />
+      </Field>
+
+      <Field label={t("pted.addressAs")} htmlFor="addressAs" hint={t("pted.addressAsHint")}>
+        <select
+          id="addressAs"
+          value={form.addressAs}
+          onChange={(e) => set("addressAs", e.target.value as Initial["addressAs"])}
+          className="w-full rounded-xl border border-navy-100 bg-white px-3 py-2.5 text-sm text-navy-700"
+        >
+          <option value="">{t("pted.addressAsUnsaid")}</option>
+          <option value="female">{t("pted.addressAsFemale")}</option>
+          <option value="male">{t("pted.addressAsMale")}</option>
+        </select>
       </Field>
 
       <div className="flex gap-2.5 pt-1">

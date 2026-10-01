@@ -195,6 +195,8 @@ const ALLOWED: Record<string, Allowed> = {
   /* Run before merging a pull request that adds a migration. */
   "db:status": { writes: false, why: "lists the migrations production has not applied yet" },
   "verify:board": { writes: false, why: "the founders' board, and none of its nine queries writes" },
+  /* DD-2: the live rows against the list of claims that are false today. SELECTs only. */
+  "verify:cms-claims": { writes: false, why: "no published page row makes a claim that is false today" },
   "verify:cast": { writes: false, why: "every seeded login exists and can sign in" },
   /*
    * The half of `seed:demo` that reads. It hashes a candidate password against
