@@ -100,6 +100,21 @@ export function NoteReview(props: Props) {
   const [editing, setEditing] = useState(false);
   const [editingBrief, setEditingBrief] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  /*
+   * A clinician typing a note makes no request until they save, and the sign in
+   * ends after thirty idle minutes. While the editor is open, a light state
+   * check every five minutes counts as activity, so a long note is never lost
+   * to the idle timer; a screen left unattended with the editor closed still
+   * signs out as it should.
+   */
+  useEffect(() => {
+    if (!editing && !editingBrief) return;
+    const keepAlive = setInterval(() => {
+      void fetch(`/api/sessions/${props.sessionId}/state`, { cache: "no-store" }).catch(() => {});
+    }, 5 * 60 * 1000);
+    return () => clearInterval(keepAlive);
+  }, [editing, editingBrief, props.sessionId]);
   const [error, setError] = useState<string | null>(null);
   const [sent] = useState(props.reportSent);
   /**
