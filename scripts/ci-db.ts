@@ -9,28 +9,18 @@
  * container with Neon's WebSocket proxy in front of it. No secret is involved.
  *
  * It runs every suite in `NEEDS_DATABASE_SUITES` except `test:e2e`, which
- * needs a built app and has its own job. It refuses any database that is not
+ * builds and serves the app through `tests/run-e2e.sh`. It refuses any database that is not
  * on this machine: these suites plant fixtures, and dev belongs to
  * `npm run gates`.
  */
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-import { isLocalDatabaseHost } from "../lib/db/local-proxy";
+import { databaseHost, isLocalDatabaseHost } from "../lib/db/local-proxy";
 import { NEEDS_DATABASE_SUITES } from "./_ci-lists";
 
-/** Has its own CI job: it builds and starts the app. */
+/** Builds and serves the app; not part of this pass yet. */
 const OWN_JOB = new Set(["test:e2e"]);
-
-/** The host of a connection string, or null when it does not parse. */
-export function databaseHost(url: string | undefined): string | null {
-  if (!url) return null;
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return null;
-  }
-}
 
 function main(): void {
   const host = databaseHost(process.env.DATABASE_URL);
@@ -83,4 +73,4 @@ function main(): void {
   process.exit(failed.length === 0 ? 0 : 1);
 }
 
-if (process.argv[1]?.endsWith("ci-db.ts")) main();
+main();

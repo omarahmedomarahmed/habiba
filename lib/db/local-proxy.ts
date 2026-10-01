@@ -21,6 +21,16 @@ export function isLocalDatabaseHost(host: string): boolean {
   return LOCAL_HOSTS.has(host.toLowerCase());
 }
 
+/** The host of a connection string, or null when it does not parse. */
+export function databaseHost(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
 /** The subset of `neonConfig` this touches, so it can be tested without the driver. */
 export type ProxyConfig = {
   wsProxy: string | ((host: string, port: number | string) => string);

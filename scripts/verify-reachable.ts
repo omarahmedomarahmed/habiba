@@ -86,6 +86,8 @@ const ROUTES_BY_DESIGN: Record<string, string> = {
    * of this allowlist, and for an unknown number of sprints it was one word of
    * prose away from being unnecessary.
    */
+  "/api/health":
+    "Called by the scheduled uptime check in `.github/workflows/uptime.yml`, which is YAML rather than TypeScript. It imports nothing and opens no database connection, so a probe every fifteen minutes never wakes the sleeping database.",
   "/api/revalidate":
     "Called by `scripts/republish.ts`, a CLI that writes content to the database from outside the deployment, so the running instance has no other way to learn the cache is stale. The admin editor runs inside the app and calls `revalidateTag` directly, which is why no page reaches this. Authorised by the same `CRON_SECRET`.",
 };

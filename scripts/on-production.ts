@@ -51,6 +51,8 @@
  */
 import { spawnSync } from "node:child_process";
 
+import { CONFIRM_FLAG, confirmationRefusal, type Allowed } from "./_production-confirm";
+
 /** The read-write compute on `main`. The same constant `_verify.ts` refuses by. */
 const PRODUCTION_ENDPOINT = "ep-wild-lake-a6tgm2r6";
 
@@ -61,19 +63,11 @@ const PRODUCTION_ENDPOINT = "ep-wild-lake-a6tgm2r6";
  * so a command that reads cannot become a command that writes by being on the
  * same list as one that does.
  */
-/**
- * When a command deletes or rewrites production data. `true` always; an object
- * names the flags that make one run of it harmless (`unless`, a dry run) or
- * the flag that makes it destructive (`onlyWith`).
+/*
+ * `destroys` marks a command that deletes or rewrites production data. It
+ * refuses to run without the typed confirmation in `_production-confirm.ts`.
  */
-export type Destroys = true | { unless?: string[]; onlyWith?: string };
-
-export type Allowed = { writes: boolean; why: string; destroys?: Destroys };
-
-/** The typed half of the confirmation a destructive command needs. */
-export const CONFIRM_FLAG = "--i-understand-this-deletes-production-data";
-
-export const ALLOWED: Record<string, Allowed> = {
+const ALLOWED: Record<string, Allowed> = {
   /* ---------------------------------------------------------------- writing */
   "simulate:seed": {
     writes: true,
@@ -270,33 +264,6 @@ const REFUSED: Record<string, string> = {
   "db:reset": "no.",
 };
 
-/** Whether this run of an allowed command deletes or rewrites production data. */
-export function isDestructive(entry: Allowed, args: string[]): boolean {
-  const d = entry.destroys;
-  if (!d) return false;
-  if (d === true) return true;
-  if (d.onlyWith !== undefined) return args.includes(d.onlyWith);
-  return !(d.unless ?? []).some((flag) => args.includes(flag));
-}
-
-/**
- * Why a destructive run is refused, or null when it may go ahead. It needs the
- * typed flag AND `CONFIRM_PRODUCTION` naming the production database host, so
- * neither a pasted command line nor an environment left set is enough alone.
- */
-export function confirmationRefusal(
-  entry: Allowed,
-  args: string[],
-  confirmHost: string | undefined,
-  productionHost: string,
-): string | null {
-  if (!isDestructive(entry, args)) return null;
-  const missing: string[] = [];
-  if (!args.includes(CONFIRM_FLAG)) missing.push(`the flag ${CONFIRM_FLAG}`);
-  if (confirmHost !== productionHost) missing.push(`CONFIRM_PRODUCTION=${productionHost} in the environment`);
-  return missing.length === 0 ? null : missing.join(" and ");
-}
-
 function main(): void {
   const argv = process.argv.slice(2);
   const command = argv[0];
@@ -386,4 +353,4 @@ function list(): void {
   console.error("");
 }
 
-if (process.argv[1]?.endsWith("on-production.ts")) main();
+main();

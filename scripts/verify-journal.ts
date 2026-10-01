@@ -47,6 +47,13 @@ async function main(): Promise<void> {
     const headEntries = (JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")) as { entries: JournalEntry[] })
       .entries;
 
+    /* CONTROL: the same comparison does see a restamped past entry. */
+    const restamped = headEntries.map((entry, i) => (i === 0 ? { ...entry, when: entry.when + 1 } : entry));
+    check(
+      "CONTROL a restamped past entry is reported",
+      baseEntries.length === 0 || journalProblems(baseEntries, restamped).length > 0,
+    );
+
     const problems = journalProblems(baseEntries, headEntries);
     check(
       "no past journal entry was edited, removed or reordered, and new ones are appended in order",

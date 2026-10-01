@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { applyLocalProxy, isLocalDatabaseHost, type ProxyConfig } from "../lib/db/local-proxy";
-import { databaseHost } from "../scripts/ci-db";
+import { applyLocalProxy, databaseHost, isLocalDatabaseHost, type ProxyConfig } from "../lib/db/local-proxy";
 
 /** What `neonConfig` holds by default, which production relies on. */
 function defaults(): ProxyConfig {
