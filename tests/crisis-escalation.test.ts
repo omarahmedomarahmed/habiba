@@ -154,9 +154,16 @@ test("🔴 retries spent: the alert escalates now, never just stops", () => {
     nextEscalateAt: at(20),
   });
   assert.equal(crisisDueAt([spent], at(5))?.toISOString(), at(5).toISOString(), "the tick wakes now");
-  /* A stage 1 alert whose sends are spent goes on to the platform the same way. */
+  /*
+   * Review: once the clinic has been told (stage 1), its own deadline stands:
+   * spent sends to the clinician no longer pull it forward or wake the tick,
+   * and it goes on to the platform when that deadline comes.
+   */
   const stage1 = { ...spent, escalationStage: 1, escalateAt: at(30) };
-  assert.equal(nextEscalation({ ...stage1, escalateAt: escalateNowIfExhausted(stage1, at(16)) }, { now: at(16), inClinic: true, minutes: 15 })?.audience, "platform");
+  assert.equal(outOfBandExhausted(stage1), false);
+  assert.equal(escalateNowIfExhausted(stage1, at(16)), null);
+  assert.equal(crisisDueAt([stage1], at(16))?.toISOString(), at(30).toISOString());
+  assert.equal(nextEscalation(stage1, { now: at(30), inClinic: true, minutes: 15 })?.audience, "platform");
 
   /* Controls: nothing to do once it left, once acknowledged, once already due, or at the last stage. */
   assert.equal(escalateNowIfExhausted({ ...spent, outOfBandAt: at(1) }, at(5)), null);
@@ -170,19 +177,27 @@ test("🔴 retries spent: the alert escalates now, never just stops", () => {
 test("🔴 the pipeline pulls a spent alert forward, records the failure, and a journal raises the same alert", () => {
   const alerts = readFileSync("lib/crisis/alerts.ts", "utf8");
   const send = alerts.slice(alerts.indexOf("async function sendOutOfBand"), alerts.indexOf("async function afterFailedSend"));
-  assert.match(send, /if \(!delivery\.sent\) await afterFailedSend\(riskId\)/);
+  assert.match(send, /if \(!delivery\.sent\) await afterFailedSend\(riskId, rdb\)/);
   const after = alerts.slice(alerts.indexOf("async function afterFailedSend"), alerts.indexOf("type Backup"));
   assert.match(after, /escalateNowIfExhausted\(row, now\)/);
   assert.match(after, /recordCrisisFailure\(/);
   assert.match(alerts, /import\("@\/lib\/observability\/errors"\)/, "failures reach /admin/errors");
   const tick = alerts.slice(alerts.indexOf("export async function escalateCrisisAlerts"), alerts.indexOf("export async function nextCrisisDueAt"));
-  assert.ok(tick.indexOf("afterFailedSend(row.id, now)") < tick.indexOf("const due = await db"), "spent alerts are pulled forward before the due read");
+  assert.ok(tick.indexOf("afterFailedSend(row.id, rdb, now)") < tick.indexOf("const due = await rdb"), "spent alerts are pulled forward before the due read");
+  /* Review: only alerts still with the clinician (stage 0) are pulled forward. */
+  const spentRead = tick.slice(tick.indexOf("const spent = await rdb"), tick.indexOf("const due = await rdb"));
+  assert.match(spentRead, /eq\(riskAssessments\.escalationStage, 0\)/);
+  /* Review: every region's alerts, and a journal alert written where the journal is. */
+  assert.match(tick, /acrossRegions\(/);
   const journals = readFileSync("lib/data/journals.ts", "utf8");
   assert.match(journals, /raiseCrisisAlert\(\{ \.\.\.shared, journal, therapistId: null/, "no grant: the platform on-call");
   assert.match(journals, /therapistId: holder\.userId/);
   assert.doesNotMatch(journals, /insert\(notifications\)/, "no parallel in-app-only path");
   const raise = alerts.slice(alerts.indexOf("export async function raiseCrisisAlert"), alerts.indexOf("function alertPath"));
-  assert.match(raise, /if \(noClinician\) \{\s*await tellPlatformNow\(riskId, now\)/);
+  assert.match(raise, /if \(noClinician\) \{\s*await tellPlatformNow\(riskId, now, rdb\)/);
+  assert.match(raise, /const rdb: Db = opts\.region \? dbFor\(opts\.region\) : db/);
+  assert.match(journals, /indicators, region \}/, "a journal alert carries the person's region");
+  assert.match(journals, /if \(raised === 0\) \{\s*await raiseCrisisAlert\(\{ \.\.\.shared, journal, therapistId: null/, "every clinician insert failed: the platform on-call");
 });
 
 test("🔴 a patient who paused AI is not transcribed, and the room and the record say live risk detection is off", () => {
@@ -192,11 +207,15 @@ test("🔴 a patient who paused AI is not transcribed, and the room and the reco
   assert.ok(paused.indexOf('error: "ai_paused"') < paused.indexOf("transcribeChunk("), "refused before any audio is sent");
   const room = readFileSync("components/session/session-room.tsx", "utf8");
   assert.match(room, /refused\?\.error === "ai_paused"\) setLiveRiskOff\(true\)/, "a mid-session pause shows at once");
-  assert.match(room, /\{liveRiskOff \? \(/);
+  assert.match(room, /\{liveRiskOff \|\| adultRefused \? \(/);
+  /* Review: a chunk refused for an unconfirmed adult is not scanned either, and says so. */
+  const adult = route.slice(route.indexOf("if (!(await adultConfirmedForSession(sessionId)))"));
+  assert.ok(adult.indexOf("await markLiveRiskOff(session.id)") < adult.indexOf('error: "adult_unconfirmed"'), "recorded, then refused");
+  assert.match(room, /refused\?\.error === "adult_unconfirmed"\) setAdultRefused\(true\)/);
   assert.match(readFileSync("app/(room)/sessions/[id]/room/page.tsx", "utf8"), /liveRiskOff=\{row\.session\.liveRiskOffAt !== null \|\|/);
   assert.match(readFileSync("app/(app)/sessions/[id]/page.tsx", "utf8"), /row\.session\.liveRiskOffAt \?/);
   assert.match(readFileSync("app/(app)/sessions/actions.ts", "utf8"), /markLiveRiskOffIfPaused\(sessionId\)/, "recorded at the start too");
-  for (const key of ["troom.liveRiskOff", "troom.liveRiskOffBody", "portal.session.liveRiskOff"] as const) {
+  for (const key of ["troom.liveRiskOff", "troom.liveRiskOffBody", "troom.liveRiskOffAdultBody", "portal.session.liveRiskOff"] as const) {
     assert.ok(en[key] && /[؀-ۿ]/.test(ar[key]), `${key} in both languages`);
   }
   assert.match(en["portal.session.aiPaused"], /no live risk detection/);
@@ -390,4 +409,41 @@ test("🔴 F5 the no-JS SOS page is server HTML with a tel: link for every line,
   /* Reachable with scripts off: the orb's noscript, and the public footer. */
   assert.match(readFileSync("components/patient/sos-orb.tsx", "utf8"), /<noscript>[\s\S]*href="\/sos"/);
   assert.match(readFileSync("components/public/site-chrome.tsx", "utf8"), /<a href="\/sos"/);
+});
+
+test("🔴 Review: break-glass for the platform on-call on a journal alert, audited", () => {
+  const action = readFileSync("app/(app)/notifications/alerts/[id]/actions.ts", "utf8");
+  const reveal = action.slice(action.indexOf("export async function revealCrisisContact"));
+  assert.ok(reveal.indexOf("reasonProblem(why)") < reveal.indexOf("await audit("), "a reason before anything");
+  assert.ok(reveal.indexOf("alert.breakGlass") < reveal.indexOf("await audit("), "only an alert that allows it");
+  assert.match(reveal, /category: "phi_access",\s*action: "break_glass\.crisis_contact"/);
+  const page = readFileSync("app/(app)/notifications/alerts/[id]/page.tsx", "utf8");
+  assert.ok(page.indexOf("crisisContactGrantHolds(") < page.indexOf("crisisContactForOnCall("), "the audit row is checked before the read");
+  assert.match(page, /href="\/sos"/);
+  const alerts = readFileSync("lib/crisis/alerts.ts", "utf8");
+  const read = alerts.slice(alerts.indexOf("export async function crisisContactForOnCall"));
+  assert.match(read, /!mayAcknowledge\(found\.row, actor\) \|\| !mayBreakGlass\(found\.row, actor\)/);
+  const may = alerts.slice(alerts.indexOf("export function mayBreakGlass"), alerts.indexOf("export async function alertForViewer"));
+  assert.match(may, /ON_CALL_ROLES/);
+  assert.match(may, /alert\.therapistId === null \|\| alert\.escalationStage >= FINAL_STAGE/);
+  for (const key of ["calert.bgTitle", "calert.bgIntro", "calert.bgReveal", "calert.bgExcerpt", "calert.bgSos", "calert.bgSosLink"] as const) {
+    assert.ok(en[key] && /[؀-ۿ]/.test(ar[key]), `${key} in both languages`);
+  }
+});
+
+test("🔴 Review: alert history outlives the journal, and every alert is seen", () => {
+  const sql = readFileSync("drizzle/0194_alert_history_outlives_the_journal.sql", "utf8");
+  assert.match(sql, /REFERENCES "journals"\("id"\) ON DELETE SET NULL/);
+  assert.match(sql, /REFERENCES "people"\("id"\) ON DELETE SET NULL/);
+  assert.match(sql, /"session_id" IS NOT NULL OR "person_id" IS NOT NULL OR "journal_ref" IS NOT NULL/);
+  assert.doesNotMatch(sql.replace(/^--.*$/gm, ""), /CASCADE/);
+  /* The admin feed shows an alert with no clinician. */
+  assert.match(readFileSync("lib/console/reads.ts", "utf8"), /FROM risk_assessments r\s*(?:--[^\n]*\n\s*)*LEFT JOIN users u ON u\.id = r\.therapist_id/);
+  /* A journal alert (no session) counts as prior risk. */
+  assert.match(
+    readFileSync("lib/data/session-risk.ts", "utf8"),
+    /or\(isNull\(riskAssessments\.sessionId\), ne\(riskAssessments\.sessionId, sessionId\)\)/,
+  );
+  /* The cross-chunk join reads the same speaker's last segment. */
+  assert.match(readFileSync("lib/data/transcript.ts", "utf8"), /eq\(transcriptSegments\.speaker, input\.speaker\)/);
 });
