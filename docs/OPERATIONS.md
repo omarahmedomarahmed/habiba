@@ -78,7 +78,7 @@ to GitHub. The build does not touch the database.
 
 | Deletes or rewrites data | Writes | Reads only |
 | --- | --- | --- |
-| `seed:demo`, `ship:content`, `settings:reprice`, `sim:clock` and `age` (unless `--dry`), `content:sync` (unless `--dry`), `blobs:migrate-private` (with `--apply`) | `db:migrate`, `settings:seed`, `settings:rails`, `simulate:seed`, `copilot:exam` | `db:status`, `settings:show`, `settings:check`, `verify:migrations`, `verify:board`, `verify:cast`, `verify:demo`, `verify:event-demo`, `verify:physics`, `baseline`, `spend`, `physics`, `sim:inbox` |
+| `seed:demo`, `ship:content`, `settings:reprice`, `sim:clock` and `age` (unless `--dry`), `content:sync` (unless `--dry`), `blobs:migrate-private` (with `--apply`), `factor:reset` (unless `--dry`) | `db:migrate`, `settings:seed`, `settings:rails`, `simulate:seed`, `copilot:exam` | `db:status`, `settings:show`, `settings:check`, `verify:migrations`, `verify:board`, `verify:cast`, `verify:demo`, `verify:event-demo`, `verify:physics`, `baseline`, `spend`, `physics`, `sim:inbox` |
 
 A command in the first column refuses to run unless it is given
 `--i-understand-this-deletes-production-data` and `CONFIRM_PRODUCTION` is set to the production
@@ -141,6 +141,19 @@ CONFIRM_PRODUCTION=<host> npm run on:production -- blobs:migrate-private -- --ap
 
 `npm run verify:blobs` proves no personal column still points at a public file. An older
 script, `npm run blobs:private`, does the same move in two steps.
+
+## Lost authenticator apps
+
+| Who lost it | Who resets it |
+| --- | --- |
+| A staff member or manager | A super_admin, from Team |
+| A clinician, clinic manager or partner user | A super_admin or manager, from Sign-in security in the console |
+| The only super_admin | Break glass, below. Audited, and the next sign-in enrols a new app after an emailed code |
+
+```
+npm run on:production -- factor:reset -- owner@example.com --dry
+CONFIRM_PRODUCTION=<host> npm run on:production -- factor:reset -- owner@example.com --i-understand-this-deletes-production-data
+```
 
 ## Email DNS for `24therapy.app`
 

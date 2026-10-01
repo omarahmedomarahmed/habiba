@@ -11,7 +11,7 @@ import { ClinicianHomework } from "@/components/homework/clinician-homework";
 import { StandingProfile } from "@/components/memory/standing-profile";
 import { DocumentPanel } from "@/components/documents/document-panel";
 import { Card } from "@/components/clinician/kit";
-import { explain } from "@/lib/access/state";
+import { explain, homeworkScopeFor } from "@/lib/access/state";
 import { requireUser } from "@/lib/auth/guard";
 import {
   assessmentsForPatient,
@@ -102,9 +102,14 @@ export default async function PatientDocumentsPage({
    * backfill is not an error, it is a record nobody has needed a person for.
    */
   const { profile, timeline } = await sharedProfileForClinician(actor, id);
-  const homework = personId ? await listHomework(personId) : [];
+  /*
+   * Review fix: homework from other clinics, and the patient's notes back on
+   * it, follow the grant too. Without it, only the steps this clinician set.
+   */
+  const homeworkBy = homeworkScopeFor(access, actor.userId);
+  const homework = personId ? await listHomework(personId, homeworkBy) : [];
   const trend = personId
-    ? await homeworkTrend(personId)
+    ? await homeworkTrend(personId, homeworkBy)
     : { open: 0, done: 0, skipped: 0, skipStreak: 0, completionRate: null };
 
   /*

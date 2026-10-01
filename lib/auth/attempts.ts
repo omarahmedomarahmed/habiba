@@ -16,9 +16,26 @@ export const ACCOUNT_WINDOW_SECONDS = 15 * 60;
 export const CODE_ACCOUNT_ATTEMPTS = 10;
 export const CODE_ACCOUNT_WINDOW_SECONDS = 60 * 60;
 
-/** Codes sent to one handle per hour, from every network together. */
+/** Codes sent to one handle per hour, from one network (review fix: was every network together). */
 export const CODES_SENT_PER_HANDLE = 5;
 export const CODES_SENT_WINDOW_SECONDS = 60 * 60;
+
+/**
+ * Review fix: a reset code's guesses per account from EVERY network together.
+ * Per network and account the limit is `CODE_ACCOUNT_ATTEMPTS`, so a stranger
+ * guessing from elsewhere does not lock the owner out of resetting at once;
+ * this ceiling still bounds a six digit code across many networks.
+ */
+export const RESET_GUESS_CEILING = CODE_ACCOUNT_ATTEMPTS * 3;
+
+/**
+ * Review fix: codes SENT are counted per network and account, not per account
+ * alone, so a stranger asking for codes from elsewhere cannot use up the
+ * owner's sends. An unknown handle is counted the same way.
+ */
+export function sendSubject(account: string, network: string): string {
+  return `${accountSubject(account)}|${network}`;
+}
 
 /** One spelling per account: case and surrounding space do not make a new bucket. */
 export function accountSubject(identifier: string): string {

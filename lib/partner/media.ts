@@ -43,6 +43,11 @@ import { log } from "@/lib/logger";
  *                 taken whole.
  */
 
+/*
+ * Open (docs/DECISIONS.md FB5): no 18+ check of ours here. Partner subjects
+ * have no chart or session of ours to confirm on; the proposed ruling is a
+ * contract term now and an adult confirmation on the consent call later.
+ */
 export async function ingestPartnerAudio(input: {
   partnerSessionId: string;
   audio: Buffer;

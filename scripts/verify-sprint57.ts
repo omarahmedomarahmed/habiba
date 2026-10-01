@@ -488,6 +488,13 @@ async function main() {
      * only; it refuses a row whose block types or keys would change. Dry with `--dry`.
      */
     "scripts/content-rename.ts",
+    /*
+     * Review fix, THE TENTH DOOR: the break glass for a sole super_admin who lost
+     * the phone and the recovery codes (Team never resets your own). One back
+     * office member's app, codes and emailed codes, plus an audit row. Behind
+     * the typed production confirmation; `--dry` writes nothing.
+     */
+    "scripts/reset-second-factor.ts",
   ];
 
   check(

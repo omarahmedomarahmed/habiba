@@ -68,7 +68,7 @@ export async function sharedProfileForClinician(
 ): Promise<{ profile: PersonProfile | null; timeline: TimelineEntry[] }> {
   const { accessFor } = await import("@/lib/data/grants");
   const access = await accessFor(actor, patientId);
-  if (!access.personId || !maySeeSharedRecord(access.state)) return { profile: null, timeline: [] };
+  if (!access.personId || !maySeeSharedRecord(access.state, access.soleChart)) return { profile: null, timeline: [] };
   const [profile, timeline] = await Promise.all([
     profileFor(access.personId),
     timelineFor(access.personId),

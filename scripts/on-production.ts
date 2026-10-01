@@ -112,6 +112,16 @@ const ALLOWED: Record<string, Allowed> = {
     destroys: { unless: ["--dry"] },
   },
   /*
+   * Review fix: the break glass for a sole super_admin who lost the phone and
+   * the recovery codes. Team resets another member, never yourself, so this is
+   * the only way back in. Clears one back office member's app, audited.
+   */
+  "factor:reset": {
+    writes: true,
+    why: "clears one back office member's authenticator app, audited. Break glass only",
+    destroys: { unless: ["--dry"] },
+  },
+  /*
    * It opens a copilot thread against real patients from the run and asks the
    * model about them, which is a write, and the thread it leaves behind is part
    * of the record rather than a fixture. It belongs on the database the run is

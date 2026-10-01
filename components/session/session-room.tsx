@@ -57,6 +57,8 @@ type RoomProps = {
   liveRiskOff: boolean;
   /** DD-2 B1: whether anyone has confirmed the patient is 18 or over. */
   adultConfirmed: boolean;
+  /** Whether a meeting recorder could join this session; it waits on the 18+ answer. */
+  meetingBot?: boolean;
   /** ISO, so the countdown survives a refresh mid-session. */
   startedAt: string | null;
   /** 🔴 0183: when both people were there and the clock began. Null until then. */
@@ -749,6 +751,11 @@ export function SessionRoom(props: RoomProps) {
             <MicOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-200" aria-hidden />
             {adult === "under" ? t("adultCheck.roomRefused") : t("adultCheck.roomAsk", { name: props.patientLabel })}
           </p>
+          {adult === "unconfirmed" && props.meetingBot ? (
+            <p className="mt-2 text-sm text-amber-100" data-bot-waits>
+              {t("adultCheck.botWaits")}
+            </p>
+          ) : null}
           {adult === "unconfirmed" ? (
             <div className="mt-3 flex flex-wrap gap-2">
               <button

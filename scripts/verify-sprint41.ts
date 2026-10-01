@@ -253,6 +253,27 @@ async function main() {
   );
 
   /*
+   * Review fix: a yes given before the 18+ confirmation is finished by that
+   * confirmation, through one function in dispatch.ts, from one caller, and
+   * only on a standing "granted".
+   */
+  const onceAdult = files.filter(
+    (file) =>
+      !file.startsWith("scripts/") &&
+      !file.startsWith("tests/") &&
+      file !== "lib/meetings/dispatch.ts" &&
+      /sendBotOnceAdult/.test(readFileSync(file, "utf8")),
+  );
+  const dispatchSource = readSource("lib/meetings/dispatch.ts");
+  check(
+    "🔴 the 18+ confirmation is the only other way a consented bot is sent, and it re-reads the consent",
+    onceAdult.length === 1 &&
+      onceAdult[0] === "lib/data/adult.ts" &&
+      /if \(rows\[0\]\?\.consent !== "granted"\) return;\s*await sendBotForConsent\(sessionId\)/.test(dispatchSource),
+    onceAdult.join(", "),
+  );
+
+  /*
    * 🔴 …and a DECLINE dispatches nothing at all.
    *
    * Not a bot that joins and stays quiet. That is the ethics, and it is also

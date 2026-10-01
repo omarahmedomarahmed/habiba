@@ -4,7 +4,17 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { CHALLENGE_LIFETIME_MS, issueChallenge, readChallenge } from "../lib/auth/challenge";
-import { needsSecondFactor, secondStepOwed } from "../lib/auth/totp";
+import { FACTOR_RESET_TARGETS, isFactorResetTarget, mayResetAccountFactor } from "../lib/auth/factor-reset";
+import {
+  ENROL_PROOF_MINUTES,
+  enrolProofCurrent,
+  hashEnrolCode,
+  needsSecondFactor,
+  newEnrolCode,
+  PENDING_ENROLMENT_MINUTES,
+  pendingEnrolmentCurrent,
+  secondStepOwed,
+} from "../lib/auth/totp";
 
 /* DD-2 B2.3 and B2.4: who owes the second step, and the portal doors' half-way mark. */
 
@@ -64,4 +74,83 @@ test("a clinician, a clinic manager and a partner user can add an app, and then 
   assert.match(source("app/(app)/settings/page.tsx"), /<AuthenticatorCard/);
   assert.match(source("app/(clinic)/clinic/page.tsx"), /<AuthenticatorCard/);
   assert.match(source("app/(partner)/partner/team/page.tsx"), /<AuthenticatorCard/);
+});
+
+/* Review fix: a lost app has a way back for everybody, and every way is audited. */
+
+test("an owner or a manager resets a clinician's, clinic manager's or partner user's app; staff cannot", () => {
+  assert.equal(mayResetAccountFactor("super_admin"), true);
+  assert.equal(mayResetAccountFactor("manager"), true);
+  for (const role of ["staff", "therapist", null, undefined]) assert.equal(mayResetAccountFactor(role), false, String(role));
+  assert.deepEqual([...FACTOR_RESET_TARGETS], ["clinician", "clinic", "partner"]);
+  assert.equal(isFactorResetTarget("partner"), true);
+  assert.equal(isFactorResetTarget("staff"), false);
+
+  const factor = source("lib/auth/second-factor.ts");
+  const reset = factor.slice(factor.indexOf("export async function resetAccountFactor"));
+  assert.match(reset, /if \(!mayResetAccountFactor\(actor\.role\)\)/);
+  /* A back office member is never reset here: theirs is required and Team resets it. */
+  assert.match(reset, /!\(BACK_OFFICE_ROLES as readonly string\[\]\)\.includes\(row\.role\)/);
+  assert.match(reset, /action: "second_factor\.reset_refused"/);
+  assert.match(reset, /action: "second_factor\.reset",/);
+  const actions = source("app/(admin)/admin/security/actions.ts");
+  assert.match(actions, /requireRole\("super_admin", "manager"\)[\s\S]{0,400}resetAccountFactor\(actor, target/);
+});
+
+test("a sole super_admin has an audited break glass, behind the production confirmation", () => {
+  const script = source("scripts/reset-second-factor.ts");
+  assert.match(script, /writesTo\(\{ productionIsAllowed: true \}\)/);
+  assert.match(script, /inArray\(users\.role, \[\.\.\.BACK_OFFICE_ROLES\]\)/);
+  assert.match(script, /tx\.insert\(auditLog\)/);
+  assert.match(script, /const DRY = process\.argv\.includes\("--dry"\)/);
+  assert.match(source("package.json"), /"factor:reset": "node --env-file-if-exists=\.env\.local --import tsx scripts\/reset-second-factor\.ts"/);
+  const onProduction = source("scripts/on-production.ts");
+  assert.match(onProduction, /"factor:reset": \{\s*writes: true,[\s\S]{0,200}destroys: \{ unless: \["--dry"\] \}/);
+  assert.match(source("scripts/verify-sprint57.ts"), /"scripts\/reset-second-factor\.ts",/);
+});
+
+/* Review fix: a password alone never enrols an app. */
+
+test("the emailed enrolment proof and a pending app both run out, and a future time fails closed", () => {
+  const now = new Date("2026-10-01T12:00:00Z");
+  const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000);
+  assert.equal(enrolProofCurrent(null, now), false);
+  assert.equal(enrolProofCurrent(ago(ENROL_PROOF_MINUTES - 1), now), true);
+  assert.equal(enrolProofCurrent(ago(ENROL_PROOF_MINUTES + 1), now), false);
+  assert.equal(enrolProofCurrent(ago(-5), now), false);
+  assert.equal(pendingEnrolmentCurrent(ago(PENDING_ENROLMENT_MINUTES - 1), now), true);
+  assert.equal(pendingEnrolmentCurrent(ago(PENDING_ENROLMENT_MINUTES + 1), now), false);
+  assert.match(newEnrolCode(), /^\d{6}$/);
+  assert.equal(hashEnrolCode("123 456"), hashEnrolCode("123456"));
+  assert.notEqual(hashEnrolCode("123456"), hashEnrolCode("123457"));
+});
+
+test("a back office member's first app needs the emailed code; the others type their password again", () => {
+  const factor = source("lib/auth/second-factor.ts");
+  /* Start, show and confirm all ask for the proof on a back office role. */
+  for (const fn of ["beginEnrolment", "pendingEnrolment", "confirmEnrolment"]) {
+    const body = factor.slice(factor.indexOf(`export async function ${fn}`));
+    assert.match(body.slice(0, 400), /proofMissing\(who, sessionId\)/, fn);
+  }
+  assert.match(factor, /pendingEnrolmentCurrent\(row\.updatedAt\)/);
+  const steps = source("lib/auth/second-step-actions.ts");
+  const start = steps.slice(steps.indexOf("export async function startStepEnrolment"));
+  assert.ok(start.indexOf("proveEnrolmentCode(") < start.indexOf("beginEnrolment("), "proof before the secret");
+  assert.match(source("app/(auth)/staff/second-step/page.tsx"), /pendingEnrolment\(state\.actor, state\.sessionId\)/);
+  /* The emailed code is spent once, for this session only, and never passes the step itself. */
+  const proof = source("lib/auth/enrolment-proof.ts");
+  assert.match(proof, /eq\(staffEmailCodes\.sessionId, sessionId\)/);
+  assert.match(proof, /isNull\(staffEmailCodes\.usedAt\)/);
+  const pass = factor.slice(factor.indexOf("export async function passSecondStep"));
+  assert.doesNotMatch(pass.slice(0, pass.indexOf("\n}\n")), /staffEmailCodes|enrolment-proof|proofMissing/);
+  for (const [file, owner] of [
+    ["app/(app)/settings/authenticator-actions.ts", "user"],
+    ["app/(clinic)/clinic/authenticator-actions.ts", "clinic"],
+    ["app/(partner)/partner/team/authenticator-actions.ts", "partner"],
+  ] as const) {
+    const actions = source(file);
+    const startAction = actions.slice(actions.indexOf("export async function start"));
+    assert.match(startAction.slice(0, 900), new RegExp(`passwordConfirmed\\(\\{ kind: "${owner}"`), file);
+  }
+  assert.match(source("components/auth/authenticator-card.tsx"), /name="password" type="password"/);
 });

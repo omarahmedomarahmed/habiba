@@ -2,8 +2,17 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { ACCESS_STATES, capabilitiesFor, maySeeSharedRecord } from "../lib/access/state";
+import {
+  ACCESS_STATES,
+  accessStateFor,
+  capabilitiesFor,
+  claimedForAccess,
+  homeworkScopeFor,
+  isSoleChart,
+  maySeeSharedRecord,
+} from "../lib/access/state";
 import { deliverableNoteQuery } from "../lib/partner/api";
+import { unlinkedFrom } from "../lib/partner/platform";
 import { companyView, lastCompleteWeek, type LedgerEntry } from "../lib/sponsor/ledger";
 import { exportLinkState } from "../lib/data/export";
 import { EXPORT_OPEN_WINDOW_MINUTES, EXPORT_TTL_HOURS } from "../lib/db/schema";
@@ -20,15 +29,55 @@ const source = (path: string) => readFileSync(path, "utf8");
 
 /* ------------------------------------------- 1. the shared record follows the grant -- */
 
-test("B1.1 only a live grant or the clinician's own unclaimed file opens the shared record", () => {
-  const open = ACCESS_STATES.filter((state) => maySeeSharedRecord(state));
+test("B1.1 only a live grant or the clinician's own sole unclaimed file opens the shared record", () => {
+  const open = ACCESS_STATES.filter((state) => maySeeSharedRecord(state, true));
   assert.deepEqual([...open].sort(), ["granted", "unclaimed_bare", "unclaimed_documented"]);
-  assert.equal(maySeeSharedRecord("revoked"), false);
-  assert.equal(maySeeSharedRecord("no_relationship"), false);
+  /* A chart another clinician also holds is not anybody's private file. */
+  assert.deepEqual(ACCESS_STATES.filter((state) => maySeeSharedRecord(state, false)), ["granted"]);
+  assert.equal(maySeeSharedRecord("revoked", true), false);
+  assert.equal(maySeeSharedRecord("no_relationship", true), false);
   /* The same line the files and journals follow for a claimed person. */
   for (const state of ["granted", "revoked"] as const) {
-    assert.equal(maySeeSharedRecord(state), capabilitiesFor(state).patientFiles);
+    assert.equal(maySeeSharedRecord(state, true), capabilitiesFor(state).patientFiles);
   }
+});
+
+test("B1.1 a person with two charts and no grant shows the second clinician nothing", () => {
+  const now = new Date("2026-10-01T12:00:00Z");
+  const charts = ["clinician-a", "clinician-b"];
+  assert.equal(isSoleChart(charts), false);
+  assert.equal(isSoleChart(["clinician-a", "clinician-a"]), true);
+  assert.equal(isSoleChart(["clinician-a"]), true);
+  /* No account, never claimed: unclaimed, but shared, so closed. */
+  const bare = accessStateFor({ hasPatientRow: true, claimed: false, documented: true, grant: null, now });
+  assert.equal(maySeeSharedRecord(bare, isSoleChart(charts)), false);
+  /* A self-signup patient (an account, claimed_at still null) counts as claimed: revoked without a grant. */
+  const claimed = claimedForAccess({ claimedAt: null, hasAccount: true });
+  assert.equal(claimed, true);
+  assert.equal(claimedForAccess({ claimedAt: null, hasAccount: false }), false);
+  for (const grant of [null, { status: "rejected" as const, expiresAt: null }, { status: "pending" as const, expiresAt: null }]) {
+    const state = accessStateFor({ hasPatientRow: true, claimed, documented: true, grant, now });
+    assert.equal(state, "revoked");
+    assert.equal(maySeeSharedRecord(state, true), false);
+  }
+  /* Both readers pass the sole-chart answer, and the access decision reads the account. */
+  const grants = source("lib/data/grants.ts");
+  assert.match(grants, /claimedForAccess\(\{ claimedAt: row\.claimedAt, hasAccount: holders\.hasAccount \}\)/);
+  assert.match(source("lib/data/radar.ts"), /claimedForAccess\(\{ claimedAt: r\.claimedAt/);
+});
+
+test("B1.1 homework from other clinics follows the grant; without it, only the clinician's own steps", () => {
+  const scope = (state: (typeof ACCESS_STATES)[number], soleChart: boolean) =>
+    homeworkScopeFor({ state, soleChart, capabilities: capabilitiesFor(state) }, "me");
+  assert.equal(scope("granted", false), undefined);
+  assert.equal(scope("unclaimed_documented", true), undefined);
+  assert.equal(scope("unclaimed_bare", false), "me");
+  assert.equal(scope("revoked", true), "me");
+  assert.equal(scope("no_relationship", true), "me");
+  const page = source("app/(app)/patients/[id]/documents/page.tsx");
+  assert.match(page, /listHomework\(personId, homeworkBy\)/);
+  assert.match(page, /homeworkTrend\(personId, homeworkBy\)/);
+  assert.match(source("lib/data/homework.ts"), /eq\(homeworkItems\.assignedByUserId, assignedBy\)/);
 });
 
 test("B1.1 the clinician's profile page reads the profile, timeline and diagnoses only through the gated loaders", () => {
@@ -40,8 +89,8 @@ test("B1.1 the clinician's profile page reads the profile, timeline and diagnose
   /* No exported reader of the profile or timeline takes a bare person id. */
   const memory = source("lib/data/memory.ts");
   assert.doesNotMatch(memory, /export async function (profileFor|timelineFor)\b/);
-  assert.match(memory, /maySeeSharedRecord\(access\.state\)/);
-  assert.match(source("lib/data/diagnoses.ts"), /maySeeSharedRecord\(access\.state\)/);
+  assert.match(memory, /maySeeSharedRecord\(access\.state, access\.soleChart\)/);
+  assert.match(source("lib/data/diagnoses.ts"), /maySeeSharedRecord\(access\.state, access\.soleChart\)/);
 
   /* Only the patient's own screens read the unscoped diagnoses. */
   const callers = ["app/(patient)/patient/profile/page.tsx", "lib/data/export.ts"];
@@ -62,6 +111,24 @@ test("B1.2 a partner's note delivery needs a live link and a session in that par
   assert.match(sql, /"partner_subjects"\."partner_id" = \$\d+/);
   assert.ok(params.filter((p) => p === "partner-1").length >= 2, "both scopes carry the partner id");
   assert.ok(params.includes("partner_billed"));
+});
+
+test("B1.2 unlinked is decided by the session's own reference and the person's live link, not by any old row", () => {
+  const cut = new Date("2026-09-01T00:00:00Z");
+  const old = { externalRef: "P1", personId: "person-1", revokedAt: cut };
+  /* The session's own row was cut, and nothing since: unlinked. */
+  assert.equal(unlinkedFrom([old], { externalSubjectRef: "P1", personId: "person-1" }), true);
+  assert.equal(unlinkedFrom([old], { externalSubjectRef: "P1", personId: null }), true);
+  /* The person confirmed a new link later (a new reference): linked again, for old and new sessions alike. */
+  const relinked = [old, { externalRef: "P2", personId: "person-1", revokedAt: null }];
+  assert.equal(unlinkedFrom(relinked, { externalSubjectRef: "P2", personId: "person-1" }), false);
+  assert.equal(unlinkedFrom(relinked, { externalSubjectRef: "P1", personId: "person-1" }), false);
+  /* A placeholder with no person never re-opens a cut link. */
+  const placeholder = [old, { externalRef: "P3", personId: null, revokedAt: null }];
+  assert.equal(unlinkedFrom(placeholder, { externalSubjectRef: "P1", personId: "person-1" }), true);
+  /* Never cut: linked. */
+  assert.equal(unlinkedFrom([{ ...old, revokedAt: null }], { externalSubjectRef: "P1", personId: "person-1" }), false);
+  assert.equal(unlinkedFrom([], { externalSubjectRef: "P9", personId: null }), false);
 });
 
 test("B1.2 every partner read by session reference refuses an unlinked person", () => {
@@ -125,6 +192,24 @@ test("B1.3 one heavy user is never isolated: no week is shown until floor differ
   const charted = withFour.series.reduce((n, w) => n + (w.spendCents ?? 0), 0);
   assert.equal(charted, withFour.weeks.reduce((n, p) => n + p.spendCents, 0));
   assert.equal(withFour.stats.spendCents, charted);
+});
+
+test("B1.3 the chart is one run of weeks: a held-back week looks exactly like an empty one", () => {
+  const now = new Date("2026-09-24T12:00:00Z"); /* the last complete week began 14 September */
+  const five = ["a", "b", "c", "d", "e"].map((p) => spend("2026-08-03", p));
+  /* One person in two later weeks, with an empty week between them. */
+  const solo = [spend("2026-08-17", "solo"), spend("2026-08-31", "solo")];
+  const view = companyView({ entries: [...five, ...solo], floor: 5, now });
+  const weeks = view.series.map((w) => w.weekStart);
+  assert.deepEqual(weeks, mondays("2026-08-03", 7), "every week from the first published one to the last complete one");
+  const byWeek = new Map(view.series.map((w) => [w.weekStart, w.spendCents]));
+  /* Used-but-held-back and nobody-at-all read the same. */
+  assert.equal(byWeek.get("2026-08-17"), null);
+  assert.equal(byWeek.get("2026-08-24"), null);
+  assert.equal(byWeek.get("2026-08-31"), null);
+  assert.equal(byWeek.get("2026-08-03"), 5_000);
+  /* Nothing published: no chart at all, so not even the first week shows. */
+  assert.deepEqual(companyView({ entries: solo, floor: 5, now }).series, []);
 });
 
 test("B1.3 the current, incomplete week is never read, even with plenty of people in it", () => {
@@ -247,6 +332,20 @@ test("B1.5 Recall.ai, WhatsApp and Paymob are named at signup in both languages 
 });
 
 /* --------------------------------------------------------- 6. 18 or over, first -- */
+
+test("B1.6 confirming 18 or over later sends the recorder a yes was waiting for, and the room says it waits", () => {
+  const adult = source("lib/data/adult.ts");
+  const confirm = adult.slice(adult.indexOf("export async function confirmAdultForSession"));
+  const body = confirm.slice(0, confirm.indexOf("\n}\n"));
+  assert.ok(body.indexOf("if (!session) return false;") < body.indexOf("sendBotOnceAdult(sessionId)"), "only after the confirmation landed");
+  const dispatch = source("lib/meetings/dispatch.ts");
+  const once = dispatch.slice(dispatch.indexOf("export async function sendBotOnceAdult"));
+  assert.match(once.slice(0, 900), /consent !== "granted"\) return;/);
+  assert.match(source("components/session/session-room.tsx"), /props\.meetingBot \?[\s\S]{0,200}t\("adultCheck\.botWaits"\)/);
+  assert.match(source("app/(room)/sessions/[id]/room/page.tsx"), /meetingBot=\{await .*meetingBotPossible\(row\.session\.id\)\}/);
+  assert.match(en["adultCheck.botWaits"], /18/);
+  assert.match(ar["adultCheck.botWaits"], /18/);
+});
 
 test("B1.6 a box counts only when ticked, and any one confirmation is enough", () => {
   const form = (fields: Record<string, string>) => ({ get: (name: string) => fields[name] ?? null });

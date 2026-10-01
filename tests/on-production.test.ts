@@ -15,7 +15,7 @@ function entry(name: string): string | null {
 }
 
 test("every command that deletes or rewrites production data is marked", () => {
-  for (const name of ["seed:demo", "sim:clock", "age", "ship:content", "settings:reprice", "content:sync", "blobs:migrate-private"]) {
+  for (const name of ["seed:demo", "sim:clock", "age", "ship:content", "settings:reprice", "content:sync", "blobs:migrate-private", "factor:reset"]) {
     const body = entry(name);
     assert.ok(body, `${name} is not on the allow-list`);
     assert.match(body!, /destroys:/, `${name} is not marked as destructive`);

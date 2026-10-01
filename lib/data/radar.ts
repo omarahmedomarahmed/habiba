@@ -14,6 +14,7 @@ import {
   invoices,
   notifications,
   organizations,
+  patientAccounts,
   patients,
   people,
   personDocuments,
@@ -23,7 +24,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { isVerifiedClinician, verifiedByBody, verifiedOn } from "@/lib/data/verified";
-import { accessStateFor, isGated, type AccessState } from "@/lib/access/state";
+import { accessStateFor, claimedForAccess, isGated, type AccessState } from "@/lib/access/state";
 import { RATINGS_VISIBLE_AFTER, therapistRatings } from "@/lib/data/feedback";
 import { closedCodes } from "@/lib/data/taxonomy";
 import { log, ref } from "@/lib/logger";
@@ -1701,6 +1702,9 @@ export async function radarSessionHistory(actor: Actor, limit = 25): Promise<Rad
        * to these values below.
        */
       claimedAt: people.claimedAt,
+      hasAccount: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${patientAccounts} pa WHERE pa."person_id" = ${patients}."person_id"
+      )`,
       diagnosisCount: sql<number>`COALESCE(jsonb_array_length(${patients.clinical} -> 'diagnoses'), 0)::int`,
       hasWrittenHistory: sql<boolean>`EXISTS (
         SELECT 1 FROM ${personDocuments} pd
@@ -1751,7 +1755,7 @@ export async function radarSessionHistory(actor: Actor, limit = 25): Promise<Rad
      */
     const state = accessStateFor({
       hasPatientRow: r.patientId !== null,
-      claimed: r.claimedAt !== null,
+      claimed: claimedForAccess({ claimedAt: r.claimedAt, hasAccount: Boolean(r.hasAccount) }),
       documented: (r.diagnosisCount ?? 0) > 0 && Boolean(r.hasWrittenHistory),
       grant: r.grantStatus
         ? {

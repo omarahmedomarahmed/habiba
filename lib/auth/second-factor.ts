@@ -3,14 +3,16 @@
  */
 import "server-only";
 
-import { and, count, eq, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { decryptSecret, encryptSecret, secretsConfigured } from "@/lib/crypto/secretbox";
 import { controlDb as db } from "@/lib/db";
 import {
   authSessions,
+  clinicManagers,
   BACK_OFFICE_ROLES,
+  partnerUsers,
   portalRecoveryCodes,
   portalSecondFactors,
   staffEmailCodes,
@@ -29,8 +31,10 @@ import {
   newRecoveryCodes,
   newTotpSecret,
   otpauthUri,
+  pendingEnrolmentCurrent,
   verifyTotp,
 } from "./totp";
+import { mayResetAccountFactor, type FactorResetTarget } from "./factor-reset";
 
 /**
  * 🔴 TASK 40: THE SECOND STEP, THE HALF THAT STORES THINGS.
@@ -42,8 +46,9 @@ import {
  *
  * DD-2 B2.3: the console's emailed code is gone. A back office member signs
  * in with an authenticator app or a recovery code, and one without an app is
- * enrolled on the second step page before anything else. There is no
- * break-glass: an owner resets another member's app from Team.
+ * enrolled on the second step page before anything else, once six digits
+ * emailed to their address prove the inbox (review fix: a password alone
+ * never reaches the QR code). An owner resets another member's app from Team.
  *
  * DD-2 B2.4: the same app, optional, for a clinician (a `users` row, so the
  * staff tables), a clinic manager or a partner user (`portal_second_factors`).
@@ -71,7 +76,7 @@ export type FactorOwner =
   | { kind: "clinic"; id: string }
   | { kind: "partner"; id: string };
 
-type FactorRow = { sealed: string; confirmedAt: Date | null; lastStep: number | null };
+type FactorRow = { sealed: string; confirmedAt: Date | null; lastStep: number | null; updatedAt: Date };
 
 const portalOwner = (owner: Exclude<FactorOwner, { kind: "user" }>) =>
   owner.kind === "clinic"
@@ -85,6 +90,7 @@ async function readFactor(owner: FactorOwner): Promise<(FactorRow & { portalId?:
         sealed: staffSecondFactors.secretSealed,
         confirmedAt: staffSecondFactors.confirmedAt,
         lastStep: staffSecondFactors.lastStep,
+        updatedAt: staffSecondFactors.updatedAt,
       })
       .from(staffSecondFactors)
       .where(eq(staffSecondFactors.userId, owner.id))
@@ -97,6 +103,7 @@ async function readFactor(owner: FactorOwner): Promise<(FactorRow & { portalId?:
       sealed: portalSecondFactors.secretSealed,
       confirmedAt: portalSecondFactors.confirmedAt,
       lastStep: portalSecondFactors.lastStep,
+      updatedAt: portalSecondFactors.updatedAt,
     })
     .from(portalSecondFactors)
     .where(portalOwner(owner))
@@ -287,7 +294,7 @@ export type PendingEnrolment = { key: string; uri: string };
 /** The pending enrolment's key and QR payload, for the one page that shows it. */
 export async function pendingFactor(owner: FactorOwner, account: string): Promise<PendingEnrolment | null> {
   const row = await readFactor(owner);
-  if (!row || row.confirmedAt) return null;
+  if (!row || row.confirmedAt || !pendingEnrolmentCurrent(row.updatedAt)) return null;
   const secret = Buffer.from(decryptSecret(row.sealed), "base64");
   return {
     key: base32Encode(secret).replace(/(.{4})/g, "$1 ").trim(),
@@ -304,6 +311,8 @@ export async function confirmFactorCode(
   const row = await readFactor(owner);
   if (!row) return { ok: false, error: "asec.startAgain", reason: "no pending enrolment" };
   if (row.confirmedAt) return { ok: false, error: "asec.already", reason: "already enrolled" };
+  /* A pending app nobody confirmed in time is not left for a later visitor to finish. */
+  if (!pendingEnrolmentCurrent(row.updatedAt)) return { ok: false, error: "asec.startAgain", reason: "pending expired" };
 
   const secret = Buffer.from(decryptSecret(row.sealed), "base64");
   const verdict = verifyTotp(secret, typed, Date.now(), null);
@@ -417,11 +426,24 @@ export async function passSecondStep(who: Who, sessionId: string, typed: string)
   return { ok: true };
 }
 
-export async function beginEnrolment(who: Who): Promise<StepResult> {
+/**
+ * Review fix: a back office member's first app only after the emailed code
+ * proved this session (`lib/auth/enrolment-proof.ts`). A clinician's optional
+ * app is gated by their password in the settings action instead.
+ */
+async function proofMissing(who: Who, sessionId: string): Promise<boolean> {
+  if (!(BACK_OFFICE_ROLES as readonly string[]).includes(who.role)) return false;
+  const { enrolmentProven } = await import("./enrolment-proof");
+  return !(await enrolmentProven(who.userId, sessionId));
+}
+
+export async function beginEnrolment(who: Who, sessionId: string): Promise<StepResult> {
+  if (await proofMissing(who, sessionId)) return { ok: false, error: "asec.proveFirst" };
   return startFactor({ kind: "user", id: who.userId });
 }
 
-export async function pendingEnrolment(who: Who): Promise<PendingEnrolment | null> {
+export async function pendingEnrolment(who: Who, sessionId: string): Promise<PendingEnrolment | null> {
+  if (await proofMissing(who, sessionId)) return null;
   return pendingFactor({ kind: "user", id: who.userId }, who.email);
 }
 
@@ -434,6 +456,10 @@ export async function confirmEnrolment(
   sessionId: string,
   typed: string,
 ): Promise<{ ok: true; recoveryCodes: string[] } | { ok: false; error: MessageKey }> {
+  if (await proofMissing(who, sessionId)) {
+    await failed(who, "enrolment", "not proved by email");
+    return { ok: false, error: "asec.proveFirst" };
+  }
   const result = await confirmFactorCode({ kind: "user", id: who.userId }, typed);
   if (!result.ok) {
     await failed(who, "enrolment", result.reason);
@@ -485,7 +511,8 @@ export async function removeOwnFactor(who: Who, typed: string): Promise<StepResu
  * B2.3 that means enrolling a new app on the second step page.
  *
  * Never their own. An owner who could reset their own second step would need
- * only a password to do it. Another owner resets it, or the database does.
+ * only a password to do it. Another owner resets it, or, for a sole owner, the
+ * audited break glass `npm run factor:reset` (scripts/reset-second-factor.ts).
  *
  * The role is asked again here, not only by the action's guard: a second
  * caller of this function tomorrow does not inherit a guard it did not write.
@@ -532,5 +559,74 @@ export async function resetSecondFactor(
    * The success row is written by the caller, `resetMemberSecondFactor` in
    * `app/(admin)/admin/team/actions.ts`, beside every other act on the team.
    */
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Reset of a clinician's, clinic manager's or partner user's app      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Review fix: the optional app's support reset. A super_admin or a manager in
+ * the console names the account by its email; the app and its recovery codes
+ * are cleared and the next sign-in is a password again, until they enrol a
+ * new one. Every attempt is an audit row, found or not.
+ */
+export async function resetAccountFactor(
+  actor: Pick<Actor, "userId" | "organizationId" | "role">,
+  target: FactorResetTarget,
+  email: string,
+): Promise<{ ok: true } | { ok: false; error: MessageKey }> {
+  if (!mayResetAccountFactor(actor.role)) return { ok: false, error: "ateam.errNotChangeable" };
+  const address = email.trim().toLowerCase();
+  if (!address) return { ok: false, error: "asec.resetNotFound" };
+
+  let owner: FactorOwner | null = null;
+  if (target === "clinician") {
+    const [row] = await db
+      .select({ id: users.id, role: users.role })
+      .from(users)
+      .where(and(sql`lower(${users.email}) = ${address}`, isNull(users.deletedAt)))
+      .limit(1);
+    /* Never a back office member: theirs is required, and Team resets it. */
+    if (row && !(BACK_OFFICE_ROLES as readonly string[]).includes(row.role)) owner = { kind: "user", id: row.id };
+  } else if (target === "clinic") {
+    const [row] = await db
+      .select({ id: clinicManagers.id })
+      .from(clinicManagers)
+      .where(sql`lower(${clinicManagers.email}) = ${address}`)
+      .limit(1);
+    if (row) owner = { kind: "clinic", id: row.id };
+  } else {
+    const [row] = await db
+      .select({ id: partnerUsers.id })
+      .from(partnerUsers)
+      .where(and(sql`lower(${partnerUsers.email}) = ${address}`, isNull(partnerUsers.deletedAt)))
+      .limit(1);
+    if (row) owner = { kind: "partner", id: row.id };
+  }
+
+  const resourceType = target === "clinician" ? "user" : target === "clinic" ? "clinic_manager" : "partner_user";
+  if (!owner) {
+    await audit({
+      actor,
+      category: "admin",
+      action: "second_factor.reset_refused",
+      resourceType,
+      reason: `${target}: no such account`,
+    });
+    return { ok: false, error: "asec.resetNotFound" };
+  }
+
+  await removeFactor(owner);
+  if (owner.kind === "user") await db.delete(staffEmailCodes).where(eq(staffEmailCodes.userId, owner.id));
+  await audit({
+    actor,
+    category: "admin",
+    action: "second_factor.reset",
+    resourceType,
+    resourceId: owner.id,
+    reason: `${target} app reset from the console`,
+  });
   return { ok: true };
 }

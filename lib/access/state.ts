@@ -216,12 +216,40 @@ export function capabilitiesFor(state: AccessState, gated = false): Capabilities
  *
  * Those are built from every clinic's sessions and the patient's own uploads,
  * so they follow the grant, like files and journals. A live grant opens them.
- * An unclaimed person is one clinician's private file, built only from that
- * clinician's own material, so the holder keeps them. Revoked, refused,
- * expired or no relationship: closed.
+ * An unclaimed person opens them only while it is this clinician's private
+ * file: `soleChart` means no other clinician holds a chart for the person.
+ * Revoked, refused, expired, shared or no relationship: closed.
  */
-export function maySeeSharedRecord(state: AccessState): boolean {
-  return state === "granted" || state === "unclaimed_documented" || state === "unclaimed_bare";
+export function maySeeSharedRecord(state: AccessState, soleChart: boolean): boolean {
+  if (state === "granted") return true;
+  return (state === "unclaimed_documented" || state === "unclaimed_bare") && soleChart;
+}
+
+/**
+ * Whose homework a clinician sees: everybody's when the shared record or the
+ * patient's files are open to them, otherwise only the steps they set (the
+ * user id to filter on).
+ */
+export function homeworkScopeFor(
+  access: { state: AccessState; soleChart: boolean; capabilities: Pick<Capabilities, "patientFiles"> },
+  userId: string,
+): string | undefined {
+  return access.capabilities.patientFiles || maySeeSharedRecord(access.state, access.soleChart) ? undefined : userId;
+}
+
+/** One clinician holds every live chart for the person (the therapist id of each chart). */
+export function isSoleChart(chartTherapistIds: readonly (string | null)[]): boolean {
+  return new Set(chartTherapistIds).size <= 1;
+}
+
+/**
+ * Claimed, for access. A person with a patient account can be asked for a
+ * grant, so the account counts as a claim even before it proved a handle.
+ * Otherwise a self-signup person booked by two clinicians would be "unclaimed"
+ * to both, and each would read what the other's sessions built.
+ */
+export function claimedForAccess(input: { claimedAt: Date | null; hasAccount: boolean }): boolean {
+  return input.claimedAt !== null || input.hasAccount;
 }
 
 /**

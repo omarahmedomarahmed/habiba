@@ -113,6 +113,11 @@ export function AuthenticatorCard({
       ) : (
         <form action={startAction} className="space-y-2">
           <p className="text-sm text-navy-500">{t("asec.optionalBody")}</p>
+          <div className="w-56">
+            <Field label={t("asec.password")} htmlFor="authenticatorPassword">
+              <Input id="authenticatorPassword" name="password" type="password" autoComplete="current-password" required />
+            </Field>
+          </div>
           <Go label={t("asec.start")} />
           <Problem message={started.error} />
         </form>

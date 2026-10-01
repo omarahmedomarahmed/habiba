@@ -13,9 +13,16 @@ import { getI18n } from "@/lib/i18n/server";
  * a user id from the form: the cookie says whose it is.
  */
 
-export async function startAuthenticator(_prev: AuthenticatorState, _formData: FormData): Promise<AuthenticatorState> {
+export async function startAuthenticator(_prev: AuthenticatorState, formData: FormData): Promise<AuthenticatorState> {
   const actor = await requireUser();
-  const result = await beginEnrolment(actor);
+  const session = await getSessionState();
+  if (!session) return { error: (await getI18n()).t("asec.startAgain") };
+  /* Review fix: the password again, so a borrowed session cannot plant an app. */
+  const { passwordConfirmed } = await import("@/lib/auth/enrolment-proof");
+  if (!(await passwordConfirmed({ kind: "user", id: actor.userId }, String(formData.get("password") ?? "")))) {
+    return { error: (await getI18n()).t("asec.passwordWrong") };
+  }
+  const result = await beginEnrolment(actor, session.sessionId);
   if (!result.ok) return { error: (await getI18n()).t(result.error) };
   revalidatePath("/settings");
   return {};

@@ -8,6 +8,7 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   historyGrants,
+  patientAccounts,
   patients,
   people,
   users,
@@ -20,7 +21,9 @@ import { consume, subjectKey } from "@/lib/rate-limit";
 import {
   accessStateFor,
   capabilitiesFor,
+  claimedForAccess,
   isGated,
+  isSoleChart,
   isRejectionReason,
   type AccessState,
   type Capabilities,
@@ -92,6 +95,8 @@ export type Access = {
   /** Whether the five-credit unlock is actually withholding the copilot. 11R.24. */
   gated: boolean;
   personId: string | null;
+  /** No other clinician holds a live chart for this person. For `maySeeSharedRecord`. */
+  soleChart: boolean;
   /** Present whenever a row exists, live or not — the UI shows "requested" too. */
   grant: Pick<HistoryGrant, "id" | "status" | "shape" | "expiresAt" | "requestedAt"> | null;
 };
@@ -137,11 +142,13 @@ export async function accessFor(actor: Actor, patientId: string): Promise<Access
       capabilities: capabilitiesFor(state),
       gated: false,
       personId: null,
+      soleChart: false,
       grant: null,
     };
   }
 
   const grant = row.personId ? await liveGrantRow(row.personId, actor.userId) : null;
+  const holders = row.personId ? await chartHolders(row.personId) : { hasAccount: false, soleChart: true };
 
   /*
    * 11R.24 — §3's unlock, both halves of it.
@@ -158,7 +165,7 @@ export async function accessFor(actor: Actor, patientId: string): Promise<Access
 
   const state = accessStateFor({
     hasPatientRow: true,
-    claimed: row.claimedAt !== null,
+    claimed: claimedForAccess({ claimedAt: row.claimedAt, hasAccount: holders.hasAccount }),
     documented,
     grant: grant ? { status: grant.status, expiresAt: grant.expiresAt } : null,
     now: new Date(),
@@ -172,6 +179,7 @@ export async function accessFor(actor: Actor, patientId: string): Promise<Access
     capabilities: capabilitiesFor(state, gated),
     gated,
     personId: row.personId,
+    soleChart: holders.soleChart,
     grant: grant
       ? {
           id: grant.id,
@@ -181,6 +189,21 @@ export async function accessFor(actor: Actor, patientId: string): Promise<Access
           requestedAt: grant.requestedAt,
         }
       : null,
+  };
+}
+
+/** Whether the person has a patient account, and whether one clinician alone holds charts for them. */
+async function chartHolders(personId: string): Promise<{ hasAccount: boolean; soleChart: boolean }> {
+  const charts = await db
+    .select({
+      hasAccount: sql<boolean>`EXISTS (SELECT 1 FROM ${patientAccounts} pa WHERE pa."person_id" = ${personId})`,
+      therapistId: patients.therapistId,
+    })
+    .from(patients)
+    .where(and(eq(patients.personId, personId), isNull(patients.deletedAt)));
+  return {
+    hasAccount: Boolean(charts[0]?.hasAccount),
+    soleChart: isSoleChart(charts.map((r) => r.therapistId)),
   };
 }
 

@@ -145,8 +145,25 @@ async function main() {
     );
 
     const who = state!.actor;
-    await sf.beginEnrolment(who);
-    const pending = required(await sf.pendingEnrolment(who), "a pending enrolment");
+    /* Review fix: a password alone never reaches the QR code; the first app needs the emailed proof. */
+    const unproved = await sf.beginEnrolment(who, s1.sessionId);
+    check(
+      "🔴 without the emailed proof, a back office member's first app cannot be started or shown",
+      !unproved.ok && unproved.error === "asec.proveFirst" && (await sf.pendingEnrolment(who, s1.sessionId)) === null,
+    );
+    const proofCode = "424242";
+    await db.insert(schema.staffEmailCodes).values({
+      userId: staff,
+      sessionId: s1.sessionId,
+      codeHash: totp.hashEnrolCode(proofCode),
+      expiresAt: new Date(Date.now() + 5 * 60_000),
+    });
+    const proof = await import("../lib/auth/enrolment-proof");
+    const proved = await proof.proveEnrolmentCode(who, s1.sessionId, proofCode);
+    const provedAgain = await proof.proveEnrolmentCode(who, s1.sessionId, proofCode);
+    check("the emailed code proves this session once", proved.ok && !provedAgain.ok);
+    await sf.beginEnrolment(who, s1.sessionId);
+    const pending = required(await sf.pendingEnrolment(who, s1.sessionId), "a pending enrolment");
     const [stored] = await db
       .select()
       .from(schema.staffSecondFactors)
@@ -225,8 +242,8 @@ async function main() {
     /* ============================================================ */
 
     const clinicianWho = clinicianState!.actor;
-    await sf.beginEnrolment(clinicianWho);
-    const clinicianKey = totp.base32Decode(required(await sf.pendingEnrolment(clinicianWho), "a clinician enrolment").key.replace(/\s/g, ""));
+    await sf.beginEnrolment(clinicianWho, c1.sessionId);
+    const clinicianKey = totp.base32Decode(required(await sf.pendingEnrolment(clinicianWho, c1.sessionId), "a clinician enrolment").key.replace(/\s/g, ""));
     const clinicianOn = await sf.confirmEnrolment(clinicianWho, c1.sessionId, totp.totpAt(clinicianKey, Date.now()));
     const c2 = await signIn(clinician);
     const owed = await sessionStateForToken(c2.token);

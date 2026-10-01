@@ -19,8 +19,10 @@ import {
   CODES_SENT_PER_HANDLE,
   CODES_SENT_WINDOW_SECONDS,
   minutesToWait,
+  RESET_GUESS_CEILING,
+  sendSubject,
 } from "@/lib/auth/attempts";
-import { accountAttempt, accountSignedIn, callerKey, consume } from "@/lib/rate-limit";
+import { accountAttempt, accountSignedIn, callerKey, callerNetwork, consume } from "@/lib/rate-limit";
 import { log, ref } from "@/lib/logger";
 
 import { spendCodeGuess } from "./code-attempts";
@@ -148,15 +150,22 @@ export async function requestPatientReset(
    */
   const channelDown = !whatsappConfigured();
 
-  /* DD-2 B2.2: codes to one account are capped across every network, silently. */
+  /*
+   * DD-2 B2.2, review fix: per network and account, so the owner can always
+   * ask for a reset from their own network whatever a stranger does elsewhere.
+   * An unknown handle counts the same way, so saying so reveals nothing.
+   */
   const perHandle = await accountAttempt(
     "patient:reset-send",
-    account?.id ?? handleSubject(handle, country),
+    sendSubject(account?.id ?? handleSubject(handle, country), await callerNetwork()),
     CODES_SENT_PER_HANDLE,
     CODES_SENT_WINDOW_SECONDS,
   );
+  if (!perHandle.allowed) {
+    return { error: await say("perr.tooManyCodesMinutes", { minutes: minutesToWait(perHandle.retryAfter) }) };
+  }
 
-  if (account && perHandle.allowed) {
+  if (account) {
     const code = newCode();
     const channel = account.phone ? "whatsapp" : "email";
 
@@ -218,11 +227,26 @@ export async function completePatientReset(
   const account = await findAccount(handle, country);
   const wrong = { error: await say("perr.codeWrong") };
 
-  /* DD-2 B2.2: per account too, and an unknown handle is counted the same way. */
+  /*
+   * DD-2 B2.2: per account too, and an unknown handle is counted the same way.
+   * Review fix: per network and account at the usual limit, so guesses from
+   * elsewhere do not lock the owner out of resetting; and per account alone
+   * at a higher ceiling, which still bounds a six digit code.
+   */
   const subject = account?.id ?? handleSubject(handle, country);
-  const perAccount = await accountAttempt("patient:reset-confirm", subject, CODE_ACCOUNT_ATTEMPTS, CODE_ACCOUNT_WINDOW_SECONDS);
-  if (!perAccount.allowed) {
-    return { error: await say("auth.tooManyForSignIn", { minutes: minutesToWait(perAccount.retryAfter) }) };
+  const network = await callerNetwork();
+  const perAccount = await accountAttempt(
+    "patient:reset-confirm",
+    sendSubject(subject, network),
+    CODE_ACCOUNT_ATTEMPTS,
+    CODE_ACCOUNT_WINDOW_SECONDS,
+  );
+  const ceiling = perAccount.allowed
+    ? await accountAttempt("patient:reset-confirm-all", subject, RESET_GUESS_CEILING, CODE_ACCOUNT_WINDOW_SECONDS)
+    : perAccount;
+  if (!perAccount.allowed || !ceiling.allowed) {
+    const wait = Math.max(perAccount.retryAfter, ceiling.retryAfter);
+    return { error: await say("auth.tooManyForSignIn", { minutes: minutesToWait(wait) }) };
   }
   if (!account) return wrong;
 
@@ -238,7 +262,10 @@ export async function completePatientReset(
     matches: (tokenHash) => tokenHash === hash(code),
   });
   if (guess.outcome !== "match") return wrong;
-  await accountSignedIn("patient:reset-confirm", subject);
+  await accountSignedIn("patient:reset-confirm", sendSubject(subject, network));
+  await accountSignedIn("patient:reset-confirm-all", subject);
+  /* Review fix: a new password starts the password counter again too. */
+  await accountSignedIn("patient:signin", account.id);
   const row = { id: guess.id, channel: guess.channel };
 
   await db.update(patientAccounts).set({ passwordHash }).where(eq(patientAccounts.id, account.id));

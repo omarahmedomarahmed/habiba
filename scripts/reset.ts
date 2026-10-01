@@ -47,9 +47,8 @@ import { ranDirectly } from "./_verify";
 /**
  * Everything with rows, in no particular order.
  *
- * One `TRUNCATE ... CASCADE` handles the dependency graph, which is why the
- * order does not matter and why this is not a hand-maintained topological
- * sort that drifts from the schema every sprint.
+ * The order is read from the database's own foreign keys (`resetPlan`), not
+ * a hand-maintained topological sort that drifts from the schema every sprint.
  *
  * 🔴 `drizzle.__drizzle_migrations` is **not** here and must never be. Emptying
  * the ledger tells the next `db:migrate` that nothing has ever run, and it
@@ -72,6 +71,67 @@ export async function tableNames(db: ReturnType<typeof connect>["db"]): Promise<
   `);
 
   return result.rows.map((row) => row.table_name).filter((name) => !KEEP.includes(name));
+}
+
+/**
+ * Review fix: tables never truncated. `audit_log` refuses TRUNCATE (0189), and
+ * `TRUNCATE ... CASCADE` on any table it references would pull it in. Its rows
+ * stay; the actor columns empty themselves as their people are deleted (their
+ * foreign keys are ON DELETE SET NULL, which the append-only trigger allows).
+ */
+export const NEVER_TRUNCATED = ["audit_log"];
+
+export type ForeignKey = { child: string; parent: string };
+
+/**
+ * Which tables are truncated and which are emptied row by row. A table a kept
+ * table points at cannot be truncated without the kept one, so it is deleted
+ * instead, and so is every table those point at, children before parents.
+ * Everything else is truncated in one statement, without CASCADE, so nothing
+ * can reach a kept table by accident. Pure, for the test.
+ */
+export function resetPlan(
+  tables: string[],
+  keys: ForeignKey[],
+  kept: string[] = NEVER_TRUNCATED,
+): { truncate: string[]; deleteInOrder: string[] } {
+  const present = new Set(tables);
+  const deleted = new Set<string>();
+  const queue = keys.filter((k) => kept.includes(k.child)).map((k) => k.parent);
+  while (queue.length > 0) {
+    const table = queue.shift()!;
+    if (!present.has(table) || kept.includes(table) || deleted.has(table)) continue;
+    deleted.add(table);
+    for (const k of keys) if (k.child === table && k.parent !== table) queue.push(k.parent);
+  }
+  /* Children first: a table is deleted after every deleted table that points at it. */
+  const order: string[] = [];
+  const left = new Set(deleted);
+  while (left.size > 0) {
+    const ready = [...left].filter(
+      (table) => !keys.some((k) => k.parent === table && k.child !== table && left.has(k.child)),
+    );
+    /* A cycle: take them as they come; ON DELETE rules settle the rest. */
+    const next = ready.length > 0 ? ready.sort() : [...left].sort();
+    for (const table of next) {
+      order.push(table);
+      left.delete(table);
+    }
+  }
+  const truncate = tables.filter((t) => !kept.includes(t) && !deleted.has(t));
+  return { truncate, deleteInOrder: order };
+}
+
+async function foreignKeys(db: ReturnType<typeof connect>["db"]): Promise<ForeignKey[]> {
+  const result = await db.execute<ForeignKey>(sql`
+    SELECT c.relname AS child, p.relname AS parent
+      FROM pg_constraint k
+      JOIN pg_class c ON c.oid = k.conrelid
+      JOIN pg_class p ON p.oid = k.confrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE k.contype = 'f' AND n.nspname = 'public'
+  `);
+  return result.rows;
 }
 
 /** `true` when this module was run directly rather than imported by a checker. */
@@ -122,9 +182,19 @@ async function main() {
     process.exit(1);
   }
 
-  const list = tables.map((name) => `"public"."${name}"`).join(", ");
-  await db.execute(sql.raw(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`));
-  console.log(`\n  ✓ truncated ${tables.length} tables`);
+  /*
+   * Review fix: audit_log refuses TRUNCATE (0189), so it is never named, and
+   * no CASCADE can reach it. The tables it points at are emptied with DELETE.
+   */
+  const plan = resetPlan(tables, await foreignKeys(db));
+  if (plan.truncate.length > 0) {
+    const list = plan.truncate.map((name) => `"public"."${name}"`).join(", ");
+    await db.execute(sql.raw(`TRUNCATE TABLE ${list} RESTART IDENTITY`));
+  }
+  for (const name of plan.deleteInOrder) await db.execute(sql.raw(`DELETE FROM "public"."${name}"`));
+  console.log(
+    `\n  ✓ truncated ${plan.truncate.length} tables, emptied ${plan.deleteInOrder.length} row by row, kept ${NEVER_TRUNCATED.join(", ")}`,
+  );
 
   await pool.end();
 
