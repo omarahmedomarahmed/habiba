@@ -52,16 +52,42 @@ Nothing applies migrations on deploy. Every migration is additive and goes to pr
    the journal disagree, and connects to the direct (not pooled) endpoint so its lock is
    released.
 4. `npm run verify:migrations` (journal, ledger and every CHECK validated).
-5. Before the merge that deploys: `npm run on:production -- db:migrate`, then
-   `npm run on:production -- verify:migrations`.
+5. Before the merge that deploys, follow the deploy steps below.
+
+CI's `verify:journal` fails a pull request that edits, removes or reorders a journal entry
+`main` already had, or edits one of its SQL files: production already ran those, so the
+journal only grows at the end.
+
+## Deploy steps
+
+Migrations stay manual: applying them needs the production owner credential, which never goes
+to GitHub. The build does not touch the database.
+
+| Step | Command | When |
+| --- | --- | --- |
+| 1. What production lacks | `npm run on:production -- db:status` | Before every merge into `main`. Lists pending migrations and exits 1 while any are pending |
+| 2. Apply them | `npm run on:production -- db:migrate` | When step 1 lists any |
+| 3. Prove it | `npm run on:production -- verify:migrations`, then `db:status` again | After step 2 |
+| 4. Merge | Merge commit into `main`; Vercel deploys it | After CI is green and steps 1 to 3 are clean |
+| 5. Settings defaults | `npm run on:production -- settings:seed` | After a release that adds a settings group, field, country or shipped questionnaire. Insert-only, so it is safe to run every time; until it runs, a missing row reads as its defaults (`parseGroup` in `lib/settings/defs.ts`) |
+| 6. Confirm the live site | The Vercel deployment status, then `https://24therapy.app/api/health` | After the deploy (H53) |
 
 ## The production allow-list
 
 `scripts/on-production.ts` is the whole list. Anything else is refused with its reason.
 
-| Writes | Reads only |
-| --- | --- |
-| `db:migrate`, `settings:seed`, `settings:reprice`, `settings:rails`, `content:sync`, `ship:content`, `seed:demo`, `blobs:migrate-private`, `simulate:seed`, `age`, `sim:clock`, `copilot:exam` | `settings:show`, `settings:check`, `verify:migrations`, `verify:board`, `verify:cast`, `verify:demo`, `verify:event-demo`, `verify:physics`, `baseline`, `spend`, `physics`, `sim:inbox` |
+| Deletes or rewrites data | Writes | Reads only |
+| --- | --- | --- |
+| `seed:demo`, `ship:content`, `settings:reprice`, `sim:clock` and `age` (unless `--dry`), `content:sync` (unless `--dry`), `blobs:migrate-private` (with `--apply`) | `db:migrate`, `settings:seed`, `settings:rails`, `simulate:seed`, `copilot:exam` | `db:status`, `settings:show`, `settings:check`, `verify:migrations`, `verify:board`, `verify:cast`, `verify:demo`, `verify:event-demo`, `verify:physics`, `baseline`, `spend`, `physics`, `sim:inbox` |
+
+A command in the first column refuses to run unless it is given
+`--i-understand-this-deletes-production-data` and `CONFIRM_PRODUCTION` is set to the production
+database host (the host part of `DATABASE_URL_PRODUCTION`, typed in full). Take a Neon
+snapshot first. For example:
+
+```
+CONFIRM_PRODUCTION=<host> npm run on:production -- seed:demo -- --scenario=event --i-understand-this-deletes-production-data
+```
 
 Refused by name: `gates`, `verifiers`, `db:seed`, `demo:seed`, `db:reset`, `verify:synthetic`,
 `verify:actuals`, `verify:payout`, `verify:limits` (they plant fixtures). Run those on dev.
@@ -74,7 +100,7 @@ Prices, fees, rules, crisis lines, countries and provider names are rows in
 
 | Command | Does |
 | --- | --- |
-| `npm run settings:seed` | Inserts missing defaults; never overwrites a stored value (also runs in `prebuild`) |
+| `npm run settings:seed` | Inserts missing defaults; never overwrites a stored value. On production it is deploy step 5, never part of the build |
 | `npm run settings:show` / `settings:check` | What is stored; whether it is complete |
 | `npm run settings:compare` | Compares settings across the environments `.env.local` names |
 
@@ -85,8 +111,8 @@ for ever, so editing the defaults changes nothing a visitor sees.
 
 | Command | Use |
 | --- | --- |
-| `npm run on:production -- content:sync -- <block types> [--dry]` | Replace named block types on a page and prove every other block is byte-identical. The normal way to publish a copy change |
-| `npm run on:production -- ship:content` | Reseed every page from the defaults. Destroys authored copy richer than the defaults (H49). Use only when the defaults are the correction |
+| `npm run on:production -- content:sync -- <block types> [--dry]` | Replace named block types on a page and prove every other block is byte-identical. The normal way to publish a copy change. Without `--dry` it needs the confirmation above |
+| `npm run on:production -- ship:content` (with the confirmation above) | Reseed every page from the defaults. Destroys authored copy richer than the defaults (H49). Use only when the defaults are the correction |
 
 Copies of the home and for-patients rows from 2026-09-21 are in `docs/content-backup/`; each
 row carries its `id`, so restoring one is a single `UPDATE content_pages SET blocks = ...`.
@@ -96,7 +122,7 @@ row carries its `id`, so restoring one is a single `UPDATE content_pages SET blo
 | Step | Command |
 | --- | --- |
 | Snapshot production in Neon first | Neon console, branch `main` |
-| Seed the event cast (wipes people, keeps configuration and the published site) | `npm run on:production -- seed:demo -- --scenario=event` |
+| Seed the event cast (wipes people, keeps configuration and the published site) | `CONFIRM_PRODUCTION=<host> npm run on:production -- seed:demo -- --scenario=event --i-understand-this-deletes-production-data` |
 | Prove it | `npm run on:production -- verify:event-demo` |
 | Regenerate the login sheets | `npm run logins` |
 
@@ -110,7 +136,7 @@ written before the private store existed are moved with:
 
 ```
 npm run on:production -- blobs:migrate-private              # dry run
-npm run on:production -- blobs:migrate-private -- --apply   # copy, repoint, delete the public copy
+CONFIRM_PRODUCTION=<host> npm run on:production -- blobs:migrate-private -- --apply --i-understand-this-deletes-production-data
 ```
 
 `npm run verify:blobs` proves no personal column still points at a public file. An older
@@ -131,6 +157,14 @@ Relaxed SPF alignment is what lets the `send.` subdomain align with the root; do
 it. After a fortnight of clean reports move DMARC to `p=quarantine`, then `p=reject`; the
 verifier starts failing on 2026-10-06 while the policy is still `p=none`. Take exact record
 values from the provider dashboards, never from a document.
+
+## Monitoring
+
+A stopgap only. `.github/workflows/uptime.yml` fetches `https://24therapy.app/` and
+`/api/health` every 15 minutes and fails if either is not a 200 within 10 seconds; GitHub emails
+the repository owner about a failed scheduled run. Neither URL wakes the database. GitHub can
+delay scheduled runs and pauses them after 60 days without repository activity. A real uptime
+service and an error tracker are founder item F-MON in `docs/DECISIONS.md`.
 
 ## Costs that matter
 
