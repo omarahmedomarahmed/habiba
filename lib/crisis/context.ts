@@ -1,4 +1,4 @@
-import { contains, containsWords, fold } from "./fold";
+import { AR_LETTER, arabicWords, contains, containsWords, fold } from "./fold";
 
 /**
  * When a matched crisis phrase is not about this patient, now. PLAN.md 35R,
@@ -125,6 +125,15 @@ export const THIRD_PARTY = [
   "قريبي",
   "خالي",
   "عمي",
+  /* DD-2: the Egyptian forms. Whole words only, see `containsWords`. */
+  "اخويا",
+  "ابويا",
+  "جوزي",
+  "مراتي",
+  "صاحبي",
+  "صاحبتي",
+  "خالتي",
+  "عمتي",
 ];
 
 /** A time that is over, said about the thing itself. */
@@ -161,8 +170,16 @@ export const RESOLVED = [
   "never since",
   "have not felt",
   "haven t felt",
+  "haven't felt",
   "havent felt",
-  "no longer",
+  /*
+   * 🔴 DD-2: bare "no longer" read "I used to cope but I no longer can, I want
+   * to die" as resolved. It now counts only with what stopped.
+   */
+  "no longer feel",
+  "no longer think",
+  "no longer do that",
+  "no longer have those",
   "that is over",
   "that was over",
   "it passed",
@@ -171,10 +188,23 @@ export const RESOLVED = [
   "anything like that since",
   "انتهي",
   "انتهت",
-  "خلصت",
-  "ما عاد",
-  "لم اعد",
-  "مابقاش",
+  /*
+   * 🔴 DD-2: "خلصت" is also "I am finished", and bare "لم اعد" / "ما عاد" /
+   * "مابقاش" are also "I can no longer". Each now names what stopped.
+   */
+  "ده خلص",
+  "دا خلص",
+  "الموضوع خلص",
+  "لم اعد افكر",
+  "لم اعد افعل",
+  "لم اعد اشعر",
+  "ما عدت افكر",
+  "ما عاد يجيني",
+  "مابقاش يجيلي",
+  "مابقتش افكر",
+  "مبقتش افكر",
+  "مابقتش احس",
+  "مبقتش احس",
   "تجاوزت",
 ];
 
@@ -212,6 +242,30 @@ export const PRESENT = [
   "تاني",
   "مره تانيه",
   "مرة اخري",
+  /*
+   * 🔴 DD-2: an inability said now is the present. "I used to cope but I no
+   * longer can" is about today, whatever "used to" says.
+   */
+  "can't",
+  "cant",
+  "cannot",
+  "can no longer",
+  "no longer can",
+  "unable",
+  "مش قادر",
+  "مش قادره",
+  "مبقتش قادر",
+  "مابقتش قادر",
+  "مبقتش قادره",
+  "مابقتش قادره",
+  "لم اعد اقدر",
+  "لم اعد استطيع",
+  "ما عدت اقدر",
+  "لا استطيع",
+  "msh 2ader",
+  "mesh 2ader",
+  "msh 2adra",
+  "mesh 2adra",
 ];
 
 /**
@@ -219,12 +273,14 @@ export const PRESENT = [
  *
  * It was a substring test, so "now" matched inside "know" and "snow", "again"
  * inside "against", and a sentence that was past and plainly resolved alerted
- * anyway. Latin markers now sit between word edges; Arabic keeps the substring
- * match through `containsWords`, because a prefix is written onto the word.
+ * anyway. Latin markers now sit between word edges; Arabic keeps a substring
+ * match, because this list only ever un-suppresses and generous is safe here.
  * Forms the loose match used to catch by accident ("nowadays") are listed.
  */
 export function presentIn(text: string): boolean {
-  return PRESENT.some((marker) => containsWords(text, marker));
+  return PRESENT.some((marker) =>
+    /^[a-z0-9' ]+$/.test(fold(marker).trim()) ? containsWords(text, marker) : contains(text, marker),
+  );
 }
 
 /** Sentence-ish. Arabic full stops, question marks and newlines all count. */
@@ -233,6 +289,65 @@ export function sentences(text: string): string[] {
     .split(/[.!?؟\n]+|،\s*(?=(?:لكن|لكنه|لكنها|بس)\b)/u)
     .map((part) => part.trim())
     .filter(Boolean);
+}
+
+/* ------------------------------------------------------------------ DD-2 -- */
+
+/** The speaker before the phrase: I, me, myself, Arabizi "ana", Arabic انا نفسي عندي حاسس. */
+const FIRST_PERSON_LATIN = /(?:^|[^a-z0-9])(?:i|i'm|im|i'd|i'll|me|myself|ana)(?:$|[^a-z0-9])/;
+const FIRST_PERSON_ARABIC = ["انا", "نفسي", "عندي", "حاسس", "حاسه"].map((word) => arabicWords(word));
+
+export function firstPersonIn(text: string): boolean {
+  const folded = fold(text);
+  return FIRST_PERSON_LATIN.test(folded) || FIRST_PERSON_ARABIC.some((re) => re.test(folded));
+}
+
+/**
+ * Phrases that name nobody: the word itself, an overdose, harm to others.
+ * Every other phrase on the lists is said in the first person ("I want to
+ * die", "اموت", "kill myself", "3ayez amoot"), so a relative in the sentence
+ * cannot make it about the relative.
+ */
+const PERSON_NEUTRAL = new Set(
+  [
+    "suicidal",
+    "suicide",
+    "overdose",
+    "self harm",
+    "self-harm",
+    "unalive",
+    "hurt someone",
+    "kill him",
+    "kill her",
+    "kill them",
+    "feel hopeless",
+    "feeling hopeless",
+    "everything is hopeless",
+    "it is hopeless",
+    "its hopeless",
+    "want it to end",
+    "end it all",
+    "انتحر",
+    "انتحار",
+  ].map(fold),
+);
+
+export function firstPersonPhrase(phrase: string): boolean {
+  return !PERSON_NEUTRAL.has(fold(phrase).trim());
+}
+
+/**
+ * The clause the phrase sits in, from the text before it. Splits on commas,
+ * "and", "but", "so", "because", and the Arabic و written onto a word, بس,
+ * لكن, عشان. Splitting too often only suppresses less.
+ */
+export function lastClause(before: string): string {
+  const splitter = new RegExp(
+    `[,،;:]|(?:^|[^a-z0-9])(?:and|but|so|because)(?=$|[^a-z0-9])|(?<!${AR_LETTER})(?=\\u0648${AR_LETTER})|(?<!${AR_LETTER})(?:بس|لكن|عشان|علشان)(?!${AR_LETTER})`,
+    "u",
+  );
+  const parts = fold(before).split(splitter);
+  return parts[parts.length - 1] ?? "";
 }
 
 export type Suppression = { suppressed: boolean; because: "third_party" | "resolved" | null };
@@ -260,21 +375,34 @@ export function suppressedIn(sentence: string, phrase: string): Suppression {
    * to kill myself last year" is past, unresolved, and exactly the sentence a
    * clinician must see. Only an explicit statement that it ended suppresses.
    */
+  /*
+   * 🔴 DD-2: the ending must come AFTER the phrase. "I used to cope but that is
+   * over, I want to die" ends something else, then discloses.
+   */
   const past = PAST.some((marker) => containsWords(sentence, marker));
-  const resolved = RESOLVED.some((marker) => containsWords(sentence, marker));
+  const resolved = RESOLVED.some((marker) => containsWords(folded.slice(at), marker));
   if (past && resolved) return { suppressed: true, because: "resolved" };
+
+  /*
+   * 🔴 DD-2: a phrase said in the first person ("اموت", "kill myself", "my
+   * life") is about the speaker whoever else is in the sentence. "زوجي ضربني
+   * وعايزة اموت" (my husband hit me and I want to die) must alert.
+   */
+  if (firstPersonPhrase(phrase)) return { suppressed: false, because: null };
 
   /*
    * The subject, and only in the run-up to the phrase. A pronoun after it is
    * usually the patient talking about the consequences, not the actor.
    */
   const before = folded.slice(0, at);
+  /* "I" anywhere before the phrase means the speaker put themselves in it. */
+  if (firstPersonIn(before)) return { suppressed: false, because: null };
   /*
-   * 🔴 Whole words, not substrings: "he " is inside "the ". See `containsWords`.
+   * 🔴 Whole words, not substrings, in both alphabets: "he " is inside "the ",
+   * and "امي" is inside "قدامي". And only in the phrase's own clause: "my mum
+   * visited, and suicide is on my mind" is not about my mum.
    */
-  if (THIRD_PARTY.some((who) => containsWords(before, who))) {
-    /* "I" anywhere before the phrase means the speaker put themselves in it. */
-    if (/\bi\b|\bانا\b|\bنفسي\b/.test(before)) return { suppressed: false, because: null };
+  if (THIRD_PARTY.some((who) => containsWords(lastClause(before), who))) {
     return { suppressed: true, because: "third_party" };
   }
 

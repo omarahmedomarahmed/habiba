@@ -2,7 +2,8 @@ import "server-only";
 
 import { desc, eq, sql } from "drizzle-orm";
 
-import { raiseCrisisAlert, scanForCrisisLanguage } from "@/lib/crisis/alerts";
+import { raiseCrisisAlert } from "@/lib/crisis/alerts";
+import { scanLiveChunk } from "@/lib/crisis/live";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { transcriptSegments } from "@/lib/db/schema";
@@ -75,6 +76,8 @@ export async function appendTranscriptSegment(input: {
 
   let inserted = false;
   let sequence: number | null = null;
+  /* DD-2: the chunk before this one, so a phrase cut across the boundary is still read. */
+  let before: { text: string; speaker: "therapist" | "patient" | "unknown" } | null = null;
 
   /*
    * Next number after the highest stored one. Two chunks of one session can
@@ -88,7 +91,12 @@ export async function appendTranscriptSegment(input: {
      * segment is read rather than passed in: the caller knows about one chunk.
      */
     const [previous] = await db
-      .select({ endMs: transcriptSegments.endMs, sequence: transcriptSegments.sequence })
+      .select({
+        endMs: transcriptSegments.endMs,
+        sequence: transcriptSegments.sequence,
+        text: transcriptSegments.text,
+        speaker: transcriptSegments.speaker,
+      })
       .from(transcriptSegments)
       .where(eq(transcriptSegments.sessionId, input.sessionId))
       .orderBy(desc(transcriptSegments.sequence))
@@ -120,12 +128,18 @@ export async function appendTranscriptSegment(input: {
       if (result.length === 0) break;
       inserted = true;
       sequence = next;
+      before = previous ? { text: previous.text, speaker: speakerOf(previous.speaker) } : null;
     } catch (error) {
       if (!lostTheNumber(error)) throw error;
     }
   }
 
-  const matches = scanForCrisisLanguage(text);
+  /*
+   * 🔴 DD-2: only what the patient said, or what nobody knows the speaker of.
+   * A therapist asking "any thoughts of suicide?" is not a disclosure. See
+   * `lib/crisis/live.ts`.
+   */
+  const matches = scanLiveChunk({ text, speaker: input.speaker, previous: before });
   /* 🔴 F2: the alert's id rides back to the room, so the clinician can acknowledge it there. */
   let alertId: string | null = null;
   if (inserted && matches.length > 0) {
@@ -142,6 +156,10 @@ export async function appendTranscriptSegment(input: {
   }
 
   return { inserted, crisis: matches.length > 0, sequence, alertId };
+}
+
+function speakerOf(value: string | null): "therapist" | "patient" | "unknown" {
+  return value === "therapist" || value === "patient" ? value : "unknown";
 }
 
 /** Another chunk of this session took the number first; take the next one. */

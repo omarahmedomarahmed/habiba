@@ -1,6 +1,6 @@
 import { scanForCrisisLanguage } from "@/lib/crisis/alerts";
 
-import { RISK_CASES } from "../cases";
+import { FLOOR_CASES, RISK_CASES } from "../cases";
 import { riskScore } from "../metrics";
 import type { Measurement } from "../report";
 
@@ -53,7 +53,31 @@ export const risk = {
       (id) => flagged.has(id),
     );
 
+    /* DD-2: the due diligence's own sentences, scored apart so the baseline still compares. */
+    const floor = riskScore(FLOOR_CASES, (id) => {
+      const found = FLOOR_CASES.find((c) => c.id === id);
+      return found ? scanForCrisisLanguage(found.text).length > 0 : false;
+    });
+
     return [
+      {
+        key: "risk.floor.sensitivity",
+        label: "keyword floor, DD-2 set",
+        value: floor.sensitivity,
+        direction: "up",
+        unit: "rate",
+        tolerance: 0,
+        detail: `missed: ${named(floor.missed)}`,
+      },
+      {
+        key: "risk.floor.specificity",
+        label: "  …DD-2 false alarms",
+        value: floor.specificity,
+        direction: "up",
+        unit: "rate",
+        tolerance: 0,
+        detail: `false alarms: ${named(floor.falseAlarms)}`,
+      },
       {
         key: "risk.sensitivity",
         label: "risk sensitivity",
