@@ -24,4 +24,6 @@ jobs:
       - run: npm ci
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      - name: Chromium for the browser suites (alarm)
+        run: npx playwright install --with-deps chromium
       - run: npm run ci
