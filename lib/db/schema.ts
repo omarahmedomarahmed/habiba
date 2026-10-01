@@ -743,6 +743,12 @@ export const patients = pgTable(
      * always wins (`recipientLocale`). Null: nobody said.
      */
     locale: text("locale"),
+    /**
+     * DD-2 (0191): how the clinician says to refer to them in a gendered
+     * language such as Arabic: 'female', 'male', or null for not said. The
+     * note writer is told it; null leaves it to the transcript.
+     */
+    addressAs: text("address_as").$type<"female" | "male" | null>(),
 
     /**
      * The person this file is about, once there is one (5.1).
@@ -1394,6 +1400,12 @@ export const sessionNotes = pgTable(
      * convenience — for a supervisor, an insurer, or us.
      */
     contentEn: jsonb("content_en").$type<NoteContent | null>(),
+    /**
+     * DD-2 (0191): md5 of `content::text` at the moment `content_en` was
+     * written. Once the clinician edits the note the two differ, and the
+     * translation is stale: read it through `FRESH_CONTENT_EN` only.
+     */
+    contentEnSource: text("content_en_source"),
     /**
      * The clinical record's signature. This is the one that makes the note a
      * document rather than a draft, and it is the one an auditor asks about.

@@ -1249,6 +1249,11 @@ export const en = {
   "pted.diagnosesHint": "Comma separated. Included as context when notes are written.",
   "pted.goals": "Treatment goals",
   "pted.goalsHint": "Comma separated.",
+  "pted.addressAs": "How notes refer to them",
+  "pted.addressAsHint": "Arabic marks gender in almost every sentence. Left unsaid, the note takes it from how they speak.",
+  "pted.addressAsUnsaid": "Not said",
+  "pted.addressAsFemale": "As a woman",
+  "pted.addressAsMale": "As a man",
 
   "pban.asked": "Asked. They see your note when they next sign in.",
   "pban.ask": "Ask for access",
@@ -6826,6 +6831,11 @@ export const ar: Record<MessageKey, string> = {
   "pted.diagnosesHint": "افصل بينها بفواصل. تُضاف كسياق عند كتابة الملاحظات.",
   "pted.goals": "أهداف العلاج",
   "pted.goalsHint": "افصل بينها بفواصل.",
+  "pted.addressAs": "كيف تشير إليه الملاحظات",
+  "pted.addressAsHint": "العربية تحدد النوع في كل جملة تقريبًا. لو لم تحدده، تأخذه الملاحظة من طريقة كلامه.",
+  "pted.addressAsUnsaid": "غير محدد",
+  "pted.addressAsFemale": "بصيغة المؤنث",
+  "pted.addressAsMale": "بصيغة المذكر",
 
   "pban.asked": "تم الطلب. سيرى ملاحظتك عند دخوله القادم.",
   "pban.ask": "اطلب الاطلاع",

@@ -265,6 +265,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             phone: patient.phone ?? "",
             diagnoses: patient.clinical?.diagnoses ?? [],
             goals: patient.clinical?.goals ?? [],
+            addressAs: patient.addressAs ?? "",
           }}
         />
         </div>

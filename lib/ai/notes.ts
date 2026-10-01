@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import { recordSessionNote } from "@/lib/data/copilot";
 import { capturedSideFor, noteProvenanceFor } from "@/lib/data/feedback";
@@ -16,7 +16,8 @@ import {
 } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { emptyContent, type NoteFormat } from "@/lib/notes/formats";
-import { MODELS, logUsage, openai, parseJson } from "./client";
+import { FRESH_CONTENT_EN, translationSourceOf } from "@/lib/notes/fresh-translation";
+import { MODELS, logUsage, openai } from "./client";
 /*
  * 🔴 58.6 / C336 — THE PURE GENERATOR MOVED OUT, and the reason is the matrix.
  *
@@ -33,7 +34,8 @@ import {
   normaliseLanguage,
   normaliseNote,
   openStepsContext,
-  PATIENT_GENDER_UNRECORDED,
+  patientGenderContext,
+  readNoteReply,
 } from "./note-writer";
 
 export { noteFromTranscript, normaliseLanguage, normaliseNote };
@@ -94,6 +96,7 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
       durationMinutes: sessions.durationMinutes,
       clinical: patients.clinical,
       personId: patients.personId,
+      addressAs: patients.addressAs,
     })
     .from(sessions)
     .leftJoin(patients, eq(patients.id, sessions.patientId))
@@ -106,11 +109,11 @@ async function buildContext(sessionId: string): Promise<{ context: string; trans
       `Duration: ${row.durationMinutes ?? "unknown"} minutes`,
       /*
        * 🔴 Board 869: an Arabic note called a woman المريض throughout while her
-       * own lines were feminine. Nothing in the record holds a gender, and the
-       * writer is told so in as many words, so it follows the GRAMMATICAL
-       * GENDER rule: the transcript's evidence, else no gender assumed.
+       * own lines were feminine. DD-2: the clinician's answer in
+       * `patients.address_as` when given; otherwise the writer is told it is
+       * not recorded and follows the GRAMMATICAL GENDER rule.
        */
-      PATIENT_GENDER_UNRECORDED,
+      patientGenderContext(row.addressAs),
     );
     const diagnoses = row.clinical?.diagnoses ?? [];
     const goals = row.clinical?.goals ?? [];
@@ -355,11 +358,13 @@ async function translateNote(opts: {
     status: "success",
   });
 
-  const raw = parseJson<Record<string, unknown>>(
-    completion.choices[0]?.message?.content,
-    {},
-    "note-translation",
-  );
+  /* DD-2: a translation cut off at the token limit is no translation. */
+  let raw: Record<string, unknown>;
+  try {
+    raw = readNoteReply(completion.choices[0], "note-translation");
+  } catch {
+    return null;
+  }
 
   /* W2-F01: the headings are the format's own; only the text is translated. */
   const translated = normaliseNote(raw, opts.format);
@@ -514,6 +519,7 @@ export async function generateAndStoreNote(opts: {
         content,
         language,
         contentEn,
+        contentEnSource: contentEn ? translationSourceOf(content) : null,
         status: "draft",
         model,
         provenance: origin.provenance,
@@ -527,6 +533,7 @@ export async function generateAndStoreNote(opts: {
           content,
           language,
           contentEn,
+          contentEnSource: contentEn ? translationSourceOf(content) : null,
           model,
           provenance: origin.provenance,
           offRecordSeconds: origin.offRecordSeconds,
@@ -699,6 +706,7 @@ export async function draftNoteInFormat(opts: {
       content: drafted.content,
       language: drafted.language,
       contentEn: drafted.contentEn,
+      contentEnSource: drafted.contentEn ? translationSourceOf(drafted.content) : null,
       status: "draft",
       model: drafted.model,
       provenance: origin.provenance,
@@ -713,6 +721,7 @@ export async function draftNoteInFormat(opts: {
         content: drafted.content,
         language: drafted.language,
         contentEn: drafted.contentEn,
+        contentEnSource: drafted.contentEn ? translationSourceOf(drafted.content) : null,
         model: drafted.model,
         provenance: origin.provenance,
         offRecordSeconds: origin.offRecordSeconds,
@@ -731,4 +740,61 @@ export async function draftNoteInFormat(opts: {
     .where(and(eq(sessionNotes.sessionId, opts.sessionId), eq(sessionNotes.format, format.key)))
     .limit(1);
   return { noteId: kept?.id ?? null };
+}
+
+/**
+ * DD-2: write the English copy again for a note the clinician has edited.
+ *
+ * Called after signing, so the export of a signed note carries a translation
+ * of the words that were signed. Best-effort: a failure leaves no translation,
+ * which every reader already handles, never a stale one. The write lands only
+ * if the note has not changed again while the model was answering.
+ */
+export async function refreshNoteTranslation(noteId: string): Promise<void> {
+  const [row] = await db
+    .select({
+      content: sessionNotes.content,
+      language: sessionNotes.language,
+      format: sessionNotes.format,
+      fresh: FRESH_CONTENT_EN,
+      sessionId: sessionNotes.sessionId,
+      organizationId: sessionNotes.organizationId,
+      therapistId: sessionNotes.therapistId,
+      patientId: sessionNotes.patientId,
+    })
+    .from(sessionNotes)
+    .where(eq(sessionNotes.id, noteId))
+    .limit(1);
+  if (!row || row.language === "en" || row.fresh) return;
+
+  try {
+    const { aiPausedForPatient } = await import("@/lib/data/ai-consent");
+    if (await aiPausedForPatient(row.patientId)) return;
+    const { formatFor } = await import("@/lib/data/note-formats");
+    const format = await formatFor(row.organizationId, row.therapistId, row.format);
+    const translated = await translateNote({
+      content: row.content,
+      from: row.language,
+      sessionId: row.sessionId,
+      organizationId: row.organizationId,
+      userId: row.therapistId,
+      format,
+    });
+    const source = translationSourceOf(row.content);
+    await db
+      .update(sessionNotes)
+      .set({ contentEn: translated, contentEnSource: translated ? source : null })
+      .where(and(eq(sessionNotes.id, noteId), sql`md5(${sessionNotes.content}::text) = ${source}`));
+  } catch (error) {
+    log.warn("note translation refresh failed", { note: ref(noteId), reason: safeErrorMessage(error) });
+  }
+}
+
+/** DD-2: every stale translation of a session's notes, written again. Called after signing. */
+export async function refreshSessionTranslations(sessionId: string): Promise<void> {
+  const notes = await db
+    .select({ id: sessionNotes.id })
+    .from(sessionNotes)
+    .where(eq(sessionNotes.sessionId, sessionId));
+  for (const note of notes) await refreshNoteTranslation(note.id);
 }

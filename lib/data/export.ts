@@ -30,6 +30,7 @@ import {
   type NoteContent,
 } from "@/lib/db/schema";
 import { builtInFormat, noteSections } from "@/lib/notes/formats";
+import { FRESH_CONTENT_EN } from "@/lib/notes/fresh-translation";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -393,7 +394,7 @@ async function buildExport(
       noteOffRecordSeconds: sessionNotes.offRecordSeconds,
       noteContent: sessionNotes.content,
       noteLanguage: sessionNotes.language,
-      noteContentEn: sessionNotes.contentEn,
+      noteContentEn: FRESH_CONTENT_EN,
       noteStatus: sessionNotes.status,
       noteApprovedAt: sessionNotes.approvedAt,
       noteApprovedBy: sessionNotes.approvedBy,
@@ -469,7 +470,7 @@ async function buildExport(
         format: sessionNotes.format,
         templateLabel: noteTemplates.label,
         content: sessionNotes.content,
-        contentEn: sessionNotes.contentEn,
+        contentEn: FRESH_CONTENT_EN,
         language: sessionNotes.language,
         approvedAt: sessionNotes.approvedAt,
         approvedBy: sessionNotes.approvedBy,
