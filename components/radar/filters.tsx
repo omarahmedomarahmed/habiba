@@ -8,6 +8,7 @@ import { countryFlag, countryName, languageFlag } from "@/lib/geo";
 import { placeOf } from "@/lib/radar-places";
 import { cn } from "@/lib/utils";
 import { useLocale, useT } from "@/lib/i18n/client";
+import { languageLabel, specialtyLabel } from "@/lib/i18n/taxonomy-label";
 
 export type RadarFilter = {
   /** Any of these. Empty is everyone. */
@@ -142,7 +143,8 @@ export function RadarChips({
             onClick={() => set({ languages: toggle(value.languages, language.value) })}
           >
             <span aria-hidden>{languageFlag(language.value)}</span>
-            {language.value}
+            {/* DD-2: the chip in the reader's language; the filter still matches the stored value. */}
+            {languageLabel(language.value, t)}
           </Chip>
         ))}
       </Row>
@@ -155,7 +157,7 @@ export function RadarChips({
             count={specialty.count}
             onClick={() => set({ specialties: toggle(value.specialties, specialty.value) })}
           >
-            {specialty.value}
+            {specialtyLabel(specialty.value, t)}
           </Chip>
         ))}
         {/* 🔴 Ruling 5c: someone who wants to sit in a room with their therapist. */}

@@ -125,6 +125,13 @@ export function resolveViewerZone(
  * Anything rendered on both passes takes its zone as a **prop from the
  * server**, so the two passes cannot disagree.
  */
+/**
+ * DD-2: the zone a public screen shows times in before the browser has said
+ * its own, and when it cannot. The product's market is Egypt, so a visitor
+ * nobody knows reads Cairo time rather than the server's UTC.
+ */
+export const DEFAULT_READER_ZONE = "Africa/Cairo";
+
 export function readerZone(): string | null {
   if (typeof Intl === "undefined") return null;
   try {
