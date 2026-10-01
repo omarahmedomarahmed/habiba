@@ -1205,6 +1205,13 @@
       "when": 1789966138000,
       "tag": "0186_people_not_entries_and_their_own_yes",
       "breakpoints": true
+    },
+    {
+      "idx": 187,
+      "version": "7",
+      "when": 1789966150000,
+      "tag": "0187_what_was_agreed_and_what_failed",
+      "breakpoints": true
     }
   ]
 }

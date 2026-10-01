@@ -21,7 +21,11 @@ export async function agreeToCrossBorder(): Promise<ResidencyActionState> {
   const { locale } = await getLocale().then((l) => ({ locale: l })).catch(() => ({ locale: "en" }));
 
   const result = await recordCrossBorderConsent({ personId: actor.personId, locale });
-  if (!result.ok) return { error: result.error };
+  if (!result.ok) {
+    /* F18: the one refusal this can give, in the reader's language. */
+    const { say } = await import("@/lib/i18n/say");
+    return { error: await say("perr.nothingCrossing") };
+  }
 
   revalidatePath("/patient/residency");
   return { ok: true };

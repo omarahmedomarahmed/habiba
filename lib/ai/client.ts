@@ -297,4 +297,43 @@ export function parseJson<T>(raw: string | null | undefined, fallback: T, contex
   }
 }
 
+/**
+ * 🔴 Due diligence F13: the same parse, with failure as an ANSWER rather than a
+ * fallback.
+ *
+ * `parseJson` hands back its fallback on bad output, and for most callers that
+ * is right. For two it was a silent lie: the risk classifier's fallback was
+ * "no findings", which reads exactly like a clean session, and the profile's was
+ * an empty profile, which overwrote the stored one and deleted its timeline.
+ * Those callers use this and decide what a failure means for them.
+ */
+export type StrictParse<T> = { ok: true; value: T } | { ok: false; reason: "empty" | "unparseable" | "not_object" };
+
+export function parseJsonStrict<T>(raw: string | null | undefined, context: string): StrictParse<T> {
+  const fail = (reason: "empty" | "unparseable" | "not_object"): StrictParse<T> => {
+    log.error("model output could not be used", { context, reason });
+    return { ok: false, reason };
+  };
+  if (!raw || !raw.trim()) return fail("empty");
+  let text = raw.trim();
+  if (text.startsWith("```")) {
+    text = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+  }
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return fail("not_object");
+    return { ok: true, value: parsed as T };
+  } catch {
+    return fail("unparseable");
+  }
+}
+
+/** Thrown when a model answered and the answer was not the shape asked for. */
+export class MalformedModelOutputError extends Error {
+  constructor(context: string, reason: string) {
+    super(`${context}: model output was ${reason}`);
+    this.name = "MalformedModelOutputError";
+  }
+}
+
 export { ref };

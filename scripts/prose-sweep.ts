@@ -349,6 +349,12 @@ const PORTALS: Record<string, readonly string[]> = {
   shared: [
     "common",
     "nav",
+    /*
+     * Due diligence F3: the layered notice above Create account, rendered by
+     * `components/auth/signup-consent.tsx` on the patient's signup (and the clinic
+     * wall's) and on the clinician's. Both doors, so shared, by grep.
+     */
+    "signupConsent",
     "lang",
     "tab",
     "when",

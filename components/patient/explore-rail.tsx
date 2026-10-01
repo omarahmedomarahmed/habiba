@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { DiscoverTherapist } from "@/lib/data/discover";
 import { getI18n } from "@/lib/i18n/server";
+import { specialtyLabel } from "@/lib/i18n/taxonomy-label";
 import { Face } from "@/components/patient/kit";
 
 /**
@@ -44,7 +45,7 @@ export async function ExploreRail({ therapists }: { therapists: DiscoverTherapis
               </span>
               {therapist.specialties.length > 0 ? (
                 <span className="mt-0.5 block truncate text-[13px] leading-snug text-navy-400">
-                  {therapist.specialties[0]}
+                  {specialtyLabel(therapist.specialties[0]!, t)}
                 </span>
               ) : null}
             </span>

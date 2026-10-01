@@ -13,6 +13,9 @@ import { usable } from "@/lib/scheduling/tz";
 import { log } from "@/lib/logger";
 import { callerKey, consume } from "@/lib/rate-limit";
 import { patientLanding } from "@/lib/routing";
+import { getI18n } from "@/lib/i18n/server";
+import { localiseShared, minutesFrom } from "@/lib/i18n/errors";
+import { TERMS_VERSION, signupConsentProblem } from "@/lib/consent/terms";
 
 import { createPatientSession, destroyPatientSession } from "./session";
 
@@ -57,6 +60,7 @@ export async function patientSignUp(
    * the rule: the phone is the handle that is never *missing*, and the address
    * is a second real way in for the people who have one.
    */
+  const { t } = await getI18n();
   const email = normaliseEmail(String(formData.get("email") ?? ""));
   const password = String(formData.get("password") ?? "");
   const firstName = String(formData.get("firstName") ?? "").trim();
@@ -78,13 +82,11 @@ export async function patientSignUp(
    */
   const rawPhone = String(formData.get("phone") ?? "").trim();
   if (!rawPhone) {
-    return {
-      error: "A phone number is required. It is how you sign in and how your therapist finds you.",
-    };
+    return { error: t("perr.phoneRequired") };
   }
 
   const parsed = toE164(rawPhone, String(formData.get("phoneCountry") ?? "") || null);
-  if (!parsed.ok) return { error: e164Problem(parsed) ?? "Check that phone number." };
+  if (!parsed.ok) return { error: localiseShared(e164Problem(parsed) ?? "Check that phone number.", t) };
   const phone = parsed.e164;
 
   /*
@@ -95,7 +97,19 @@ export async function patientSignUp(
   const rawZone = String(formData.get("timezone") ?? "").trim();
   const timezone = rawZone && usable(rawZone) ? rawZone : null;
 
-  if (!firstName) return { error: "Enter your first name." };
+  if (!firstName) return { error: t("perr.enterFirstName") };
+
+  /*
+   * 🔴 Due diligence F3 and F11: two boxes the form cannot be sent without.
+   *
+   * Asked before the rate limit and before anything is written, so somebody who
+   * did not tick a box is told why and has created nothing. The under-18 answer
+   * is a refusal with somewhere to go, never a dead end: it names help that does
+   * not need an account.
+   */
+  const consentProblem = signupConsentProblem(formData, { needsAdult: true });
+  if (consentProblem === "adult") return { error: t("signupConsent.under18") };
+  if (consentProblem === "terms") return { error: t("signupConsent.termsRequired") };
 
   /*
    * 🔴 25.12 / C119 — a password is optional, and only checked when there is one.
@@ -109,14 +123,14 @@ export async function patientSignUp(
    */
   if (password) {
     const problem = validatePassword(password);
-    if (problem) return { error: problem };
+    if (problem) return { error: localiseShared(problem, t) };
   }
 
   // Signup is a write on an unauthenticated endpoint, so it is rate limited on
   // the caller rather than on the account — there is no account yet.
   const verdict = await consume(await callerKey("patient:signup"), 5, 60 * 60);
   if (!verdict.allowed) {
-    return { error: "Too many attempts. Try again in an hour." };
+    return { error: t("perr.tooManyHour") };
   }
 
   /*
@@ -128,7 +142,7 @@ export async function patientSignUp(
   if (invited) {
     const { resolveInvite, inviteFits, INVITE_MISMATCH } = await import("@/lib/data/claims");
     const resolved = await resolveInvite(invited);
-    if (resolved && !inviteFits(resolved, { phone, email })) return { error: INVITE_MISMATCH };
+    if (resolved && !inviteFits(resolved, { phone, email })) return { error: localiseShared(INVITE_MISMATCH, t) };
   }
 
   /*
@@ -160,7 +174,7 @@ export async function patientSignUp(
      * which of them are in therapy. That is a disclosure this product cannot
      * make, and it is worth the small usability cost.
      */
-    return { error: "We could not create that account. Try signing in instead." };
+    return { error: t("perr.couldNotCreate") };
   }
 
   const created = await db.transaction(async (tx) => {
@@ -187,13 +201,17 @@ export async function patientSignUp(
         passwordHash: password ? await hashPassword(password) : null,
         phone,
         timezone,
+        /* F3 / F11: what they ticked, which version, and when. */
+        termsVersion: TERMS_VERSION,
+        termsAcceptedAt: new Date(),
+        adultConfirmedAt: new Date(),
       })
       .returning({ id: patientAccounts.id });
 
     return account ? { accountId: account.id, personId: person.id } : null;
   });
 
-  if (!created) return { error: "We could not create that account. Try again." };
+  if (!created) return { error: t("perr.couldNotCreateRetry") };
   const { accountId } = created;
 
   await createPatientSession(accountId);
@@ -247,19 +265,17 @@ export async function patientSignIn(
   _prev: PatientAuthState,
   formData: FormData,
 ): Promise<PatientAuthState> {
+  const { t } = await getI18n();
   const handle = String(formData.get("handle") ?? formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   if (!handle || !password) {
-    return { error: "Enter your phone number or email, and your password." };
+    return { error: t("perr.enterHandlePassword") };
   }
 
   const verdict = await consume(await callerKey("patient:signin"), 10, 15 * 60);
   if (!verdict.allowed) {
     /* 22R — the wait in minutes, for the same reason as the clinician's door. */
-    const minutes = Math.max(1, Math.ceil(verdict.retryAfter / 60));
-    return {
-      error: `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
-    };
+    return { error: t("perr.tooManyMinutes", { minutes: minutesFrom(verdict.retryAfter) }) };
   }
 
   /*
@@ -303,7 +319,7 @@ export async function patientSignIn(
     ? await verifyPassword(password, account.passwordHash)
     : await verifyPassword(password, INVALID);
 
-  if (!account || !ok) return { error: "That does not match an account. Check and try again." };
+  if (!account || !ok) return { error: t("perr.noMatch") };
 
   await createPatientSession(account.id);
   /* 🔴 W2-P02: back to the invite, the benefit code or the room they came from. */

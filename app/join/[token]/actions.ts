@@ -6,6 +6,7 @@ import { capSeconds, type ClockStage } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
 import { createMeetingToken, roomUrlWithToken } from "@/lib/video";
 import { log, ref } from "@/lib/logger";
+import { say } from "@/lib/i18n/say";
 
 /** Generous for a real patient; a hard ceiling on automated abuse. */
 const JOINS_PER_WINDOW = 10;
@@ -94,7 +95,7 @@ async function admit(token: string, name: string): Promise<JoinState> {
   if (early) return { error: early };
 
   if (session.priceCents > 0 && session.paymentStatus !== "paid") {
-    return { error: "This session has not been paid for yet." };
+    return { error: await say("perr.notPaidYet") };
   }
 
   /*
@@ -131,7 +132,7 @@ async function admit(token: string, name: string): Promise<JoinState> {
   if (!built.ok) {
     return {
       error:
-        "We could not open the room for this session. Your therapist has been told. Nothing you did was lost, and this link will work once it is fixed.",
+        await say("perr.roomFailed"),
     };
   }
 
@@ -161,8 +162,8 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
 
-  if (!name) return { error: "Please enter your first name." };
-  if (name.length > 80) return { error: "That name is a little long." };
+  if (!name) return { error: await say("perr.enterFirstNamePlease") };
+  if (name.length > 80) return { error: await say("perr.nameLong") };
 
   /*
    * 🔴 C282 — THE AI QUESTION IS NOT READ HERE ANY MORE.
@@ -191,7 +192,7 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
    */
   const throttle = await consume(await callerKey("join"), JOINS_PER_WINDOW, JOIN_WINDOW_SECONDS);
   if (!throttle.allowed) {
-    return { error: "Too many attempts. Wait a moment and try again." };
+    return { error: await say("perr.tooManyMoment") };
   }
 
   /* 🔴 The start ruling: nothing is written for an arrival before the window. */
@@ -209,7 +210,7 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
     email || null,
   );
   if (!sessionId) {
-    return { error: "This link is no longer valid. Ask your therapist for a new one." };
+    return { error: await say("perr.linkInvalidAsk") };
   }
 
   /*
@@ -282,7 +283,7 @@ export async function submitJoin(_prev: JoinState, formData: FormData): Promise<
  */
 export async function resumeAfterPayment(token: string): Promise<JoinState> {
   const session = await resolveJoinToken(token);
-  if (!session) return { error: "This link is no longer valid." };
+  if (!session) return { error: await say("perr.linkInvalid") };
 
   const name = session.guestName?.trim();
   if (!name) return {};
@@ -342,11 +343,11 @@ async function hasConsent(sessionId: string): Promise<boolean> {
 export async function answerConsent(token: string, consent: string): Promise<JoinState> {
   const { isRecordingConsent } = await import("@/lib/consent");
   if (!isRecordingConsent(consent)) {
-    return { needsConsent: true, error: "Please choose one." };
+    return { needsConsent: true, error: await say("consent.pickOne") };
   }
 
   const session = await resolveJoinToken(token);
-  if (!session) return { error: "This link is no longer valid." };
+  if (!session) return { error: await say("perr.linkInvalid") };
 
   const early = await notOpenYet(session);
   if (early) return { error: early };
@@ -723,7 +724,7 @@ export async function turnOnConsent(
   control: "recording" | "profileShare",
 ): Promise<{ ok?: boolean; error?: string }> {
   const session = await resolveJoinToken(token);
-  if (!session) return { error: "This link is no longer valid." };
+  if (!session) return { error: await say("perr.linkInvalid") };
 
   const { RECORDING_CONSENT_VERSION } = await import("@/lib/consent");
   /*
@@ -808,7 +809,7 @@ export async function turnOnConsent(
  */
 export async function stopRecording(token: string): Promise<{ ok?: boolean; error?: string }> {
   const session = await resolveJoinToken(token);
-  if (!session) return { error: "This link is no longer valid." };
+  if (!session) return { error: await say("perr.linkInvalid") };
 
   /*
    * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
@@ -901,7 +902,7 @@ export async function setSessionMinimised(
   minimised: boolean,
 ): Promise<{ ok?: boolean; error?: string }> {
   const session = await resolveJoinToken(token);
-  if (!session) return { error: "This link is no longer valid." };
+  if (!session) return { error: await say("perr.linkInvalid") };
 
   /*
    * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden. See lib/db/region.ts.
@@ -939,7 +940,7 @@ export async function reportFromRoom(input: {
   detail: string;
 }): Promise<{ ok?: boolean; error?: string }> {
   const attempt = await consume(await callerKey("report"), 10, 600);
-  if (!attempt.allowed) return { error: "Too many reports from this connection." };
+  if (!attempt.allowed) return { error: await say("perr.tooManyReports") };
 
   const { fileReport } = await import("@/lib/data/feedback");
   const filed = await fileReport({

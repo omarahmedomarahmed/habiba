@@ -5,7 +5,7 @@ import { CalendarDays, Check, Clock } from "lucide-react";
 
 import { book } from "@/app/(public)/t/[id]/book/actions";
 import { Card } from "@/components/ui";
-import { byDayIn, formatTime, formatWhen, resolveZone } from "@/lib/scheduling/tz";
+import { byDayIn, formatTime, formatWhen, resolveVisitorZone, zoneLabel } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
 import { PhoneField } from "@/components/forms/phone-field";
 import { countryFromE164, readerCountry } from "@/lib/phone/e164";
@@ -33,6 +33,7 @@ export function BookingCalendar({
   slots,
   therapistName,
   therapistTimezone,
+  visitorCountry = null,
   rateLabel,
   booker,
   practice,
@@ -44,6 +45,12 @@ export function BookingCalendar({
   therapistName: string;
   /** The zone the first render uses, before the browser answers. 12.3 / C84. */
   therapistTimezone: string | null;
+  /**
+   * F21: the country the visitor is browsing from (`lib/visitor-country.ts`),
+   * Egypt when unknown. Egypt draws the hours in Cairo time until the browser
+   * names a real zone of its own.
+   */
+  visitorCountry?: string | null;
   rateLabel: React.ReactNode;
   /**
    * A signed-in patient's own details, so the form is already filled in.
@@ -97,7 +104,7 @@ export function BookingCalendar({
    * file the therapist's zone as the patient's.
    */
   const detected = useReaderZone();
-  const zone = resolveZone(detected, therapistTimezone);
+  const zone = resolveVisitorZone(detected, therapistTimezone, visitorCountry);
 
   const days = byDayIn(
     slots.map((s) => ({ ...s, startsAt: new Date(s.startsAt) })),
@@ -281,6 +288,8 @@ export function BookingCalendar({
         </div>
       ) : (
         <div className="mt-3 space-y-3">
+          {/* F21: the zone is stated, always, so nobody reads UTC as their own clock. */}
+          <p className="text-xs text-slate-500">{t("pbook.timesIn", { zone: zoneLabel(zone.name, locale) })}</p>
           {days.slice(0, 10).map((day) => (
             <div key={day.key}>
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">

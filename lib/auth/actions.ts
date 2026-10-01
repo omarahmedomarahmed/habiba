@@ -18,8 +18,11 @@ import {
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
-import { sendPasswordReset } from "@/lib/mail";
-import { callerKey, consume } from "@/lib/rate-limit";
+import { sendExistingAccountNotice, sendPasswordReset, sendSignupWelcome } from "@/lib/mail";
+import { TERMS_VERSION, signupConsentProblem } from "@/lib/consent/terms";
+import { localiseShared, minutesFrom } from "@/lib/i18n/errors";
+import { getI18n } from "@/lib/i18n/server";
+import { callerKey, consume, subjectKey } from "@/lib/rate-limit";
 import { hashPassword, validatePassword, verifyPassword } from "./password";
 import {
   createSession,
@@ -29,7 +32,12 @@ import {
   revokeAllSessionsForUser,
 } from "./session";
 
-export type ActionState = { error?: string; ok?: boolean };
+export type ActionState = {
+  error?: string;
+  ok?: boolean;
+  /** F14: signup's one answer for a new address and a registered one alike. */
+  sentTo?: string;
+};
 
 const LOCKOUT_THRESHOLD = 5;
 const LOCKOUT_MINUTES = 15;
@@ -53,29 +61,52 @@ function slugify(value: string): string {
 
 /**
  * Sign up. Creates the practice, the clinician and a metered subscription in
- * one transaction, then drops them straight into their first session.
+ * one transaction.
  *
  * Note what is *not* collected: licence number, NPI, practice address,
  * insurance panels, availability, weekly capacity. The old app asked for about
  * thirty-five fields across nine wizard steps before a therapist could reach
  * any part of the product. None of it is needed to record a session, so it is
  * collected later, in settings, if at all.
+ *
+ * ## 🔴 Due diligence F14: one answer, whether or not the address is registered
+ *
+ * This used to say "An account with that email already exists", which told
+ * anybody with a list of addresses which of them belonged to a clinician here.
+ * Now both cases answer "check your inbox at <address>": a new address gets a
+ * link that signs them in and carries on to verification (`/signup/confirm`),
+ * and a registered one gets a note saying an account already exists and how to
+ * sign in. The password is hashed on both branches so the two take the same
+ * time, and the caller's connection is rate limited like every other
+ * unauthenticated write.
+ *
+ * ## F3: the notice is accepted, and which version is kept
  */
 export async function signUp(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { t, locale } = await getI18n();
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
 
-  if (!firstName) return { error: "Please enter your first name." };
+  if (!firstName) return { error: t("tauth.err.firstName") };
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return { error: "Please enter a valid email address." };
+    return { error: t("tauth.err.email") };
   }
 
   const passwordProblem = validatePassword(password);
-  if (passwordProblem) return { error: passwordProblem };
+  if (passwordProblem) return { error: localiseShared(passwordProblem, t) };
 
-  let userId: string;
+  if (signupConsentProblem(formData, { needsAdult: false })) {
+    return { error: t("signupConsent.termsRequired") };
+  }
+
+  const verdict = await consume(await callerKey("signup"), 5, 60 * 60);
+  if (!verdict.allowed) {
+    return { error: t("tauth.err.tooMany", { minutes: minutesFrom(verdict.retryAfter) }) };
+  }
+
+  let created: { userId: string; token: string } | null = null;
 
   try {
     const existing = await db
@@ -84,13 +115,22 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
       .where(and(eq(users.email, email), isNull(users.deletedAt)))
       .limit(1);
 
-    if (existing.length > 0) {
-      return { error: "An account with that email already exists. Try signing in." };
-    }
-
+    // Hashed on both branches, so a registered address is not detectably faster.
     const passwordHash = await hashPassword(password);
 
-    userId = await db.transaction(async (tx) => {
+    if (existing.length > 0) {
+      await sendExistingAccountNotice({
+        to: email,
+        signInUrl: `${env.appUrl}/login`,
+        locale: await recipientLocaleFor(existing[0]!.id, locale),
+      });
+      log.info("signup for a registered address: notice sent", { user: ref(existing[0]!.id) });
+      return { ok: true, sentTo: email };
+    }
+
+    const token = randomBytes(32).toString("base64url");
+
+    const userId = await db.transaction(async (tx) => {
       const [org] = await tx
         .insert(organizations)
         .values({
@@ -111,6 +151,9 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
           // registration used to accept `role` from the request body, which let
           // anyone sign up as an administrator.
           role: "therapist",
+          /* F3: what they ticked, which version, and when. */
+          termsVersion: TERMS_VERSION,
+          termsAcceptedAt: new Date(),
         })
         .returning({ id: users.id });
 
@@ -118,35 +161,46 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
         .insert(subscriptions)
         .values({ organizationId: org!.id, plan: "payg", status: "active" });
 
+      await tx.insert(authTokens).values({
+        userId: user!.id,
+        purpose: "signup_confirm",
+        tokenHash: createHash("sha256").update(token).digest("hex"),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+
       return user!.id;
     });
+
+    created = { userId, token };
   } catch (error) {
     log.error("signup failed", { reason: safeErrorMessage(error) });
-    return { error: "Something went wrong creating your account. Please try again." };
+    return { error: t("tauth.err.generic") };
   }
 
-  await createSession(userId);
+  await sendSignupWelcome({
+    to: email,
+    url: `${env.appUrl}/signup/confirm?token=${created.token}`,
+    locale,
+  });
   await audit({
     actor: null,
     category: "auth",
     action: "signup",
     resourceType: "user",
-    resourceId: userId,
+    resourceId: created.userId,
   });
 
-  /*
-   * Straight to verification, because that is what stands between them and
-   * their first session.
-   *
-   * This redirect used to point at `/sessions/new`, and the app shell then
-   * bounced them to `/onboarding`. A redirect thrown inside a *layout* during
-   * a navigation the client router started — which is what a Server Action
-   * redirect is — leaves the router with a URL and no document: the address
-   * bar said /onboarding and the screen was white until you reloaded. The
-   * shell redirect is still there as a backstop for direct hits, but nothing
-   * on the ordinary path relies on it any more.
-   */
-  redirect("/onboarding?welcome=1");
+  return { ok: true, sentTo: email };
+}
+
+/** The account holder's chosen language for the notice, else the page's. */
+async function recipientLocaleFor(userId: string, fallback: string): Promise<string> {
+  try {
+    const { recipientLocale } = await import("@/lib/i18n/preference");
+    return (await recipientLocale({ userId })) ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 /**
@@ -329,6 +383,22 @@ export async function requestPasswordReset(
 ): Promise<ActionState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
 
+  /*
+   * 🔴 Due diligence F14: rate limited, which it was not.
+   *
+   * Per connection, refused out loud: this tells nobody anything about which
+   * addresses exist. Per address, silent: the answer stays "check your inbox"
+   * either way, and the address simply stops receiving resets for an hour, so
+   * this form cannot be used to bury somebody's inbox.
+   */
+  const perConnection = await consume(await callerKey("password-reset"), 5, 15 * 60);
+  if (!perConnection.allowed) {
+    const { t } = await getI18n();
+    return { error: t("tauth.err.tooMany", { minutes: minutesFrom(perConnection.retryAfter) }) };
+  }
+  const perAddress = await consume(subjectKey("password-reset:address", email), 3, 60 * 60);
+  if (!perAddress.allowed) return { ok: true };
+
   const [user] = await db
     .select({ id: users.id })
     .from(users)
@@ -366,6 +436,13 @@ export async function resetPassword(
 
   const problem = validatePassword(password);
   if (problem) return { error: problem };
+
+  /* F14: guessing at reset tokens is limited per connection too. */
+  const attempts = await consume(await callerKey("password-reset-confirm"), 10, 15 * 60);
+  if (!attempts.allowed) {
+    const { t } = await getI18n();
+    return { error: t("tauth.err.tooMany", { minutes: minutesFrom(attempts.retryAfter) }) };
+  }
 
   const tokenHash = createHash("sha256").update(token).digest("hex");
 

@@ -31,6 +31,7 @@ import { cn, fullName } from "@/lib/utils";
 import { viewerId } from "@/lib/viewer";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { rich, slot } from "@/lib/i18n/rich";
+import { specialtyLabel } from "@/lib/i18n/taxonomy-label";
 
 /** Must match RESERVATION_SECONDS on the server. */
 const HOLD_SECONDS = 60;
@@ -212,7 +213,7 @@ export function BookingSheet({
             {entry.languages.join(", ") || t("pbook.notListed")}
           </Row>
           <Row icon={<Sparkles className="h-3.5 w-3.5" aria-hidden />} label={t("radar.worksWith")}>
-            {entry.specialties.join(", ") || t("pbook.notListed")}
+            {entry.specialties.map((s) => specialtyLabel(s, t)).join(", ") || t("pbook.notListed")}
           </Row>
           <Row icon={<Globe2 className="h-3.5 w-3.5" aria-hidden />} label={t("radar.basedIn")}>
             {[entry.city, entry.region, countryName(entry.country, locale)].filter(Boolean).join(", ") ||

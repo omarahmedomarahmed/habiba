@@ -8,6 +8,7 @@ import { Button, Field, Input } from "@/components/ui";
 import { Card } from "@/components/patient/kit";
 import { PhoneField } from "@/components/forms/phone-field";
 import { TimezoneField } from "@/components/forms/timezone-field";
+import { SignupConsent } from "@/components/auth/signup-consent";
 import { readerCountry } from "@/lib/phone/e164";
 import { useT } from "@/lib/i18n/client";
 
@@ -171,6 +172,8 @@ export function PatientAuthForm({
             required={mode === "signin"}
           />
         </Field>
+
+        {mode === "signup" ? <SignupConsent audience="patient" /> : null}
 
         {state.error ? (
           <p

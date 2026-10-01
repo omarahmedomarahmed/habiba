@@ -4,6 +4,7 @@ import { PriceTag } from "@/components/money/price-tag";
 import { egpRateMicro } from "@/lib/billing/manual";
 import { localeTag } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
+import { visitorCountry } from "@/lib/visitor-country";
 import { regulatorNameFor } from "@/lib/regulators";
 import { getCountries } from "@/lib/settings";
 import { formatMonthYear } from "@/lib/utils";
@@ -58,6 +59,8 @@ export async function TherapistPageBody({
   ]);
   const { locale, t } = await getI18n();
   const tag = localeTag(locale);
+  /* F21: the zone a signed-out visitor reads the hours in, before their browser answers. */
+  const visitor = await visitorCountry();
 
   /*
    * 🔴 51.9 — a MONTH and a year, never a day.
@@ -178,6 +181,7 @@ export async function TherapistPageBody({
           practice={practice}
           therapistName={profile.firstName}
           therapistTimezone={profile.timezone}
+          visitorCountry={visitor.code}
           rateLabel={
             profile.sessionRateCents > 0 ? (
               <SessionPrice sessionRateCents={profile.sessionRateCents} rateEgpMinor={profile.rateEgpMinor} />

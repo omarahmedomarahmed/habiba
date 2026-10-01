@@ -179,7 +179,7 @@ export const MARIAM_VISITS: Visit[] = [
         "Held a one-to-one with her manager and agreed that urgent matters come by phone call and everything else waits until morning. Manager said she never expected night replies. Slept through five of seven nights. Anticipates pressure at quarter close.",
       objective: "Relaxed, smiling, spontaneous humour. Speech and affect markedly brighter than at intake.",
       assessment:
-        "Significant improvement in sleep and anxiety. PHQ-9 7 (from 12), GAD-7 8 (from 13). Belief about availability substantially revised by direct evidence.",
+        "Significant improvement in sleep and anxiety. PHQ-9 down from 12 to 7, GAD-7 down from 13 to 8. Belief about availability substantially revised by direct evidence.",
       plan: "Relapse prevention: early warning sign (checking phone in bed) and response plan. Consolidate over the next sessions and review workload before quarter close.",
     },
     summary: "Agreed response times with her manager; sleeping through five of seven nights; relapse plan written.",

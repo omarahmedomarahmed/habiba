@@ -10,6 +10,7 @@ import { normaliseEmail } from "@/lib/data/people";
 import { wordsFor } from "@/lib/i18n/message-words";
 import { log, ref } from "@/lib/logger";
 import { notify } from "@/lib/notify";
+import { say } from "@/lib/i18n/say";
 
 /*
  * ⚠️ 30.1: NOT ROUTED YET, and counted rather than hidden, like every other
@@ -128,7 +129,7 @@ export async function confirmEmailCode(
 ): Promise<{ ok: true; email: string } | { ok: false; error: string }> {
   const email = normaliseEmail(raw);
   const code = rawCode.replace(/\D/g, "");
-  const wrong = { ok: false as const, error: "That code is wrong or has expired. Ask for a new one." };
+  const wrong = { ok: false as const, error: await say("perr.codeWrong") };
   if (!email || code.length !== 6) return wrong;
 
   const [row] = await db

@@ -32,6 +32,7 @@ import {
 } from "@/lib/rate-limit";
 import { fullName } from "@/lib/utils";
 import { createPrivateRoom } from "@/lib/video";
+import { say } from "@/lib/i18n/say";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -125,8 +126,8 @@ export async function bookFromRadar(
   const email = String(formData.get("email") ?? "").trim();
   const viewer = String(formData.get("viewer") ?? "").trim() || null;
 
-  if (!name) return { error: "Please tell us what to call you." };
-  if (name.length > 80) return { error: "That name is a little long." };
+  if (!name) return { error: await say("perr.whatToCallPlease") };
+  if (name.length > 80) return { error: await say("perr.nameLong") };
 
   /*
    * Throttling, before anything expensive happens.
@@ -154,9 +155,7 @@ export async function bookFromRadar(
   if (!attempt.allowed) {
     log.warn("radar booking rate limited", { used: attempt.used });
     return {
-      error: `Too many booking attempts. Try again in ${Math.ceil(attempt.retryAfter / 60)} minute${
-        attempt.retryAfter > 60 ? "s" : ""
-      }, or call your local emergency number if you need help right now.`,
+      error: await say("perr.bookingTooMany", { minutes: Math.max(1, Math.ceil(attempt.retryAfter / 60)) }),
     };
   }
 
@@ -164,7 +163,7 @@ export async function bookFromRadar(
   if (!ceiling.allowed) {
     return {
       error:
-        "The radar is unusually busy. Please try again in a minute, or call your local emergency number if you need help now.",
+        await say("perr.radarBusy"),
     };
   }
 
@@ -172,11 +171,11 @@ export async function bookFromRadar(
   // rather than trusting the id and price that came back in the form.
   const available = await listRadar(viewer);
   const therapist = available.find((row) => row.userId === therapistUserId);
-  if (!therapist) return { error: "That clinician is no longer on the radar." };
+  if (!therapist) return { error: await say("perr.offRadar") };
 
   // `reservedByYou` is the whole point: pending is fine when it is *your* hold.
   if (therapist.status !== "online" && !therapist.reservedByYou) {
-    return { error: "Someone just started booking them. Try another clinician." };
+    return { error: await say("perr.someoneBooking") };
   }
 
   /*
@@ -197,7 +196,7 @@ export async function bookFromRadar(
   if (!targeted.allowed) {
     log.warn("radar clinician claim-rate exceeded", { therapist: ref(therapist.userId) });
     return {
-      error: "That clinician has had several booking attempts just now. Try another one.",
+      error: await say("perr.manyAttemptsClinician"),
     };
   }
 
@@ -212,7 +211,7 @@ export async function bookFromRadar(
     });
   } catch (error) {
     log.error("radar session create failed", { reason: safeErrorMessage(error) });
-    return { error: "Could not start the booking. Please try again." };
+    return { error: await say("perr.bookingStartFailed") };
   }
 
   const claimed = await claimTherapist({
@@ -230,7 +229,7 @@ export async function bookFromRadar(
     // Losing a race is not abuse, so it counts against neither party.
     await refund(attemptKey);
     await refund(therapistKey);
-    return { error: "Someone else booked them a second before you. Try another clinician." };
+    return { error: await say("perr.bookedFirst") };
   }
 
   /*
@@ -385,7 +384,7 @@ export async function bookFromRadar(
       });
       return {
         error:
-          "We could not open a room for this session, so nothing has been booked and you have not been charged. Please try again in a moment.",
+          await say("perr.roomNotOpened"),
       };
     }
 
@@ -457,7 +456,7 @@ export async function bookFromRadar(
       session: ref(session.id),
       reason: safeErrorMessage(error),
     });
-    return { error: "Could not complete the booking. Please try again." };
+    return { error: await say("perr.bookingFailed") };
   }
 }
 
@@ -476,17 +475,17 @@ export async function emailDirections(
 ): Promise<{ error?: string; ok?: boolean }> {
   const address = email.trim().toLowerCase();
   if (!address || address.length > 200 || !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(address)) {
-    return { error: "That does not look like an email address." };
+    return { error: await say("perr.notEmail") };
   }
 
   const attempt = await consume(await callerKey("directions"), 5, 600);
   if (!attempt.allowed) {
-    return { error: "Too many of these from your connection. Use the directions link instead." };
+    return { error: await say("perr.tooManyDirections") };
   }
 
   const entry = (await listRadar()).find((row) => row.userId === therapistUserId);
   if (!entry?.practice) {
-    return { error: "That clinician is not offering walk-in visits." };
+    return { error: await say("perr.noWalkIn") };
   }
 
   const { sendWalkInDirections } = await import("@/lib/mail");
@@ -508,6 +507,6 @@ export async function emailDirections(
       }) ?? "",
   });
 
-  if (!sent) return { error: "Could not send that just now. Use the directions link instead." };
+  if (!sent) return { error: await say("perr.sendFailedDirections") };
   return { ok: true };
 }

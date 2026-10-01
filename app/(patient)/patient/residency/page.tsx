@@ -5,6 +5,7 @@ import { ResidencyNotice } from "@/components/patient/residency-notice";
 import { PatientBack } from "@/components/patient/back";
 import { regionLabel } from "@/lib/db/region";
 import { residencyFor } from "@/lib/data/residency";
+import { aiPausedForPerson } from "@/lib/data/ai-consent";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePatient } from "@/lib/patient-auth/guard";
 import { formatDate } from "@/lib/utils";
@@ -28,6 +29,8 @@ export default async function ResidencyPage() {
   const { locale } = await getI18n();
   const state = await residencyFor(actor.personId, locale);
   const { t } = await getI18n();
+  /* F3: whether their withdrawal is in force, so the page can say what it did. */
+  const aiPaused = await aiPausedForPerson(actor.personId);
 
   return (
     <main className="mx-auto flex min-h-dvh flex-col w-full max-w-lg gap-4 px-5 pt-4 pb-10">
@@ -43,6 +46,7 @@ export default async function ResidencyPage() {
         wording={state.wording}
         homeLabel={state.homeRegion ? regionLabel(state.homeRegion, locale) : null}
         servingLabel={regionLabel(state.servingRegion, locale)}
+        aiPaused={aiPaused}
       />
     </main>
   );

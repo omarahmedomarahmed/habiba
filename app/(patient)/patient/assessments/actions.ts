@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { completeAssignment, recordAnswer } from "@/lib/data/assessments";
 import { requirePatient } from "@/lib/patient-auth/guard";
+import { say } from "@/lib/i18n/say";
 
 export type AnswerState = { error?: string; ok?: boolean; risk?: boolean };
 
@@ -55,7 +56,7 @@ export async function finishAssessment(assignmentId: string): Promise<AnswerStat
   const actor = await requirePatient();
 
   const score = await completeAssignment(assignmentId, actor.personId);
-  if (score === null) return { error: "That assessment could not be finished." };
+  if (score === null) return { error: await say("perr.assessmentUnfinished") };
 
   revalidatePath("/patient/assessments");
   revalidatePath("/patient");

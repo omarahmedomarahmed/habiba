@@ -16,6 +16,7 @@ import { callerKey, consume } from "@/lib/rate-limit";
 import { log, ref } from "@/lib/logger";
 
 import { requirePatient } from "./guard";
+import { say } from "@/lib/i18n/say";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -85,7 +86,7 @@ export async function requestHandleCode(): Promise<HandleState> {
   if (!verdict.allowed) {
     const minutes = Math.max(1, Math.ceil(verdict.retryAfter / 60));
     return {
-      error: `Too many codes asked for from this connection. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      error: await say("perr.tooManyCodesMinutes", { minutes }),
     };
   }
 
@@ -102,7 +103,7 @@ export async function requestHandleCode(): Promise<HandleState> {
     .where(eq(patientAccounts.id, actor.accountId))
     .limit(1);
 
-  if (!account) return { error: "We could not find your account." };
+  if (!account) return { error: await say("perr.accountNotFound") };
   if (account.phoneVerifiedAt || account.emailVerifiedAt) {
     /* Shoot T21: proven before this record could be claimed by it. */
     await claimOwnPerson(account.id);
@@ -177,7 +178,7 @@ export async function confirmHandleCode(
   if (!verdict.allowed) {
     const minutes = Math.max(1, Math.ceil(verdict.retryAfter / 60));
     return {
-      error: `Too many attempts from this connection. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      error: await say("perr.tooManyAttemptsConnMinutes", { minutes }),
     };
   }
 
@@ -195,7 +196,7 @@ export async function confirmHandleCode(
     .orderBy(desc(patientAuthTokens.createdAt))
     .limit(1);
 
-  const wrong = { error: "That code is wrong or has expired. Ask for a new one." };
+  const wrong = { error: await say("perr.codeWrong") };
   if (!row) return wrong;
 
   if (row.tokenHash !== hash(code)) {
@@ -205,7 +206,7 @@ export async function confirmHandleCode(
         .update(patientAuthTokens)
         .set({ usedAt: new Date() })
         .where(eq(patientAuthTokens.id, row.id));
-      return { error: "Too many wrong codes. Ask for a new one." };
+      return { error: await say("perr.tooManyWrongCodes") };
     }
     await db
       .update(patientAuthTokens)
