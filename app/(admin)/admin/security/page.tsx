@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { SecondFactorSetup } from "@/components/admin/second-factor-setup";
 import { requireStaff } from "@/lib/auth/guard";
 import { enrolmentAvailable, pendingEnrolment, secondFactorStatus } from "@/lib/auth/second-factor";
+import { getSessionState } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Sign-in security", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -19,7 +20,9 @@ export const dynamic = "force-dynamic";
 export default async function SecurityPage() {
   const actor = await requireStaff();
   const status = await secondFactorStatus(actor.userId);
-  const pending = status.enrolled || !enrolmentAvailable() ? null : await pendingEnrolment(actor);
+  const session = await getSessionState();
+  const pending =
+    status.enrolled || !enrolmentAvailable() || !session ? null : await pendingEnrolment(actor, session.sessionId);
   const qr = pending
     ? await QRCode.toDataURL(pending.uri, { margin: 1, errorCorrectionLevel: "M", width: 200 })
     : null;

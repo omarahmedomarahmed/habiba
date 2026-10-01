@@ -13,7 +13,7 @@ import { getSessionState, type SessionState } from "./session";
 import { needsSecondFactor } from "./totp";
 
 export type SecondStepState = { error?: string };
-export type StepEnrolState = { error?: string; recoveryCodes?: string[]; next?: string };
+export type StepEnrolState = { error?: string; recoveryCodes?: string[]; next?: string; codeSent?: boolean };
 
 /**
  * 🔴 Task 40: the actions a PENDING session may run.
@@ -55,11 +55,27 @@ export async function verifySecondStep(
   redirect(await destination(state, next));
 }
 
-/** DD-2 B2.3: a back office member with no app is enrolled here, before anything else. */
-export async function startStepEnrolment(_prev: StepEnrolState, _formData: FormData): Promise<StepEnrolState> {
+/**
+ * Review fix: before the first app, six digits go to the member's own address.
+ * A password alone never reaches the QR code.
+ */
+export async function sendStepEnrolmentCode(_prev: StepEnrolState, _formData: FormData): Promise<StepEnrolState> {
   const state = await pending();
   if (!state || !needsSecondFactor(state.actor.role)) redirect("/staff/sign-in");
-  const result = await beginEnrolment(state.actor);
+  const { sendEnrolmentCode } = await import("./enrolment-proof");
+  const result = await sendEnrolmentCode(state.actor, state.sessionId);
+  if (!result.ok) return { error: (await getI18n()).t(result.error) };
+  return { codeSent: true };
+}
+
+/** DD-2 B2.3: a back office member with no app is enrolled here, once the emailed code proved them. */
+export async function startStepEnrolment(_prev: StepEnrolState, formData: FormData): Promise<StepEnrolState> {
+  const state = await pending();
+  if (!state || !needsSecondFactor(state.actor.role)) redirect("/staff/sign-in");
+  const { proveEnrolmentCode } = await import("./enrolment-proof");
+  const proved = await proveEnrolmentCode(state.actor, state.sessionId, String(formData.get("code") ?? "").slice(0, 12));
+  if (!proved.ok) return { codeSent: true, error: (await getI18n()).t(proved.error) };
+  const result = await beginEnrolment(state.actor, state.sessionId);
   if (!result.ok) return { error: (await getI18n()).t(result.error) };
   const { revalidatePath } = await import("next/cache");
   revalidatePath("/staff/second-step");

@@ -296,6 +296,11 @@ export function networkOf(ip: string): string {
  * shares a limit — annoying, and much better than the limiter quietly doing
  * nothing.
  */
+export async function callerNetwork(): Promise<string> {
+  const ip = await clientIp();
+  return ip ? networkOf(ip) : "unknown";
+}
+
 export async function callerKey(scope: string): Promise<string> {
   const ip = await clientIp();
   return subjectKey(scope, ip ? networkOf(ip) : "unknown");

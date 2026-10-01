@@ -53,7 +53,7 @@ export default async function SecondStepPage({
   }
 
   const available = enrolmentAvailable();
-  const pending = available ? await pendingEnrolment(state.actor) : null;
+  const pending = available ? await pendingEnrolment(state.actor, state.sessionId) : null;
   const qr = pending
     ? await QRCode.toDataURL(pending.uri, { margin: 1, errorCorrectionLevel: "M", width: 200 })
     : null;

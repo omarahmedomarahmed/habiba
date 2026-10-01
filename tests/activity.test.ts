@@ -55,3 +55,12 @@ test("the room and the polls are marked, and only a live session keeps a sign in
   const review = source("components/session/note-review.tsx");
   assert.match(review, /if \(Date\.now\(\) - typedAt\.current > KEEP_ALIVE_MS\) return;/, "the note editor pings whether or not anybody typed");
 });
+
+test("the clinician's radar ping is a background request, not a server action", () => {
+  const presence = source("components/radar/presence.tsx");
+  assert.match(presence, /backgroundFetch\("\/api\/radar\/ping", \{ method: "POST"/);
+  assert.doesNotMatch(presence, /on-call\/actions/, "a server action cannot carry the background mark");
+  assert.doesNotMatch(source("app/(app)/on-call/actions.ts"), /export async function radarPing/);
+  assert.match(source("app/api/radar/ping/route.ts"), /export async function POST/);
+  assert.match(source("components/radar/radar-console.tsx"), /backgroundFetch\(/);
+});

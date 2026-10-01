@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Bell, BellRing, Volume2, VolumeX } from "lucide-react";
 
-import { radarPing } from "@/app/(app)/on-call/actions";
+import type { RadarPing } from "@/app/api/radar/ping/route";
+import { backgroundFetch } from "@/lib/auth/activity";
 import { RadarOrb, type OrbStatus } from "@/components/radar/orb";
 import {
   alarmRemembered,
@@ -251,7 +252,10 @@ export function RadarPresence({
     const tick = async () => {
       if (document.visibilityState !== "visible") return;
       try {
-        const result = await radarPing();
+        /* Background: a ping is the page, not the clinician, so it never extends the idle clock. */
+        const response = await backgroundFetch("/api/radar/ping", { method: "POST", cache: "no-store" });
+        if (!response.ok) return;
+        const result = (await response.json()) as RadarPing;
         if (cancelled) return;
         setAttention(result.attention);
         setStatus(result.status);

@@ -10,8 +10,13 @@ import { getI18n } from "@/lib/i18n/server";
 
 /** DD-2 B2.4: a clinic manager's own authenticator app, optional. The cookie says whose. */
 
-export async function startClinicAuthenticator(_prev: AuthenticatorState, _formData: FormData): Promise<AuthenticatorState> {
+export async function startClinicAuthenticator(_prev: AuthenticatorState, formData: FormData): Promise<AuthenticatorState> {
   const actor = await requireClinic();
+  /* Review fix: the password again, so a borrowed session cannot plant an app. */
+  const { passwordConfirmed } = await import("@/lib/auth/enrolment-proof");
+  if (!(await passwordConfirmed({ kind: "clinic", id: actor.clinicManagerId }, String(formData.get("password") ?? "")))) {
+    return { error: (await getI18n()).t("asec.passwordWrong") };
+  }
   const result = await startPortalFactor("clinic", actor.clinicManagerId);
   if (!result.ok) return { error: (await getI18n()).t(result.error) };
   revalidatePath("/clinic");

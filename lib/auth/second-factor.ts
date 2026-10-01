@@ -29,6 +29,7 @@ import {
   newRecoveryCodes,
   newTotpSecret,
   otpauthUri,
+  pendingEnrolmentCurrent,
   verifyTotp,
 } from "./totp";
 
@@ -42,8 +43,9 @@ import {
  *
  * DD-2 B2.3: the console's emailed code is gone. A back office member signs
  * in with an authenticator app or a recovery code, and one without an app is
- * enrolled on the second step page before anything else. There is no
- * break-glass: an owner resets another member's app from Team.
+ * enrolled on the second step page before anything else, once six digits
+ * emailed to their address prove the inbox (review fix: a password alone
+ * never reaches the QR code). An owner resets another member's app from Team.
  *
  * DD-2 B2.4: the same app, optional, for a clinician (a `users` row, so the
  * staff tables), a clinic manager or a partner user (`portal_second_factors`).
@@ -71,7 +73,7 @@ export type FactorOwner =
   | { kind: "clinic"; id: string }
   | { kind: "partner"; id: string };
 
-type FactorRow = { sealed: string; confirmedAt: Date | null; lastStep: number | null };
+type FactorRow = { sealed: string; confirmedAt: Date | null; lastStep: number | null; updatedAt: Date };
 
 const portalOwner = (owner: Exclude<FactorOwner, { kind: "user" }>) =>
   owner.kind === "clinic"
@@ -85,6 +87,7 @@ async function readFactor(owner: FactorOwner): Promise<(FactorRow & { portalId?:
         sealed: staffSecondFactors.secretSealed,
         confirmedAt: staffSecondFactors.confirmedAt,
         lastStep: staffSecondFactors.lastStep,
+        updatedAt: staffSecondFactors.updatedAt,
       })
       .from(staffSecondFactors)
       .where(eq(staffSecondFactors.userId, owner.id))
@@ -97,6 +100,7 @@ async function readFactor(owner: FactorOwner): Promise<(FactorRow & { portalId?:
       sealed: portalSecondFactors.secretSealed,
       confirmedAt: portalSecondFactors.confirmedAt,
       lastStep: portalSecondFactors.lastStep,
+      updatedAt: portalSecondFactors.updatedAt,
     })
     .from(portalSecondFactors)
     .where(portalOwner(owner))
@@ -287,7 +291,7 @@ export type PendingEnrolment = { key: string; uri: string };
 /** The pending enrolment's key and QR payload, for the one page that shows it. */
 export async function pendingFactor(owner: FactorOwner, account: string): Promise<PendingEnrolment | null> {
   const row = await readFactor(owner);
-  if (!row || row.confirmedAt) return null;
+  if (!row || row.confirmedAt || !pendingEnrolmentCurrent(row.updatedAt)) return null;
   const secret = Buffer.from(decryptSecret(row.sealed), "base64");
   return {
     key: base32Encode(secret).replace(/(.{4})/g, "$1 ").trim(),
@@ -304,6 +308,8 @@ export async function confirmFactorCode(
   const row = await readFactor(owner);
   if (!row) return { ok: false, error: "asec.startAgain", reason: "no pending enrolment" };
   if (row.confirmedAt) return { ok: false, error: "asec.already", reason: "already enrolled" };
+  /* A pending app nobody confirmed in time is not left for a later visitor to finish. */
+  if (!pendingEnrolmentCurrent(row.updatedAt)) return { ok: false, error: "asec.startAgain", reason: "pending expired" };
 
   const secret = Buffer.from(decryptSecret(row.sealed), "base64");
   const verdict = verifyTotp(secret, typed, Date.now(), null);
@@ -417,11 +423,24 @@ export async function passSecondStep(who: Who, sessionId: string, typed: string)
   return { ok: true };
 }
 
-export async function beginEnrolment(who: Who): Promise<StepResult> {
+/**
+ * Review fix: a back office member's first app only after the emailed code
+ * proved this session (`lib/auth/enrolment-proof.ts`). A clinician's optional
+ * app is gated by their password in the settings action instead.
+ */
+async function proofMissing(who: Who, sessionId: string): Promise<boolean> {
+  if (!(BACK_OFFICE_ROLES as readonly string[]).includes(who.role)) return false;
+  const { enrolmentProven } = await import("./enrolment-proof");
+  return !(await enrolmentProven(who.userId, sessionId));
+}
+
+export async function beginEnrolment(who: Who, sessionId: string): Promise<StepResult> {
+  if (await proofMissing(who, sessionId)) return { ok: false, error: "asec.proveFirst" };
   return startFactor({ kind: "user", id: who.userId });
 }
 
-export async function pendingEnrolment(who: Who): Promise<PendingEnrolment | null> {
+export async function pendingEnrolment(who: Who, sessionId: string): Promise<PendingEnrolment | null> {
+  if (await proofMissing(who, sessionId)) return null;
   return pendingFactor({ kind: "user", id: who.userId }, who.email);
 }
 
@@ -434,6 +453,10 @@ export async function confirmEnrolment(
   sessionId: string,
   typed: string,
 ): Promise<{ ok: true; recoveryCodes: string[] } | { ok: false; error: MessageKey }> {
+  if (await proofMissing(who, sessionId)) {
+    await failed(who, "enrolment", "not proved by email");
+    return { ok: false, error: "asec.proveFirst" };
+  }
   const result = await confirmFactorCode({ kind: "user", id: who.userId }, typed);
   if (!result.ok) {
     await failed(who, "enrolment", result.reason);

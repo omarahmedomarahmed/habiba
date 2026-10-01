@@ -7,6 +7,7 @@ import { Button, Field, Input } from "@/components/clinician/kit";
 import { signOut } from "@/lib/auth/actions";
 import {
   finishStepEnrolment,
+  sendStepEnrolmentCode,
   startStepEnrolment,
   verifySecondStep,
   type SecondStepState,
@@ -90,6 +91,7 @@ export function StepEnrolment({
   pending: { key: string; qr: string } | null;
 }) {
   const t = useT();
+  const [sent, send] = useActionState(sendStepEnrolmentCode, ENROL);
   const [started, start] = useActionState(startStepEnrolment, ENROL);
   const [finished, finish] = useActionState(finishStepEnrolment, ENROL);
 
@@ -138,10 +140,20 @@ export function StepEnrolment({
             <Submit>{t("asec.finish")}</Submit>
           </form>
         </div>
-      ) : (
-        <form action={start} className="space-y-2">
+      ) : sent.codeSent || started.codeSent ? (
+        <form action={start} className="space-y-3">
+          <p className="text-sm text-navy-500">{t("tauth.enrolCodeSent")}</p>
+          <Field label={t("tauth.enrolCodeLabel")} htmlFor="enrolEmailCode">
+            <Input id="enrolEmailCode" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required />
+          </Field>
           <Problem message={started.error} />
           <Submit>{t("asec.start")}</Submit>
+        </form>
+      ) : (
+        <form action={send} className="space-y-2">
+          <p className="text-sm text-navy-500">{t("tauth.enrolProveBody")}</p>
+          <Problem message={sent.error} />
+          <Submit>{t("tauth.enrolSendCode")}</Submit>
         </form>
       )}
 

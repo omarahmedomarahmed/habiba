@@ -18,7 +18,9 @@ export type EnrolState = { error?: string; recoveryCodes?: string[] };
 
 export async function startEnrolment(_prev: EnrolState, _formData: FormData): Promise<EnrolState> {
   const actor = await requireStaff();
-  const result = await beginEnrolment(actor);
+  const session = await getSessionState();
+  if (!session) return { error: (await getI18n()).t("asec.startAgain") };
+  const result = await beginEnrolment(actor, session.sessionId);
   if (!result.ok) return { error: (await getI18n()).t(result.error) };
   revalidatePath("/admin/security");
   return {};

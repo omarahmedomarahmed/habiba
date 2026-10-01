@@ -241,3 +241,39 @@ export function redeemRecoveryCode<T extends { codeHash: string; usedAt: Date | 
   if (index < 0) return { ok: false };
   return { ok: true, codes: codes.map((code, i) => (i === index ? { ...code, usedAt: now } : code)) };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Proving the person before an app is enrolled                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A back office member's FIRST app is enrolled only after six digits emailed
+ * to their own address, so a stolen password alone cannot plant an app. The
+ * code lives ten minutes; the proof it gives lasts thirty, for this session.
+ */
+export const ENROL_CODE_MINUTES = 10;
+export const ENROL_PROOF_MINUTES = 30;
+/** A pending app not confirmed within this long has to be started again. */
+export const PENDING_ENROLMENT_MINUTES = 15;
+
+export function newEnrolCode(): string {
+  return String(randomInt(1_000_000)).padStart(6, "0");
+}
+
+export function hashEnrolCode(code: string): string {
+  return createHash("sha256").update(`staff-enrol:${code.replace(/\D/g, "")}`).digest("hex");
+}
+
+/** Whether a proof spent at `usedAt` still opens enrolment. A future time fails closed. */
+export function enrolProofCurrent(usedAt: Date | null | undefined, now: Date = new Date()): boolean {
+  if (!usedAt) return false;
+  const age = now.getTime() - usedAt.getTime();
+  return age >= 0 && age <= ENROL_PROOF_MINUTES * 60_000;
+}
+
+/** Whether a pending (unconfirmed) app was started recently enough to be shown or confirmed. */
+export function pendingEnrolmentCurrent(startedAt: Date | null | undefined, now: Date = new Date()): boolean {
+  if (!startedAt) return false;
+  const age = now.getTime() - startedAt.getTime();
+  return age >= 0 && age <= PENDING_ENROLMENT_MINUTES * 60_000;
+}

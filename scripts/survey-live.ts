@@ -81,6 +81,7 @@ const API = [
   "/api/partner/v1/launch",
   "/api/partner/v1/sessions",
   "/api/radar",
+  "/api/radar/ping",
   "/api/radar/profile/00000000-0000-0000-0000-000000000000",
   "/api/revalidate",
   "/api/sessions/00000000-0000-0000-0000-000000000000/state",

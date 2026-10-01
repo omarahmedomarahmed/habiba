@@ -3,7 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { accountSubject, guessOutcome, minutesToWait } from "../lib/auth/attempts";
+import {
+  accountSubject,
+  CODE_ACCOUNT_ATTEMPTS,
+  guessOutcome,
+  minutesToWait,
+  RESET_GUESS_CEILING,
+  sendSubject,
+} from "../lib/auth/attempts";
 import { handleSubject } from "../lib/patient-auth/handle-subject";
 
 /* DD-2 B2.2: guesses are counted per account, and a code's guesses atomically. */
@@ -77,4 +84,32 @@ test("every password door has a per-account lockout that unknown addresses share
   }
   /* The clinician door no longer says "locked" only for addresses that exist. */
   assert.doesNotMatch(source("lib/auth/actions.ts"), /user\.lockedUntil && user\.lockedUntil > new Date\(\)/);
+});
+
+test("a stranger cannot keep a patient locked out of password, code and reset", () => {
+  /* Codes sent are counted per network and account: another network is another bucket. */
+  assert.notEqual(sendSubject("acct-1", "10.0.0.0/24"), sendSubject("acct-1", "10.0.1.0/24"));
+  assert.equal(sendSubject("Someone@Example.com ", "n"), sendSubject("someone@example.com", "n"));
+  assert.ok(RESET_GUESS_CEILING > CODE_ACCOUNT_ATTEMPTS, "the all-network ceiling sits above the per-network limit");
+
+  const code = source("lib/patient-auth/code-signin.ts");
+  const reset = source("lib/patient-auth/reset.ts");
+  for (const [text, scope] of [
+    [code, "patient:code-send"],
+    [reset, "patient:reset-send"],
+  ] as const) {
+    assert.match(text, new RegExp(`"${scope}",\\s*sendSubject\\([^)]*\\), await callerNetwork\\(\\)\\)`), scope);
+    /* Said out loud when hit, for known and unknown handles alike. */
+    assert.match(text, /if \(!perHandle\.allowed\) \{\s*return \{ error: await say\("perr\.tooManyCodesMinutes"/, scope);
+  }
+  /* A proved code or a new password clears the password counter a stranger ran up. */
+  const confirmCode = code.slice(code.indexOf("export async function signInWithCode"));
+  assert.match(confirmCode, /accountSignedIn\("patient:signin", account\.id\)/);
+  const completeReset = reset.slice(reset.indexOf("export async function completePatientReset"));
+  assert.match(completeReset, /accountSignedIn\("patient:signin", account\.id\)/);
+  /* Reset guesses: per network and account, under a per-account ceiling. */
+  assert.match(completeReset, /"patient:reset-confirm",\s*sendSubject\(subject, network\)/);
+  assert.match(completeReset, /accountAttempt\("patient:reset-confirm-all", subject, RESET_GUESS_CEILING/);
+  /* The code sign-in keeps its per-account guess limit: it protects six digits. */
+  assert.match(confirmCode, /accountAttempt\("patient:code-confirm", subject, CODE_ACCOUNT_ATTEMPTS/);
 });

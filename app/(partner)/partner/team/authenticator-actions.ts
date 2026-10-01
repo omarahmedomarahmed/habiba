@@ -10,8 +10,13 @@ import { requirePartner } from "@/lib/partner-auth/guard";
 
 /** DD-2 B2.4: a partner user's own authenticator app, optional. The cookie says whose. */
 
-export async function startPartnerAuthenticator(_prev: AuthenticatorState, _formData: FormData): Promise<AuthenticatorState> {
+export async function startPartnerAuthenticator(_prev: AuthenticatorState, formData: FormData): Promise<AuthenticatorState> {
   const actor = await requirePartner();
+  /* Review fix: the password again, so a borrowed session cannot plant an app. */
+  const { passwordConfirmed } = await import("@/lib/auth/enrolment-proof");
+  if (!(await passwordConfirmed({ kind: "partner", id: actor.partnerUserId }, String(formData.get("password") ?? "")))) {
+    return { error: (await getI18n()).t("asec.passwordWrong") };
+  }
   const result = await startPortalFactor("partner", actor.partnerUserId);
   if (!result.ok) return { error: (await getI18n()).t(result.error) };
   revalidatePath("/partner/team");

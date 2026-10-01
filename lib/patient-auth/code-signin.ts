@@ -17,8 +17,9 @@ import {
   CODES_SENT_PER_HANDLE,
   CODES_SENT_WINDOW_SECONDS,
   minutesToWait,
+  sendSubject,
 } from "@/lib/auth/attempts";
-import { accountAttempt, accountSignedIn, callerKey, consume } from "@/lib/rate-limit";
+import { accountAttempt, accountSignedIn, callerKey, callerNetwork, consume } from "@/lib/rate-limit";
 import { log, ref } from "@/lib/logger";
 import { patientLanding } from "@/lib/routing";
 
@@ -128,15 +129,22 @@ export async function requestSignInCode(
   const account = await findAccount(handle, country);
   const channelDown = !whatsappConfigured();
 
-  /* DD-2 B2.2: codes to one handle are capped across every network, silently, so the answer is the same. */
+  /*
+   * DD-2 B2.2, review fix: codes to one handle are capped per network and
+   * handle, so a stranger elsewhere cannot use up the owner's codes. An
+   * unknown handle counts the same way, so saying so reveals nothing.
+   */
   const perHandle = await accountAttempt(
     "patient:code-send",
-    account?.id ?? handleSubject(handle, country),
+    sendSubject(account?.id ?? handleSubject(handle, country), await callerNetwork()),
     CODES_SENT_PER_HANDLE,
     CODES_SENT_WINDOW_SECONDS,
   );
+  if (!perHandle.allowed) {
+    return { error: await say("perr.tooManyCodesMinutes", { minutes: minutesToWait(perHandle.retryAfter) }) };
+  }
 
-  if (account && perHandle.allowed) {
+  if (account) {
     const code = newCode();
     const channel = handle.includes("@") ? ("email" as const) : ("whatsapp" as const);
 
@@ -221,6 +229,8 @@ export async function signInWithCode(
   });
   if (guess.outcome !== "match") return wrong;
   await accountSignedIn("patient:code-confirm", subject);
+  /* Review fix: proving the handle also clears the password counter a stranger may have run up. */
+  await accountSignedIn("patient:signin", account.id);
   const row = { id: guess.id, channel: guess.channel };
 
   /*
