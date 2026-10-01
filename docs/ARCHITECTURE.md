@@ -33,7 +33,7 @@ which cookie owns which path; the real check is the guard on every page.
 | Principal | Table | Cookie | Guard | Notes |
 | --- | --- | --- | --- | --- |
 | Therapist | `users` (role `therapist`) | `24t_session` | `lib/auth/guard.ts` | 30 minute idle counted from the person's own requests, not polls (`lib/auth/activity.ts`), 8 hour ceiling, a started session finishes (`lib/auth/session.ts`). Optional authenticator app, asked for at sign-in once on. Must be verified to practise (`requireVerified`) |
-| Our staff | `users` (roles `staff`, `manager`, `super_admin`) | `24t_session` | `lib/auth/guard.ts` | Second step required: authenticator app or a recovery code; one without an app enrols on the step page (`lib/auth/totp.ts`, `lib/auth/second-factor.ts`) |
+| Our staff | `users` (roles `staff`, `manager`, `super_admin`) | `24t_session` | `lib/auth/guard.ts` | Second step required: authenticator app or a recovery code, never an emailed code. One without an app enrols on the step page after six digits emailed to their own address prove the inbox (`lib/auth/enrolment-proof.ts`, `lib/auth/totp.ts`, `lib/auth/second-factor.ts`) |
 | Patient | `patient_accounts` for a `people` row | `24t_patient` | `lib/patient-auth/` | Phone or email, password or one-time code |
 | Clinic manager and staff | `clinic_managers`, `clinic_roles` | `24t_clinic` | `lib/clinic-auth/` | Capabilities checked on the resource (`lib/clinic-auth/capabilities.ts`); up to two custom roles. Optional authenticator app (`portal_second_factors`) |
 | Company | `sponsor_users` | `24t_sponsor` | `lib/sponsor-auth/` | Roles `admin`, `viewer` |
@@ -44,6 +44,14 @@ A person who is both a clinician and a clinic manager holds two linked principal
 one active session at a time: switching revokes the side being left before minting the other,
 and is audited (`lib/clinic-auth/switch.ts`). Invitations and resets for operator-created
 accounts are single-use links in `account_links` (`lib/auth/account-links.ts`).
+
+| Sign-in rule | Where |
+| --- | --- |
+| Every `next` after a sign-in, a bounce or a second step passes one same-origin check (no `//`, no backslash, no control character) | `lib/auth/safe-redirect.ts` |
+| Every password door and the patient code doors count guesses per network and per account, atomically; an unknown address counts the same way, so no message says whether an account exists. A proved code or a reset clears the password count (ruling B2.2) | `lib/auth/attempts.ts`, `lib/rate-limit.ts` (`accountAttempt`), `lib/patient-auth/code-attempts.ts` |
+| The idle timeout counts a person's own requests. Polls send `x-24t-background: 1`; prefetches and `router.refresh()` do not count; a session in progress keeps its room alive with `keepSessionAlive` (ruling B2.5) | `lib/auth/activity.ts`, `lib/auth/session.ts` |
+| An optional authenticator app for clinicians, clinic managers and partner users, added after typing the password again; once on, a right password returns a challenge, not a session (ruling B2.4) | `lib/auth/portal-second-step.ts`, `portal_second_factors` (migration 0189) |
+| A lost app: a super_admin resets a staff member's from Team; a super_admin or manager resets a clinician's, clinic manager's or partner user's from Sign-in security; a sole super_admin uses the audited break glass `factor:reset` (`docs/OPERATIONS.md`) | `lib/auth/factor-reset.ts`, `scripts/reset-second-factor.ts` |
 
 ## Data model
 
@@ -65,8 +73,13 @@ accounts are single-use links in `account_links` (`lib/auth/account-links.ts`).
 | Operations | `platform_settings`, `country_settings`, `settings_history`, `audit_log`, `notifications`, `cron_heartbeats`, `error_events`, `ops_alerts`, `content_pages`, `ui_strings` | Us |
 
 Rules the database enforces rather than the app: a grant only to an approved clinician
-(trigger), one invoice per session, `users.verification_status` derived by trigger, and
-`audit_log` append-only.
+(trigger), one invoice per session, `users.verification_status` derived by trigger,
+`audit_log` append-only with no fixture door and TRUNCATE refused (migrations 0184, 0189), the
+ledger's posting keys, no UPDATE and balance at commit (0188, under Money), and every crisis
+alert keeping a session, a person or the journal it came from even after a delete (0194).
+
+The app and the migrations still share the database owner role, which could drop those
+triggers; a restricted app role is founder item F-ROLE in `docs/DECISIONS.md`.
 
 ## The AI layer
 
@@ -77,7 +90,7 @@ no mock fallback: without `OPENAI_API_KEY` the call fails.
 | Task | Model | File | What is sent |
 | --- | --- | --- | --- |
 | Transcription | `gpt-4o-mini-transcribe` | `lib/ai/transcribe.ts` | Audio chunks of a consented session. Arabic chunks are transcribed twice, pinned to each language, and the more confident kept (ruling N19) |
-| Draft note | `gpt-4o` | `lib/ai/note-writer.ts`, `lib/ai/notes.ts` | The session transcript |
+| Draft note | `gpt-4o` | `lib/ai/note-writer.ts`, `lib/ai/notes.ts` | The session transcript, and how the clinician says the patient is addressed (`patients.address_as`) |
 | Risk indicators | `gpt-4o` | `lib/ai/risk.ts`, `lib/data/session-risk.ts` | The transcript; returns indicators with quotes, never a level |
 | Speaker split | `gpt-4o-mini` | `lib/ai/diarise.ts` | Transcript segments |
 | In-session suggestions | `gpt-4o-mini` | `lib/ai/copilot.ts` | Recent transcript |
@@ -101,6 +114,14 @@ no mock fallback: without `OPENAI_API_KEY` the call fails.
   factors never lower a level. `elevated` and above alert.
 - **A failed risk check is visible**: `sessions.risk_check_failed_at`, shown to the clinician
   (ruling DD6).
+- **A failed note is a failure, not a blank draft.** A reply cut off (`finish_reason` of
+  `length`), filtered, unreadable or with no clinical text throws `UnusableNoteError`
+  (`lib/ai/note-writer.ts`); the note is marked failed and the clinician sees "try again" and
+  "write it myself".
+- **A translation follows the note.** `session_notes.content_en_source` holds the md5 of the
+  content the English copy was made from; every read goes through
+  `lib/notes/fresh-translation.ts`, so an edited note shows and exports no stale English until
+  it is translated again on signing (migrations 0191, 0195).
 - **Consent gates.** Recording needs the patient's per-session consent (`lib/consent.ts`); the
   AI fee is charged only then. It also needs a confirmation that the patient is 18 or over, on
   the session, the chart or the patient's own account (`lib/data/adult.ts`, ruling B1-6). A withdrawn cross-border consent stops every model call about
@@ -142,10 +163,31 @@ clinician's sessions brought in (proposed rulings DC1 to DC6 in `docs/DECISIONS.
 | Bank transfer (InstaPay) | Live. The patient declares, staff confirm, nothing is granted before confirmation | `lib/billing/manual.ts` |
 | Paymob cards and payouts | Adapter built, waiting for keys | `lib/billing/gateway/` |
 | Stripe | Switched off (ruling 17); code left in place | `lib/billing/stripe.ts` |
-| Clinician payouts | Manual in EGP by InstaPay or wallet, confirmed by staff. Withdrawable 7 days after the session; the transfer's confirmer, the approver and the sender are different people; a provider timeout blocks every send until the provider is asked again | `lib/billing/payouts.ts` |
+| Clinician payouts | Manual in EGP by InstaPay or wallet, confirmed by staff. See the payout rules below | `lib/billing/payouts.ts` |
 | ETA e-invoices | Foundation built, waiting for registration | `lib/billing/eta/` |
 
+| Payout rule (proposed rulings DC2 to DC6) | Where |
+| --- | --- |
+| Maker and checker: whoever confirmed a bank transfer behind a payout does not approve it, and whoever approves does not send (`rules.approvals.payoutSeparation`, on). The four-eyes rules (payee, last editor, second person above a threshold) still apply | `lib/billing/payouts.ts`, `lib/billing/four-eyes.ts` |
+| A transfer can be confirmed against the bank statement's amount, and the audit row says which check was made | `lib/billing/manual.ts` |
+| Earnings are withdrawable 7 days after the session ended (`rules.earnings.holdDays`) | `stillHeldFor`, `lib/billing/available.ts` |
+| A send with no provider answer is `unknown`: not sent again and not marked sent by hand. The hourly job asks the provider again (`recheckUnknownPayouts`); 72 hours of finding nothing is raised on `/admin/errors` (`payout_requests.provider_no_record_since`, 0195). A second staff member, never the sender, may record "Provider confirms it was not sent" (`confirmPayoutNotSent`) | `lib/billing/payout-unknown.ts`, `lib/billing/payouts.ts` |
+| EGP guard: a payout is refused when it would send more pounds than the clinician's sessions brought in, using the pounds stored on each leg | `lib/billing/egp-books.ts` |
+
 ## Crisis and safety
+
+Detection. The phrase list is the floor; the model can only raise it.
+
+| Piece | Where |
+| --- | --- |
+| The lexicon: English, Egyptian Arabic, Arabizi and transliterated phrase classes, folded (diacritics, letter variants) before matching | `CRISIS_PATTERNS` and `scanForCrisisLanguage` in `lib/crisis/alerts.ts`, `lib/crisis/fold.ts` |
+| Arabic matches whole words with clitics allowed in front (`arabicWords`), so "قدامي" is not "امي" and "وهنتحر" still matches | `lib/crisis/fold.ts` |
+| Context rules: a third party or a past or resolved frame quiets only a phrase that names nobody ("suicidal"); a first-person phrase alerts even in the past or said to be over (ruling CR16). A relative quiets only inside the phrase's own clause, and "no longer" or "used to" followed by an inability is not resolved | `lib/crisis/context.ts` (`stillCounts`, `suppressedIn`, `firstPersonIn`) |
+| Live sessions: a line labelled the therapist's is not scanned; from an unknown speaker, only a question whose crisis words point at "you" is skipped (ruling CR17) | `scanLiveChunk`, `isQuestionToOther` in `lib/crisis/live.ts` |
+| A phrase cut across the 8 second chunk boundary is caught by joining the tail (80 characters) of the previous chunk from the same speaker; a phrase found only in that tail is not raised again | `lib/crisis/live.ts`, `lib/data/transcript.ts` |
+| Regression suite: every sentence the due diligence found silenced, the near misses beside them and the eval risk cases, no network | `tests/crisis-lexicon.test.ts` (`test:crisis-lexicon`, in CI) |
+
+Escalation.
 
 | Control | Where |
 | --- | --- |
@@ -153,9 +195,10 @@ clinician's sessions brought in (proposed rulings DC1 to DC6 in `docs/DECISIONS.
 | Out of band at once: email, and WhatsApp where a channel and an approved template exist | same, through `notify()` (ruling CR1) |
 | Escalation if unacknowledged after `crisis.escalateAfterMinutes` (default 15): clinic colleagues and managers, then the platform's managers and super admins | `lib/crisis/escalation.ts` (rulings CR2, CR3) |
 | Out-of-band sends all failed: escalate at once, recorded on `/admin/errors` | `escalateNowIfExhausted`, `afterFailedSend` (ruling CR11) |
-| A journal hit raises the same alert, per grant holder, or straight to the platform with none | `lib/data/journals.ts` (ruling CR10, migration 0192) |
+| A journal hit goes through `raiseCrisisAlert` like a session's: one alert per clinician holding a live grant, or straight to the platform on-call when nobody holds one or none was written. The alert row outlives the journal entry and the person (0194) | `lib/data/journals.ts` (ruling CR10, migrations 0192, 0194) |
 | A higher level inside 10 minutes upgrades the alert and notifies again | `dedupDecision` (ruling CR5) |
-| Acknowledge on a signed-in page, never by opening a link; only the clinician, a clinician in the practice or the platform on-call | `mayAcknowledge` (rulings CR1, CR12) |
+| Acknowledge on a signed-in page, never by opening a link; only the treating clinician, a clinician (role `therapist`) in the same practice or the platform on-call (`manager`, `super_admin`). `staff` may not | `mayAcknowledge` in `lib/crisis/escalation.ts` (rulings CR1, CR12) |
+| Break glass for a journal alert no clinician can act on: the on-call gives a reason, one `phi_access` audit row is written, and for 15 minutes the page shows the person's name, phone, email and the journal words, with the `/sos` numbers | `mayBreakGlass`, `crisisContactForOnCall` in `lib/crisis/alerts.ts`, `app/(app)/notifications/alerts/[id]/` (ruling CR15, proposed) |
 | A patient who paused AI: no transcription, and the room and the session say live risk detection is off | `sessions.live_risk_off_at` (ruling CR13) |
 | SOS numbers per country; `/sos` works without JavaScript | `lib/crisis/sos.ts`, `lib/crisis/line.ts`, `app/sos/page.tsx` |
 | The crisis path never depends on money | Rule C235; the `crisis` demo position walks it (promise P5, `docs/DEMO.md`) |
@@ -166,11 +209,16 @@ clinician's sessions brought in (proposed rulings DC1 to DC6 in `docs/DECISIONS.
 | Control | Where |
 | --- | --- |
 | A clinician reads a person's history only under a live grant from that person | `history_grants`, `lib/data/grants.ts`, `lib/access/state.ts` |
-| A company sees counts and money, never names, sessions or days; balances publish in steps of `activityFloor` (5) and months are built only from published weeks (ruling N37) | `lib/data/sponsors.ts`, `lib/sponsor/ledger.ts`, `lib/billing/pot.ts` |
+| The shared record (AI standing profile, timeline, diagnoses) follows the grant like files and journals: open under a live grant, or for an unclaimed person only while this clinician holds the only chart. A person with a patient account counts as claimed. Revoked, refused, expired or no grant: closed. Homework set by others follows the same rule; otherwise a clinician sees only the steps they set (ruling B1-1) | `maySeeSharedRecord`, `homeworkScopeFor` in `lib/access/state.ts`; `lib/data/memory.ts`, `lib/data/diagnoses.ts`, `lib/data/homework.ts` |
+| A partner reads a note, transcript, summary, media, memory or copilot only for a session in one of its own practices and only while the person's link stands (`partner_subjects.revoked_at` empty) (ruling B1-2) | `lib/partner/api.ts`, `lib/partner/platform.ts`, `lib/data/partner-links.ts` |
+| A company sees counts and money, never names, sessions or days. Every figure (chart, totals, balance, ledger, CSV) comes from one helper: complete weeks only, a week shows only inside a period of at least `activityFloor` different people (never below 5), and the chart is one contiguous run of weeks so a held-back week looks like an empty one (rulings N37, B1-3) | `companyView` in `lib/sponsor/ledger.ts`, `publishedLedger` in `lib/data/sponsor-ledger.ts` |
+| A record link lives 24 hours and opens once: the first open gives 15 minutes to read and download (ruling B1-4) | `lib/data/export.ts`, `app/records/[token]/` |
+| A public page row carrying a claim that is false today is never served: the code default is served instead (or the offending blocks hidden), the errors board is told, and the console refuses to save one | `lib/content/claims.ts`, `lib/content/service.ts` |
 | A clinic sees first name and last initial, nothing clinical | `lib/clinic-auth/capabilities.ts` |
 | Personal files go to a private Blob store and are read through authorised routes; with no private store they are refused | `lib/uploads.ts` (`PRIVATE_KINDS`) |
 | Staff read clinical rows only after giving a reason, for 15 minutes | `lib/audit.ts` (`investigationGrantHolds`) |
-| Every read of clinical data is audited; audit rows kept six years | `lib/audit.ts`, `audit_log`, `retention` job |
+| Every read of clinical data is audited; audit rows kept six years. No session setting opens the log for rewriting and TRUNCATE is refused (0189); the dev reset never truncates it | `lib/audit.ts`, `audit_log`, `retention` job |
+| Webhook delivery connects to the address the SSRF check approved; no second DNS lookup | `pinnedLookup`, `pinnedDispatcher` in `lib/net/public-url.ts` |
 | Server errors keep the route and stack, never the body, query, headers or cookies | `instrumentation.ts`, `lib/observability/errors.ts` |
 
 ## Background jobs
@@ -207,4 +255,12 @@ host so previews cannot overwrite production's marker (rulings N34, CR4).
 | Operations alerts | `ops_alerts`, the admin board |
 | AI usage and cost | `ai_request_logs`, `/admin/usage` |
 | Logs | `lib/logger.ts`: ids are hashed with `ref()`, error messages pass through `safeErrorMessage` |
+| Outside check | `.github/workflows/uptime.yml` fetches `/` and `/api/health` (no database) every 15 minutes (`docs/OPERATIONS.md`) |
 | Sentry | Not installed |
+
+## CI database seam
+
+The app's driver speaks WebSocket to Neon. When `DATABASE_WS_PROXY` is set, `lib/db/local-proxy.ts`
+points the driver at a local plain `ws://` proxy (Neon's `wsproxy`) in front of a stock Postgres,
+and refuses any database host that is not on this machine. Unset, nothing changes, so production
+is untouched. CI's "Database checks" job uses it (`docs/TESTING.md`).

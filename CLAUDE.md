@@ -5,8 +5,9 @@ founder's direction, and every change now reaches production through a pull requ
 
 1. Work on a branch, never directly on `main`. Open a pull request into `main` that says what changed,
    why, how it was tested, and anything that needs the founder.
-2. GitHub Actions runs `npm run ci` on every pull request: typecheck, every unit suite that needs no
-   database, the prose ratchet and every static verifier. A red CI blocks the merge.
+2. GitHub Actions runs `npm run ci` on every pull request (typecheck, every unit suite that needs no
+   database, the prose ratchet and every static verifier) and `npm run ci:db` (the database suites
+   on a throwaway Postgres). A red CI blocks the merge.
 3. Before merging, the change is reviewed (an AI code review of the diff, recorded on the pull
    request as an AI review, never presented as a human one). Findings are fixed or answered first.
 4. Before a merge that will deploy, run the full local gates (`npm run gates`, with the secrets file),
