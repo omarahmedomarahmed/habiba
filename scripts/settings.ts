@@ -545,6 +545,18 @@ const ALLOWED: Allowance[] = [
       "same number. It is saved through /admin/settings once the new code is live (ruling N5), " +
       "and then this allowance matches nothing and is printed as not in effect.",
   })),
+  ...([["rules.approvals.payoutSeparation", "true"], ["rules.earnings.holdDays", "7"]] as const).map(
+    ([leaf, value]): Allowance => ({
+      leaf,
+      on: "production",
+      is: "(absent)",
+      elsewhere: value,
+      because:
+        "DD-2 money rules (maker-checker to payout, a 7-day hold on earnings) are new on this branch. " +
+        "Production's stored rules row predates them, so the code default applies there, which is the " +
+        "same value; settings:seed or /admin/settings stores it after the deploy.",
+    }),
+  ),
 ];
 
 async function compare(): Promise<number> {
