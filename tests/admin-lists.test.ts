@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { auditFixtures } from "../scripts/_audit-fixtures";
 
 import { stripCommentsKeepingLines } from "../scripts/_dashes";
 
@@ -53,7 +54,7 @@ test("the audit search finds a row by the words in its reason", async () => {
     assert.equal(found[0]!.reason, `planted ${marker} by a test`);
     assert.equal((await listAuditLog({ q: marker, limit: 5, offset: 1 })).length, 0);
   } finally {
-    await db.delete(auditLog).where(eq(auditLog.id, row!.id));
+    await db.delete(auditLog).where(and(auditFixtures(), eq(auditLog.id, row!.id)));
   }
 });
 

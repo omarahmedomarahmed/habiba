@@ -11,7 +11,7 @@ import { egp } from "@/lib/marketing/prices";
 export const metadata: Metadata = {
   title: "For companies",
   description:
-    "Fund therapy for your people and never learn who went. The wall is the product, and this page renders it.",
+    "Fund therapy for your people. You see who joined the benefit, never who attended a session, when, or with whom.",
 };
 
 /**

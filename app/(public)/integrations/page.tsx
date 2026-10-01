@@ -170,7 +170,7 @@ export default async function IntegrationsPage() {
           <Section
             id="ehr"
             title={title("ehr")}
-            note="A clinic opens us from a patient's chart and the note a clinician approves files back as a document on that chart. Your system stays the record and ours does not become one."
+            note="A practice can connect its record system once. Opening us from a patient's chart and filing the approved note back as a document on that chart are not built yet. Your system stays the record and ours does not become one."
           >
             <VendorGrid vendors={EHR_VENDORS} labels={vendorLabels} />
             <p className="mt-4 text-sm leading-relaxed text-slate-600">
@@ -187,7 +187,7 @@ export default async function IntegrationsPage() {
                 ["Ask us for a partner account", "We open it with you on a call. There is no self-serve key, because a key that can open sessions about real people is not a thing to hand out through a form."],
                 ["Mint a key in your console", "Shown once. Revoking it stops every call the same second, and the console says when each key was last used."],
                 ["Ask somebody for consent", "The first call is always the consent call. Everything else returns a refusal until it comes back yes."],
-                ["Open a session and send audio", "Your own reference for the patient identifies them. We never learn who that is."],
+                ["Open a session and send audio", "Your own reference for the patient identifies them. You do not tell us who that is; the patient can link their record to it themselves."],
                 ["Read the draft, approve it as a clinician", "A note is a draft until a named clinician approves it, and the name goes on the record."],
               ].map(([title, body], i) => (
                 <li key={title} className="flex gap-3.5">
@@ -310,8 +310,8 @@ Content-Type: application/json`}</Code>
           <Section id="cases" title={title("cases")}>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                ["A clinic keeps its own record system", "Open us from the chart, record and write the note here, file the approved note back as a document. Your system stays the record."],
-                ["An employer funds therapy", "Your HR system answers one question about one person, on a webhook you can revoke. We never learn who booked anything."],
+                ["A clinic keeps its own record system", "Connect it once today. Opening us from the chart and filing the approved note back are not built yet. Your system stays the record."],
+                ["An employer funds therapy", "Your HR system answers one question about one person, on a webhook you can revoke. The employer never learns who booked anything."],
                 ["A platform runs its own sessions", "Hold the session on your side, send us the audio, get the transcript and the draft note. The clinician who approves it is named."],
                 ["A telehealth product wants the copilot", "Ask about a patient you already hold consent for, and every answer comes back with the sessions it was built from."],
               ].map(([title, body]) => (

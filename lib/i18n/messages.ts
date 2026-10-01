@@ -360,7 +360,7 @@ export const en = {
   "crisis.findSomeone": "Find someone online now",
   "crisis.whatHappens": "What happens in a session",
   "crisis.noAccountLine":
-    "No account needed. A first name and a payment, and you are in a session.",
+    "No account needed. A first name, then payment: in Egypt a bank transfer for now, and the session opens once our staff confirm it.",
 
   /* --------------------------------------------------------- contact -- */
   /*
@@ -399,7 +399,7 @@ export const en = {
     "Optional. Up to 25 MB. Only the person answering you sees it.",
   "contact.send": "Send",
   "contact.sending": "Sending…",
-  "contact.kept": "Stored, access controlled, read only by the person answering you, and never used to train anything.",
+  "contact.kept": "Stored, access controlled, read only by the person answering you, and not used to train any model.",
   "contact.received": "We have it.",
   "contact.reference": "Your reference is {reference}. A named person answers within {hours} hours. If it is urgent, use the radar.",
   "contact.attachmentFailed":
@@ -625,7 +625,7 @@ export const en = {
   "ft.costLabel": "[ 07 ] What it costs",
   "ft.costHeading": "Pay for the sessions you hold, or a flat month.",
   "ft.costBody":
-    "No setup fee and no minimum. Your first session is free, and a patient never pays us anything for the software.",
+    "No setup fee and no minimum. Your first session is free. 24Therapy charges your patient nothing; paying by card adds the gateway's card fee, shown before they pay.",
 
   "ft.closeHeading": "Your next session could write itself up.",
   "ft.closeBody": "Sign up and verify your licence. The first session is free.",
@@ -723,7 +723,7 @@ export const en = {
   "page.title.hipaa": "Compliance",
   "page.title.security": "Security",
   "page.desc.privacy": "How 24Therapy handles personal and health information.",
-  "page.desc.terms": "The agreement between 24Therapy and the clinicians who use it.",
+  "page.desc.terms": "The agreement between 24Therapy and the clinicians, patients and companies who use it.",
   "page.desc.hipaa": "Where we are on HIPAA, and what is left.",
   "page.desc.security": "How 24Therapy is built and operated.",
   "page.englishBinding":
@@ -1882,7 +1882,7 @@ export const en = {
   "sint.body": "One question, answered from your own system: does this person work here.",
   "sint.enableTitle": "Employment verification",
   "sint.neverTitle": "What this does not do",
-  "sint.neverBody": "We never read, sync or store your staff list.",
+  "sint.neverBody": "This connection does not read or sync your staff list. It asks about one person at a time.",
   "sint.pickSystem": "Which HR system",
   "sint.turnOn": "Turn it on",
   "sint.turnOff": "Turn it off",
@@ -2597,7 +2597,7 @@ export const en = {
   "pcode.createAnyway": "Create an account anyway",
   "nav.integrations": "What this connects to",
   "marketing.companies.eyebrow": "For companies",
-  "marketing.companies.title": "Cover therapy for your people, and never learn who went",
+  "marketing.companies.title": "Cover therapy for your people, and never see who attends",
   "marketing.companies.lede": "You fund a pot. They choose their own therapist. We tell you what it cost, and nothing else.",
   "marketing.companies.cta": "Talk to us",
   "marketing.companies.f1.label": "The pot",
@@ -2651,7 +2651,7 @@ export const en = {
   "marketing.clinics.also3": "Your desk shows no patient's full name, email or phone",
   "marketing.clinics.also4": "Clinicians reach the radar once their licence is verified",
   "marketing.clinics.also5": "The patient decides who reads their history, not the practice",
-  "marketing.clinics.also6": "No practice manager, and nobody at 24Therapy, can open a chart",
+  "marketing.clinics.also6": "No practice manager can open a chart; our staff only by an audited emergency access with a stated reason",
   "marketing.clinics.costBody": "Per seat, per month, with no AI charge on any session.",
   "marketing.clinics.closeHeading": "Your whole practice on one screen.",
   "marketing.clinics.closeBody": "Tell us who works with you, and we set up the seats.",
@@ -2883,7 +2883,7 @@ export const en = {
   "devs.title": "Build on the clinical record layer",
   "devs.body": "What you can do with our API, each one a flow with a screen at one end. If what you want is not here, it is not because we have not got round to it.",
   "devs.useCase3": "Read a record under a grant",
-  "devs.useCase3Body": "Your clinician reads a patient's record exactly as ours does, because the patient granted it to them by name and can revoke it. There is no key that reads a record: the key tells you who may, and your clinician signs in to do it. The patient can claim their record and leave at any time, including leaving you.",
+  "devs.useCase3Body": "Your clinician reads a patient's record exactly as ours does, because the patient granted it to them by name and can revoke it. A key with record:read asks who may read it, and opens our screens signed in as one of your own clinicians, who then sees what that clinician may see. The patient can claim their record and leave at any time, including leaving you.",
   "devs.useCase4": "Session writeback",
   "devs.useCase4Body": "A session held on your platform lands in our record, attributed to your platform. We record that it happened, when, and with whom. We do not accept a note or a transcript from a server, because content in a chart needs a clinician who approved that exact text.",
   "devs.useCase5": "Note delivery",
@@ -2907,11 +2907,11 @@ export const en = {
   "devs.promise2": "Identity that does not collide",
   "devs.promise2Body": "Two platforms will both send us a patient called P123. Your reference is stored against your account and resolved only within it, so yours and theirs are different rows and neither can be used to reach the other.",
   "devs.promise3": "Consent that survives the boundary",
-  "devs.promise3Body": "No key reads a record. A key asks who may read one, and the answer is the clinicians the patient granted by name. Your clinician then signs in as themselves to read it, and a revoked grant closes that door in the same instant it closes ours.",
+  "devs.promise3Body": "A key reads back only what sessions on your own platform produced: the transcript, the note, the summary and the facts drawn from them, each under its own scope. The record a patient keeps with us otherwise is read by your clinician, signed in as themselves, only where the patient granted it, and a revoked grant closes that door in the same instant it closes ours.",
   "devs.promise4": "An audit trail on both sides",
   "devs.promise4Body": "Every key is recorded when it is made, rotated or revoked, with who did it. A read of a record appears in the patient's own access log, exactly as ours does, naming your platform.",
   "devs.limits": "What there is no endpoint for",
-  "devs.limitsBody": "Not held back, not on a roadmap: there is no route and no argument that would take one. No list of who is enrolled anywhere. No list of anybody's patients. No record read by a key. No note that a clinician has not approved. No transcript accepted from a server. No payload on a webhook.",
+  "devs.limitsBody": "Not held back, not on a roadmap: there is no route and no argument that would take one. No list of who is enrolled anywhere. No list of anybody's patients. No key that reads what other platforms or our own therapists wrote. No note that a clinician has not approved. No transcript accepted from a server. No payload on a webhook.",
   "devs.rateNote": "Each key may make 60 calls a minute. Past that we answer 429 with Retry-After, and the key works again once you slow down.",
   /* 🔴 C17: what a delivery carries, and which id goes where. */
   "devs.hooks": "Webhooks",
@@ -3009,15 +3009,19 @@ export const en = {
    * `SeesWhat` above the switch, and "nobody reads your reply" is the CANNOT column
    * beside it at the same size rather than a clause in the middle of a sentence.
    */
-  "checkin.whoReply": "Your reply to a check-in",
-  "checkin.canDanger": "Show you where to get help, if it sounds like danger",
+  "checkin.whoReply": "Replies to check-ins are not read",
+  "checkin.canDanger": "For help at any time, press SOS in your app",
   "checkin.on": "Send them",
   "checkin.off": "Do not send them",
   "checkin.mutedOn": "Turned off {date}",
-  /* 🔴 What happens to a worrying reply, said before they reply rather than after. */
-  "checkin.canTellTherapist": "Tell your therapist, in that one case",
-  "checkin.cannotRead": "Be read by anybody otherwise",
-  "checkin.cannotMachine": "Be given to a machine to interpret",
+  /*
+   * 🔴 What happens to a reply, said before they reply rather than after. Nothing
+   * receives one on any channel (`lib/checkins/receive.ts` has no caller), so the
+   * screen says so and points at SOS, the help that does exist.
+   */
+  "checkin.canTellTherapist": "To stop these messages, use the switch below",
+  "checkin.cannotRead": "A reply is not received or read by anybody",
+  "checkin.cannotMachine": "A reply does not reach your therapist or raise any alert",
   /*
    * 🔴 67.1 / 67.4 / 67.6 / 67.7 — THE CLINIC'S RECORDS CONNECTION.
    *
@@ -4220,7 +4224,7 @@ export const en = {
   "dpo.sessionsWeekOf": "Sessions, week of {date}",
   "dpo.scanIt": "Staff scan it or type it once. Anyone on {domain} is recognised automatically.",
   "dpo.joinedOf": "{joined} have joined",
-  "dpo.joiningTells": "Joining tells us somebody is covered. It does not tell us, or you, whether they ever book anything.",
+  "dpo.joiningTells": "Joining tells us somebody is covered. Nothing here tells you whether they ever book anything.",
   "dpo.whoEligible": "Who is eligible",
   "dpo.anyoneOn": "Anyone on {domain}",
   "dpo.whenPotEmpty": "When the pot runs out",
@@ -4228,7 +4232,7 @@ export const en = {
   "dpo.requireAttend": "Require staff to attend",
   "dpo.notBuilt": "Not built",
   "dpo.lastTransfer": "Last added {amount} by bank transfer on {date}.",
-  "dpo.refundPolicy": "Unused balance is refunded within 30 days of written notice.",
+  "dpo.refundPolicy": "Unused balance is refunded on request, by our staff, under the terms agreed for this pot.",
   "dpo.noDomains": "No domain here. Your people join from your staff list, which has {count} people on it.",
   "dpo.joinBy": "How people join",
   "dpo.staffList": "Your staff list, {count} people",
@@ -4729,7 +4733,7 @@ export const en = {
    */
   "pricing.plansNoMeter": "On a plan there is no per-session fee, so nothing rides on the recording question.",
   "pricing.creditIsMoney": "Credit is money against your session and AI fees, spent before your card is.",
-  "pricing.patientPaysNothing": "Your patient never pays us anything.",
+  "pricing.patientPaysNothing": "24Therapy charges your patient nothing. Paying by card adds the gateway's card fee, shown before they pay.",
 
   /*
    * 🔴 62.10 / C323 — SEATS, AND THE ONE SENTENCE A CLINIC MUST READ FIRST.
@@ -5944,7 +5948,7 @@ export const ar: Record<MessageKey, string> = {
   "crisis.findSomeone": "ابحث عن شخص متاح الآن",
   "crisis.whatHappens": "ماذا يحدث في الجلسة",
   "crisis.noAccountLine":
-    "لا تحتاج إلى حساب. اسمك الأول ثم الدفع، وتبدأ جلستك.",
+    "لا تحتاج إلى حساب. اسمك الأول ثم الدفع: في مصر تحويل بنكي حاليًا، وتبدأ الجلسة حين يؤكده فريقنا.",
 
   "contact.urgentLead": "لا ترسل شيئًا عاجلًا من هنا.",
   "contact.urgentBody": "يصل هذا إلى شخص خلال ساعات العمل، لا خلال عشر دقائق. وإن احتجت أحدًا الآن فافتح الرادار.",
@@ -5976,7 +5980,7 @@ export const ar: Record<MessageKey, string> = {
     "اختياري. حتى 25 ميغابايت. لا يراه إلا الشخص الذي يردّ عليك.",
   "contact.send": "إرسال",
   "contact.sending": "جارٍ الإرسال…",
-  "contact.kept": "يُحفَظ ويُقيَّد الوصول إليه، ولا يقرؤه إلا من يرد عليك، ولا يُستخدم في تدريب أي شيء.",
+  "contact.kept": "يُحفَظ ويُقيَّد الوصول إليه، ولا يقرؤه إلا من يرد عليك، ولا يُستخدم في تدريب أي نموذج.",
   "contact.received": "وصلتنا رسالتك.",
   "contact.reference": "مرجعك هو {reference}. ويرد عليك شخص باسمه خلال {hours} ساعة. وإن كان الأمر عاجلًا فاستخدم الرادار.",
   "contact.attachmentFailed": "رسالتك محفوظة، لكن المرفق لم يصل: {reason}",
@@ -6130,7 +6134,7 @@ export const ar: Record<MessageKey, string> = {
   "ft.costLabel": "[ ٠٧ ] التكلفة",
   "ft.costHeading": "ادفع مقابل الجلسات التي تعقدها، أو اشترك شهريًا.",
   "ft.costBody":
-    "لا رسوم إعداد ولا حد أدنى. جلستك الأولى مجانية، والمريض لا يدفع لنا شيئًا مقابل البرنامج.",
+    "لا رسوم إعداد ولا حد أدنى. جلستك الأولى مجانية. ولا يأخذ 24Therapy من مريضك شيئًا؛ والدفع بالبطاقة تُضاف إليه رسوم بوابة الدفع، وتظهر له قبل أن يدفع.",
 
   "ft.closeHeading": "جلستك القادمة يمكن أن تكتب نفسها.",
   "ft.closeBody": "سجّل ووثّق ترخيصك. الجلسة الأولى مجانية.",
@@ -6194,7 +6198,7 @@ export const ar: Record<MessageKey, string> = {
   "page.title.hipaa": "الامتثال",
   "page.title.security": "الأمان",
   "page.desc.privacy": "كيف تتعامل 24Therapy مع المعلومات الشخصية والصحية.",
-  "page.desc.terms": "الاتفاق بين 24Therapy والمعالجين الذين يستخدمونها.",
+  "page.desc.terms": "الاتفاق بين 24Therapy ومن يستخدمونها: المعالجين والمرضى والشركات.",
   "page.desc.hipaa": "أين نقف من قانون HIPAA، وما الذي بقي.",
   "page.desc.security": "كيف بُنيت 24Therapy وكيف تُدار.",
   "page.englishBinding":
@@ -7149,7 +7153,7 @@ export const ar: Record<MessageKey, string> = {
   "sint.body": "سؤال واحد، يجيب عنه نظامك: هل يعمل هذا الشخص لديك.",
   "sint.enableTitle": "التحقق من التوظيف",
   "sint.neverTitle": "ما لا يفعله هذا",
-  "sint.neverBody": "لا نقرأ قائمة موظفيك ولا نزامنها ولا نخزنها أبدًا.",
+  "sint.neverBody": "هذا الربط لا يقرأ قائمة موظفيك ولا يزامنها. يسأل عن شخص واحد في كل مرة.",
   "sint.pickSystem": "أي نظام موارد بشرية",
   "sint.turnOn": "شغّله",
   "sint.turnOff": "أوقفه",
@@ -7737,7 +7741,7 @@ export const ar: Record<MessageKey, string> = {
   "pcode.createAnyway": "أنشئ حسابًا على أي حال",
   "nav.integrations": "بماذا يتصل هذا",
   "marketing.companies.eyebrow": "للشركات",
-  "marketing.companies.title": "غطِّ العلاج النفسي لموظفيك، ولا تعرف أبدًا من ذهب",
+  "marketing.companies.title": "غطِّ العلاج النفسي لموظفيك، ولا ترى أبدًا من يحضر",
   "marketing.companies.lede": "أنت تموّل محفظة. وهم يختارون معالجهم. ونخبرك بالتكلفة، ولا شيء غيرها.",
   "marketing.companies.cta": "تحدّث إلينا",
   "marketing.companies.f1.label": "المحفظة",
@@ -7791,7 +7795,7 @@ export const ar: Record<MessageKey, string> = {
   "marketing.clinics.also3": "مكتب العيادة لا يعرض الاسم الكامل لأي مريض، ولا بريده، ولا هاتفه",
   "marketing.clinics.also4": "يصل المعالجون إلى الرادار بعد التحقق من ترخيصهم",
   "marketing.clinics.also5": "المريض هو من يقرر من يقرأ تاريخه، لا العيادة",
-  "marketing.clinics.also6": "لا مدير عيادة، ولا أحد في 24Therapy، يستطيع فتح ملف",
+  "marketing.clinics.also6": "لا يستطيع مدير العيادة فتح ملف؛ وفريقنا لا يفتحه إلا بوصول طارئ مسجَّل يُذكر سببه",
   "marketing.clinics.costBody": "لكل مقعد، شهريًا، دون رسوم ذكاء اصطناعي على أي جلسة.",
   "marketing.clinics.closeHeading": "عيادتك كلها على شاشة واحدة.",
   "marketing.clinics.closeBody": "أخبرنا من يعمل معك، ونجهّز المقاعد.",
@@ -7988,7 +7992,7 @@ export const ar: Record<MessageKey, string> = {
   "devs.title": "ابنِ على طبقة السجل السريري",
   "devs.body": "ما تستطيع فعله بواجهتنا، كل واحد منها مسار له شاشة في طرفه. وإن لم يكن ما تريده هنا فليس لأننا لم نتفرغ له.",
   "devs.useCase3": "قراءة سجل بتفويض",
-  "devs.useCase3Body": "معالجك يقرأ سجل المريض تمامًا كما يقرأه معالجنا، لأن المريض فوّضه بالاسم ويستطيع سحب التفويض. لا يوجد مفتاح يقرأ سجلًا: المفتاح يخبرك من يستطيع، ومعالجك يسجّل الدخول ليفعل ذلك. والمريض يستطيع أخذ سجله والمغادرة في أي وقت، بما في ذلك مغادرتك.",
+  "devs.useCase3Body": "معالجك يقرأ سجل المريض تمامًا كما يقرأه معالجنا، لأن المريض فوّضه بالاسم ويستطيع سحب التفويض. المفتاح الذي يحمل record:read يسأل من يحق له القراءة، ويفتح شاشاتنا مسجَّلًا باسم أحد معالجيك أنت، فيرى ما يحق لذلك المعالج أن يراه. والمريض يستطيع أخذ سجله والمغادرة في أي وقت، بما في ذلك مغادرتك.",
   "devs.useCase4": "كتابة الجلسة",
   "devs.useCase4Body": "جلسة أُجريت على منصتك تُسجّل في ملفنا، منسوبة إلى منصتك. نسجّل أنها حدثت ومتى ومع من. ولا نقبل ملاحظة ولا نصًا من خادم، لأن المحتوى في الملف يحتاج معالجًا اعتمد ذلك النص بعينه.",
   "devs.useCase5": "تسليم الملاحظة",
@@ -8006,11 +8010,11 @@ export const ar: Record<MessageKey, string> = {
   "devs.promise2": "هوية لا تتصادم",
   "devs.promise2Body": "منصتان ستُرسلان إلينا مريضًا اسمه P123. مرجعك يُحفظ على حسابك ويُحلّ داخله فقط، فمرجعك ومرجعهم صفّان مختلفان ولا يمكن لأحدهما الوصول إلى الآخر.",
   "devs.promise3": "موافقة تبقى قائمة عبر الحدود",
-  "devs.promise3Body": "لا مفتاح يقرأ سجلًا. المفتاح يسأل من يحق له القراءة، والجواب هو المعالجون الذين منحهم المريض بالاسم. ثم يسجّل معالجك دخوله بنفسه ليقرأ، وإلغاء المنح يغلق هذا الباب في اللحظة نفسها التي يغلق فيها بابنا.",
+  "devs.promise3Body": "المفتاح لا يقرأ إلا ما أنتجته جلسات منصتك أنت: نص الجلسة والملاحظة والملخص والحقائق المستخرجة منها، ولكلٍّ نطاقه. أما بقية سجل المريض لدينا فيقرؤه معالجك بعد أن يسجّل دخوله بنفسه، وفقط حيث منحه المريض ذلك، وإلغاء المنح يغلق هذا الباب في اللحظة نفسها التي يغلق فيها بابنا.",
   "devs.promise4": "سجل تدقيق على الجانبين",
   "devs.promise4Body": "كل مفتاح يُسجَّل حين يُنشأ أو يُبدَّل أو يُلغى، ومعه من فعل ذلك. وقراءة السجل تظهر في سجل وصول المريض نفسه، كما تظهر قراءتنا، وتسمي منصتك.",
   "devs.limits": "ما لا توجد له نقطة وصول",
-  "devs.limitsBody": "ليس مؤجلًا ولا على خطة: لا يوجد مسار ولا وسيط يقبله. لا قائمة بمن هو منضم في أي جهة. لا قائمة بمرضى أحد. لا سجل يقرأه مفتاح. لا ملاحظة لم يعتمدها معالج. لا نص جلسة نقبله من خادم. لا محتوى في استدعاء.",
+  "devs.limitsBody": "ليس مؤجلًا ولا على خطة: لا يوجد مسار ولا وسيط يقبله. لا قائمة بمن هو منضم في أي جهة. لا قائمة بمرضى أحد. لا مفتاح يقرأ ما كتبته منصات أخرى أو معالجونا. لا ملاحظة لم يعتمدها معالج. لا نص جلسة نقبله من خادم. لا محتوى في استدعاء.",
   "devs.rateNote": "لكل مفتاح 60 طلبًا في الدقيقة. وبعدها نرد بـ 429 مع Retry-After، ويعود المفتاح للعمل حين تبطئون.",
   "devs.hooks": "إشعارات Webhook",
   "devs.hooksBody": "معرّفات، دون أي محتوى. أحداث الجلسات تحمل sessionId الذي يقبله مسار الملاحظات، وأحداث المرضى تحمل مرجعكم الخاص في ref.",
@@ -8062,14 +8066,14 @@ export const ar: Record<MessageKey, string> = {
   "checkin.howToStopHere": "أوقف هذا الخيار فتتوقف فورًا. ولا يتغير شيء آخر.",
   "checkin.subject": "كيف حالك؟",
   "checkin.settingsTitle": "رسائل تسأل عن حالك",
-  "checkin.whoReply": "ردك على رسالة الاطمئنان",
-  "checkin.canDanger": "يعرض لك أين تجد المساعدة إن بدا أنك في خطر",
+  "checkin.whoReply": "الردود على رسائل الاطمئنان لا يقرؤها أحد",
+  "checkin.canDanger": "للمساعدة في أي وقت، اضغط زر SOS في تطبيقك",
   "checkin.on": "أرسلوها",
   "checkin.off": "لا ترسلوها",
   "checkin.mutedOn": "أُوقفت في {date}",
-  "checkin.canTellTherapist": "ويُخبر معالجك في تلك الحالة وحدها",
-  "checkin.cannotRead": "يقرأه أحد فيما عدا ذلك",
-  "checkin.cannotMachine": "يُعطى لآلة لتفسّره",
+  "checkin.canTellTherapist": "ولإيقاف هذه الرسائل، استخدم المفتاح أدناه",
+  "checkin.cannotRead": "الرد لا يصل إلى أحد ولا يقرؤه أحد",
+  "checkin.cannotMachine": "الرد لا يصل إلى معالجك ولا يطلق أي تنبيه",
   /* 🔴 67.1 / 67.4 / 67.6 / 67.7 — اتصال العيادة بنظام السجلات. */
   "records.planTitle": "هذا ضمن خطة المركز",
   "records.planBody": "ربط السجلات يربط عيادة كاملة بنظام مستشفى، فالتسجيل والمفتاح ملك العيادة.",
@@ -9204,7 +9208,7 @@ export const ar: Record<MessageKey, string> = {
   "dpo.sessionsWeekOf": "جلسات أسبوع {date}",
   "dpo.scanIt": "يمسحه الموظف أو يكتبه مرة واحدة. وكل من بريده على {domain} يُعرَف تلقائيًا.",
   "dpo.joinedOf": "انضمّ {joined}",
-  "dpo.joiningTells": "الانضمام يخبرنا أن شخصًا مغطّى. ولا يخبرنا، ولا يخبرك، إن كان قد حجز شيئًا أصلًا.",
+  "dpo.joiningTells": "الانضمام يخبرنا أن شخصًا مغطّى. ولا شيء هنا يخبرك إن كان قد حجز شيئًا أصلًا.",
   "dpo.whoEligible": "من المشمول",
   "dpo.anyoneOn": "كل من بريده على {domain}",
   "dpo.whenPotEmpty": "حين تنفد المحفظة",
@@ -9212,7 +9216,7 @@ export const ar: Record<MessageKey, string> = {
   "dpo.requireAttend": "اشتراط حضور الموظفين",
   "dpo.notBuilt": "غير مبني",
   "dpo.lastTransfer": "آخر إضافة {amount} بتحويل بنكي في {date}.",
-  "dpo.refundPolicy": "يُرد الرصيد غير المستخدم خلال 30 يومًا من إخطار كتابي.",
+  "dpo.refundPolicy": "يُرد الرصيد غير المستخدم عند الطلب، على يد فريقنا، وفق الشروط المتفق عليها لهذه المحفظة.",
   "dpo.noDomains": "لا نطاق هنا. ينضم موظفوك من قائمة الموظفين، وعليها {count} أشخاص.",
   "dpo.joinBy": "كيف ينضم الموظفون",
   "dpo.staffList": "قائمة موظفيك، {count} أشخاص",
@@ -9611,7 +9615,7 @@ export const ar: Record<MessageKey, string> = {
   "pricing.monthlyGets": "جلسات بلا حدود، وذكاء اصطناعي بلا حدود، ولا شيء لكل جلسة.",
   "pricing.plansNoMeter": "على الاشتراك لا توجد رسوم لكل جلسة، فلا شيء معلّق على سؤال التسجيل.",
   "pricing.creditIsMoney": "الرصيد مال مقابل رسوم الجلسات والذكاء، ويُنفَق قبل بطاقتك.",
-  "pricing.patientPaysNothing": "مريضك لا يدفع لنا شيئًا أبدًا.",
+  "pricing.patientPaysNothing": "لا يأخذ 24Therapy من مريضك شيئًا. والدفع بالبطاقة تُضاف إليه رسوم بوابة الدفع، وتظهر له قبل أن يدفع.",
 
   /* 🔴 62.10 / C323 — المقاعد، والسعر يسري على كل مقعد لا على الزائد فقط. */
   "pricing.seatsTitle": "أو اجمع فريقك",

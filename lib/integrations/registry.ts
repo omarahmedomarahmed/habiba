@@ -59,7 +59,7 @@ export const INTEGRATIONS: Integration[] = [
     today:
       "A session created here opens a private room. Nobody enters it without a token minted on our server for that one person, and the room is deleted when the session ends. Because each participant arrives on a separate track, the transcript knows who said what rather than working it out from context.",
     limits:
-      "It is our room, not yours. If your practice runs on something else, that is the Zoom and Meet entry below, and it is not built.",
+      "It is our room, not yours. If your practice runs on something else, that is the Zoom and Meet entry below: Zoom meeting creation is built but not switched on here yet, and Meet and Teams are not built.",
   },
   {
     slug: "in-person-sessions",
@@ -113,19 +113,24 @@ export const INTEGRATIONS: Integration[] = [
     /*
      * 🔴 41 — `partial`, and the entry says which half.
      *
-     * Not `live`: Zoom works and Google Meet and Teams do not, and this
-     * registry's whole argument is that the state is a fact about the code
-     * rather than a marketing decision. Calling it live because one of three
-     * providers works is the twelve-logos-in-a-grid page with one logo
-     * removed.
+     * Not `live`: the Zoom half is written and Google Meet and Teams are
+     * not, and this registry's whole argument is that the state is a fact
+     * about the code rather than a marketing decision.
+     *
+     * 🔴 And the Zoom half is not switched on. It needs the recorder's key and
+     * the key that seals a connection's tokens (`env.meetingBots`), and the
+     * live deployment has neither yet (RULINGS F6), so Settings says
+     * "Meeting recording is not switched on for this deployment". "Zoom works"
+     * was true of the code and false of the site, and the site is what a
+     * reader can open.
      */
     state: "partial",
-    summary: "Zoom works. A recorder that joins a session you created here, and nothing else.",
+    summary: "Zoom is built and not switched on yet. Meet and Teams are not built.",
     today:
-      "Connect a Zoom account once in Settings and 24Therapy creates the meeting inside it for each session, so the link stays ours until the patient has answered the recording question. The recorder joins the moment they agree, and a refusal sends no recorder at all rather than one that sits quietly in the room. One rule governs all of it: the bot joins meetings 24Therapy created for a session and never anything else. No calendar is ever read, and no calendar permission is even requested, because a tool that watches a calendar eventually records a supervision call or a conversation with an accountant.",
+      "The code is written: once this deployment has its keys, you connect a Zoom account once in Settings and 24Therapy creates the meeting inside it for each session, so the link stays ours until the patient has answered the recording question. The recorder joins the moment they agree, and a refusal sends no recorder at all rather than one that sits quietly in the room. One rule governs all of it: the bot joins meetings 24Therapy created for a session and never anything else. No calendar is ever read, and no calendar permission is even requested, because a tool that watches a calendar eventually records a supervision call or a conversation with an accountant.",
     limits:
       "Google Meet and Teams can be connected and cannot yet create a meeting, so those sessions run in the 24Therapy room. Many clinics block third-party Zoom apps at the account level, which no setting here can change, and the Settings page says so before you try. There is no way to point the recorder at a meeting you made yourself, which is deliberate rather than missing.",
-    waitingOn: "Google Meet and Teams meeting creation",
+    waitingOn: "the recorder's and token keys on this deployment for Zoom, then Google Meet and Teams meeting creation",
   },
   {
     slug: "clinic-systems",

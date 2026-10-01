@@ -420,6 +420,12 @@ export async function goLive(sessionId: string): Promise<SessionActionState> {
       resourceType: "session",
       resourceId: sessionId,
     });
+    /*
+     * 🔴 A sign in near its eight hour ceiling is not cut off mid session: the
+     * ceiling moves to two hours after this start (`lib/auth/session.ts`).
+     */
+    const { keepSignedInThroughSession } = await import("@/lib/auth/session");
+    await keepSignedInThroughSession();
     revalidatePath(`/sessions/${sessionId}/room`);
     return { ok: true };
   } catch (error) {

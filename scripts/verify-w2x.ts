@@ -14,6 +14,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { sql } from "drizzle-orm";
+import { auditFixtures } from "./_audit-fixtures";
 
 import { startMockOpenAi } from "../tests/mock-openai";
 import { readSource, reporter, writesTo } from "./_verify";
@@ -860,7 +861,7 @@ async function main() {
     await db.execute(sql`DELETE FROM partner_users WHERE partner_id IN
       (SELECT id FROM partners WHERE slug = ${fixture})`);
     /* The key and team audit rows name the partner in `reason`, so they go by it. */
-    await db.execute(sql`DELETE FROM audit_log WHERE reason LIKE
+    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND reason LIKE
       'partner ' || (SELECT id::text FROM partners WHERE slug = ${fixture}) || '%'`);
     await db.execute(sql`DELETE FROM partner_api_keys WHERE partner_id IN
       (SELECT id FROM partners WHERE slug = ${fixture})`);

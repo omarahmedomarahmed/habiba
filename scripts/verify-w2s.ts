@@ -9,6 +9,7 @@
  * refuses production by name.
  */
 import { sql } from "drizzle-orm";
+import { auditFixtures } from "./_audit-fixtures";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -35,7 +36,7 @@ async function plantSponsor(db: Db, label: string): Promise<string> {
 }
 
 async function dropSponsor(db: Db, sponsorId: string) {
-  await db.execute(sql`DELETE FROM audit_log WHERE resource_id IN
+  await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN
     (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsorId})`);
   await db.execute(sql`DELETE FROM ledger_entries WHERE ref_id = ${sponsorId}`);
   await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsorId}`);
@@ -118,7 +119,7 @@ async function plantWorld(db: Db, label: string) {
     await db.execute(sql`DELETE FROM patient_notifications WHERE person_id IN
       (SELECT person_id FROM patients WHERE organization_id = ${org.id})`);
     await db.execute(sql`DELETE FROM sessions WHERE organization_id = ${org.id}`);
-    await db.execute(sql`DELETE FROM audit_log WHERE resource_id IN
+    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN
       (SELECT id FROM enrolments WHERE sponsor_id = ${sponsorId})`);
     await db.execute(sql`DELETE FROM enrolments WHERE sponsor_id = ${sponsorId}`);
     const people = (

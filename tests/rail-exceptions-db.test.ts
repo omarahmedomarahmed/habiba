@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { eq, sql } from "drizzle-orm";
+import { auditFixtures } from "../scripts/_audit-fixtures";
 
 /**
  * W2-A03 against the database (needs migration 0142). Plants a practice, a
@@ -81,7 +82,7 @@ test("confirmed money that bought nothing is work, a retry runs once, and carts 
     assert.equal(still, undefined, "an open cart outlived its expiry");
   } finally {
     await db.execute(sql`DELETE FROM manual_payments WHERE user_id = ${user!.id}`);
-    await db.execute(sql`DELETE FROM audit_log WHERE organization_id = ${org!.id}`);
+    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND organization_id = ${org!.id}`);
     await db.delete(users).where(eq(users.id, user!.id));
     await db.delete(organizations).where(eq(organizations.id, org!.id));
   }

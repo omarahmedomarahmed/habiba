@@ -26,6 +26,7 @@
  * returns true.
  */
 import { sql } from "drizzle-orm";
+import { auditFixtures } from "./_audit-fixtures";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
 import { stubModules } from "./_render";
@@ -754,7 +755,7 @@ async function main() {
       "reading a calendar and exfiltrating it are different acts with different risks",
     );
   } finally {
-    await db.execute(sql`DELETE FROM audit_log WHERE actor_clinic_manager_id IN
+    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND actor_clinic_manager_id IN
       (SELECT id FROM clinic_managers WHERE email LIKE ${`%${fixture}%`})`);
     await db.execute(sql`DELETE FROM clinic_auth_sessions WHERE clinic_manager_id IN
       (SELECT id FROM clinic_managers WHERE email LIKE ${`%${fixture}%`})`);
