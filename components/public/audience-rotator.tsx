@@ -1,5 +1,6 @@
 "use client";
 
+import { backgroundFetch } from "@/lib/auth/activity";
 import * as React from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -147,7 +148,7 @@ export function AudienceRotator({
     const load = async () => {
       if (document.visibilityState !== "visible") return;
       try {
-        const response = await fetch(`/api/radar?v=${encodeURIComponent(viewer)}`, { cache: "no-store" });
+        const response = await backgroundFetch(`/api/radar?v=${encodeURIComponent(viewer)}`, { cache: "no-store" });
         if (!response.ok || cancelled) return;
         const body = (await response.json()) as {
           therapists: RadarEntry[];

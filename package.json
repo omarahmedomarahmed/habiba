@@ -252,6 +252,7 @@
     "test:safe-redirect": "node --import tsx --test tests/safe-redirect.test.ts",
     "test:attempts": "node --import tsx --test tests/attempts.test.ts",
     "test:public-url": "node --import tsx --conditions=react-server --test tests/public-url.test.ts",
+    "test:activity": "node --import tsx --test tests/activity.test.ts",
     "test:admin-access": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/admin-access.test.ts",
     "test:staff-2fa": "node --env-file-if-exists=.env.local --import tsx --test tests/staff-2fa.test.ts",
     "verify:staff-2fa": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-staff-2fa.ts",

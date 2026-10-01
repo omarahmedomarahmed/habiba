@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { generateCopilot, shouldRunCopilot } from "@/lib/ai/copilot";
 import { transcribeChunk } from "@/lib/ai/transcribe";
 import { AuthorizationError, assertSameOrigin, requireUserApi } from "@/lib/auth/guard";
+import { keepSessionAlive } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { sessions } from "@/lib/db/schema";
@@ -132,6 +133,8 @@ export async function POST(
     if (session.status !== "in_progress") {
       return NextResponse.json({ error: "not_live" }, { status: 409 });
     }
+    /* DD-2 B2.5: audio from a live session keeps the clinician signed in (a no-op without their cookie). */
+    await keepSessionAlive();
 
     /*
      * 🔴 TASK 123 — no recorded yes, or a pause, and the audio is dropped

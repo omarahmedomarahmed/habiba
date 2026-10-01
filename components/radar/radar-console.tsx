@@ -1,5 +1,6 @@
 "use client";
 
+import { backgroundFetch } from "@/lib/auth/activity";
 import dynamicImport from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Loader2, PanelLeftClose, PanelRightClose, Radio } from "lucide-react";
@@ -104,7 +105,7 @@ export function RadarConsole({
       if (document.visibilityState !== "visible") return;
       setRefreshing(true);
       try {
-        const response = await fetch(`/api/radar?v=${encodeURIComponent(viewer)}`, {
+        const response = await backgroundFetch(`/api/radar?v=${encodeURIComponent(viewer)}`, {
           cache: "no-store",
         });
         if (response.ok) {
