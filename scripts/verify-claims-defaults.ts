@@ -9,7 +9,7 @@
  */
 import { DEFAULT_PAGES } from "../lib/content/defaults";
 import { DEFAULT_PAGES_AR } from "../lib/content/defaults-ar";
-import { FORBIDDEN_CLAIMS, REQUIRED_STATEMENTS, claimStrings, forbiddenClaimsIn } from "../lib/content/claims";
+import { FORBIDDEN_CLAIMS, REQUIRED_STATEMENTS, claimStrings, forbiddenClaimsIn, guardedPage, pageClaims } from "../lib/content/claims";
 import { reporter, readSource } from "./_verify";
 
 const { check, finish } = reporter();
@@ -60,7 +60,7 @@ const pages = [
   ...DEFAULT_PAGES.map((page) => ({ ...page, locale: "en" })),
   ...DEFAULT_PAGES_AR.map((page) => ({ ...page, locale: "ar" })),
 ];
-const hits = pages.flatMap((page) => forbiddenClaimsIn(`${page.slug}[${page.locale}]`, page.blocks));
+const hits = pages.flatMap((page) => pageClaims(`${page.slug}[${page.locale}]`, page));
 check(
   "no shipped default page makes a forbidden claim, in either language",
   hits.length === 0,
@@ -77,13 +77,31 @@ for (const required of REQUIRED_STATEMENTS) {
 
 const service = readSource("lib/content/service.ts");
 check(
-  "a published row with a forbidden claim is replaced by the default, and reported",
-  /forbiddenClaimsIn\(/.test(service) && /reportStaleRow\(/.test(service) && /recordError\(/.test(service),
+  "a published row with a forbidden claim (blocks, title or description) is replaced by the default, or trimmed when it has none, and reported",
+  /guardedPage\(/.test(service) && /reportStaleRow\(/.test(service) && /recordError\(/.test(service),
 );
+{
+  const page = { slug: "cms-only", title: "About 24Therapy Inc.", description: "Run by 24Therapy Egypt", blocks: [
+    { type: "prose", body: "A fine page." },
+    { type: "prose", body: "We are 24Therapy Inc." },
+  ] };
+  const trimmed = guardedPage("cms-only[en]", page, null);
+  check(
+    "control: a CMS-only page with a false claim is served without the block, title or description that make it, and reported",
+    trimmed.served === "trimmed" &&
+      trimmed.hits.length === 3 &&
+      (trimmed.page.blocks as unknown[]).length === 1 &&
+      trimmed.page.title === "cms-only" &&
+      trimmed.page.description === null,
+    JSON.stringify(trimmed.page),
+  );
+  const replaced = guardedPage("x[en]", page, { ...page, title: "About", description: null, blocks: [] });
+  check("control: with a code default, the default is served", replaced.served === "default" && replaced.page.title === "About");
+}
 const admin = readSource("app/(admin)/admin/actions.ts");
 check(
-  "the editor refuses to save a forbidden claim",
-  /forbiddenClaimsIn\(/.test(admin) && /return \{ error: claimMessage\(/.test(admin),
+  "the editor refuses to save a forbidden claim, in the blocks, title or description",
+  /pageClaims\(/.test(admin) && /return \{ error: claimMessage\(/.test(admin),
 );
 
 finish("verify:claims-defaults");

@@ -289,6 +289,7 @@
     "test:patient-import": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/patient-import.test.ts",
     "test:note-formats": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server --test tests/note-formats.test.ts",
     "test:note-reply": "node --import tsx --conditions=react-server --test tests/note-reply.test.ts",
+    "test:content-rename": "node --import tsx --test tests/content-rename.test.ts",
     "test:partner-docs": "node --import tsx --test tests/partner-docs.test.ts",
     "test:missed-session": "node --import tsx --test tests/missed-session.test.ts",
     "test:countries-and-names": "node --import tsx --test tests/countries-and-names.test.ts",

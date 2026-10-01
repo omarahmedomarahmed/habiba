@@ -16,7 +16,7 @@ import { contentPages, type ContentBlock } from "@/lib/db/schema";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { DICTIONARIES } from "@/lib/i18n/messages";
 import { log } from "@/lib/logger";
-import { forbiddenClaimsIn, type ClaimHit } from "./claims";
+import { guardedPage, type ClaimHit } from "./claims";
 import { DEFAULT_PAGES, findDefaultPage } from "./defaults";
 import { defaultsFor } from "./registry";
 
@@ -215,32 +215,25 @@ async function readPage(
 
     if (row && row.status === "published") {
       /*
-       * DD-2: a row carrying a claim that is false today (lib/content/claims.ts)
-       * is not served. The code default for its language is, and the row goes
-       * on the errors board so somebody re-syncs it.
+       * DD-2: a row carrying a claim that is false today (lib/content/claims.ts),
+       * in its title, description or blocks, is not served as written. The code
+       * default for its language is; a CMS-only page has none, so it is served
+       * without the offending blocks. Either way the row goes on the errors board
+       * so somebody corrects it.
        */
-      const falseClaims = forbiddenClaimsIn(`${row.slug}[${row.locale}]`, row.blocks);
-      const shipped = falseClaims.length > 0
-        ? (defaultsFor(row.locale).find((page) => page.slug === slug) ?? findDefaultPage(slug))
-        : null;
-      if (shipped) {
-        await reportStaleRow(row.slug, row.locale, falseClaims);
-        return {
-          slug: shipped.slug,
-          title: shipped.title,
-          description: shipped.description,
-          layout: shipped.layout,
-          blocks: shipped.blocks,
-          locale: defaultsFor(row.locale).some((page) => page.slug === slug) ? row.locale : DEFAULT_LOCALE,
-        };
-      }
+      const ownDefault = defaultsFor(row.locale).find((page) => page.slug === slug);
+      const fallback = ownDefault ?? findDefaultPage(slug);
+      const guarded = guardedPage(
+        `${row.slug}[${row.locale}]`,
+        { slug: row.slug, title: row.title, description: row.description, layout: row.layout, blocks: row.blocks },
+        fallback
+          ? { slug: fallback.slug, title: fallback.title, description: fallback.description, layout: fallback.layout, blocks: fallback.blocks }
+          : null,
+      );
+      if (guarded.served !== "row") await reportStaleRow(row.slug, row.locale, guarded.hits, guarded.served);
       return {
-        slug: row.slug,
-        title: row.title,
-        description: row.description,
-        layout: row.layout,
-        blocks: row.blocks,
-        locale: row.locale,
+        ...guarded.page,
+        locale: guarded.served === "default" && !ownDefault ? DEFAULT_LOCALE : row.locale,
       };
     }
     if (row) return null; // exists but is a draft
@@ -262,13 +255,23 @@ async function readPage(
 }
 
 /** DD-2: a published row with a false claim, logged and put on the errors board. */
-async function reportStaleRow(slug: string, locale: string, hits: ClaimHit[]): Promise<void> {
+async function reportStaleRow(
+  slug: string,
+  locale: string,
+  hits: ClaimHit[],
+  served: "default" | "trimmed",
+): Promise<void> {
   const rules = [...new Set(hits.map((hit) => hit.rule))].join(", ");
-  log.error("CMS row carries a forbidden claim, serving the code default", { slug, locale, rules });
+  const instead = served === "default" ? "serving the code default" : "serving it without the offending blocks";
+  log.error(`CMS row carries a forbidden claim, ${instead}`, { slug, locale, rules });
   try {
     const { recordError } = await import("@/lib/observability/errors");
     await recordError({
-      error: new Error(`content_pages ${slug}[${locale}] carries forbidden claims (${rules}); re-sync it from defaults`),
+      error: new Error(
+        served === "default"
+          ? `content_pages ${slug}[${locale}] carries forbidden claims (${rules}); re-sync it from defaults`
+          : `content_pages ${slug}[${locale}] carries forbidden claims (${rules}) and has no code default; the offending blocks are hidden until it is corrected in the content console`,
+      ),
       path: `/${slug}`,
       kind: "server",
     });
