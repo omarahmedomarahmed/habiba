@@ -31,19 +31,23 @@ export default async function PartnerConsentPage({
   searchParams: Promise<{ done?: string }>;
 }) {
   const [{ token }, { done }] = await Promise.all([params, searchParams]);
-  const [actor, preview, { t }] = await Promise.all([requirePatient(), patientConsentPreview(token), getI18n()]);
+  const [actor, { t }] = await Promise.all([requirePatient(), getI18n()]);
+  /* Review fix: whether THIS patient may answer is decided by the session's own rows. */
+  const preview = await patientConsentPreview(token, actor.personId);
 
-  const theirs = preview && (preview.linkedPersonId === null || preview.linkedPersonId === actor.personId);
+  const notYours = done === "notyours" || Boolean(preview?.notYours);
   const minutes = preview ? Math.floor(preview.offsetSeconds / 60) : 0;
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-4 px-5 pt-16 pb-10">
       <PatientBack />
       <Card className="p-5">
-        {!preview || !theirs || done === "dead" ? (
+        {!preview || !preview.mine || notYours || done === "dead" ? (
           <>
             <p className="text-sm font-semibold text-navy-700">{t("pinvite.usedTitle")}</p>
-            <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("pconsent.dead")}</p>
+            <p className="mt-1 text-sm leading-relaxed text-navy-400">
+              {notYours ? t("pconsent.notYours") : t("pconsent.dead")}
+            </p>
             <Link
               href="/patient"
               className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-navy-50 text-sm font-semibold text-navy-600"

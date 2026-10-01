@@ -48,8 +48,80 @@ test("🔴 F7 a short week is merged into the next, never dropped, and untagged 
   assert.deepEqual(out.heldBack, { sessions: 4, spendCents: 4000 }, "four untagged rows are one person, held back");
   assert.equal(l.distinctPeople(entries.slice(6)), 1);
 
+  /* Review fix: the month is the published weeks summed; the held-back week stays held back. */
   const months = l.ledgerPeriods(entries, 5, "month");
-  assert.deepEqual(months.periods, [{ from: "2026-09", to: "2026-09", sessions: 10, spendCents: 10000 }]);
+  assert.deepEqual(months.periods, [{ from: "2026-09", to: "2026-09", sessions: 6, spendCents: 6000 }]);
+  assert.deepEqual(months.heldBack, out.heldBack, "one held-back figure in both views");
+});
+
+test("🔴 F7 review fix: a month minus the weeks inside it never isolates a group below the floor", async () => {
+  const l = await import("../lib/sponsor/ledger");
+  /*
+   * The attack: weeks 1 and 2 clear the floor and are shown; week 3 is ONE
+   * person, held back. Merged on its own, the month used to clear the floor
+   * with week 3 in it, so month minus weeks printed that one person's spend.
+   */
+  const entries = [
+    ...["a", "b", "c", "d", "e"].map((p) => e({ weekStart: "2026-08-03", personTag: p, coveredCents: 1200 })),
+    ...["f", "g", "h", "i", "j"].map((p) => e({ weekStart: "2026-08-10", personTag: p, coveredCents: 1100 })),
+    e({ weekStart: "2026-08-17", personTag: "lonely", coveredCents: 4321 }),
+    ...["k", "l", "m"].map((p) => e({ weekStart: "2026-08-24", personTag: p, coveredCents: 1000 })),
+    /* This short run only clears the floor in September: a period across the month end. */
+    ...["n", "o"].map((p) => e({ weekStart: "2026-09-07", personTag: p, coveredCents: 1000 })),
+    ...["p", "q", "r", "s"].map((p) => e({ weekStart: "2026-09-14", personTag: p, coveredCents: 1000 })),
+    e({ weekStart: "2026-09-21", personTag: "late", coveredCents: 777 }),
+    /* And one trailing person, held back. */
+    e({ weekStart: "2026-09-28", personTag: "tail", coveredCents: 999 }),
+  ];
+  const weeks = l.ledgerPeriods(entries, 5, "week");
+  const months = l.ledgerPeriods(entries, 5, "month");
+
+  assert.deepEqual(
+    weeks.periods.map((p) => [p.from, p.to, p.spendCents]),
+    [
+      ["2026-08-03", "2026-08-03", 6000],
+      ["2026-08-10", "2026-08-10", 5500],
+      ["2026-08-17", "2026-09-07", 4321 + 3000 + 2000],
+      ["2026-09-14", "2026-09-21", 4000 + 777],
+    ],
+  );
+  /* The cross-month period is counted once, in the month it ends, and says where it began. */
+  assert.deepEqual(
+    months.periods.map((p) => [p.from, p.to, p.spendCents]),
+    [
+      ["2026-08", "2026-08", 11500],
+      ["2026-08", "2026-09", 9321 + 4777],
+    ],
+  );
+
+  /* Each month is exactly a run of whole published weekly periods, and together they are all of them. */
+  let i = 0;
+  for (const month of months.periods) {
+    let sum = 0;
+    while (sum < month.spendCents && i < weeks.periods.length) sum += weeks.periods[i++]!.spendCents;
+    assert.equal(sum, month.spendCents, `month ${month.from}..${month.to} is not whole published weeks`);
+  }
+  assert.equal(i, weeks.periods.length, "every published week is in exactly one month");
+  assert.deepEqual(months.heldBack, weeks.heldBack, "one held-back figure in both views");
+  assert.deepEqual(weeks.heldBack, { sessions: 1, spendCents: 999 });
+
+  /*
+   * THE ATTACK, month minus weeks, over every pair of published figures in
+   * both views: no difference is one small group's spend. Under the old
+   * build, August cleared the floor on its own (14 people) and August minus
+   * its two shown weeks was 4321 + 3000: four people, one of them alone.
+   */
+  const figures = [...weeks.periods, ...months.periods].map((p) => p.spendCents);
+  const small = [4321, 4321 + 3000, 777, 999, 3000, 2000];
+  for (const a of figures) {
+    for (const b of figures) {
+      assert.ok(!small.includes(a - b), `${String(a)} minus ${String(b)} isolates a group below the floor`);
+    }
+  }
+
+  /* The analytics totals read the same published weeks. */
+  const stats = l.ledgerAnalytics({ entries, floor: 5, balanceCents: null, topUps: [] });
+  assert.equal(stats.spendCents, weeks.periods.reduce((s, p) => s + p.spendCents, 0));
 });
 
 test("🔴 F7 the floor can never be below five, in the settings or at read time", async () => {
@@ -198,6 +270,7 @@ test("🔴 F6 the patient's consent link names one session and cannot be altered
     externalSessionRef: "S-1024",
     externalSubjectRef: "P-77",
     offsetSeconds: 600,
+    boundPerson: null,
   });
   const [body, mac] = token.split(".") as [string, string];
   const forged = Buffer.from(JSON.stringify({ p: "p-1", s: "S-9999", j: "P-77", o: 0, e: 9_999_999_999 })).toString("base64url");
@@ -211,6 +284,168 @@ test("🔴 F6 the patient's consent link names one session and cannot be altered
     expiresAt: new Date(Date.now() - 1000),
   });
   assert.equal(p.readPatientConsentToken(expired), null);
+});
+
+test("🔴 F6 review fix: pressing No never links the patient to the partner", async () => {
+  const p = await import("../lib/partner/patient-consent");
+  const ask = { externalSubjectRef: "P-77", boundPerson: null };
+  const session = { externalSubjectRef: "P-77", environment: "live" };
+  const empty = { personId: null };
+
+  /* An unlinked subject: a no is recorded (stopping is safe) and links nobody; only a yes links. */
+  assert.deepEqual(p.patientAnswerPlan({ state: "withdrawn", personId: "me", ask, session, subject: empty }), {
+    kind: "record",
+    link: false,
+  });
+  assert.deepEqual(p.patientAnswerPlan({ state: "given", personId: "me", ask, session, subject: empty }), {
+    kind: "record",
+    link: true,
+  });
+  /* Already mine (a claim made elsewhere): a no records and leaves that link exactly as it was. */
+  assert.deepEqual(p.patientAnswerPlan({ state: "withdrawn", personId: "me", ask, session, subject: { personId: "me" } }), {
+    kind: "record",
+    link: false,
+  });
+
+  /* And the code writes the link only on that plan, and never removes or revokes one. */
+  const code = source("lib/partner/patient-consent.ts");
+  const answer = code.slice(code.indexOf("export async function answerAsPatient"));
+  const linkAt = answer.indexOf("if (plan.link)");
+  const updateAt = answer.indexOf(".update(partnerSubjects)");
+  assert.ok(linkAt > 0 && updateAt > linkAt, "the subject is written outside the yes branch");
+  assert.equal(answer.split(".update(partnerSubjects)").length, 2, "one write to the subject, the yes");
+  assert.doesNotMatch(code, /\.delete\(partnerSubjects\)|revokedAt:/, "a no must not unlink anybody");
+  assert.ok(answer.indexOf("patientAnswerPlan(") < linkAt, "the answer is read before anything is written");
+});
+
+test("🔴 F6 review fix: a consent link is bound to its session's own patient", async () => {
+  const p = await import("../lib/partner/patient-consent");
+  const { en, ar } = await import("../lib/i18n/messages");
+  const live = (subject: string) => ({ externalSubjectRef: subject, environment: "live" });
+  const plan = (over: Partial<Parameters<typeof p.patientAnswerPlan>[0]>) =>
+    p.patientAnswerPlan({
+      state: "given",
+      personId: "person-B",
+      ask: { externalSubjectRef: "SUBJ-B", boundPerson: null },
+      session: live("SUBJ-B"),
+      subject: { personId: "person-B" },
+      ...over,
+    });
+
+  assert.deepEqual(plan({}), { kind: "record", link: false }, "B answering about B's own session");
+
+  /* THE ATTACK: the partner pairs B's own subject with patient A's session S-A. */
+  const refused = { kind: "refuse", error: "not_yours" };
+  assert.deepEqual(plan({ session: live("SUBJ-A") }), refused, "B said yes to A's session");
+  assert.deepEqual(plan({ session: live("SUBJ-A"), subject: { personId: null } }), refused, "and an empty subject does not help");
+  assert.deepEqual(plan({ state: "withdrawn", session: live("SUBJ-A") }), refused);
+  /* A's subject in the link, opened by B. */
+  assert.deepEqual(
+    plan({ ask: { externalSubjectRef: "SUBJ-A", boundPerson: null }, session: live("SUBJ-A"), subject: { personId: "person-A" } }),
+    refused,
+  );
+  /* No session of ours, or a sandbox one: nothing to answer. */
+  assert.deepEqual(plan({ session: null }), { kind: "refuse", error: "invalid" });
+  assert.deepEqual(plan({ session: { externalSubjectRef: "SUBJ-B", environment: "sandbox" } }), { kind: "refuse", error: "invalid" });
+
+  /* The token carries the patient it was made for, as a keyed digest and never the id. */
+  const token = p.patientConsentToken({
+    partnerId: "p-1",
+    externalSessionRef: "S-A",
+    externalSubjectRef: "SUBJ-A",
+    offsetSeconds: 0,
+    expiresAt: new Date(Date.now() + 60_000),
+    personId: "person-A",
+  });
+  const read = p.readPatientConsentToken(token)!;
+  assert.equal(read.boundPerson, p.personDigest("person-A"));
+  assert.ok(!Buffer.from(token.split(".")[0]!, "base64url").toString("utf8").includes("person-A"), "the partner reads our id");
+  /* Even if the subject were later re-pointed at B, a link made for A answers only to A. */
+  assert.deepEqual(plan({ ask: { externalSubjectRef: "SUBJ-B", boundPerson: read.boundPerson } }), refused);
+  assert.deepEqual(
+    plan({ personId: "person-A", ask: { externalSubjectRef: "SUBJ-B", boundPerson: read.boundPerson }, subject: { personId: "person-A" } }),
+    { kind: "record", link: false },
+  );
+
+  /* The refusal is said in both languages, and the page and action use it. */
+  assert.ok(en["pconsent.notYours"] && ar["pconsent.notYours"] && en["pconsent.notYours"] !== ar["pconsent.notYours"]);
+  assert.match(source("app/(patient)/patient/partner-consent/[token]/page.tsx"), /t\("pconsent\.notYours"\)/);
+  assert.match(source("app/(patient)/patient/partner-consent/[token]/actions.ts"), /not_yours/);
+  assert.match(source("app/api/partner/v1/consent/route.ts"), /personId: await linkedPersonOf\(/);
+});
+
+/* ================================================================ F14 == */
+
+test("🔴 F14 review fix: opening the welcome link spends nothing; only the Continue button does", async () => {
+  const { existsSync } = await import("node:fs");
+  assert.equal(existsSync("app/(auth)/signup/confirm/route.ts"), false, "a GET handler would spend the token for a mail scanner");
+  const page = source("app/(auth)/signup/confirm/page.tsx");
+  assert.doesNotMatch(page, /consumeSignupLink/, "rendering the page spends the token");
+  assert.match(page, /<form action=\{continueSignup\}>/);
+  assert.match(page, /type="hidden" name="token"/);
+  assert.match(page, /t\("tauth\.confirm\.button"\)/);
+  const action = source("app/(auth)/signup/confirm/actions.ts");
+  assert.match(action, /^"use server";/);
+  assert.match(action, /await consumeSignupLink\(token\)/);
+  /* Still single use, in one conditional UPDATE, and still expiring. */
+  const link = source("lib/auth/signup-link.ts");
+  assert.match(link, /isNull\(authTokens\.usedAt\)/);
+  assert.match(link, /gt\(authTokens\.expiresAt, new Date\(\)\)/);
+  const { en, ar } = await import("../lib/i18n/messages");
+  for (const key of ["tauth.confirm.title", "tauth.confirm.body", "tauth.confirm.button"] as const) {
+    assert.ok(en[key] && ar[key], key);
+  }
+});
+
+test("🔴 F14 review fix: a stranger cannot spend the owner's password resets", async () => {
+  const r = await import("../lib/auth/reset-throttle");
+  /* A fixed-window limiter like `consume`, on a clock the test moves. */
+  let now = 0;
+  const rows = new Map<string, { start: number; count: number }>();
+  const consume = async (key: string, limit: number, windowSeconds: number) => {
+    const row = rows.get(key);
+    if (!row || row.start <= now - windowSeconds * 1000) {
+      rows.set(key, { start: now, count: 1 });
+      return { allowed: 1 <= limit };
+    }
+    row.count += 1;
+    return { allowed: row.count <= limit };
+  };
+  const keyOf = (scope: string, subject: string) => `${scope}:${subject}`;
+  const ask = (network: string, email = "nadia@clinic.example") => r.resetMailVerdict({ email, network, consume, keyOf });
+
+  /* The attacker hammers the owner's address from their own network. */
+  const sentToOwner: number[] = [];
+  for (let minute = 0; minute < 60; minute++) {
+    now = minute * 60_000;
+    for (let i = 0; i < 5; i++) if ((await ask("attacker-net")) === "send") sentToOwner.push(now);
+  }
+  assert.ok(sentToOwner.length <= r.RESET_PER_ADDRESS_NETWORK, "one network buried the inbox");
+
+  /* The owner, on their own network, in the same hour: never quiet, always a working link. */
+  for (const minute of [1, 3, 30]) {
+    now = minute * 60_000;
+    const verdict = await ask("owner-net");
+    assert.notEqual(verdict, "quiet", `the owner was locked out at minute ${String(minute)}`);
+    if (verdict === "send") sentToOwner.push(now);
+    else {
+      /* "recent": an email went to this inbox in the last two minutes, and its link (one hour) works. */
+      const last = Math.max(...sentToOwner.filter((t) => t <= now));
+      assert.ok(now - last <= r.RESET_GAP_SECONDS * 1000, "told to check an inbox with no fresh link");
+    }
+  }
+
+  /* However many networks, at most one email every two minutes to an address. */
+  now = 2 * 60 * 60_000;
+  const burst = await Promise.all(Array.from({ length: 50 }, (_, i) => ask(`botnet-${String(i)}`, "omar@clinic.example")));
+  assert.equal(burst.filter((v) => v === "send").length, 1);
+
+  /* And older reset links are never cancelled by a later request, which the "recent" answer relies on. */
+  const actions = source("lib/auth/actions.ts");
+  const reset = actions.slice(actions.indexOf("export async function requestPasswordReset"), actions.indexOf("export async function resetPassword"));
+  assert.doesNotMatch(reset, /\.update\(authTokens\)/);
+  assert.match(reset, /resetMailVerdict\(\{ email, network, consume, keyOf: subjectKey \}\)/);
+  assert.doesNotMatch(reset, /"password-reset:address"/, "the old internet-wide bucket is back");
 });
 
 /* ================================================================= F9 == */
