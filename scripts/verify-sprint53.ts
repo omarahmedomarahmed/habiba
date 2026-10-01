@@ -356,10 +356,33 @@ async function main() {
    * Asserted on the SQL, because the pipeline is where it matters: a query that
    * fetched days and summed them in TypeScript would put daily figures in a
    * variable, a log and a debugger.
+   *
+   * DD-2 B1: spend now comes from `sponsor_money_entries`, whose finest date is
+   * `week_start` (a date column, written as `weekStartOf(now)`). The table has
+   * no timestamp at all, `weeklySpend` reads it only through `publishedLedger`,
+   * and that reader selects `weekStart` and nothing finer.
    */
+  const sponsorLedgerData = readSource("lib/data/sponsor-ledger.ts");
+  const potSource = readSource("lib/billing/pot.ts");
+  const schemaSource = readSource("lib/db/schema.ts");
+  const moneyTable = schemaSource.slice(
+    schemaSource.indexOf('pgTable(\n  "sponsor_money_entries"'),
+    schemaSource.indexOf("export type SponsorMoneyEntry"),
+  );
+  const weeklySpendBody = sponsorData.slice(
+    sponsorData.indexOf("export async function weeklySpend"),
+    sponsorData.indexOf("export async function weeklySpend") + 500,
+  );
   check(
     "🔴 53.3 / C228 sponsor spend is grouped by week in SQL, never by day",
-    /date_trunc\('week'/.test(sponsorData) && !/date_trunc\('day'/.test(sponsorData),
+    moneyTable.length > 0 &&
+      /weekStart: date\("week_start"/.test(moneyTable) &&
+      !/timestamp\(/.test(moneyTable) &&
+      /weekStart: weekStartOf\(/.test(potSource) &&
+      /publishedLedger/.test(weeklySpendBody) &&
+      /weekStart: sponsorMoneyEntries\.weekStart/.test(sponsorLedgerData) &&
+      !/createdAt|created_at/.test(sponsorLedgerData) &&
+      !/date_trunc\('day'/.test(sponsorData + sponsorLedgerData),
     "no daily row exists anywhere in the pipeline to leak",
   );
 

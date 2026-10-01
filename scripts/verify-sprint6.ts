@@ -75,7 +75,8 @@ async function main() {
     const byTable = new Map(cols.rows.map((r) => [r.table_name, r.n]));
     for (const [table, expected] of [
       // 11 since 13.1/13.11: `timezone` (0043) joined the ten sprint 6 built.
-      ["patient_accounts", 11],
+      // 14 since DD-2 (0187): terms_version, terms_accepted_at, adult_confirmed_at.
+      ["patient_accounts", 14],
       ["patient_auth_sessions", 8],
       // 16 since 13.5/13.6: seen_therapist, name_attempts, challenged_at,
       // patient_id (0043) and name_confirmed_at (0044) carry the challenge.
