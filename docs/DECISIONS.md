@@ -126,7 +126,7 @@ Open items only, as recorded on 2026-10-01.
 | F10 | BAAs and DPAs with Vercel, Neon, OpenAI, Daily and Resend (needs the US entity) | Contracts and money |
 | F-CR1 | A native Arabic-speaking clinician reviews the crisis phrase list in `lib/crisis/alerts.ts` | Only a clinician can say it is complete and safe |
 | F-CR3 | Dial 08008880700, 0220816831 and 105 once and confirm they answer; correct them in settings if not | A crisis number nobody has dialled is a risk |
-| F-CR4 | Confirm migrations up to 0187 are on production now that the crisis and due diligence work is on `main` | Production migrations are applied by hand |
+| F-DNS | Change the DMARC record for 24therapy.app from `p=none` to `p=quarantine` before 2026-10-06 (daily reports from Google and Zoho show all mail passing). `verify:email-dns` in CI fails from that date while it is `p=none` | Only the domain owner can edit DNS |
 | FD1 | Confirm by phone that Egypt's Child Helpline is 16000 | It is in the under-18 refusal |
 | FD2 | Counsel reads the signup notice, privacy notice and terms so they name the same processors | Legal text |
 | FD3 | Approve the drizzle-orm 0.45 upgrade plan (DD9) | Changes how every database error is reported |
