@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { MalformedModelOutputError, parseJsonStrict } from "../lib/ai/client";
 import { readProfileOutput } from "../lib/ai/profile";
 import { readRiskOutput, traceable } from "../lib/ai/risk";
-import { PROCESSORS, TERMS_VERSION, signupConsentProblem } from "../lib/consent/terms";
+import { PROCESSORS, SIGNUP_NOTICE_KEYS, TERMS_VERSION, signupConsentProblem } from "../lib/consent/terms";
 import { aiPausedFrom } from "../lib/data/ai-consent";
 import { TICKET_TOPICS } from "../lib/db/schema";
 import { __shared, localiseShared } from "../lib/i18n/errors";
@@ -36,12 +36,9 @@ test("F3/F11 signup refuses an unticked notice, and a patient who does not confi
 });
 
 test("F3 the signup notice names every processor, in both languages", () => {
-  const english = ["openai", "daily", "resend", "hosting"]
-    .map((k) => en[`signupConsent.${k}` as MessageKey])
-    .join(" ");
-  const arabic = ["openai", "daily", "resend", "hosting"]
-    .map((k) => ar[`signupConsent.${k}` as MessageKey])
-    .join(" ");
+  /* DD-2 B1: the lines the form renders, so a processor added here is shown there. */
+  const english = SIGNUP_NOTICE_KEYS.map((k) => en[k]).join(" ");
+  const arabic = SIGNUP_NOTICE_KEYS.map((k) => ar[k]).join(" ");
   for (const processor of PROCESSORS) {
     assert.ok(english.includes(processor.name), `${processor.name} missing in English`);
     assert.ok(arabic.includes(processor.name), `${processor.name} missing in Arabic`);

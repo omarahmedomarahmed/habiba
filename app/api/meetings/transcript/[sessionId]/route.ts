@@ -106,6 +106,13 @@ export async function POST(
     return NextResponse.json({ ok: true, processed: false });
   }
 
+  /* DD-2 B1: nobody has confirmed the patient is 18 or over, so nothing is processed. */
+  const { adultConfirmedForSession } = await import("@/lib/data/adult");
+  if (!(await adultConfirmedForSession(sessionId))) {
+    log.info("meeting audio refused, no adult confirmation", { session: ref(sessionId) });
+    return NextResponse.json({ ok: true, processed: false });
+  }
+
   /*
    * 🔴 The payload's participant NAME is deliberately not read.
    *

@@ -16,6 +16,7 @@ import {
   goLive,
   setRecordingPaused,
   answerInPersonConsent,
+  confirmAdult,
   setTranscriptLanguage,
 } from "@/app/(app)/sessions/actions";
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
@@ -51,6 +52,8 @@ type RoomProps = {
   patientAlreadyJoined: boolean;
   /** Null for sessions that predate the consent step, or that never used the join form. */
   recordingConsent: "granted" | "declined" | null;
+  /** DD-2 B1: whether anyone has confirmed the patient is 18 or over. */
+  adultConfirmed: boolean;
   /** ISO, so the countdown survives a refresh mid-session. */
   startedAt: string | null;
   /** 🔴 0183: when both people were there and the clock began. Null until then. */
@@ -527,6 +530,21 @@ export function SessionRoom(props: RoomProps) {
     });
   };
 
+  /* DD-2 B1: the clinician's answer to "18 or over?", before anything is recorded. */
+  const [adult, setAdult] = useState<"confirmed" | "unconfirmed" | "under">(
+    props.adultConfirmed ? "confirmed" : "unconfirmed",
+  );
+  const answerAdult = (isAdult: boolean) => {
+    if (!isAdult) {
+      setAdult("under");
+      return;
+    }
+    startTransition(async () => {
+      const result = await confirmAdult(props.sessionId);
+      if (result.ok) setAdult("confirmed");
+    });
+  };
+
   const answerInPerson = (answer: "granted" | "declined") => {
     startTransition(async () => {
       const result = await answerInPersonConsent(props.sessionId, answer);
@@ -697,6 +715,38 @@ export function SessionRoom(props: RoomProps) {
         be the most obvious thing on the screen — and needs to know it was the
         patient's decision rather than a bug, or they will simply "fix" it.
       */}
+      {adult !== "confirmed" ? (
+        <div
+          className="relative mx-4 mt-3 rounded-3xl border border-amber-300/40 bg-amber-300/10 p-4 sm:mx-6"
+          data-adult-ask
+        >
+          <p className="flex items-start gap-2.5 text-[15px] font-bold text-white">
+            <MicOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-200" aria-hidden />
+            {adult === "under" ? t("adultCheck.roomRefused") : t("adultCheck.roomAsk", { name: props.patientLabel })}
+          </p>
+          {adult === "unconfirmed" ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => answerAdult(true)}
+                disabled={pending}
+                className="tap-target h-12 flex-1 rounded-2xl bg-amber-200 px-4 text-sm font-bold text-navy-700 disabled:opacity-60"
+              >
+                {t("adultCheck.roomYes")}
+              </button>
+              <button
+                type="button"
+                onClick={() => answerAdult(false)}
+                disabled={pending}
+                className="tap-target h-12 flex-1 rounded-2xl border border-white/30 px-4 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {t("adultCheck.roomNo")}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {props.modality === "in_person" && consent === null ? (
         <div
           className="relative mx-4 mt-3 rounded-3xl border border-teal-400/30 bg-teal-400/10 p-4 sm:mx-6"

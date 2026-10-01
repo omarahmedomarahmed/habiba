@@ -143,6 +143,15 @@ export async function POST(
     }
 
     /*
+     * DD-2 B1: and nobody under 18. Until the clinician (or the patient's own
+     * signup) has confirmed 18 or over, the audio is dropped before the model.
+     */
+    const { adultConfirmedForSession } = await import("@/lib/data/adult");
+    if (!(await adultConfirmedForSession(sessionId))) {
+      return NextResponse.json({ error: "adult_unconfirmed" }, { status: 409 });
+    }
+
+    /*
      * 🔴 Due diligence F3: a patient who withdrew consent to processing abroad
      * is not sent to OpenAI in the United States. Checked here, before the audio
      * is read, on every chunk, so a withdrawal mid-session stops the next one.

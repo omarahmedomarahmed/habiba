@@ -315,9 +315,15 @@ export async function createSession(
      * gets a pay link like an online one, and it cannot start until paid.
      */
     inPersonPaid?: boolean;
+    /**
+     * DD-2 B1: the clinician ticked "18 or over" on the form. Stored on the
+     * session and on a chart that has no confirmation yet, with who and when.
+     */
+    adultConfirmed?: boolean;
   },
 ) {
   let patientId = input.patientId ?? null;
+  const adultAt = input.adultConfirmed ? new Date() : null;
 
   /*
    * 🔴 A patient id from a form is a claim, not a fact. It has to be a chart
@@ -403,6 +409,8 @@ export async function createSession(
          * chart at all and a caseload of zero.
          */
         source: guestPhone ? "therapist" : guestEmail ? "join_link" : "walk_in",
+        adultConfirmedAt: adultAt,
+        adultConfirmedBy: adultAt ? actor.userId : null,
       })
       .returning({ id: patients.id });
     patientId = created?.id ?? null;
@@ -449,8 +457,16 @@ export async function createSession(
        */
       priceCurrency: "usd",
       paymentStatus: price > 0 ? "pending" : "not_required",
+      adultConfirmedAt: adultAt,
+      adultConfirmedBy: adultAt ? actor.userId : null,
     })
     .returning();
+
+  /* DD-2 B1: an existing chart with no confirmation takes this one. */
+  if (adultAt && patientId) {
+    const { confirmAdultForChart } = await import("@/lib/data/adult");
+    await confirmAdultForChart(actor, patientId, adultAt);
+  }
 
   /*
    * 🔴 53.21 — pot first, on this path too.

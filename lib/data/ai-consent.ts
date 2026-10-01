@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import { crossBorderConsents, patients } from "@/lib/db/schema";
@@ -64,6 +64,32 @@ export async function aiPausedForPerson(personId: string | null | undefined): Pr
       reason: safeErrorMessage(error),
     });
     return true;
+  }
+}
+
+/**
+ * DD-2 B1: which of these people have AI processing paused, in one query, for
+ * a caller that sends several names at once (the clinician's assistant). Fails
+ * closed: if the check cannot run, everybody is treated as paused.
+ */
+export async function pausedAmong(personIds: readonly (string | null)[]): Promise<Set<string>> {
+  const ids = [...new Set(personIds.filter((id): id is string => Boolean(id)))];
+  if (ids.length === 0) return new Set();
+  try {
+    const rows = await controlDb
+      .select({
+        personId: crossBorderConsents.personId,
+        agreedAt: crossBorderConsents.agreedAt,
+        withdrawnAt: crossBorderConsents.withdrawnAt,
+      })
+      .from(crossBorderConsents)
+      .where(inArray(crossBorderConsents.personId, ids));
+    const byPerson = new Map<string, { agreedAt: Date; withdrawnAt: Date | null }[]>();
+    for (const row of rows) byPerson.set(row.personId, [...(byPerson.get(row.personId) ?? []), row]);
+    return new Set(ids.filter((id) => aiPausedFrom(byPerson.get(id) ?? [])));
+  } catch (error) {
+    log.error("ai consent check failed, treating everybody as paused", { reason: safeErrorMessage(error) });
+    return new Set(ids);
   }
 }
 

@@ -493,6 +493,12 @@ export function NewSessionForm({
         </p>
       ) : null}
 
+      {/* DD-2 B1: required, so a session for somebody under 18 is never created to be recorded. */}
+      <label className="flex items-start gap-2.5 rounded-xl border border-navy-100 bg-white px-3.5 py-3 text-sm leading-relaxed text-navy-600">
+        <input type="checkbox" name="adult" required className="mt-1 h-4 w-4 shrink-0 accent-brand-700" />
+        <span>{t("adultCheck.label")}</span>
+      </label>
+
       <Submit />
 
       <p className="flex items-start gap-2 text-xs leading-relaxed text-navy-400">

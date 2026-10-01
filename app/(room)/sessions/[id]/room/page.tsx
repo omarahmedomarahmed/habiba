@@ -132,6 +132,8 @@ export default async function RoomPage({ params }: { params: Promise<{ id: strin
         recording made anyway.
       */
       recordingConsent={row.session.recordingConsent}
+      /* DD-2 B1: nothing is recorded until somebody has confirmed 18 or over. */
+      adultConfirmed={await (await import("@/lib/data/adult")).adultConfirmedForSession(row.session.id)}
       transcriptLanguage={row.session.transcriptLanguage}
       /* 🔴 The start ruling: the booked time in the clinician's zone, and when Start appears. */
       booking={

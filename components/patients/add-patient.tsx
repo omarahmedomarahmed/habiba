@@ -156,6 +156,12 @@ export function AddPatient() {
           </div>
         ) : null}
 
+        {/* DD-2 B1: a chart a clinician types is confirmed 18 or over, by them. */}
+        <label className="flex items-start gap-2 text-sm leading-relaxed text-navy-600">
+          <input type="checkbox" name="adult" required className="mt-1" />
+          <span>{t("adultCheck.label")}</span>
+        </label>
+
         <div className="flex flex-wrap gap-2">
           <Submit />
           <button
