@@ -149,7 +149,7 @@ function main() {
        * TOTAL on its last line, so cutting from the front removes exactly the
        * number that would reveal the cut. Fixed there, and this file, which
        * does the identical thing one level down, was left alone. That is the
-       * shape of nearly every trap in `docs/TRAPS.md`: the fix lands in one of
+       * shape of nearly every trap in `docs/TESTING.md`: the fix lands in one of
        * the two places that need it.
        */
       const lines = out

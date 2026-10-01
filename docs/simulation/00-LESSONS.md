@@ -17,5 +17,6 @@ to talk about the past (`npm run verify:runbook` holds that).
 | A dev server and a build both write `.next` | `rm -rf .next` before any local build |
 | A transcriber given the default fake microphone hears a sine tone and returns nothing | Every session with consent uses a synthesised conversation file (`06-THE-AUDIO.md`) |
 
-Product defects go in `docs/simulation-run/BUGS.md` the moment they are hit. Tooling hazards go
-in `HAZARDS.md` with the next H number.
+Product defects go in the run's `BUGS.md` the moment they are hit (`07-THE-RECORD.md`), and
+are fixed through pull requests. Tooling hazards go in the "Known hazards" table of
+`docs/OPERATIONS.md` with the next H number.

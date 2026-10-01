@@ -21,7 +21,7 @@
  * `scripts/_value-statements.ts` holds the five and what each is walked to
  * prove. Each is a COMPLETE position rather than a diff: this script wipes and
  * rebuilds every time, so there is no order dependence between them and a
- * half-finished walk cannot poison the next one. `docs/PROVE-IT.md` is the walk.
+ * half-finished walk cannot poison the next one. `docs/DEMO.md` lists them.
  *
  * ## What this is for, and why it is not the simulation
  *
@@ -1533,7 +1533,7 @@ async function main() {
      */
     console.log(`\n  this position is walked to prove: ${position.proves.join(", ")}`);
     console.log(`  it puts the product into: ${position.edges.join(", ")}`);
-    console.log(`  the walk is docs/PROVE-IT.md, section "${name}"`);
+    console.log(`  the positions table is in docs/DEMO.md, row "${name}"`);
     console.log(`\n  then: npm run on:production -- verify:demo -- --scenario=${name}\n`);
 
     /*

@@ -1,7 +1,7 @@
 import { BRAND } from "@/lib/brand";
 
 /**
- * The 24T mark. docs/BRAND.md.
+ * The 24T mark. docs/business/BRAND.md.
  *
  * ## Why the path is inlined rather than an <img>
  *
@@ -62,7 +62,7 @@ export type Ink = keyof typeof INK;
  * noticing and above every rounding decision downstream.
  *
  * The mark's own proportion is untouched at 999.797 / 425.748 = 2.3483:1, which
- * is the 2.348 docs/BRAND.md fixes. The BOX is 2.2878:1, because the box now
+ * is the 2.348 docs/business/BRAND.md fixes. The BOX is 2.2878:1, because the box now
  * carries clear space, which the pack asks for anyway.
  */
 const MARK = { x: 0, y: 0.0961, w: 999.7973, h: 425.7477 };

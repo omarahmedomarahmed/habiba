@@ -20,11 +20,10 @@
  *
  * No provider call and no acoustic diarisation error rate ship in this sprint.
  * The last checks here assert that the gap is real (nothing in the codebase
- * calls a diarisation provider) and that it is written down where the plan can
- * see it, in the same way 35R.4 is.
+ * calls a diarisation provider). The check that PLAN.md named the gap was
+ * retired on 2026-10-01 with PLAN.md itself; the gap is recorded in
+ * docs/ARCHITECTURE.md under the AI layer.
  */
-import { readFileSync } from "node:fs";
-
 import { eq, sql } from "drizzle-orm";
 
 import { DIARISATION_FIXTURES, IDENTITIES, fixture, goldMatches, measuredMap } from "../evals/cases/diarisation";
@@ -491,13 +490,6 @@ async function main() {
     "🔴 37.2 the binding enum has two values and neither of them is a model",
     /VOICE_BINDINGS = \["track", "operator"\] as const/.test(schema),
     "track · operator",
-  );
-
-  const plan = readFileSync("PLAN.md", "utf8");
-  check(
-    "⚠️ 37.4 the measurement gap is written down where the plan can see it",
-    /37\.4/.test(plan) && /35R\.4/.test(plan),
-    "named the way 35R.4 is named, rather than absorbed",
   );
 
   /* ----------------------------------------------------------- 30.1 · pins */

@@ -376,8 +376,12 @@ async function main() {
    * it unremarked, which is the rule `verify:notices` states about its own
    * outbound-only list.
    */
+  /*
+   * `PLAN.md` was the third entry until 2026-10-01, when the sprint history was
+   * removed from the repository (git keeps it). The control below now reads
+   * `scripts/survey-live.ts`, which carries the list in code on purpose.
+   */
   const ALLOWED = new Set([
-    "PLAN.md",
     "lib/env.ts",
     "scripts/verify-sprint31.ts",
     /* The live survey searches responses for the same three, so it holds them too. */
@@ -417,13 +421,16 @@ async function main() {
   /*
    * 🔴 CONTROL, because "none found" and "nothing searched" print the same.
    * The exception list must itself still contain what it claims to excuse: if
-   * `PLAN.md` stops carrying a retired hostname, the entry is stale and the
-   * scan above may be reading nothing at all.
+   * `scripts/survey-live.ts` stops carrying a retired hostname, the entry is
+   * stale and the scan above may be reading nothing at all.
    */
+  const control = "scripts/survey-live.ts";
   check(
     "🔴 CONTROL …and the scan can see one, so 'none found' is not 'nothing read'",
-    tracked.length > 100 && RETIRED.some((d) => readFileSync("PLAN.md", "utf8").includes(d)),
-    "PLAN.md still carries one on purpose, and the scan reads it",
+    tracked.length > 100 &&
+      tracked.includes(control) &&
+      RETIRED.some((d) => stripCommentsKeepingLines(readFileSync(control, "utf8")).includes(d)),
+    `${control} still carries one in code on purpose, and the scan reads it`,
   );
 
   finish("Sprint 31");

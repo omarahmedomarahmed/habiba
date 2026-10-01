@@ -32,7 +32,7 @@
  * It loads pages as a stranger. A screen behind a sign-in, and anything that
  * only runs after somebody clicks, is not covered. The clinician's room is the
  * important one of those and it is why `'unsafe-eval'` is scoped to that route
- * rather than hoped about: `docs/DAILY-HOSTS.md` is the audit that stands in for
+ * rather than hoped about: `docs/SECURITY-AND-PRIVACY.md` is the audit that stands in for
  * a browser there.
  */
 import { spawn } from "node:child_process";
@@ -48,7 +48,7 @@ const BASE = `http://127.0.0.1:${String(PORT)}`;
 /**
  * 🔴 THE PAGES ARE DERIVED, AND THE FIRST DRAFT TYPED THEM OUT.
  *
- * `docs/TRAPS.md` T3: a hand typed list of this product's own routes is wrong
+ * `docs/TESTING.md` T3: a hand typed list of this product's own routes is wrong
  * the week after it is written. This file proved it immediately. The first
  * version guessed `/how-it-works` and `/compliance` from the page TITLES in
  * `lib/content/defaults.ts`, and both answer 404, because those pages live at

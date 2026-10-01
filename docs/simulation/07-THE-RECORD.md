@@ -1,7 +1,9 @@
 # What the run writes down, and how "no bugs" is proved
 
-Everything the run produces goes in `docs/simulation-run/`. The board, the bugs, the rounds and
-the report are committed at the end of each round. The screenshots are not: the founder plays
+Everything a run produces goes in `docs/simulation-run/`, which the first `sim:board` post
+creates. The September 2026 run's files are in the repository history, not in the tree. The
+board, the bugs, the rounds and the report are committed at the end of each round, on the run's
+pull request. The screenshots are not: the founder plays
 the console under their own name and the repository is public, so `shots/` is ignored by git
 and stays on the machine that ran the round.
 
@@ -35,8 +37,8 @@ run again on the live site, after a deploy, and passed. So:
 
 1. The run finishes the round it is in. Nothing is fixed mid-round, so one round's evidence is
    about one version of the product.
-2. The fixes go out together, through the normal path: checks, the full gates once, production
-   migrations first if any, then `main`.
+2. The fixes go out together through a pull request (`CLAUDE.md`): CI, an AI review, the full
+   gates once, production migrations first if any, then the merge to `main`.
 3. The flows that failed are run again, from their first step, in a re-run round (`R3b`), with
    the same cast. The board and the shots of the re-run sit beside the original.
 4. Only when a re-run is clean does the bug's status become `re-run clean`.

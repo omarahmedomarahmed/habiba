@@ -3,7 +3,7 @@
  * downloads rather than the package we installed.
  *
  *     npm run audit:daily-hosts           # print what the bundle names
- *     npm run audit:daily-hosts -- --write  # and update docs/DAILY-HOSTS.md
+ *     npm run audit:daily-hosts -- --write  # and update docs/SECURITY-AND-PRIVACY.md
  *
  * ## 🔴 WHY THIS EXISTS
  *
@@ -19,7 +19,7 @@
  * screen nobody is watching the console of.
  *
  * So this is not a one-off. It runs against whatever version is installed,
- * writes what it found into `docs/DAILY-HOSTS.md`, and `verify:csp` fails when
+ * writes what it found into `docs/SECURITY-AND-PRIVACY.md`, and `verify:csp` fails when
  * the installed version has moved past the audited one, which turns "somebody
  * should re-check this after an upgrade" into a red line.
  *
@@ -32,7 +32,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { ranDirectly } from "./_verify";
 
 const PACKAGE = "node_modules/@daily-co/daily-js";
-const DOC = "docs/DAILY-HOSTS.md";
+const DOC = "docs/SECURITY-AND-PRIVACY.md";
 
 /** Hosts every bundle mentions that are documentation, not destinations. */
 const PROSE = new Set([

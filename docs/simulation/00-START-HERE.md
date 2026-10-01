@@ -1,5 +1,13 @@
 # The one-month simulation: start here
 
+**Status (2026-10-01).** The month was run on production from 2026-09-25 to 2026-09-26, and its
+board, bug list and rounds are in the repository history. Production has since been reseeded
+with the event demo cast (`docs/DEMO.md`). This folder stays because it is the most complete
+catalogue of the product: every flow (`03-THE-FLOWS.md`) and edge case (`04-THE-EDGES.md`) with
+the code it exercises, and every page placed (`08-COVERAGE.md`). `npm run verify:runbook` checks
+it against the code on every CI run. Fixes found by a run reach production through pull requests
+(`CLAUDE.md`).
+
 **What it is.** An invented cast signs up, pays, meets, writes notes, funds pots, approves,
 refunds and pays out on the live site, `https://24therapy.app`, through the real screens, in
 seven rounds that stand for one month. Between rounds the rows each round wrote are moved back
@@ -7,7 +15,7 @@ in time, so at the end production holds a month of history that the product itse
 
 **What it is for.** To prove, screen by screen and cent by cent, that every flow for every kind
 of user works, or to find exactly where it does not, fix it, and run that part again until it
-does. Only a clean run opens the redesign.
+does.
 
 ## The rules
 

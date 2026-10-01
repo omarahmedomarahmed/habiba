@@ -15,7 +15,7 @@
  * Headshots are left public: they are published on the radar by design.
  * Needs `BLOB_READ_WRITE_TOKEN`, and `BLOB_PRIVATE_READ_WRITE_TOKEN` when the
  * main store is public. Run against production only by the operator, from
- * the runbook in `docs/TAKEOVER.md`.
+ * the steps in `docs/OPERATIONS.md` (Private files).
  */
 import { sql } from "drizzle-orm";
 

@@ -609,7 +609,7 @@ export const GATES = [
    * times), give every check a control, derive a path list rather than typing
    * it, say when a report is truncated.
    *
-   * `docs/TRAPS.md` is the prose and this is the enforcement, and the last
+   * `docs/TESTING.md` is the prose and this is the enforcement, and the last
    * check in it fails if the document describes a trap this does not hold.
    */
   {
@@ -650,7 +650,7 @@ export const GATES = [
    * It belongs in the product's own pass rather than one sprint's for the
    * reason `verify:runbook` does. The failure it exists for is silent: a
    * promise is added to `_value-statements.ts`, the walk is not extended, and
-   * `docs/PROVE-IT.md` still reads as complete because nothing in it is wrong.
+   * `docs/DEMO.md` still reads as complete because nothing in it is wrong.
    * That is how every count in the simulation documents came to disagree with
    * something while all eighteen of them looked fine.
    *
