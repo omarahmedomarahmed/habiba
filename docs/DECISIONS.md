@@ -43,6 +43,29 @@ its old and new value. Provider keys stay in the environment.
 | 19 | Paymob card payments land on our balance, so seat bills and moved sessions work as for transfers; revisit only if Paymob splits payments | Two gaps exist only on Stripe |
 | N11 | Bills are stored in USD cents and shown in EGP at 50, so EGP figures move in steps of 0.50 (a part-month seat shows EGP 666.50) | Storing EGP per bill would change the transfer path; see EGP-native books in `docs/SECURITY-AND-PRIVACY.md` |
 
+Proposed on 1 October by the due diligence money fixes (migration 0188). Built and switched on
+with the defaults below; each waits for the founder to accept, change or reverse it.
+
+| ID | Proposed ruling | Why |
+| --- | --- | --- |
+| DC1 | A card payment's claim, session update and ledger postings are one database transaction; an hourly sweep raises any card money that is not on the books to `/admin/errors` | A payment could be taken and never recorded |
+| DC2 | Maker and checker from transfer to payout, on by default (`rules.approvals.payoutSeparation`): whoever confirmed a bank transfer behind a payout does not approve it, and whoever approves a payout does not send it. Narrows ruling 13 for payouts only; a team of one cannot pay out while it is on | One person could confirm an unmatched transfer, then approve and send the payout it funded |
+| DC3 | Staff may type the bank statement's amount when confirming a transfer; it must match, and the audit row says whether the check was against the bank or book against book | Reconciliation compared our books with themselves only |
+| DC4 | Earnings are withdrawable 7 days after the session ended (`rules.earnings.holdDays`) | A refund or chargeback after the session needs money to come back from |
+| DC5 | A payout whose provider gave no answer is `unknown`: not sent again, not marked sent by hand, until the provider is asked again and says failed or sent | A timeout followed by "Mark sent" could pay twice |
+| DC6 | Patient payments and payouts carry the EGP amount and the rate actually charged; an EGP payout is refused when it would send more pounds than the clinician's sessions brought in. Full EGP books are the plan below, not yet built | After a devaluation more EGP could go out than came in |
+
+**DC6, the full plan (proposed, not built).** Keep a second, EGP column on every leg of the
+Egyptian entity's books (`eg`), set from the money that moved (the transfer's pounds, the card
+attempt's pounds, the payout's pounds), never from a rate looked up later. The `eg` books then
+balance in pounds as well as in cents, the trial balance and `/admin/vault` show pounds for `eg`,
+and the difference between the two columns over time is the real `fx_difference`. Bills keep
+their USD price (ruling 10 and N11) but are settled and paid out from the pounds. Steps: post
+pounds on every `eg` leg; backfill the payments since launch from `manual_payments` and
+`gateway_payments`; move payouts and the earnings page to the EGP balance; then retire the
+re-converted figures. Counsel's question on billing Egyptian therapists in USD (item Q) decides
+whether prices themselves move to pounds.
+
 ## Product and access
 
 | ID | Decision | Why |
@@ -158,3 +181,6 @@ Open items only, as recorded on 2026-10-01.
 | F-MFA | Proposed ruling: make the authenticator app mandatory for clinicians (they read clinical records), and later for clinic managers and partner admins, after a notice period; patients and companies stay optional (B2.4) | A product and support decision: a lost phone then needs a recovery path we staff |
 | F-ROLE | Proposed ruling: run the app as a restricted Postgres role. Steps: create role `app_rw` with LOGIN; GRANT SELECT, INSERT, UPDATE, DELETE on all tables and USAGE on sequences to it; REVOKE UPDATE, DELETE, TRUNCATE ON `audit_log` FROM it (INSERT and SELECT only); keep the owner role for `db:migrate` only; set Vercel's `DATABASE_URL` to `app_rw` and the migration runner's to the owner; rotate the owner password. Until then the owner role the app uses can DROP or DISABLE the audit triggers (0184, 0189) | Neon roles, secrets and a deploy only you can make |
 | F-2FA-STAFF | Confirm there is no break-glass for the console: if every super admin loses their phone and recovery codes, the way back is a database edit by whoever holds the owner credential (B2.3) | Who may hold that power |
+| FC1 | Accept, change or reverse DC1 to DC6. DC2 means at least two staff must work the payout queue | Money rules are yours |
+| FC2 | Tax with counsel. Today: `rules.tax.payoutWithholdingBps` (0) and `rules.tax.topUpWithholding` (off) are stored and shown on `/admin/settings` as stored only, and no payout or top-up reads them; no receipt is issued to a patient through the ETA (there is no B2C e-receipt code); ETA e-invoicing covers company top-ups and returns only (`lib/billing/eta/issue.ts`) and is off until `ETA_MODE` and a signer are set. Counsel decides whether withholding applies to clinician payouts or company top-ups and at what rate, whether patient sessions need ETA e-receipts, and whether holding patient and company money and paying clinicians needs CBE licensing or a licensed PSP's marketplace product | Tax law and licensing; nothing is built until counsel answers |
+| FC3 | Paymob confirms that `client_reference_id` is idempotent for Send and that a payout can be looked up by it (`PAYMOB-CONFIRM` in `lib/billing/gateway/paymob.ts`). Until then a timed-out payout stays `unknown` until Paymob's callback arrives or an engineer resolves it from the Paymob dashboard | Only Paymob can answer |

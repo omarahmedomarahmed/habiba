@@ -304,11 +304,15 @@ async function main() {
      * finding in that report, and seeding it backwards would put a chart in a film showing every
      * deposit as expenditure.
      */
+    /* 🔴 0188: both legs, because the database refuses a transaction that does not sum to zero. */
+    const openingTxn = crypto.randomUUID();
     await db.execute(sql`
       INSERT INTO ledger_entries (organization_id, account, amount_cents, currency, entity, txn_kind,
                                   ref_type, ref_id, txn_id, memo)
       VALUES (${soloOrgId}, 'sponsor_pot', -500000, 'usd', 'us', 'pot_topup',
-              'sponsor', ${sponsor.id}, gen_random_uuid(), 'Demo Holdings opening balance')`);
+              'sponsor', ${sponsor.id}, ${openingTxn}, 'Demo Holdings opening balance'),
+             (${soloOrgId}, 'cash', 500000, 'usd', 'us', 'pot_topup',
+              'sponsor', ${sponsor.id}, ${openingTxn}, 'Demo Holdings opening balance')`);
 
     console.log(`sponsor: Demo Holdings, ${CAST.sponsorUser.email}`);
 

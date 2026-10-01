@@ -6,12 +6,17 @@ import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   BACK_OFFICE_ROLES,
+  ledgerEntries,
+  manualPayments,
   payoutMethods,
   payoutRequestEvents,
   payoutRequests,
+  sessionPayments,
+  sessions,
   users,
   type Entity,
   type PayoutMethod,
+  type PayoutProviderState,
   type PayoutRequest,
   type PayoutStatus,
 } from "@/lib/db/schema";
@@ -22,7 +27,8 @@ import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { notify } from "@/lib/notify";
 import { getSettings } from "@/lib/settings";
 
-import { fourEyesProblem } from "./four-eyes";
+import { egpShortfall, egpWithdrawable, stillHeldCents } from "./egp-books";
+import { fourEyesProblem, payoutSeparationProblem } from "./four-eyes";
 import { quoteFor } from "./fx";
 import {
   heldForTherapist,
@@ -88,7 +94,7 @@ export type PayoutQueueRow = {
   needsTwoPeople: boolean;
   proofUrl: string | null;
   /** 64.1: the payouts provider's side, when one is sending it. */
-  providerState: "sending" | "sent" | "failed" | null;
+  providerState: PayoutProviderState | null;
   providerError: string | null;
 };
 
@@ -191,6 +197,23 @@ export async function requestPayout(input: {
     return { error: `You can withdraw up to ${await moneyText(held)} right now.` };
   }
 
+  /*
+   * 🔴 0188: EARNINGS WAIT OUT A HOLDING PERIOD after the session ends, so a
+   * refund or a chargeback has money to come back from (`rules.earnings`).
+   */
+  const holdDays = (await getSettings()).rules.earnings.holdDays;
+  const holding = await stillHeldFor(input.therapistId, holdDays);
+  if (holding > 0 && amount > held - holding) {
+    const { moneyText } = await import("@/lib/money/text");
+    const words = await wordsFor({ userId: input.therapistId });
+    return {
+      error: words.t("tpayout.heldBack", {
+        amount: await moneyText(Math.max(0, held - holding)),
+        days: holdDays,
+      }),
+    };
+  }
+
   const method = await defaultMethodFor(input.therapistId);
   if (!method) return { error: "Add a payout method first. We need to know where to send it." };
 
@@ -236,6 +259,20 @@ export async function requestPayout(input: {
 
   const payoutAmountMinor = quote ? convert(amount, quote.rateMicro) : amount;
   const entity: Entity = method.method === "stripe" ? "us" : "eg";
+
+  /* 🔴 0188: never more pounds out than this clinician's sessions brought in. */
+  if (payoutCurrency === "egp" && quote) {
+    const short = await egpShortFor({
+      id: null,
+      therapistId: input.therapistId,
+      payoutAmountMinor,
+      fxRateMicro: quote.rateMicro,
+    });
+    if (short) {
+      const words = await wordsFor({ userId: input.therapistId });
+      return { error: words.t("tpayout.egpShort") };
+    }
+  }
 
   /*
    * 🔴 ONE OPEN REQUEST, ENFORCED UNDER A LOCK. The check above and this insert
@@ -321,7 +358,7 @@ async function move(input: {
           eq(payoutRequests.id, input.requestId),
           inArray(payoutRequests.status, input.from),
           input.notWhileSending
-            ? sql`(${payoutRequests.providerState} IS NULL OR ${payoutRequests.providerState} NOT IN ('sending', 'sent'))`
+            ? sql`(${payoutRequests.providerState} IS NULL OR ${payoutRequests.providerState} NOT IN ('sending', 'sent', 'unknown'))`
             : undefined,
         ),
       )
@@ -391,11 +428,137 @@ async function approverSends(
   senderUserId: string,
 ): Promise<{ error: string } | null> {
   const settings = await getSettings();
-  if (!settings.rules.approvals.payouts) return null;
-  if (row.approvedByUserId && row.approvedByUserId === senderUserId) {
+  if (settings.rules.approvals.payouts && row.approvedByUserId && row.approvedByUserId === senderUserId) {
     return { error: "You approved this one. A second person sends it." };
   }
-  return null;
+  /* 🔴 0188: maker and checker, on by default and apart from the two-person switch. */
+  const problem = payoutSeparationProblem({
+    act: "send",
+    actorUserId: senderUserId,
+    transferConfirmers: [],
+    approvedByUserId: row.approvedByUserId,
+    separate: settings.rules.approvals.payoutSeparation,
+  });
+  return problem ? { error: "aaccess.fourApprover" satisfies MessageKey } : null;
+}
+
+/**
+ * 🔴 0188: whoever confirmed a bank transfer that paid for this clinician's
+ * sessions since their last payout left does not approve this one. The
+ * transfer and the payout it funds are checked by two people.
+ */
+async function transferConfirmerApproves(
+  row: Pick<PayoutRequest, "therapistId">,
+  approverUserId: string,
+): Promise<{ error: string } | null> {
+  const settings = await getSettings();
+  if (!settings.rules.approvals.payoutSeparation) return null;
+  const problem = payoutSeparationProblem({
+    act: "approve",
+    actorUserId: approverUserId,
+    transferConfirmers: await transferConfirmersFor(row.therapistId),
+    approvedByUserId: null,
+    separate: true,
+  });
+  return problem ? { error: "aaccess.fourTransfer" satisfies MessageKey } : null;
+}
+
+/** Who confirmed the transfers behind the money a clinician can withdraw now. */
+export async function transferConfirmersFor(therapistId: string): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ by: manualPayments.decidedBy })
+    .from(manualPayments)
+    .innerJoin(sessions, eq(sessions.id, manualPayments.refId))
+    .where(
+      and(
+        eq(manualPayments.purpose, "session"),
+        eq(manualPayments.state, "confirmed"),
+        eq(sessions.therapistId, therapistId),
+        sql`${manualPayments.decidedBy} IS NOT NULL`,
+        sql`${manualPayments.decidedAt} > COALESCE((
+          SELECT MAX(${payoutRequests.sentAt}) FROM ${payoutRequests}
+           WHERE ${payoutRequests.therapistId} = ${therapistId}
+             AND ${payoutRequests.status} IN ('sent', 'confirmed')
+        ), 'epoch'::timestamptz)`,
+      ),
+    );
+  return rows.map((r) => r.by).filter((by): by is string => Boolean(by));
+}
+
+/**
+ * 🔴 0188: the part of a clinician's held earnings still inside its holding
+ * period: each session payment's net credit, until `holdDays` after the
+ * session ended (or was due to end).
+ */
+export async function stillHeldFor(therapistId: string, holdDays: number, now = new Date()): Promise<number> {
+  if (holdDays <= 0) return 0;
+  const rows = await db
+    .select({
+      cents: sql<number>`(-SUM(${ledgerEntries.amountCents}))::int`,
+      endedAt: sql<Date | null>`MAX(COALESCE(${sessions.endedAt}, ${sessions.scheduledAt} + interval '50 minutes'))`,
+    })
+    .from(ledgerEntries)
+    .innerJoin(sessionPayments, eq(sessionPayments.id, ledgerEntries.refId))
+    .innerJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
+    .where(
+      and(
+        eq(ledgerEntries.account, "therapist_payable"),
+        eq(ledgerEntries.userId, therapistId),
+        eq(ledgerEntries.refType, "session_payment"),
+        sql`${ledgerEntries.txnKind} IN ('session_payment', 'session_refund', 'session_repriced')`,
+        sql`(COALESCE(${sessions.endedAt}, ${sessions.scheduledAt}) IS NULL
+             OR COALESCE(${sessions.endedAt}, ${sessions.scheduledAt} + interval '50 minutes')
+                > ${new Date(now.getTime() - holdDays * 24 * 60 * 60 * 1000)})`,
+      ),
+    )
+    .groupBy(sessionPayments.id);
+  return stillHeldCents(
+    rows.map((r) => ({ cents: Number(r.cents), endedAt: r.endedAt ? new Date(r.endedAt) : null })),
+    holdDays,
+    now,
+  );
+}
+
+/**
+ * 🔴 0188: whether an EGP payout would send more pounds than came in for this
+ * clinician. Pounds collected are read from the ledger legs that carry them;
+ * legs that carry none count at this request's own rate. Other approved EGP
+ * payouts not yet sent count against it first.
+ */
+async function egpShortFor(row: {
+  id: string | null;
+  therapistId: string;
+  payoutAmountMinor: number;
+  fxRateMicro: number | null;
+}): Promise<number> {
+  if (!row.fxRateMicro || row.fxRateMicro <= 0) return 0;
+  const [books] = await db
+    .select({
+      priced: sql<number>`COALESCE(SUM(${ledgerEntries.egpMinor}) FILTER (WHERE ${ledgerEntries.egpMinor} IS NOT NULL), 0)::int`,
+      unpriced: sql<number>`COALESCE(SUM(${ledgerEntries.amountCents}) FILTER (WHERE ${ledgerEntries.egpMinor} IS NULL), 0)::int`,
+    })
+    .from(ledgerEntries)
+    .where(and(eq(ledgerEntries.account, "therapist_payable"), eq(ledgerEntries.userId, row.therapistId)));
+  const [others] = await db
+    .select({ total: sql<number>`COALESCE(SUM(${payoutRequests.payoutAmountMinor}), 0)::int` })
+    .from(payoutRequests)
+    .where(
+      and(
+        eq(payoutRequests.therapistId, row.therapistId),
+        eq(payoutRequests.status, "approved"),
+        eq(payoutRequests.payoutCurrency, "egp"),
+        row.id ? sql`${payoutRequests.id} <> ${row.id}` : undefined,
+      ),
+    );
+  return egpShortfall({
+    withdrawableEgpMinor: egpWithdrawable({
+      pricedEgpMinor: Number(books?.priced ?? 0),
+      unpricedCents: Number(books?.unpriced ?? 0),
+      rateMicro: row.fxRateMicro,
+    }),
+    inFlightEgpMinor: Number(others?.total ?? 0),
+    requestEgpMinor: row.payoutAmountMinor,
+  });
 }
 
 /**
@@ -467,6 +630,8 @@ export async function approvePayout(input: {
   // Approval is the act that lets money leave, so the threshold rule is asked here.
   const refused = await fourEyes(row, input.approverUserId, true);
   if (refused) return refused;
+  const confirmedIt = await transferConfirmerApproves(row, input.approverUserId);
+  if (confirmedIt) return confirmedIt;
   const cooling = await detailsCoolingDown(row);
   if (cooling) return cooling;
 
@@ -497,7 +662,13 @@ export async function approvePayout(input: {
  * refund, an adjustment, a bill netted from it), and other approved, unsent
  * requests for the same clinician count against it first.
  */
-async function moreThanHeld(row: { id: string; therapistId: string; amountCents: number }): Promise<{ error: string } | null> {
+async function moreThanHeld(
+  row: Pick<PayoutRequest, "id" | "therapistId" | "amountCents" | "payoutCurrency" | "payoutAmountMinor" | "fxRateMicro">,
+): Promise<{ error: string } | null> {
+  /* 🔴 0188: the pounds too, never more out than came in. */
+  if (row.payoutCurrency === "egp" && (await egpShortFor(row)) > 0) {
+    return { error: "apayout.egpShort" satisfies MessageKey };
+  }
   const held = await heldForTherapist(row.therapistId);
   const [others] = await db
     .select({ total: sql<number>`COALESCE(SUM(${payoutRequests.amountCents}), 0)::int` })
@@ -552,6 +723,11 @@ export async function markPayoutSent(input: {
   if (row.status !== "approved") return { error: "Only an approved payout can be sent." };
   /* A provider is already sending it: its callback finishes it, not a second hand. */
   if (row.providerState === "sending") return { error: "A payouts provider is sending this one." };
+  /*
+   * 🔴 0188: the provider gave no answer, so its transfer may still land. Not
+   * by hand until a re-query says it failed (`recheckPayout`).
+   */
+  if (row.providerState === "unknown") return { error: "apayout.unknownBlocked" satisfies MessageKey };
   const refused = await fourEyes(row, input.senderUserId, false);
   if (refused) return refused;
   /*
@@ -606,6 +782,8 @@ async function recordSent(
         sentByUserId: input.senderUserId,
         txnId,
         executor: tx,
+        /* 0188: the pounds that left, on the payable leg. */
+        ...(row.payoutCurrency === "egp" ? { egpMinor: row.payoutAmountMinor, fxRateMicro: row.fxRateMicro } : {}),
       }),
   });
   if (moved.error) return moved;
@@ -671,6 +849,7 @@ export async function sendViaProvider(input: {
   if (!(PROVIDER_METHODS as readonly string[]).includes(row.method)) {
     return { error: "The provider does not send to this kind of account. Send it by hand." };
   }
+  if (row.providerState === "unknown") return { error: "apayout.unknownBlocked" satisfies MessageKey };
   const refused = await fourEyes(row, input.senderUserId, false);
   if (refused) return refused;
   /* 🔴 The approver does not also send it, while the payouts switch says two people. */
@@ -710,8 +889,10 @@ export async function sendViaProvider(input: {
    * provider's idempotency key, so a second send of the same one is refused
    * there if the first did land.
    */
+  let threw = false;
   const sent = await provider
     .send({
+      /* 🔴 The request id, the same on every try: the provider's idempotency key. */
       reference: row.id,
       amountMinor: row.payoutAmountMinor,
       currency: "egp",
@@ -720,15 +901,26 @@ export async function sendViaProvider(input: {
       accountName: row.accountName,
       callbackUrl: `${env.appUrl}/api/payouts/callback`,
     })
-    .catch((error: unknown) => ({
-      ok: false as const,
-      reason: `no answer from the provider (${safeErrorMessage(error)}); check with them before sending again`,
-    }));
+    .catch((error: unknown) => {
+      threw = true;
+      return {
+        ok: false as const,
+        reason: `no answer from the provider (${safeErrorMessage(error)}); it is asked again before anything else is sent`,
+      };
+    });
   if (!sent.ok) {
+    /*
+     * 🔴 0188: NO ANSWER IS NOT A NO. A throw or a server error leaves the
+     * request `unknown`: nothing sends it again or marks it sent until the
+     * provider is asked and says `failed` (`recheckPayout`). Only a refusal
+     * the provider actually gave is `failed`.
+     */
+    const unknown = threw || ("uncertain" in sent && sent.uncertain === true);
     await db
       .update(payoutRequests)
-      .set({ providerState: "failed", providerError: sent.reason.slice(0, 300), updatedAt: new Date() })
+      .set({ providerState: unknown ? "unknown" : "failed", providerError: sent.reason.slice(0, 300), updatedAt: new Date() })
       .where(eq(payoutRequests.id, row.id));
+    if (unknown) return { error: "apayout.unknownSend" satisfies MessageKey };
     return { error: "The provider refused it. Try again, or send it by hand." };
   }
   await db
@@ -825,6 +1017,69 @@ export async function applyPayoutEvent(
   return { applied: done.ok ? "sent" : "ignored" };
 }
 
+/**
+ * 🔴 0188: ASK THE PROVIDER AGAIN ABOUT A SEND THAT GOT NO ANSWER.
+ *
+ * By its own id when we have it, otherwise by ours (the request id it was
+ * sent with). `sent` is applied exactly as its callback would be; `failed` is
+ * definitive and lets it be sent again or by hand; `pending` means the provider
+ * has it, so it is `sending` and its callback finishes it. No record, or no
+ * answer, leaves it `unknown`.
+ */
+export async function recheckPayout(requestId: string): Promise<{ state: PayoutProviderState | "gone" }> {
+  const row = await requestRow(requestId);
+  if (!row) return { state: "gone" };
+  if (row.providerState !== "unknown" || !row.provider) return { state: row.providerState ?? "gone" };
+  const { payoutProvider } = await import("./gateway");
+  const provider = await payoutProvider();
+  if (!provider || provider.name !== row.provider) return { state: "unknown" };
+
+  const ours = !row.providerRef || row.providerRef.startsWith("claim:");
+  const asked = await (ours ? provider.fetchByReference(row.id) : provider.fetchStatus(row.providerRef!)).catch(
+    () => null,
+  );
+  if (!asked || "ok" in asked) return { state: "unknown" };
+
+  if (asked.outcome === "failed") {
+    await db
+      .update(payoutRequests)
+      .set({
+        providerState: "failed",
+        providerError: `the provider confirms it failed: ${asked.failure ?? "failed"}`.slice(0, 300),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(payoutRequests.id, row.id), eq(payoutRequests.providerState, "unknown")));
+    return { state: "failed" };
+  }
+  /* The provider has it: `sending` again, with its own id, so its callback or the answer below finishes it. */
+  const [moved] = await db
+    .update(payoutRequests)
+    .set({ providerState: "sending", providerRef: asked.providerRef || row.providerRef, updatedAt: new Date() })
+    .where(and(eq(payoutRequests.id, row.id), eq(payoutRequests.providerState, "unknown")))
+    .returning({ id: payoutRequests.id });
+  if (!moved) return { state: (await requestRow(row.id))?.providerState ?? "gone" };
+  if (asked.outcome === "sent") {
+    await applyPayoutEvent(provider.name, { ...asked, reference: row.id });
+    return { state: "sent" };
+  }
+  return { state: "sending" };
+}
+
+/** 🔴 0188: every payout left `unknown`, asked again. Hourly, from the `reminders` job. */
+export async function recheckUnknownPayouts(): Promise<{ asked: number; resolved: number }> {
+  const rows = await db
+    .select({ id: payoutRequests.id })
+    .from(payoutRequests)
+    .where(and(eq(payoutRequests.status, "approved"), eq(payoutRequests.providerState, "unknown")))
+    .limit(50);
+  let resolved = 0;
+  for (const row of rows) {
+    const { state } = await recheckPayout(row.id);
+    if (state !== "unknown") resolved += 1;
+  }
+  return { asked: rows.length, resolved };
+}
+
 /** The clinician says it arrived, or the team confirms the bank did. */
 export async function confirmPayout(input: {
   requestId: string;
@@ -891,6 +1146,7 @@ export async function markPayoutReturned(input: {
         actorUserId: input.actorUserId,
         txnId,
         executor: tx,
+        ...(row.payoutCurrency === "egp" ? { egpMinor: row.payoutAmountMinor, fxRateMicro: row.fxRateMicro } : {}),
       }),
   });
   if (moved.error) return moved;

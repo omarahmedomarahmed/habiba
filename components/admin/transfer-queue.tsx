@@ -198,10 +198,13 @@ function TransferRow({
   const [rejecting, setRejecting] = useState(false);
   const [looking, setLooking] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  /* 🔴 0188: the bank line's figure, typed by staff; empty means book against book. */
+  const [statement, setStatement] = useState("");
   const [pending, start] = useTransition();
   const t = useT();
 
   const waited = row.waitedMinutes ?? null;
+  const statementMinor = statement.trim() === "" ? null : Math.round(Number(statement) * 100);
 
   return (
     <Card className="p-4">
@@ -271,7 +274,7 @@ function TransferRow({
             disabled={pending}
             onClick={() =>
               start(async () => {
-                onDone(await confirm(row.id, { amountCents: row.amountCents, settlesCents: row.settlesCents }));
+                onDone(await confirm(row.id, { amountCents: row.amountCents, settlesCents: row.settlesCents }, statementMinor));
               })
             }
             className="h-10 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-navy-600 hover:bg-brand-400 active:bg-brand-600 disabled:opacity-40"
@@ -288,6 +291,20 @@ function TransferRow({
           </button>
         </div>
       </div>
+
+      <label className="mt-3 block text-sm">
+        <span className="text-xs text-slate-500">{t("atransfer.statement")}</span>
+        <input
+          type="number"
+          inputMode="decimal"
+          step="0.01"
+          min="0"
+          value={statement}
+          onChange={(e) => setStatement(e.target.value)}
+          className="mt-0.5 block h-10 w-48 rounded-xl border border-slate-200 px-3 text-sm"
+        />
+        <span className="mt-0.5 block text-xs text-slate-500">{t("atransfer.statementHint")}</span>
+      </label>
 
       <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
         <div className="rounded-xl bg-slate-50 p-3">
@@ -351,7 +368,7 @@ function TransferRow({
           }}
           onConfirm={() =>
             start(async () => {
-              const result = await confirm(row.id, { amountCents: row.amountCents, settlesCents: row.settlesCents });
+              const result = await confirm(row.id, { amountCents: row.amountCents, settlesCents: row.settlesCents }, statementMinor);
               /*
                * 🔴 THE MODAL STAYS OPEN ON A FAILURE, and closes on a success.
                *

@@ -731,6 +731,12 @@ const JOBS = {
     /* 🔴 K20: the backstop for any cancel path that did not raise its own waiting transfer. */
     const { flagTransfersForCancelled } = await import("@/lib/billing/rail-exceptions");
     await step(failed, "flagTransfersForCancelled", () => flagTransfersForCancelled());
+    /* 🔴 0188: card money the gateway took that is not on the books, raised on /admin/errors. */
+    const { sweepUnbookedGatewayPayments } = await import("@/lib/billing/gateway/session");
+    await step(failed, "sweepUnbookedGatewayPayments", () => sweepUnbookedGatewayPayments());
+    /* 🔴 0188: a payout whose provider gave no answer is asked again until it says sent or failed. */
+    const { recheckUnknownPayouts } = await import("@/lib/billing/payouts");
+    await step(failed, "recheckUnknownPayouts", () => recheckUnknownPayouts());
 
     /*
      * 🔴 K26 (ME68): caught like every other step. It was the one call in this

@@ -5,7 +5,6 @@ import { after, before, test } from "node:test";
 import { sql } from "drizzle-orm";
 
 import type { Actor } from "../lib/auth/session";
-import { auditFixtures } from "../scripts/_audit-fixtures";
 
 /**
  * Tenancy, against a real database: two practices, one clinician and one
@@ -189,7 +188,7 @@ after(async () => {
   await db.execute(sql`DELETE FROM sessions WHERE organization_id IN (${inOrgs})`);
   await db.execute(sql`DELETE FROM patients WHERE organization_id IN (${inOrgs})`);
   await db.execute(sql`DELETE FROM people WHERE id IN (${inPersons})`);
-  await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND organization_id IN (${inOrgs})`);
+  // audit_log rows stay: the log is append-only, and their organization column empties on delete.
   await db.execute(sql`DELETE FROM users WHERE organization_id IN (${inOrgs})`);
   await db.execute(sql`DELETE FROM organizations WHERE id IN (${inOrgs})`);
 });

@@ -21,7 +21,10 @@ export const TWO_PEOPLE_EVERYWHERE = {
     transferWithoutProof: true,
     ledgerAdjustments: true,
     payoutDetailsCooldownHours: 0,
+    payoutSeparation: true,
   },
+  /* 0188: no holding period, so a fixture's fresh earnings can be paid out. */
+  earnings: { holdDays: 0 },
 };
 
 export function setRulesForThisCheck(patch: Record<string, object> | null): void {

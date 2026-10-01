@@ -651,7 +651,26 @@ async function main() {
    *
    * An absence assertion, so it gets a planted offender below (§6).
    */
-  const grantBody = grants.slice(grants.indexOf("export async function grantFor"));
+  /*
+   * 0188: `collectedBy` reads the pounds to RECORD them beside the cents
+   * (`egp_minor` and the rate), never to credit a balance, so it is checked on
+   * its own below and left out of this scan.
+   */
+  const collectedStart = grants.indexOf("function collectedBy(");
+  const collectedEnd = grants.indexOf("\n}\n", collectedStart) + 3;
+  const collectedBody = collectedStart >= 0 ? grants.slice(collectedStart, collectedEnd) : "";
+  const grantBody = grants
+    .slice(grants.indexOf("export async function grantFor"))
+    .replace(collectedBody || "\u0000", "");
+  check(
+    "🔴 0188 the transfer's pounds are only recorded (egpMinor and the rate), never credited",
+    collectedBody.length > 0 &&
+      (collectedBody.match(/payment\.amountCents/g) ?? []).length === 3 &&
+      /egpMinor: payment\.amountCents,/.test(collectedBody) &&
+      /fxRateMicro: Math\.round\(\(payment\.amountCents \* 1_000_000\) \/ payment\.settlesCents\)/.test(collectedBody) &&
+      !/balance|journal|account:/.test(collectedBody),
+    "the EGP figure goes on the ledger leg beside the settled cents, not into any balance",
+  );
   check(
     "🔴 a grant credits what the transfer SETTLES, never what was sent",
     /payment\.settlesCents/.test(grantBody) && !/payment\.amountCents/.test(grantBody),
@@ -2029,6 +2048,63 @@ async function main() {
     /videoHealth\(\)/.test(readSource("components/admin/video-check.tsx")) &&
       /<VideoCheck \/>/.test(readSource("app/(admin)/admin/settings/page.tsx")),
     "DAILY_API_KEY is write-only on Vercel, so using it is the only way to know",
+  );
+
+  /* ================================================================== */
+  /*  0188: from the transfer to the payout, two people and the bank     */
+  /* ================================================================== */
+
+  const payouts = readSource("lib/billing/payouts.ts");
+  const bodyOf = (src: string, signature: string) => {
+    const start = src.indexOf(signature);
+    return start < 0 ? "" : src.slice(start, src.indexOf("\n}\n", start));
+  };
+  const approveBody = bodyOf(payouts, "export async function approvePayout(");
+  check(
+    "🔴 0188 whoever confirmed a transfer behind a payout cannot approve it",
+    /transferConfirmerApproves\(/.test(approveBody) &&
+      /payoutSeparationProblem\(/.test(bodyOf(payouts, "async function transferConfirmerApproves(")),
+    "one person confirmed an unmatched transfer, then approved and sent the payout it funded",
+  );
+  const sendsApart = ["export async function markPayoutSent(", "export async function sendViaProvider("].every((fn) =>
+    /approverSends\(/.test(bodyOf(payouts, fn)),
+  );
+  check(
+    "🔴 0188 whoever approved a payout cannot send it, by hand or through the provider",
+    sendsApart && /act: "send"/.test(bodyOf(payouts, "async function approverSends(")),
+    "approval and sending are the maker and the checker",
+  );
+  const separationGuard = (src: string) => /transferConfirmerApproves\(/.test(src);
+  check(
+    "🔴 CONTROL the separation check misses an approval that skips it",
+    !separationGuard("const refused = await fourEyes(row, input.approverUserId, true);"),
+    "",
+  );
+
+  const statementLib = bodyOf(lib, "export async function confirmPayment(");
+  check(
+    "🔴 0188 a transfer is confirmed against the bank statement's figure when staff give one, and the database refuses a mismatch",
+    /statementMinor/.test(statementLib) &&
+      /eq\(manualPayments\.amountCents, input\.statementMinor\)/.test(statementLib) &&
+      readFileSync("drizzle/0188_the_books_hold_in_the_database.sql", "utf8").includes("manual_payments_statement_matches"),
+    "reconciliation compared our books with themselves only",
+  );
+  check(
+    "🔴 0188 the audit row says which check it was: the bank, or book against book",
+    /book against book/.test(readSource("app/(admin)/admin/transfers/actions.ts")),
+    "a confirmation with no external figure says so",
+  );
+
+  const markSentBody = bodyOf(payouts, "export async function markPayoutSent(");
+  check(
+    "🔴 0188 a payout whose provider gave no answer cannot be marked sent by hand",
+    /providerState === "unknown"/.test(markSentBody),
+    "a timeout then Mark sent could pay twice",
+  );
+  check(
+    "🔴 CONTROL the unknown check is absent from a body that does not ask it",
+    !/providerState === "unknown"/.test('if (row.providerState === "sending") return { error: "x" };'),
+    "",
   );
 
   finish("sprints 73 and 74");

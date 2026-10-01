@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { controlDb as db } from "@/lib/db";
 import { sessionPayments } from "@/lib/db/schema";
 
-import { bookedFor, journal, postSessionPayment } from "./ledger";
+import { bookedFor, journal, postSessionPayment, type LedgerExecutor } from "./ledger";
 import { fundingLegs, sharesOf } from "./split-refund";
 
 /**
@@ -31,8 +31,15 @@ export async function bookEmployeeShare(input: {
   paymentId: string;
   capture: "destination" | "platform";
   vatCents: number;
+  /** 0188: inside the caller's transaction. */
+  executor?: LedgerExecutor;
+  /** 0188: the business event that brought the share, so it is booked once. */
+  postingKey?: string;
+  /** 0188: the pounds the employee actually paid for their share and its VAT. */
+  collected?: { egpMinor: number; fxRateMicro: number } | null;
 }): Promise<{ booked: "share" | "vat_only" | "nothing" }> {
-  const [row] = await db
+  const reader = input.executor ?? db;
+  const [row] = await reader
     .select()
     .from(sessionPayments)
     .where(eq(sessionPayments.id, input.paymentId))
@@ -49,7 +56,7 @@ export async function bookEmployeeShare(input: {
   });
   if (legs.employee.grossCents <= 0 && vat <= 0) return { booked: "nothing" };
 
-  const booked = await bookedFor(row.id);
+  const booked = await bookedFor(row.id, input.executor);
   const bookedWhole = (booked.cash ?? 0) >= row.grossCents && sharesOf({
     grossCents: row.grossCents,
     coverageBps: row.coverageBps ?? 0,
@@ -63,6 +70,8 @@ export async function bookEmployeeShare(input: {
       kind: "session_payment",
       refType: "session_payment",
       refId: row.id,
+      executor: input.executor,
+      postingKey: input.postingKey,
       legs: [
         { account: "cash", amountCents: vat, organizationId: row.organizationId, memo: "VAT on the patient's share of a sponsored session" },
         { account: "vat_payable", amountCents: -vat, organizationId: row.organizationId, memo: "VAT collected from the patient, owed to the tax authority" },
@@ -81,6 +90,9 @@ export async function bookEmployeeShare(input: {
     platformFeeCents: legs.employee.feeCents,
     settledInvoiceCents: 0,
     therapistNetCents: legs.employee.netCents,
+    executor: input.executor,
+    postingKey: input.postingKey,
+    collected: input.collected,
   });
   return { booked: "share" };
 }

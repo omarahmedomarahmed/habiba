@@ -19,8 +19,12 @@ import type { PaymentLine } from "./manual";
  *
  * True only for the call that made the move, so what follows it runs once.
  */
-export async function claimSessionPaid(sessionId: string): Promise<boolean> {
-  const moved = await db
+export async function claimSessionPaid(
+  sessionId: string,
+  /** 0188: the card rail claims inside the transaction that posts the books. */
+  executor: Pick<typeof db, "insert" | "select" | "update"> = db,
+): Promise<boolean> {
+  const moved = await executor
     .update(sessions)
     .set({ paymentStatus: "paid", updatedAt: new Date() })
     .where(
@@ -37,7 +41,7 @@ export async function claimSessionPaid(sessionId: string): Promise<boolean> {
   if (moved.length === 0) return false;
   /* 🔴 0169: the wallet's hold is spent by the same claim, whichever rail made it. */
   const { spendHold } = await import("./wallet");
-  await spendHold(sessionId);
+  await spendHold(sessionId, executor);
   return true;
 }
 

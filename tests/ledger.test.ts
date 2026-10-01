@@ -535,6 +535,136 @@ test("🔴 A12 one form posts once, however often and however fast it arrives", 
   assert.equal(await scopedBalance(), 0);
 });
 
+/* ------------------------------------------------ 0188: the database holds it -- */
+
+test("🔴 0188 a posted leg cannot be edited: the database refuses UPDATE", async () => {
+  const txnId = await journal({
+    kind: "adjustment",
+    legs: [
+      { account: "cash", amountCents: 70, organizationId, memo: "0188 update probe" },
+      { account: "platform_revenue", amountCents: -70, organizationId, memo: "0188 update probe" },
+    ],
+  });
+  await assert.rejects(
+    () => db.update(ledgerEntries).set({ amountCents: 71 }).where(eq(ledgerEntries.txnId, txnId)),
+    /append only/,
+  );
+  await assert.rejects(
+    () => db.update(ledgerEntries).set({ memo: "rewritten" }).where(eq(ledgerEntries.txnId, txnId)),
+    /append only/,
+  );
+  assert.equal(await scopedBalance(), 0);
+});
+
+test("🔴 0188 an account deleted empties its column on the books, and nothing else moves", async () => {
+  const [other] = await db
+    .insert(organizations)
+    .values({ name: `ledger-fk-${Date.now()}`, slug: `ledger-fk-${Date.now()}` })
+    .returning({ id: organizations.id });
+  const txnId = await journal({
+    kind: "adjustment",
+    legs: [
+      { account: "cash", amountCents: 30, organizationId: other!.id, memo: "0188 fk probe" },
+      { account: "platform_revenue", amountCents: -30, organizationId: other!.id, memo: "0188 fk probe" },
+    ],
+  });
+  await db.delete(organizations).where(eq(organizations.id, other!.id));
+  const rows = await db.select().from(ledgerEntries).where(eq(ledgerEntries.txnId, txnId));
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every((r) => r.organizationId === null && Math.abs(r.amountCents) === 30));
+  await db.delete(ledgerEntries).where(eq(ledgerEntries.txnId, txnId));
+});
+
+test("🔴 0188 a transaction that does not balance is refused at commit, even written by hand", async () => {
+  const txnId = crypto.randomUUID();
+  await assert.rejects(
+    () =>
+      db.insert(ledgerEntries).values({
+        txnId,
+        txnKind: "adjustment",
+        account: "cash",
+        amountCents: 100,
+        organizationId,
+        memo: "0188 one leg, by hand",
+      }),
+    /out by 100 cents/,
+  );
+  const [row] = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(ledgerEntries)
+    .where(eq(ledgerEntries.txnId, txnId));
+  assert.equal(row?.n, 0);
+
+  // CONTROL: two halves inside one database transaction are checked once whole.
+  const parts = crypto.randomUUID();
+  await db.transaction(async (tx) => {
+    await journal({
+      kind: "adjustment",
+      txnId: parts,
+      executor: tx,
+      legs: [
+        { account: "cash", amountCents: 40, organizationId, memo: "0188 half" },
+        { account: "platform_revenue", amountCents: -40, organizationId, memo: "0188 half" },
+      ],
+    });
+    await tx.insert(ledgerEntries).values([
+      { txnId: parts, txnKind: "adjustment", account: "cash", amountCents: 5, organizationId, memo: "0188 part a" },
+      { txnId: parts, txnKind: "adjustment", account: "platform_revenue", amountCents: -5, organizationId, memo: "0188 part b" },
+    ]);
+  });
+  assert.equal(await scopedBalance(), 0);
+});
+
+test("🔴 0188 one business event posts once: the posting key is unique in the database", async () => {
+  const { DuplicatePosting } = await import("../lib/billing/ledger");
+  const key = `test:${crypto.randomUUID()}`;
+  const post = () =>
+    journal({
+      kind: "adjustment",
+      postingKey: key,
+      legs: [
+        { account: "cash", amountCents: 25, organizationId, memo: "0188 keyed" },
+        { account: "platform_revenue", amountCents: -25, organizationId, memo: "0188 keyed" },
+      ],
+    });
+  await post();
+  await assert.rejects(post, DuplicatePosting);
+  const [row] = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(ledgerEntries)
+    .where(eq(ledgerEntries.postingKey, key));
+  assert.equal(row?.n, 2, "one posting's two legs, not four");
+});
+
+test("🔴 0188 a patient payment carries the pounds collected, and its refund takes them back", async () => {
+  const id = crypto.randomUUID();
+  const payment = {
+    id,
+    organizationId,
+    therapistId,
+    capture: "platform" as const,
+    grossCents: 2_000,
+    vatCents: 0,
+    platformFeeCents: 300,
+    settledInvoiceCents: 0,
+    therapistNetCents: 1_700,
+  };
+  await postSessionPayment({ ...payment, collected: { egpMinor: 100_000, fxRateMicro: 50_000_000 } });
+  const pounds = async () => {
+    const [row] = await db
+      .select({ egp: sql<number>`COALESCE(SUM(${ledgerEntries.egpMinor}), 0)::int` })
+      .from(ledgerEntries)
+      .where(
+        sql`${ledgerEntries.refId} = ${id} AND ${ledgerEntries.account} = 'therapist_payable'`,
+      );
+    return row?.egp ?? 0;
+  };
+  assert.equal(await pounds(), -85_000, "the clinician's share of EGP 1,000 is EGP 850");
+  await postSessionRefund(payment);
+  assert.equal(await pounds(), 0, "the refund took the pounds back with the dollars");
+  assert.equal(await scopedBalance(), 0);
+});
+
 test("cleanup leaves nothing behind", async () => {
   const ids = await db
     .select({ id: ledgerEntries.id })

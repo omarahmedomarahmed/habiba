@@ -117,6 +117,14 @@ transaction whose legs do not sum to zero. Accounts: `cash`, `therapist_payable`
 `patient_wallet`, `vat_payable`, `fx_difference`, `partner_receivable`. Two entities, `us` and
 `eg`; moving money between them is an explicit `entity_transfer`.
 
+The database holds the same rules (migration 0188): `ledger_entries` refuses UPDATE except a
+foreign key emptying an account column, each `txn_id` must sum to zero at commit (a deferred
+constraint trigger), and a business event's `posting_key` is unique, so a double post fails.
+DELETE is left to fixtures and the demo reset; no product code deletes a leg. A card payment's
+claim, session and postings are one transaction, and so is a pot spend. Patient payments and
+payouts carry `egp_minor` and `fx_rate_micro`, and an EGP payout may not exceed the pounds the
+clinician's sessions brought in (proposed rulings DC1 to DC6 in `docs/DECISIONS.md`).
+
 | Piece | Where | Shipped default (live values are in `platform_settings`) |
 | --- | --- | --- |
 | Our fee on a paid session | `lib/settings/defs.ts` `session` | 15 per cent, on sessions paid through us only (ruling 5d) |
@@ -134,7 +142,7 @@ transaction whose legs do not sum to zero. Accounts: `cash`, `therapist_payable`
 | Bank transfer (InstaPay) | Live. The patient declares, staff confirm, nothing is granted before confirmation | `lib/billing/manual.ts` |
 | Paymob cards and payouts | Adapter built, waiting for keys | `lib/billing/gateway/` |
 | Stripe | Switched off (ruling 17); code left in place | `lib/billing/stripe.ts` |
-| Clinician payouts | Manual in EGP by InstaPay or wallet, confirmed by staff | `lib/billing/payouts.ts` |
+| Clinician payouts | Manual in EGP by InstaPay or wallet, confirmed by staff. Withdrawable 7 days after the session; the transfer's confirmer, the approver and the sender are different people; a provider timeout blocks every send until the provider is asked again | `lib/billing/payouts.ts` |
 | ETA e-invoices | Foundation built, waiting for registration | `lib/billing/eta/` |
 
 ## Crisis and safety
@@ -173,7 +181,7 @@ One route, `app/api/cron/[job]/route.ts`, guarded by `CRON_SECRET`. Each run wri
 | Job | Schedule (`vercel.json`, UTC) | Does |
 | --- | --- | --- |
 | `crisis` | hourly at :20 | Re-sends undelivered alerts, escalates, sweeps the radar, abandoned patients, unrated and overrun sessions, runs the watchdog |
-| `reminders` | hourly at :20 | Booking reminders, check-ins, in-person sweeps, wallet holds and expiry, releases unpaid bookings, partner webhooks, ETA documents, refreshes the tick marker, watchdog |
+| `reminders` | hourly at :20 | Booking reminders, check-ins, in-person sweeps, wallet holds and expiry, card payments not on the books, payouts with no provider answer, releases unpaid bookings, partner webhooks, ETA documents, refreshes the tick marker, watchdog |
 | `billing` | daily 03:05 | Missing charges, held earnings, aged payouts, enrolment checks, pot reconciliation and alerts, renewals and seat months, partner bills |
 | `retention` | daily 03:10 | Audit rows over six years, expired sessions and limits, errors over 30 days, open carts, licence expiry |
 | `extract` | daily 03:15 | Reads text out of uploaded documents |

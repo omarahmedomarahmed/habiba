@@ -408,6 +408,33 @@ function main() {
     "",
   );
 
+  /*
+   * 🔴 0188: THE POUNDS THAT CAME IN ARE THE POUNDS THAT MAY GO OUT.
+   *
+   * The books are in dollars at a hand-set rate, and a clinician used to be
+   * paid at the rate on the day they asked. Each patient payment now carries
+   * the pounds it brought and the rate it was charged at, and an EGP payout is
+   * refused when it would send more pounds than came in.
+   */
+  const ledger = readSource("lib/billing/ledger.ts");
+  const card = readSource("lib/billing/gateway/session.ts");
+  const transfer = readSource("lib/billing/manual-grants.ts");
+  const payouts = readSource("lib/billing/payouts.ts");
+  check(
+    "🔴 0188 a patient payment posting carries the pounds collected and the rate charged",
+    /egpMinor: leg\.egpMinor/.test(ledger) &&
+      /collected,/.test(card) &&
+      /collected: collectedBy\(payment\)/.test(transfer),
+    "card and transfer both stamp the cash and payable legs",
+  );
+  const guarded = (src: string) => /egpShortFor\(/.test(src) && /egpShortfall\(/.test(src);
+  check(
+    "🔴 0188 an EGP payout is refused when it would send more pounds than came in",
+    guarded(payouts) && /egpShortFor\(/.test(payouts.slice(payouts.indexOf("async function moreThanHeld("))),
+    "requested, approved and sent are all asked",
+  );
+  check("🔴 CONTROL the guard check fails on a payout path with no pounds check", !guarded("convert(amount, quote.rateMicro)"), "");
+
   finish("sprint 76 money");
 }
 

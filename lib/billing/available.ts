@@ -10,9 +10,11 @@
 export function availableToWithdraw(
   heldCents: number,
   requests: { status: string; amountCents: number }[],
+  /** 0188: earnings still inside their holding period after the session (`stillHeldFor`). */
+  holdingCents = 0,
 ): number {
   const onTheWay = requests
     .filter((r) => r.status === "requested" || r.status === "approved")
     .reduce((total, r) => total + r.amountCents, 0);
-  return Math.max(0, heldCents - onTheWay);
+  return Math.max(0, heldCents - onTheWay - Math.max(0, holdingCents));
 }

@@ -265,6 +265,9 @@ export async function benefitShortfall(
  * cannot spend the pot twice — the same construction `settleSessionPayment`
  * uses, and for the same reason.
  */
+/** 0188: thrown inside the pot spend's transaction to roll the debit back. */
+class NothingToPay extends Error {}
+
 export async function payFromPot(
   sessionId: string,
   /**
@@ -593,218 +596,227 @@ export async function payFromPot(
    * nobody paid for, which is exactly what the CHECK constraint firing used to
    * produce.
    */
-  const [debited] = await controlDb
-    .update(sponsorPots)
-    /* 🔴 60.1 — the SPONSOR'S SHARE leaves the pot, never the gross. */
-    .set({
-      balanceCents: sql`${sponsorPots.balanceCents} - ${sponsorShare}`,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(sponsorPots.id, pot.potId),
-        sql`${sponsorPots.balanceCents} + ${sponsorPots.overdraftCents} >= ${sponsorShare}`,
-      ),
-    )
-    .returning({ id: sponsorPots.id });
-
-  if (!debited) {
-    log.info("pot lost the race to fund this booking", { session: ref(sessionId) });
-    await releaseProvisional();
-    return { paid: false, reason: "insufficient" };
-  }
-
-  const fullyCovered = gross - sponsorShare <= 0;
-
   /*
-   * 🔴 THE PAYMENT ROW IS THE CLAIM NOW, AND 60.1 IS WHY IT HAD TO MOVE.
-   *
-   * It used to be the session's own status: `pending -> paid`, conditional on
-   * `pending`, so a second call matched nothing and the compensating credit put
-   * the money back. That worked while a pot paid all or nothing.
-   *
-   * It stops working the moment coverage is partial, because a partly covered
-   * session STAYS `pending` — the patient still owes their share — so a
-   * `pending -> pending` update matches every time and a second call would
-   * debit the pot again. The guard would have looked untouched and silently
-   * stopped guarding, which is this repository's most common defect shape.
-   *
-   * `session_payments` is unique on `session_id`, so inserting it is the claim:
-   * exactly one caller wins, whatever the session's status is or becomes.
+   * 🔴 0188: THE DEBIT, THE PAYMENT ROW, THE SESSION AND BOTH POSTINGS ARE ONE
+   * TRANSACTION. They were five separate writes, so a failure after the debit
+   * left a pot short with nothing on the books. A refusal inside rolls all of
+   * it back, which is also what the compensating credit used to do by hand.
    */
-  const [payment] = await controlDb
-    .insert(sessionPayments)
-    .values({
-      organizationId: row.organizationId,
-      therapistId: row.therapistId,
-      sessionId,
-      /* 🔴 C243 — NULL. The employer is never the payer name on a clinical surface. */
-      payerName: null,
-      payerEmail: null,
-      grossCents: gross,
-      currency: "usd",
-      vatCents: 0,
-      vatBps: 0,
+  const funded = await controlDb.transaction(async (tx) => {
+    const [debited] = await tx
+      .update(sponsorPots)
+      /* 🔴 60.1 — the SPONSOR'S SHARE leaves the pot, never the gross. */
+      .set({
+        balanceCents: sql`${sponsorPots.balanceCents} - ${sponsorShare}`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(sponsorPots.id, pot.potId),
+          sql`${sponsorPots.balanceCents} + ${sponsorPots.overdraftCents} >= ${sponsorShare}`,
+        ),
+      )
+      .returning({ id: sponsorPots.id });
+
+    if (!debited) return "insufficient" as const;
+
+    const fullyCovered = gross - sponsorShare <= 0;
+
+    /*
+     * 🔴 THE PAYMENT ROW IS THE CLAIM NOW, AND 60.1 IS WHY IT HAD TO MOVE.
+     *
+     * It used to be the session's own status: `pending -> paid`, conditional on
+     * `pending`, so a second call matched nothing and the compensating credit put
+     * the money back. That worked while a pot paid all or nothing.
+     *
+     * It stops working the moment coverage is partial, because a partly covered
+     * session STAYS `pending` — the patient still owes their share — so a
+     * `pending -> pending` update matches every time and a second call would
+     * debit the pot again. The guard would have looked untouched and silently
+     * stopped guarding, which is this repository's most common defect shape.
+     *
+     * `session_payments` is unique on `session_id`, so inserting it is the claim:
+     * exactly one caller wins, whatever the session's status is or becomes.
+     */
+    const [payment] = await tx
+      .insert(sessionPayments)
+      .values({
+        organizationId: row.organizationId,
+        therapistId: row.therapistId,
+        sessionId,
+        /* 🔴 C243 — NULL. The employer is never the payer name on a clinical surface. */
+        payerName: null,
+        payerEmail: null,
+        grossCents: gross,
+        currency: "usd",
+        vatCents: 0,
+        vatBps: 0,
+        /*
+         * 🔴 60.2 / C311 — THE FROZEN SPLIT, written here and read for ever after.
+         *
+         * Three numbers because a percentage alone does not survive a rounding
+         * argument, and because a refund has to apportion on the figures the
+         * patient was actually shown rather than on a percentage that may since
+         * have moved (C315).
+         */
+        coverageBps,
+        sponsorShareCents: sponsorShare,
+        patientShareCents: gross - sponsorShare,
+        platformFeeCents: money.platformCutCents,
+        platformFeeBps: settings.session.platformFeeBps,
+        settledInvoiceCents: 0,
+        therapistNetCents: money.therapistNetCents,
+        capture: "platform",
+        crossing: crossingFor({
+          paidVia: "pot",
+          therapist: payoutRailFor({
+            stripeAccountId: row.stripeAccountId,
+            payoutsEnabled: row.payoutsEnabled,
+            country: row.therapistCountry,
+          }),
+        }),
+        status: "paid",
+        paidAt: new Date(),
+        fundingSource: "pot",
+      })
+      .onConflictDoNothing({ target: sessionPayments.sessionId })
+      .returning({ id: sessionPayments.id });
+
+    if (!payment) {
       /*
-       * 🔴 60.2 / C311 — THE FROZEN SPLIT, written here and read for ever after.
-       *
-       * Three numbers because a percentage alone does not survive a rounding
-       * argument, and because a refund has to apportion on the figures the
-       * patient was actually shown rather than on a percentage that may since
-       * have moved (C315).
+       * Somebody else already paid this session. Throwing rolls the debit back
+       * with everything else; nothing needs putting back by hand.
        */
+      throw new NothingToPay();
+    }
+
+    /*
+     * 🔴 AND THE SESSION'S STATUS, AFTER THE CLAIM RATHER THAN AS THE CLAIM.
+     *
+     * `paid` only when the employer covers all of it. A partly covered session is
+     * not a paid session: the patient owes their share, and every screen that
+     * asks `paymentStatus === "paid"` — the join page, the room, the pay page —
+     * would otherwise let them into a session they have not finished paying for
+     * and never show them a link to finish.
+     *
+     * Guarded on `pending` so this cannot reopen a session some other path has
+     * already settled by card.
+     */
+    if (fullyCovered) {
+      await tx
+        .update(sessions)
+        .set({ paymentStatus: "paid", updatedAt: new Date() })
+        .where(and(eq(sessions.id, sessionId), eq(sessions.paymentStatus, "pending")));
+    }
+
+    /*
+     * 🔴 53.16 / C232 — ONE txn id across both halves, which is what makes
+     * "every pot cent traces to one payment in and one session out" true.
+     *
+     * Two calls rather than one, because the legs of a `journal` call carry ONE
+     * `ref_type`/`ref_id` pair and these two halves are about different things:
+     * the first is the sponsor's pot going down, the second is the session
+     * payment being distributed. They share the `txnId`, so the daily
+     * reconciliation still sums each transaction to zero and a person auditing a
+     * pot cent can walk from the pot leg to the session payment.
+     *
+     * The two `cash` legs cancel, and that cancellation is the statement: NO CASH
+     * MOVES when a pot pays. It arrived at top-up.
+     */
+    const txnId = crypto.randomUUID();
+
+    await journal({
+      kind: "session_payment",
+      txnId,
+      executor: tx,
+      postingKey: `pot_spend:${payment.id}`,
+      /*
+       * 🔴 The sponsor is on `ref_type`/`ref_id` and nowhere else.
+       *
+       * `ledger_entries` has `organization_id` and `user_id` and a sponsor is
+       * neither (C259): an FK to `organizations` would be the join C244 forbids,
+       * written into the ledger. The generic ref is what every sponsor figure in
+       * `lib/data/sponsors.ts` queries.
+       */
+      refType: "sponsor",
+      refId: benefit.sponsorId,
+      legs: [
+        {
+          account: "sponsor_pot",
+          /*
+           * 🔴 POSITIVE, because `sponsor_pot` is a LIABILITY and spending it
+           * reduces what we owe. A top-up is the negative one. The first draft of
+           * `weeklySpend` read the signs the other way round and would have
+           * charted every deposit as expenditure.
+           */
+          amountCents: sponsorShare,
+          memo: "A session spent this sponsor's pot",
+        },
+        {
+          account: "cash",
+          amountCents: -sponsorShare,
+          memo: "Funded from the pot; the cash for it arrived at top-up",
+        },
+      ],
+    });
+
+    /*
+     * 🔴 W2-M01: THE POT'S LEG ONLY. The fee and the net are computed once, on
+     * the full price, and stored on the row (C313); what is BOOKED now is the part
+     * of them the pot's money pays for. The employee's part is booked when their
+     * money arrives (`bookEmployeeShare`), by card or by transfer. Booking the
+     * whole price here put their share in our cash, and its net in the
+     * clinician's held earnings, before anybody had paid it.
+     */
+    const { pot: potLeg } = fundingLegs({
+      grossCents: gross,
       coverageBps,
       sponsorShareCents: sponsorShare,
       patientShareCents: gross - sponsorShare,
       platformFeeCents: money.platformCutCents,
-      platformFeeBps: settings.session.platformFeeBps,
-      settledInvoiceCents: 0,
-      therapistNetCents: money.therapistNetCents,
+    });
+    const { postSessionPayment } = await import("./ledger");
+    await postSessionPayment({
+      id: payment.id,
+      organizationId: row.organizationId,
+      therapistId: row.therapistId,
       capture: "platform",
-      crossing: crossingFor({
-        paidVia: "pot",
-        therapist: payoutRailFor({
-          stripeAccountId: row.stripeAccountId,
-          payoutsEnabled: row.payoutsEnabled,
-          country: row.therapistCountry,
-        }),
-      }),
-      status: "paid",
-      paidAt: new Date(),
-      fundingSource: "pot",
-    })
-    .onConflictDoNothing({ target: sessionPayments.sessionId })
-    .returning({ id: sessionPayments.id });
+      grossCents: potLeg.grossCents,
+      /*
+       * 🔴 ZERO, and C241 is the reason rather than an oversight. VAT is charged
+       * on the TOP-UP, in the entity that holds the pot, and a pot-funded
+       * `session_payments` row carries `vat_cents = 0` for the same reason this
+       * leg does: taxing the spend of money already taxed at purchase would
+       * charge the employer twice.
+       */
+      vatCents: 0,
+      platformFeeCents: potLeg.feeCents,
+      settledInvoiceCents: 0,
+      therapistNetCents: potLeg.netCents,
+      /*
+       * 🔴 W2-S12: THE SAME txn, which the comment above always said and the call
+       * never did. Without it `refundToPot` could not find the pot a session was
+       * paid from, and every pot refund stopped at "No pot spend is on the books".
+       */
+      txnId,
+      executor: tx,
+      postingKey: `pot_spend:${payment.id}:session`,
+    });
+    return "funded" as const;
+  }).catch((error: unknown) => {
+    if (error instanceof NothingToPay) return "nothing_to_pay" as const;
+    throw error;
+  });
 
-  if (!payment) {
-    /*
-     * 🔴 The compensating credit, and it is unconditional on purpose.
-     *
-     * We took this money one statement ago and the thing it was for did not
-     * happen. Putting it back can never be wrong and can never overdraw
-     * anything, so it carries no predicate that could fail and leave a sponsor
-     * short.
-     */
-    await controlDb
-      .update(sponsorPots)
-      .set({
-        balanceCents: sql`${sponsorPots.balanceCents} + ${sponsorShare}`,
-        updatedAt: new Date(),
-      })
-      .where(eq(sponsorPots.id, pot.potId));
-
+  if (funded === "insufficient") {
+    log.info("pot lost the race to fund this booking", { session: ref(sessionId) });
+    await releaseProvisional();
+    return { paid: false, reason: "insufficient" };
+  }
+  if (funded === "nothing_to_pay") {
     await releaseProvisional();
     return { paid: false, reason: "nothing_to_pay" };
   }
-
-  /*
-   * 🔴 AND THE SESSION'S STATUS, AFTER THE CLAIM RATHER THAN AS THE CLAIM.
-   *
-   * `paid` only when the employer covers all of it. A partly covered session is
-   * not a paid session: the patient owes their share, and every screen that
-   * asks `paymentStatus === "paid"` — the join page, the room, the pay page —
-   * would otherwise let them into a session they have not finished paying for
-   * and never show them a link to finish.
-   *
-   * Guarded on `pending` so this cannot reopen a session some other path has
-   * already settled by card.
-   */
-  if (fullyCovered) {
-    await controlDb
-      .update(sessions)
-      .set({ paymentStatus: "paid", updatedAt: new Date() })
-      .where(and(eq(sessions.id, sessionId), eq(sessions.paymentStatus, "pending")));
-  }
-
-  /*
-   * 🔴 53.16 / C232 — ONE txn id across both halves, which is what makes
-   * "every pot cent traces to one payment in and one session out" true.
-   *
-   * Two calls rather than one, because the legs of a `journal` call carry ONE
-   * `ref_type`/`ref_id` pair and these two halves are about different things:
-   * the first is the sponsor's pot going down, the second is the session
-   * payment being distributed. They share the `txnId`, so the daily
-   * reconciliation still sums each transaction to zero and a person auditing a
-   * pot cent can walk from the pot leg to the session payment.
-   *
-   * The two `cash` legs cancel, and that cancellation is the statement: NO CASH
-   * MOVES when a pot pays. It arrived at top-up.
-   */
-  const txnId = crypto.randomUUID();
-
-  await journal({
-    kind: "session_payment",
-    txnId,
-    /*
-     * 🔴 The sponsor is on `ref_type`/`ref_id` and nowhere else.
-     *
-     * `ledger_entries` has `organization_id` and `user_id` and a sponsor is
-     * neither (C259): an FK to `organizations` would be the join C244 forbids,
-     * written into the ledger. The generic ref is what every sponsor figure in
-     * `lib/data/sponsors.ts` queries.
-     */
-    refType: "sponsor",
-    refId: benefit.sponsorId,
-    legs: [
-      {
-        account: "sponsor_pot",
-        /*
-         * 🔴 POSITIVE, because `sponsor_pot` is a LIABILITY and spending it
-         * reduces what we owe. A top-up is the negative one. The first draft of
-         * `weeklySpend` read the signs the other way round and would have
-         * charted every deposit as expenditure.
-         */
-        amountCents: sponsorShare,
-        memo: "A session spent this sponsor's pot",
-      },
-      {
-        account: "cash",
-        amountCents: -sponsorShare,
-        memo: "Funded from the pot; the cash for it arrived at top-up",
-      },
-    ],
-  });
-
-  /*
-   * 🔴 W2-M01: THE POT'S LEG ONLY. The fee and the net are computed once, on
-   * the full price, and stored on the row (C313); what is BOOKED now is the part
-   * of them the pot's money pays for. The employee's part is booked when their
-   * money arrives (`bookEmployeeShare`), by card or by transfer. Booking the
-   * whole price here put their share in our cash, and its net in the
-   * clinician's held earnings, before anybody had paid it.
-   */
-  const { pot: potLeg } = fundingLegs({
-    grossCents: gross,
-    coverageBps,
-    sponsorShareCents: sponsorShare,
-    patientShareCents: gross - sponsorShare,
-    platformFeeCents: money.platformCutCents,
-  });
-  const { postSessionPayment } = await import("./ledger");
-  await postSessionPayment({
-    id: payment.id,
-    organizationId: row.organizationId,
-    therapistId: row.therapistId,
-    capture: "platform",
-    grossCents: potLeg.grossCents,
-    /*
-     * 🔴 ZERO, and C241 is the reason rather than an oversight. VAT is charged
-     * on the TOP-UP, in the entity that holds the pot, and a pot-funded
-     * `session_payments` row carries `vat_cents = 0` for the same reason this
-     * leg does: taxing the spend of money already taxed at purchase would
-     * charge the employer twice.
-     */
-    vatCents: 0,
-    platformFeeCents: potLeg.feeCents,
-    settledInvoiceCents: 0,
-    therapistNetCents: potLeg.netCents,
-    /*
-     * 🔴 W2-S12: THE SAME txn, which the comment above always said and the call
-     * never did. Without it `refundToPot` could not find the pot a session was
-     * paid from, and every pot refund stopped at "No pot spend is on the books".
-     */
-    txnId,
-  });
 
   // 🔴 C382 — the debit used to be here, unconditional, after every irreversible
   // effect above it. It is now the first thing this function claims.

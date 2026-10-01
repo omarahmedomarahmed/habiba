@@ -126,7 +126,10 @@ async function main() {
         (${txn}, 'adjustment',      'cash',             ${orgId},  -400, NULL,              'verify: money out',       ${firstOf(m1)}),
         (${txn}, 'session_payment', 'vat_payable',      ${orgId},  -140, 'session_payment', 'verify: tax held',        ${firstOf(m1)}),
         (${txn}, 'session_payment', 'therapist_payable',${orgId},  -800, 'session_payment', 'verify: owed to a clinician', ${firstOf(m1)}),
-        (${txn}, 'invoice_settled', 'platform_revenue', ${orgId}, -8000, 'invoice',         'verify: a subscription',  ${firstOf(m1)})`);
+        (${txn}, 'invoice_settled', 'platform_revenue', ${orgId}, -8000, 'invoice',         'verify: a subscription',  ${firstOf(m1)}),
+        -- 0188: the database refuses a transaction that does not sum to zero; this
+        -- account balances it and is one the actuals page does not read.
+        (${txn}, 'adjustment', 'therapist_receivable', ${orgId},  8940, NULL,              'verify: balances the planted legs', ${firstOf(m1)})`);
 
     /* --------------------------------------------- plant the model spend -- */
 

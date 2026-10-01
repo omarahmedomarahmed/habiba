@@ -652,6 +652,7 @@ export async function saveRules(_prev: SettingsFormState, formData: FormData): P
     potWeekly: whole("potSessionsPerWeek", 0, 14),
     walletExpiry: whole("walletExpiryMonths", 0, 120),
     listGrace: whole("listRemovalGraceDays", 0, 120),
+    holdDays: whole("earningsHoldDays", 0, 90),
   };
   if (Object.values(numbers).some((n) => n === null)) {
     return { error: "Every hour, count and month has to be a whole number in its range." };
@@ -674,6 +675,7 @@ export async function saveRules(_prev: SettingsFormState, formData: FormData): P
       transferWithoutProof: on("approveTransferWithoutProof"),
       ledgerAdjustments: on("approveLedgerAdjustments"),
       payoutDetailsCooldownHours: numbers.cooldown,
+      payoutSeparation: on("approvePayoutSeparation"),
     },
     providers: {
       cardGateway: text("cardGateway") || RULES_DEFAULTS.providers.cardGateway,
@@ -702,6 +704,7 @@ export async function saveRules(_prev: SettingsFormState, formData: FormData): P
     },
     wallet: { enabled: on("walletEnabled"), expiryMonths: numbers.walletExpiry },
     enrolment: { listRemovalGraceDays: numbers.listGrace },
+    earnings: { holdDays: numbers.holdDays },
   };
 
   /* A choice outside its list is refused, not quietly replaced by a default. */

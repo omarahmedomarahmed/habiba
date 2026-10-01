@@ -15,7 +15,7 @@ import {
   recentPayments,
 } from "@/lib/billing/connect";
 import { heldForTherapist, transfersForTherapist } from "@/lib/billing/ledger";
-import { defaultMethodFor, payoutsForTherapist } from "@/lib/billing/payouts";
+import { defaultMethodFor, payoutsForTherapist, stillHeldFor } from "@/lib/billing/payouts";
 import { features } from "@/lib/env";
 import { getSettings } from "@/lib/settings";
 import { formatDate } from "@/lib/utils";
@@ -64,7 +64,9 @@ export default async function EarningsPage() {
     .filter((r) => r.status === "sent")
     .reduce((total, r) => total + r.amountCents, 0);
   // 🔴 16.10: requested and approved only; a sent payout already left `held`.
-  const availableCents = availableToWithdraw(held, requests);
+  /* 🔴 0188: and not what is still inside its holding period after the session. */
+  const holdingCents = await stillHeldFor(actor.userId, settings.rules.earnings.holdDays);
+  const availableCents = availableToWithdraw(held, requests, holdingCents);
 
   /*
    * 🔴 76.34 — does this practice bill on the manual rail. The same question

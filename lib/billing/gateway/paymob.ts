@@ -66,7 +66,12 @@ function record(value: unknown): Json {
 function refusal(what: string, res: Response, body: Json): ProviderRefusal {
   const said = [body.detail, body.message, body.status_description, body.error_description, body.error]
     .find((v) => typeof v === "string" && v.trim().length > 0) as string | undefined;
-  return { ok: false, reason: `Paymob refused ${what} (HTTP ${res.status})${said ? `: ${said.slice(0, 200)}` : ""}` };
+  return {
+    ok: false,
+    reason: `Paymob refused ${what} (HTTP ${res.status})${said ? `: ${said.slice(0, 200)}` : ""}`,
+    /* 0188: a server error or a timeout is not a no; the instruction may have landed. */
+    ...(res.status >= 500 || res.status === 408 ? { uncertain: true } : {}),
+  };
 }
 
 /** Constant time, and false for anything that is not the same length of hex. */
@@ -596,5 +601,26 @@ export const PAYMOB_PAYOUTS: PayoutProvider = {
     const row = results.find((r) => r.transaction_id === providerRef);
     if (!row) return { providerRef, reference: "", outcome: "pending", failure: null };
     return payoutEventFrom(row, "") ?? { providerRef, reference: "", outcome: "pending", failure: null };
+  },
+
+  /**
+   * 0188: after a send that got no answer we never learned Paymob's id, only
+   * ours (`client_reference_id`). Asked by that; no record is `null`.
+   */
+  // PAYMOB-CONFIRM: the by-reference inquiry's field name (`client_reference_ids_list` here) and that it finds bank and wallet payouts alike; if Paymob has no by-reference inquiry, a timed-out payout stays `unknown` until its callback or an engineer checks the dashboard.
+  async fetchByReference(reference) {
+    const token = await payoutsAccessToken();
+    if (!token) return { ok: false, reason: "Paymob Send did not give a token (check the PAYMOB_PAYOUTS_ keys).", uncertain: true };
+    const res = await fetch(`${payoutsBase()}/transaction/inquire/`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ client_reference_ids_list: [reference] }),
+    });
+    const body = await readJson(res);
+    if (res.status === 401) payoutsToken = null;
+    if (!res.ok) return refusal("the payout status read", res, body);
+    const results = Array.isArray(body.results) ? (body.results as Json[]) : [];
+    const row = results.find((r) => String(r.client_reference_id ?? r.client_reference ?? "") === reference);
+    return row ? payoutEventFrom(row, reference) : null;
   },
 };
