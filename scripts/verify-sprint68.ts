@@ -514,8 +514,15 @@ async function main() {
      * difference in the ledger (both legs, still balanced) shows on the bill,
      * where the month re-priced today would say one session at today's price.
      */
+    /*
+     * 🔴 0188: planted as two more legs on the same transaction, not by editing
+     * the posted ones: the ledger refuses UPDATE now.
+     */
     await db.execute(sql`
-      UPDATE ledger_entries SET amount_cents = amount_cents + (CASE WHEN account = 'partner_receivable' THEN 7 ELSE -7 END)
+      INSERT INTO ledger_entries (txn_id, txn_kind, account, organization_id, user_id, amount_cents, entity, ref_type, ref_id, memo)
+      SELECT txn_id, txn_kind, account, organization_id, user_id,
+             CASE WHEN account = 'partner_receivable' THEN 7 ELSE -7 END, entity, ref_type, ref_id, memo
+        FROM ledger_entries
        WHERE ref_type = 'partner_month' AND ref_id = ${partner.id}
          AND memo LIKE ${"%2099-01"}`);
     const shown = await closedMonthBill({ partnerId: partner.id, periodStart: jan });

@@ -12,6 +12,7 @@ import {
   pgTable,
   primaryKey,
   real,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -2943,6 +2944,12 @@ export type LedgerTxnKind = (typeof LEDGER_TXN_KINDS)[number];
  *
  * Nothing here is ever updated or deleted. A mistake is corrected by posting
  * the reversing transaction, which is also what leaves the mistake visible.
+ *
+ * 0188: the database holds it too. UPDATE is refused except a foreign key
+ * emptying an account column, each `txn_id` must sum to zero at commit (a
+ * deferred constraint trigger), and `posting_key` with `leg` is unique, so one
+ * business event cannot be posted twice. DELETE is left to fixtures and the
+ * demo reset; no product code deletes a leg (tests/safety.test.ts).
  */
 export const ledgerEntries = pgTable(
   "ledger_entries",
@@ -2978,9 +2985,26 @@ export const ledgerEntries = pgTable(
     /** Set only when a human caused it — an admin adjustment or write-off. */
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
 
+    /**
+     * 0188: the business event this leg belongs to, and its place in that
+     * posting. Unique together, so the same event posted twice fails.
+     */
+    postingKey: text("posting_key"),
+    leg: smallint("leg"),
+    /**
+     * 0188: the pounds this leg stands for and the rate actually charged, on
+     * patient payments and payouts. Same sign as `amountCents`. A clinician's
+     * EGP balance is read from these, never re-converted at a later rate.
+     */
+    egpMinor: integer("egp_minor"),
+    fxRateMicro: integer("fx_rate_micro"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
+    uniqueIndex("ledger_entries_posting_key_unique")
+      .on(t.postingKey, t.leg)
+      .where(sql`posting_key IS NOT NULL`),
     index("ledger_txn_idx").on(t.txnId),
     index("ledger_account_idx").on(t.account, t.createdAt),
     index("ledger_user_idx").on(t.userId, t.account),
@@ -5842,7 +5866,11 @@ export const payoutRequests = pgTable(
      */
     provider: text("provider"),
     providerRef: text("provider_ref"),
-    providerState: text("provider_state").$type<"sending" | "sent" | "failed">(),
+    /**
+     * 0188: `unknown` when the send got no answer (a timeout). Nothing may send
+     * it again or mark it sent by hand until a re-query says `failed` or `sent`.
+     */
+    providerState: text("provider_state").$type<PayoutProviderState>(),
     providerError: text("provider_error"),
     providerSenderUserId: uuid("provider_sender_user_id").references(() => users.id, {
       onDelete: "set null",
@@ -5865,6 +5893,7 @@ export const payoutRequests = pgTable(
 );
 
 export type PayoutRequest = typeof payoutRequests.$inferSelect;
+export type PayoutProviderState = "sending" | "sent" | "failed" | "unknown";
 
 /**
  * Every transition, attributable to a person. 16.2.
@@ -10075,6 +10104,13 @@ export const manualPayments = pgTable(
 
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
+    /**
+     * 0188: the amount staff read off the bank statement when they confirmed,
+     * in the same minor units as `amountCents`. The database refuses one that
+     * differs. NULL means the check was the payer's declaration against our own
+     * record only (book against book).
+     */
+    statementAmountMinor: integer("statement_amount_minor"),
     /** 🔴 A rejection carries its reason. The CHECK in 0102 enforces it. */
     rejectReason: text("reject_reason"),
 

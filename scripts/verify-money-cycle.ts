@@ -365,18 +365,41 @@ async function main() {
      * sentence rather than a check, and `grantPotTopUp` journalling nothing at
      * all passed every surface this product has for a whole sprint.
      */
-    await db.execute(sql`
-      INSERT INTO ledger_entries (txn_id, txn_kind, account, amount_cents, currency, ref_type, ref_id, memo)
-      VALUES (gen_random_uuid(), 'adjustment', 'platform_cash', 12345, 'usd', 'sponsor', ${sponsor.id},
-              ${`planted by ${fixture}`})`);
-
-    const withOffender = await unbalancedTransactions();
+    /*
+     * 🔴 0188: a leg with no counterpart cannot be planted any more: the
+     * database refuses it at commit. Planted inside a transaction, the query
+     * sees it there, and it is taken out again before the commit checks.
+     */
+    const withOffender = await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        INSERT INTO ledger_entries (txn_id, txn_kind, account, amount_cents, currency, ref_type, ref_id, memo)
+        VALUES (gen_random_uuid(), 'adjustment', 'platform_cash', 12345, 'usd', 'sponsor', ${sponsor.id},
+                ${`planted by ${fixture}`})`);
+      const seen = (await tx.execute(sql`
+        SELECT txn_id FROM ledger_entries GROUP BY txn_id HAVING SUM(amount_cents) <> 0 LIMIT 50`)).rows;
+      await tx.execute(sql`DELETE FROM ledger_entries WHERE memo = ${`planted by ${fixture}`}`);
+      return seen;
+    });
+    let refusedByDatabase = false;
+    try {
+      await db.execute(sql`
+        INSERT INTO ledger_entries (txn_id, txn_kind, account, amount_cents, currency, ref_type, ref_id, memo)
+        VALUES (gen_random_uuid(), 'adjustment', 'platform_cash', 12345, 'usd', 'sponsor', ${sponsor.id},
+                ${`planted by ${fixture}`})`);
+    } catch {
+      refusedByDatabase = true;
+    }
     await db.execute(sql`DELETE FROM ledger_entries WHERE memo = ${`planted by ${fixture}`}`);
 
     check(
       "🔴 CONTROL the same query finds a leg with no counterpart",
       withOffender.length > drift.length,
       `${withOffender.length} unbalanced with one planted, ${drift.length} without`,
+    );
+    check(
+      "🔴 0188 and outside a transaction the database refuses that leg at commit",
+      refusedByDatabase,
+      "ledger_entries_txn_balances",
     );
 
     /* ================================================================ */

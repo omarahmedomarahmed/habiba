@@ -219,10 +219,13 @@ async function balanceAfterTopUp(db: Db) {
       const leg = (kind: string, account: string, cents: number, txn: string) => sql`
         INSERT INTO ledger_entries (txn_id, txn_kind, account, amount_cents, ref_type, ref_id, memo, entity)
         VALUES (${txn}::uuid, ${kind}, ${account}, ${cents}, 'sponsor', ${sponsorId}, ${`C21 ${fixture}`}, 'us')`;
+      /* 🔴 0188: one transaction, because the database checks each one sums to zero at commit. */
       const pair = async (kind: string, potCents: number) => {
         const txn = crypto.randomUUID();
-        await db.execute(leg(kind, "sponsor_pot", potCents, txn));
-        await db.execute(leg(kind, "cash", -potCents, txn));
+        await db.transaction(async (tx) => {
+          await tx.execute(leg(kind, "sponsor_pot", potCents, txn));
+          await tx.execute(leg(kind, "cash", -potCents, txn));
+        });
       };
       await db.execute(sql`UPDATE sponsor_pots SET published_balance_cents = NULL WHERE sponsor_id = ${sponsorId}`);
       await pair("pot_return", 3_000);
@@ -1049,12 +1052,22 @@ async function splitRefunds(db: Db) {
     sessionIds.push(lina.sessionId);
     const start4 = await balance();
     await payFromPot(lina.sessionId);
+    /* 🔴 0188: the ledger refuses UPDATE, so the legs are taken out and put back under a new id. */
     await db.execute(sql`
-      UPDATE ledger_entries SET txn_id = ${crypto.randomUUID()}
-       WHERE ref_type = 'sponsor' AND ref_id = ${world.sponsorId}
-         AND txn_id IN (SELECT txn_id FROM ledger_entries
-                         WHERE ref_type = 'session_payment'
-                           AND ref_id = (SELECT id FROM session_payments WHERE session_id = ${lina.sessionId}))`);
+      WITH moved AS (
+        DELETE FROM ledger_entries
+         WHERE ref_type = 'sponsor' AND ref_id = ${world.sponsorId}
+           AND txn_id IN (SELECT txn_id FROM ledger_entries
+                           WHERE ref_type = 'session_payment'
+                             AND ref_id = (SELECT id FROM session_payments WHERE session_id = ${lina.sessionId}))
+        RETURNING *
+      )
+      INSERT INTO ledger_entries (id, txn_id, txn_kind, account, organization_id, user_id, amount_cents, currency,
+                                  entity, ref_type, ref_id, memo, created_by, created_at, posting_key, leg,
+                                  egp_minor, fx_rate_micro)
+      SELECT gen_random_uuid(), ${crypto.randomUUID()}::uuid, txn_kind, account, organization_id, user_id, amount_cents, currency,
+             entity, ref_type, ref_id, memo, created_by, created_at, posting_key, leg, egp_minor, fx_rate_micro
+        FROM moved`);
     const legacy = await payment(lina.sessionId);
     const r4 = await refundSessionPayment({ paymentId: legacy.id, reason: "W2-S12 legacy", adminUserId: null });
     check(
