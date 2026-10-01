@@ -152,7 +152,9 @@ export async function POST(
      */
     const { adultConfirmedForSession } = await import("@/lib/data/adult");
     if (!(await adultConfirmedForSession(sessionId))) {
-      return NextResponse.json({ error: "adult_unconfirmed" }, { status: 409 });
+      /* Review: nothing transcribed is nothing scanned, so the record and the room say so. */
+      await markLiveRiskOff(session.id);
+      return NextResponse.json({ error: "adult_unconfirmed", liveRiskOff: true }, { status: 409 });
     }
 
     /*

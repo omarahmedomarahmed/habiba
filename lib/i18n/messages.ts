@@ -4327,6 +4327,8 @@ export const en = {
   "troom.liveRiskOff": "Live risk detection is off for {name}.",
   "troom.liveRiskOffBody":
     "They paused AI processing, so this session is not transcribed and no risk language will be flagged to you. Assess risk yourself as you would without it.",
+  "troom.liveRiskOffAdultBody":
+    "Nobody has confirmed they are 18 or over, so nothing is transcribed and no risk language will be flagged to you. Assess risk yourself as you would without it.",
   "troom.patientIn": "{name} is in the room, waiting for you to start.",
   "troom.videoConnect": "Could not connect to the video room.",
   "troom.videoProblem": "The video call hit a problem.",
@@ -5783,7 +5785,7 @@ export const en = {
   "residency.aiPaused.body": "Since you withdrew, your sessions are not transcribed, no AI notes or summaries are written from them, and the AI assistant is not used on your record. Your therapist writes notes by hand. Your record itself stays where it is kept. Agree again to turn AI processing back on.",
   "residency.withdrawExplain": "If you withdraw, we stop all AI processing for you from that moment: no transcription, no AI notes, no AI assistant on your record. What already exists is not deleted and your record stays where it is kept. To have it deleted, close your account.",
   "portal.session.aiPaused": "This patient has withdrawn consent to processing abroad, so AI is off for them: no transcription, no live risk detection, no AI note and no copilot. Write the note yourself.",
-  "portal.session.liveRiskOff": "Live risk detection was off for this session because the patient had paused AI. Nothing was transcribed or scanned for risk language.",
+  "portal.session.liveRiskOff": "Live risk detection was off for part of this session or the whole of it, because the patient had paused AI or nobody had confirmed they are 18 or over. What was not transcribed was not scanned for risk language.",
   "portal.copilot.aiPaused": "This patient has withdrawn consent to AI processing, so the copilot cannot answer about them.",
   "portal.session.riskFailedTitle": "Risk check failed",
   "portal.session.riskFailedBody": "The automated risk check could not read this session, so there is no result. That is not a clean result: read the transcript for risk yourself. The keyword check still ran and would have raised any alert it found.",
@@ -9530,6 +9532,8 @@ export const ar: Record<MessageKey, string> = {
   "troom.liveRiskOff": "الرصد المباشر للخطر متوقف لـ {name}.",
   "troom.liveRiskOffBody":
     "أوقف المعالجة بالذكاء الاصطناعي، لذلك لا تُفرَّغ هذه الجلسة نصيًا ولن نُنبّهك إلى أي عبارات خطر. قيّم الخطر بنفسك كما تفعل من دونه.",
+  "troom.liveRiskOffAdultBody":
+    "لم يؤكد أحد أن عمره 18 سنة أو أكثر، لذلك لا يُفرَّغ شيء نصيًا ولن نُنبّهك إلى أي عبارات خطر. قيّم الخطر بنفسك كما تفعل من دونه.",
   "troom.patientIn": "{name} في الغرفة، ينتظر أن تبدأ.",
   "troom.videoConnect": "تعذّر الاتصال بغرفة الفيديو.",
   "troom.videoProblem": "واجهت مكالمة الفيديو مشكلة.",
@@ -10805,7 +10809,7 @@ export const ar: Record<MessageKey, string> = {
   "residency.aiPaused.body": "منذ أن سحبت موافقتك، لا تُفرَّغ جلساتك نصًّا، ولا تُكتب منها ملاحظات أو ملخصات بالذكاء الاصطناعي، ولا يُستخدم المساعد الذكي على سجلك. يكتب معالجك ملاحظاته بنفسه. أما سجلك نفسه فيبقى حيث يُحفظ. وافق مجددًا لإعادة تشغيل معالجة الذكاء الاصطناعي.",
   "residency.withdrawExplain": "إذا سحبت موافقتك، نوقف كل معالجة بالذكاء الاصطناعي لك من تلك اللحظة: لا تفريغ نصي، ولا ملاحظات بالذكاء الاصطناعي، ولا مساعد ذكي على سجلك. ما هو موجود بالفعل لا يُحذف، ويبقى سجلك حيث يُحفظ. ولحذفه أغلق حسابك.",
   "portal.session.aiPaused": "سحب هذا المريض موافقته على معالجة بياناته في الخارج، لذلك الذكاء الاصطناعي متوقف له: لا تفريغ نصي، ولا رصد مباشر للخطر، ولا ملاحظة بالذكاء الاصطناعي، ولا مساعد. اكتب الملاحظة بنفسك.",
-  "portal.session.liveRiskOff": "كان الرصد المباشر للخطر متوقفًا في هذه الجلسة لأن المريض أوقف المعالجة بالذكاء الاصطناعي. لم يُفرَّغ أي شيء نصيًا ولم يُفحص بحثًا عن عبارات خطر.",
+  "portal.session.liveRiskOff": "كان الرصد المباشر للخطر متوقفًا في جزء من هذه الجلسة أو فيها كلها، لأن المريض أوقف المعالجة بالذكاء الاصطناعي أو لأن أحدًا لم يؤكد أن عمره 18 سنة أو أكثر. ما لم يُفرَّغ نصيًا لم يُفحص بحثًا عن عبارات خطر.",
   "portal.copilot.aiPaused": "سحب هذا المريض موافقته على المعالجة بالذكاء الاصطناعي، لذلك لا يستطيع المساعد الإجابة عنه.",
   "portal.session.riskFailedTitle": "تعذّر فحص المخاطر",
   "portal.session.riskFailedBody": "لم يتمكن فحص المخاطر الآلي من قراءة هذه الجلسة، فلا توجد نتيجة. وهذا لا يعني أن النتيجة سليمة: اقرأ النص بنفسك بحثًا عن أي خطر. أما فحص الكلمات المفتاحية فقد جرى، وكان سيُطلق أي تنبيه وجده.",

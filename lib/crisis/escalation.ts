@@ -124,13 +124,17 @@ export function needsOutOfBandRetry(row: Pick<DueRow, "acknowledgedAt" | "outOfB
 /**
  * 🔴 Due diligence: every retry to the clinician failed. The alert used to stop
  * there until its deadline; now it goes to the next stage at once.
+ *
+ * Review: only while it is still with the clinician (stage 0). Once the clinic
+ * has been told, its own deadline stands: pulling it forward skipped the
+ * clinic's time and logged the same failure again every tick.
  */
 export function outOfBandExhausted(row: DueRow): boolean {
   return (
     !row.acknowledgedAt &&
     !row.outOfBandAt &&
     row.outOfBandAttempts >= MAX_OUT_OF_BAND_ATTEMPTS &&
-    row.escalationStage < FINAL_STAGE
+    row.escalationStage === 0
   );
 }
 
