@@ -57,6 +57,18 @@ export default async function AppLayout({
   const { t, locale } = await getI18n();
   const actor = await requireUser();
   /*
+   * 🔴 F6: a session a partner opened is restricted to that partner's patients
+   * (`requireUser` holds the paths), so its shell is the page and nothing else:
+   * no navigation into the rest of the practice, no bill, no radar.
+   */
+  if (actor.partnerScope) {
+    return (
+      <div className="min-h-dvh bg-navy-50">
+        <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">{children}</main>
+      </div>
+    );
+  }
+  /*
    * 🔴 W1-02: the organisation's bill in flight is the account holder's. A
    * clinic seat clinician's organisation is the clinic, whose bill they do not run.
    */

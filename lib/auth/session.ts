@@ -83,6 +83,15 @@ export type Actor = {
    * report as UTC rather than quietly using the server's clock.
    */
   timezone: string | null;
+  /**
+   * 🔴 F6: set only on a session a PARTNER opened (`created_via =
+   * 'partner_launch'`). Such a session is restricted: fifteen minutes, read
+   * only, and only the landing page and the charts of that partner's own
+   * patients (`lib/partner/launch-scope.ts`, enforced in `requireUser`).
+   * `getActor` returns null for it, so any surface that does not go through
+   * the guard treats it as signed out.
+   */
+  partnerScope?: { partnerId: string };
 };
 
 function hashToken(token: string): string {
@@ -135,6 +144,8 @@ export async function createSession(userId: string): Promise<string> {
  */
 export async function getActor(): Promise<Actor | null> {
   const state = await getSessionState();
+  /* 🔴 F6: a partner-opened session only exists through `requireUser`'s scope check. */
+  if (state?.actor.partnerScope) return null;
   return state && !state.pendingSecondFactor ? state.actor : null;
 }
 
@@ -200,6 +211,8 @@ export async function sessionStateForToken(token: string): Promise<SessionState 
       sessionId: authSessions.id,
       lastSeenAt: authSessions.lastSeenAt,
       secondFactorAt: authSessions.secondFactorAt,
+      launchedBy: authSessions.partnerId,
+      createdVia: authSessions.createdVia,
       userId: users.id,
       organizationId: users.organizationId,
       region: organizations.region,
@@ -263,6 +276,9 @@ export async function sessionStateForToken(token: string): Promise<SessionState 
     verificationStatus: row.verificationStatus,
     region: isRegion(row.region) ? row.region : DEFAULT_REGION,
     timezone: row.timezone,
+    ...(row.createdVia === "partner_launch" && row.launchedBy
+      ? { partnerScope: { partnerId: row.launchedBy } }
+      : {}),
   };
 
   return {

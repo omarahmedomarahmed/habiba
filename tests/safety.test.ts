@@ -28,6 +28,8 @@ import {
 } from "../lib/settings/defs";
 import { SIMULATION_BRANCH, SIMULATION_ENDPOINT, inspectEnv } from "../lib/env";
 import { log, ref } from "../lib/logger";
+/* F6, F7, F9 of the independent due diligence, run with the safety suite. */
+import "./due-diligence.test";
 
 /* ------------------------------------------------------------ crisis safety */
 

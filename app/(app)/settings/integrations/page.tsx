@@ -5,6 +5,9 @@ import { ArrowLeft } from "lucide-react";
 import { MeetingAccounts } from "@/components/settings/meeting-accounts";
 import { requireUser } from "@/lib/auth/guard";
 import { listConnections } from "@/lib/data/meeting-connections";
+import { partnerApprovalsFor } from "@/lib/partner/approvals";
+
+import { approvePartnerLaunch, revokePartnerLaunch } from "./actions";
 import { features } from "@/lib/env";
 import { getI18n } from "@/lib/i18n/server";
 import { PROVIDERS } from "@/lib/meetings/providers";
@@ -44,7 +47,7 @@ export default async function IntegrationsSettingsPage() {
   const actor = await requireUser();
   const { t, locale } = await getI18n();
 
-  const connections = await listConnections(actor);
+  const [connections, platforms] = await Promise.all([listConnections(actor), partnerApprovalsFor(actor)]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
@@ -78,6 +81,46 @@ export default async function IntegrationsSettingsPage() {
           connectedAt: formatDate(connection.connectedAt, actor.timezone, locale),
         }))}
       />
+
+      {/*
+        🔴 F6: the platform your practice is on may open 24Therapy for you only
+        once you approve it here, and you can take it back in one tap.
+      */}
+      {platforms.length > 0 ? (
+        <section className="mt-8">
+          <h2 className="text-[17px] font-bold text-navy-700">{t("portal.partnerLaunch.title")}</h2>
+          <p className="mt-1 text-sm leading-relaxed text-navy-400">{t("portal.partnerLaunch.body")}</p>
+          <ul className="mt-3 divide-y divide-navy-100 rounded-2xl bg-white ring-1 ring-navy-100">
+            {platforms.map((platform) => (
+              <li key={platform.partnerId} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-navy-700">{platform.partnerName}</p>
+                  <p className="text-xs text-navy-400">
+                    {platform.approvedAt
+                      ? t("portal.partnerLaunch.approvedOn", {
+                          date: formatDate(platform.approvedAt, actor.timezone, locale),
+                        })
+                      : t("portal.partnerLaunch.notApproved")}
+                  </p>
+                </div>
+                <form
+                  action={(platform.approvedAt ? revokePartnerLaunch : approvePartnerLaunch).bind(
+                    null,
+                    platform.partnerId,
+                  )}
+                >
+                  <button
+                    type="submit"
+                    className="tap-target h-10 rounded-xl border border-navy-100 bg-white px-4 text-sm font-semibold text-navy-600 hover:bg-navy-50"
+                  >
+                    {platform.approvedAt ? t("portal.partnerLaunch.revoke") : t("portal.partnerLaunch.approve")}
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

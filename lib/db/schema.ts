@@ -8015,6 +8015,14 @@ export const sponsorMoneyEntries = pgTable(
     employeeCents: integer("employee_cents").notNull(),
     /** Random at insert: the order within a published batch. */
     shuffle: integer("shuffle").notNull(),
+    /**
+     * 🔴 F7 (0186): a keyed digest of the person this money funded, so the
+     * company view can count DISTINCT people in a period before it reports it.
+     * Not joinable to anything without the server secret, read only by
+     * `lib/data/sponsor-ledger.ts`, and never returned from it. Null on rows
+     * written before 0186, which the floor counts as one person between them.
+     */
+    personTag: text("person_tag"),
   },
   (t) => [index("sponsor_money_entries_sponsor_week_idx").on(t.sponsorId, t.weekStart)],
 );
@@ -9154,11 +9162,51 @@ export const partnerConsents = pgTable(
     /** Seconds from the session's start. Zero is 68.1; above zero is 68.2. */
     offsetSeconds: integer("offset_seconds").notNull().default(0),
 
+    /**
+     * 🔴 F6 (0186): WHO SAID IT. `patient` is the person's own answer, given
+     * signed in to their own account on our page; `partner` is a platform
+     * vouching for its patient, kept and marked, and never enough to record on;
+     * `sandbox` is a sandbox key's test subject, who is nobody. Only `patient`
+     * and `sandbox` yeses open a recording; a withdrawal from anybody stops one.
+     * Every row from before 0186 is `partner`, the safe reading.
+     */
+    source: text("source").$type<PartnerConsentSource>().notNull().default("partner"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     index("partner_consents_session_idx").on(t.partnerId, t.externalSessionRef, t.answeredAt),
   ],
+);
+
+export const PARTNER_CONSENT_SOURCES = ["partner", "patient", "sandbox"] as const;
+export type PartnerConsentSource = (typeof PARTNER_CONSENT_SOURCES)[number];
+
+/**
+ * 🔴 F6 (0186): A CLINICIAN'S OWN APPROVAL OF A PARTNER, BEFORE IT MAY OPEN
+ * 24THERAPY FOR THEM.
+ *
+ * A partner key with `record:read` could launch any verified clinician in a
+ * practice on its account knowing only their email. The practice being on the
+ * partner's bill is the partner's arrangement with the practice; it is not the
+ * clinician's say-so to be signed in by somebody else's server. So a launch now
+ * needs a live row here, written by the clinician from Settings, Integrations,
+ * and revoked there in one tap (which also ends any launched session).
+ */
+export const clinicianPartnerApprovals = pgTable(
+  "clinician_partner_approvals",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "cascade" }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Revoked rather than deleted: "when did this stop" is asked later. */
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.partnerId] })],
 );
 
 /**

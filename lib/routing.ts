@@ -44,6 +44,8 @@ export const PROTECTED_PREFIXES = [
   "/notifications",
   "/on-call",
   "/onboarding",
+  /* 🔴 F6: where a partner-opened (restricted) clinician session lands. */
+  "/partner-launch",
   "/patients",
   "/sessions",
   "/settings",

@@ -133,6 +133,8 @@ const PORTALS: Record<string, readonly string[]> = {
      */
     "precord",
     "connect",
+    /* F6: `app/(app)/partner-launch`, where a partner-opened clinician session lands. */
+    "plaunch",
     /* The seat manager, on the clinician's own billing page (`app/(app)/billing`). */
     "seats",
     /* The in-person pay screen the therapist shows (`app/(app)/sessions/[id]/collect`). */
@@ -369,6 +371,13 @@ const PORTALS: Record<string, readonly string[]> = {
      * copy changed, which is a ratchet reporting on the wrong screen.
      */
     "auth",
+    /*
+     * F9: `upload.privateStoreMissing`, the refusal when no private file store is
+     * configured, returned by `lib/uploads.ts` to every portal that uploads: the
+     * clinician's licence, the patient's photo and documents, a receipt from a
+     * company, a clinic or a payer.
+     */
+    "upload",
     "radar",
     "nf",
     "transfer",

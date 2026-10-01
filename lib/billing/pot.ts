@@ -1217,7 +1217,7 @@ async function recordMoneyEntry(input: {
 }): Promise<void> {
   try {
     const [row] = await controlDb
-      .select({ toldAt: enrolments.ledgerToldAt })
+      .select({ toldAt: enrolments.ledgerToldAt, personId: enrolments.personId })
       .from(enrolments)
       .where(eq(enrolments.id, input.enrolmentId))
       .limit(1);
@@ -1225,6 +1225,14 @@ async function recordMoneyEntry(input: {
 
     const { weekStartOf } = await import("@/lib/sponsor/ledger");
     const { randomInt } = await import("node:crypto");
+    /*
+     * 🔴 F7: a keyed digest of (company, person), so the company view counts
+     * DISTINCT people in a period before reporting it. Keyed by the server
+     * secret and scoped to this company, so it joins to nothing, and the same
+     * person re-enrolled is still one person. Never read back out to a screen.
+     */
+    const { subjectKey } = await import("@/lib/rate-limit");
+    const personTag = subjectKey("ledger-person", `${input.sponsorId}:${row.personId}`);
     await controlDb.insert(sponsorMoneyEntries).values({
       sponsorId: input.sponsorId,
       kind: input.kind,
@@ -1234,6 +1242,7 @@ async function recordMoneyEntry(input: {
       coveredCents: Math.max(0, input.coveredCents),
       employeeCents: Math.max(0, input.employeeCents),
       shuffle: randomInt(0, 2_147_483_647),
+      personTag,
     });
   } catch (error) {
     log.warn("company money entry not written", { reason: safeErrorMessage(error) });

@@ -255,6 +255,24 @@ export async function findProblems(now = new Date()): Promise<WatchdogProblem[]>
     });
   }
 
+  /*
+   * 🔴 F9: a deployment with a blob store but no PRIVATE one refuses every
+   * licence, receipt and clinical document (`lib/uploads.ts` no longer falls
+   * back to the public store). That is a standing fault until the token is set.
+   */
+  if (process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_PRIVATE_READ_WRITE_TOKEN) {
+    problems.push({
+      key: "private-store-missing",
+      subject: "Private file storage is not set up: licences, receipts and documents are being refused",
+      body: [
+        "BLOB_PRIVATE_READ_WRITE_TOKEN is not set on this deployment. Sensitive uploads (licences, IDs,",
+        "transfer receipts, support attachments, clinical documents) are refused rather than written to the",
+        "public store. Create a private Vercel Blob store (or use the main store's token if it is private),",
+        "set the token, redeploy, then run `npm run blobs:migrate-private` (dry run first).",
+      ].join("\n"),
+    });
+  }
+
   return problems;
 }
 

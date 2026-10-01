@@ -471,10 +471,19 @@ async function main() {
     "scripts/sim-clock.ts",
     "scripts/simulate-seed.ts",
     "scripts/sync-blocks.ts",
+    /*
+     * 🔴 F9, THE EIGHTH DOOR: moving sensitive files off the PUBLIC blob store.
+     * The files it moves are on production and nowhere else, so it has nowhere
+     * else to run. It plants nothing and deletes no row: it copies each public
+     * file to the private store, repoints its row with a conditional UPDATE,
+     * checks the private copy answers, and only then deletes the public copy.
+     * Dry run unless `--apply`.
+     */
+    "scripts/migrate-private-blobs.ts",
   ];
 
   check(
-    "🔴 76.62 exactly SEVEN scripts anywhere under scripts/ may be let through to production",
+    `🔴 76.62 exactly ${DOORS.length} scripts anywhere under scripts/ may be let through to production`,
     opened.length === DOORS.length && DOORS.every((d) => opened.includes(d)),
     opened.join(", ") || "none, which means the seed cannot run where it is meant to",
   );

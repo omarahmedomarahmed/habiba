@@ -40,7 +40,28 @@ import {
  * keeps deciding on the path it has always decided on. See `lib/i18n/paths.ts`
  * for why this is a rewrite rather than an `app/[locale]/` tree.
  */
-export function middleware(request: NextRequest) {
+/**
+ * F6: the signature the guard checks before it believes `x-pathname` and
+ * `x-request-method` for a partner-opened session. HMAC-SHA256 under the auth
+ * secret, base64url, the same bytes `lib/partner/launch-scope.ts` computes.
+ */
+let scopeKey: Promise<CryptoKey> | null = null;
+async function scopeSignature(payload: string): Promise<string> {
+  const secret = process.env.AUTH_SECRET ?? "dev-insecure-secret-not-for-production-use-0123";
+  scopeKey ??= crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(`launch-scope:${secret}`),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", await scopeKey, new TextEncoder().encode(payload)));
+  let binary = "";
+  for (const byte of mac) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const { locale, rest } = splitLocale(pathname);
   const prefixed = locale !== DEFAULT_LOCALE;
@@ -113,6 +134,16 @@ export function middleware(request: NextRequest) {
   // needs the prefix still on it so a page can declare its own canonical URL.
   const forwarded = new Headers(request.headers);
   forwarded.set("x-pathname", pathname);
+  // F6: a partner-opened session is read only, and a form posted without JS carries no
+  // `next-action` header, so the guard is told the method as well. Both are signed, because
+  // `/api/` does not pass through here and a caller there could send either header itself;
+  // the guard trusts them only with this signature (`lib/partner/launch-scope.ts`).
+  forwarded.set("x-request-method", request.method);
+  if (request.cookies.get(SESSION_COOKIE)?.value) {
+    forwarded.set("x-scope-sig", await scopeSignature(`${request.method} ${pathname}`));
+  } else {
+    forwarded.delete("x-scope-sig");
+  }
 
   /*
    * 🔴 THE CSP NONCE, MINTED HERE BECAUSE THIS IS THE ONLY PLACE THAT RUNS

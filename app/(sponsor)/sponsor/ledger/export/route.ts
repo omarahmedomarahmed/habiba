@@ -6,14 +6,14 @@ import { enrolledCount } from "@/lib/data/sponsors";
 import { getI18n } from "@/lib/i18n/server";
 import { getSettings } from "@/lib/settings";
 import { getSponsorActor } from "@/lib/sponsor-auth/session";
-import { filterToFloor, ledgerCsvRows, parseLedgerQuery, sortLedger } from "@/lib/sponsor/ledger";
+import { filterPeriods, ledgerCsvRows, parseLedgerQuery, privacyFloor, sortPeriods } from "@/lib/sponsor/ledger";
 
 export const dynamic = "force-dynamic";
 
 /**
- * 🔴 W2-S10: THE COMPANY'S MONEY LEDGER AS A CSV, the rows on the page with the
- * same filters and sort, and no more: a week, a kind and four amounts, never a
- * name, a therapist or a specialty (the table has none to give).
+ * 🔴 W2-S10 / F7: THE COMPANY'S MONEY LEDGER AS A CSV, the periods on the page
+ * with the same filters and sort, and no more: a period, its sessions and its
+ * spend. Never a row per session, a price or an employee share.
  *
  * Behind the company's own login like every page here, answered 401 rather
  * than redirected, because a spreadsheet import does not follow a sign-in page.
@@ -26,33 +26,23 @@ export async function GET(request: NextRequest) {
   const { t } = await getI18n();
   const params = Object.fromEntries(request.nextUrl.searchParams.entries());
   const query = parseLedgerQuery(params);
-  const [{ entries }, headcount, settings] = await Promise.all([
-    publishedLedger(actor.sponsorId),
-    enrolledCount(actor.sponsorId),
-    getSettings(),
-  ]);
-  const floor = settings.sponsor.activityFloor;
-  /* 🔴 K6: the same two gates as the screen: headcount, then a filter's floor. */
-  const shown = headcount < floor ? [] : filterToFloor(entries, query, floor).entries;
+  const [headcount, settings] = await Promise.all([enrolledCount(actor.sponsorId), getSettings()]);
+  /* 🔴 K6: the same headcount gate as the screen, and nothing is read under it. */
+  const under = headcount < privacyFloor(settings.sponsor.activityFloor);
+  const ledger = under ? null : await publishedLedger(actor.sponsorId);
+  const periods = ledger ? (query.by === "month" ? ledger.months : ledger.weeks) : [];
 
-  const rows = ledgerCsvRows(
-    sortLedger(shown, query),
-    [
-      t("sponsor.ledgerWeek"),
-      t("sponsor.ledgerKind"),
-      t("sponsor.ledgerPrice"),
-      t("sponsor.ledgerCoverage"),
-      t("sponsor.ledgerCovered"),
-      t("sponsor.ledgerEmployee"),
-    ],
-    (kind) => (kind === "refund" ? t("sponsor.ledgerRefund") : t("sponsor.ledgerSession")),
-  );
+  const rows = ledgerCsvRows(sortPeriods(filterPeriods(periods, query), query), [
+    t("sponsor.ledgerPeriod"),
+    t("sponsor.sessionsTotal"),
+    t("sponsor.spentTotal"),
+  ]);
   const body = rows.map((line) => line.map(csvCell).join(",")).join("\r\n");
 
   return new NextResponse(body, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="session-money.csv"',
+      "Content-Disposition": 'attachment; filename="pot-spend-by-period.csv"',
       "Cache-Control": "no-store",
     },
   });

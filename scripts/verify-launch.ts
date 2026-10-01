@@ -351,7 +351,7 @@ async function main() {
    * "Working..." and a tab did nothing, in every portal. A boundary on the
    * portal's folder, or on each clinician section, is keyed by what changes.
    */
-  const CLINICIAN_SECTIONS = ["assistant", "billing", "bookings", "connect", "copilot", "dashboard", "earnings", "notes", "notifications", "on-call", "onboarding", "patients", "sessions", "settings", "support"];
+  const CLINICIAN_SECTIONS = ["assistant", "billing", "bookings", "connect", "copilot", "dashboard", "earnings", "notes", "notifications", "on-call", "onboarding", "partner-launch", "patients", "sessions", "settings", "support"];
   const loadingAt: Record<string, string[]> = {
     "(public)": ["(public)/radar/loading.tsx", "(public)/t/[id]/loading.tsx"],
     pay: ["pay/[token]/loading.tsx"],
