@@ -77,9 +77,15 @@ export async function handleReply(input: {
       (await mostRecentSessionFor(input.personId)) ?? {};
 
     const noClinician = !sessionId || !therapistId || !organizationId;
+    /*
+     * 🔴 F2: whether a clinician was ACTUALLY told, from what `raiseCrisisAlert`
+     * did rather than from whether there was somebody to tell. The patient's
+     * message says so only when it is true.
+     */
+    let clinicianNotified = false;
 
     if (sessionId && therapistId && organizationId) {
-      await raiseCrisisAlert({
+      const outcome = await raiseCrisisAlert({
         sessionId,
         organizationId,
         therapistId,
@@ -95,6 +101,7 @@ export async function handleReply(input: {
         indicators,
         recommendedAction: "They wrote this in reply to a check-in, outside a session.",
       });
+      clinicianNotified = outcome.clinicianNotified;
     } else {
       /*
        * 🔴 NAMED, not swallowed. A person with no session has no clinician to wake, and a log line
@@ -119,7 +126,13 @@ export async function handleReply(input: {
       crisisAlertRaised: !noClinician,
     });
 
-    const { message, helpline } = patientFacingCrisisMessage(input.country);
+    /* 🔴 F2 / F5: in their language, and "your therapist was told" only when one was. */
+    const { recipientLocale } = await import("@/lib/i18n/preference");
+    const locale = await recipientLocale({ personId: input.personId });
+    const { message, helpline } = patientFacingCrisisMessage(input.country, null, new Date(), {
+      notified: clinicianNotified,
+      locale,
+    });
     return { kind: "crisis", message, helpline, noClinician };
   }
 

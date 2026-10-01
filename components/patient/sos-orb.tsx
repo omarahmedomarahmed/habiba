@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Phone, X } from "lucide-react";
 
-import { sosLinesFor, type SosCountry } from "@/lib/crisis/sos";
+import { countryLabel, flagOf, sosLinesFor, type SosCountry } from "@/lib/crisis/sos";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -297,6 +297,23 @@ export function SosOrb({
       >
         <span className="text-[11px] font-bold tracking-wider">SOS</span>
       </button>
+      {/*
+        🔴 F5 / no JavaScript: the button above opens its sheet with a state
+        change, so with scripts off, blocked or still loading on a slow phone it
+        does nothing. This plain link sits exactly over it in that case and
+        opens `/sos`, a server-rendered page of the same numbers as `tel:`
+        links. A browser running scripts never renders a `noscript` body.
+      */}
+      <noscript>
+        <a
+          href="/sos"
+          aria-label={t("crisis.orbLabel")}
+          style={{ top: "72%" }}
+          className="fixed end-3 z-[300] flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full bg-red-600 text-white ring-4 ring-white/80"
+        >
+          <span className="text-[11px] font-bold tracking-wider">SOS</span>
+        </a>
+      </noscript>
 
       {open ? (
         <div className="fixed inset-0 z-[310] flex flex-col justify-end bg-navy-900/55 p-3 backdrop-blur-[2px]">
@@ -334,7 +351,7 @@ export function SosOrb({
                       ? locale === "ar"
                         ? entry.line.name.ar
                         : entry.line.name.en
-                      : (HELP_WORD[entry.country] ?? "Help")}
+                      : t("crisis.helpLine")}
                   </span>
                   <span className="text-[26px] leading-none font-bold tracking-wide">{entry.line.label}</span>
                   <span className="text-[11px] opacity-80">
@@ -396,36 +413,3 @@ export function SosOrb({
   );
 }
 
-/**
- * Names as a reader would say them, beside a flag, in the reader's language.
- * 🔴 Board 872: "مصر · Egypt" put an English word on the Arabic sheet; the
- * English sheet says Egypt and the Arabic one مصر.
- */
-const COUNTRY_LABEL: Record<string, { en: string; ar: string }> = {
-  US: { en: "United States", ar: "الولايات المتحدة" },
-  EG: { en: "Egypt", ar: "مصر" },
-};
-
-function countryLabel(country: string, locale: string): string | null {
-  const known = COUNTRY_LABEL[country];
-  if (known) return locale === "ar" ? known.ar : known.en;
-  try {
-    return new Intl.DisplayNames([locale], { type: "region" }).of(country) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * The word for help, in the language of that country.
- *
- * 🔴 C350 — Egypt's is Arabic, not an English word with an Arabic line under
- * it. The button is for somebody dialling an Arabic menu.
- */
-const HELP_WORD: Record<string, string> = { US: "Help", EG: "نجدة" };
-
-/** A flag from the ISO code, for any country an operator configures. */
-function flagOf(code: string): string {
-  if (!/^[A-Z]{2}$/.test(code)) return "";
-  return String.fromCodePoint(...[...code].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65));
-}

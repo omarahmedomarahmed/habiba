@@ -69,7 +69,7 @@ export async function appendTranscriptSegment(input: {
   text: string;
   startMs: number;
   endMs: number;
-}): Promise<{ inserted: boolean; crisis: boolean; sequence: number | null }> {
+}): Promise<{ inserted: boolean; crisis: boolean; sequence: number | null; alertId?: string | null }> {
   const text = input.text.trim();
   if (!text) return { inserted: false, crisis: false, sequence: null };
 
@@ -126,8 +126,10 @@ export async function appendTranscriptSegment(input: {
   }
 
   const matches = scanForCrisisLanguage(text);
+  /* 🔴 F2: the alert's id rides back to the room, so the clinician can acknowledge it there. */
+  let alertId: string | null = null;
   if (inserted && matches.length > 0) {
-    await raiseCrisisAlert({
+    const outcome = await raiseCrisisAlert({
       sessionId: input.sessionId,
       organizationId: input.organizationId,
       therapistId: input.therapistId,
@@ -136,9 +138,10 @@ export async function appendTranscriptSegment(input: {
       source: "keyword",
       indicators: matches,
     });
+    alertId = outcome.riskId;
   }
 
-  return { inserted, crisis: matches.length > 0, sequence };
+  return { inserted, crisis: matches.length > 0, sequence, alertId };
 }
 
 /** Another chunk of this session took the number first; take the next one. */

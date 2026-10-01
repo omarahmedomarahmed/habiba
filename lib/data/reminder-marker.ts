@@ -6,6 +6,7 @@ import { and, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { log, safeErrorMessage } from "@/lib/logger";
 import {
+  lowerCrisisDue,
   lowerMarker,
   markerFrom,
   parseMarker,
@@ -138,7 +139,9 @@ export async function refreshReminderMarker(): Promise<boolean> {
     let marker: ReminderMarker;
     try {
       const now = new Date();
-      marker = markerFrom(await nextReminderAt(now), now);
+      /* 🔴 F2: and the soonest crisis work, so a refresh never forgets an open alert. */
+      const { nextCrisisDueAt } = await import("@/lib/crisis/alerts");
+      marker = markerFrom(await nextReminderAt(now), now, await nextCrisisDueAt(now));
     } catch (error) {
       log.warn("reminder marker not refreshed: database", { reason: safeErrorMessage(error) });
       return false;
@@ -188,6 +191,40 @@ export async function noteSessionBooked(startsAt: Date | null | undefined): Prom
     await forget("lost every race");
   } catch (error) {
     log.warn("reminder marker not lowered", { reason: safeErrorMessage(error) });
+  }
+}
+
+/**
+ * 🔴 F2: A CRISIS ALERT NEEDS THE TICK AT `dueAt` (its escalation deadline, or
+ * now for a send to retry). Called after the alert row is committed. Lowers
+ * `crisisDueAt` with a conditional write, the same way a booking lowers
+ * `nextAt`; with no marker, or one that cannot be parsed, it reads the database
+ * instead, which already holds the alert.
+ */
+export async function noteCrisisDue(dueAt: Date): Promise<void> {
+  try {
+    const { writeMarkerBlob, isMarkerConflict } = await import("@/lib/uploads");
+    for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+      const read = await readMarker();
+      if (read.state !== "ok") {
+        await refreshReminderMarker();
+        return;
+      }
+      const lowered = lowerCrisisDue(read.marker, dueAt);
+      if (!lowered) return;
+      try {
+        await writeMarkerBlob(markerPath(), serializeMarker(lowered), read.etag);
+        return;
+      } catch (error) {
+        if (isMarkerConflict(error)) continue;
+        log.warn("crisis marker not lowered", { reason: safeErrorMessage(error) });
+        await forget("crisis lower refused");
+        return;
+      }
+    }
+    await forget("lost every race");
+  } catch (error) {
+    log.warn("crisis marker not lowered", { reason: safeErrorMessage(error) });
   }
 }
 

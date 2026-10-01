@@ -230,6 +230,27 @@ export const WHATSAPP_TEMPLATES = {
     en: "Hi {{1}}, how are you doing? You can turn these messages off in the app.",
     ar: "مرحبًا {{1}}، كيف حالك؟ يمكنك إيقاف هذه الرسائل من التطبيق.",
   },
+  /*
+   * 🔴 F2: a crisis alert to its clinician, and to a backup when nobody
+   * acknowledged it. No patient, no words, no level: the button opens a
+   * signed-in page. Sent only once Meta approves the names; email goes at once.
+   */
+  "crisis.alert": {
+    name: "crisis_alert",
+    category: "utility",
+    variables: 0,
+    en: "Safety alert for one of your patients. Please open it now and acknowledge it.",
+    ar: "تنبيه سلامة لأحد مرضاك. يرجى فتحه الآن وتأكيد استلامه.",
+    button: { en: "Open the alert", ar: "افتح التنبيه" },
+  },
+  "crisis.escalated": {
+    name: "crisis_escalated",
+    category: "utility",
+    variables: 1,
+    en: "A safety alert for a patient of {{1}} has not been acknowledged. Please reach {{1}} now.",
+    ar: "لم يُؤكَّد استلام تنبيه سلامة لمريض لدى {{1}}. يرجى التواصل مع {{1}} الآن.",
+    button: { en: "Open the alert", ar: "افتح التنبيه" },
+  },
 } as const satisfies Record<string, WhatsappTemplate>;
 
 export type TemplatedKind = keyof typeof WHATSAPP_TEMPLATES;

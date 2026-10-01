@@ -154,6 +154,8 @@ export function SessionRoom(props: RoomProps) {
    */
   const [now, setNow] = useState(() => props.serverNow);
   const [crisis, setCrisis] = useState(false);
+  /* 🔴 F2: the alert the last crisis flag raised, so the banner can acknowledge it. */
+  const [alertId, setAlertId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [micDenied, setMicDenied] = useState(false);
   const [spokenLanguage, setSpokenLanguage] = useState<string | null>(props.transcriptLanguage);
@@ -227,6 +229,7 @@ export function SessionRoom(props: RoomProps) {
           speaker?: Speaker;
           sequence?: number;
           crisis?: boolean;
+          alertId?: string | null;
           suggestions?: CopilotSuggestion[];
         };
 
@@ -239,6 +242,7 @@ export function SessionRoom(props: RoomProps) {
         }
         // The chunk response is the push channel — no socket required.
         if (data.crisis) setCrisis(true);
+        if (data.alertId) setAlertId(data.alertId);
         /*
          * Merged, never replaced.
          *
@@ -853,7 +857,11 @@ export function SessionRoom(props: RoomProps) {
 
           {crisis ? (
             <div className="px-4 pt-3 lg:px-0">
-              <RiskBanner level="high" onDismiss={() => setCrisis(false)} />
+              <RiskBanner
+                level="high"
+                onDismiss={() => setCrisis(false)}
+                acknowledgeHref={alertId ? `/notifications/alerts/${alertId}` : null}
+              />
             </div>
           ) : null}
 
