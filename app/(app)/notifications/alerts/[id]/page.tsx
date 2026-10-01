@@ -24,8 +24,9 @@ export const dynamic = "force-dynamic";
  * It shows when the alert was raised, for whose patient, its level, and who
  * acknowledged it; never the patient's name or words, because a backup
  * colleague or an operator may open it too. The clinician it is for also gets
- * the way into the session. One button acknowledges it, which stops the
- * escalation to a backup.
+ * the way into the session (or, for a journal alert, the chart). One button
+ * acknowledges it, which stops the escalation to a backup. Who may open and
+ * press it is `mayAcknowledge` in `lib/crisis/escalation.ts`.
  */
 export default async function AlertPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -57,7 +58,8 @@ export default async function AlertPage({ params }: { params: Promise<{ id: stri
             })}
           </p>
           <p className="text-sm text-navy-700">{t("calert.raisedAt", { when: when(alert.createdAt) })}</p>
-          {!alert.isTheirs ? (
+          {alert.fromJournal ? <p className="text-sm text-navy-700">{t("calert.fromJournal")}</p> : null}
+          {!alert.isTheirs && alert.clinician ? (
             <p className="text-sm text-navy-700">{t("calert.forPatientOf", { clinician: alert.clinician })}</p>
           ) : null}
           {alert.escalationStage > 0 ? <p className="text-sm text-navy-600">{t("calert.escalatedNote")}</p> : null}
@@ -78,9 +80,18 @@ export default async function AlertPage({ params }: { params: Promise<{ id: stri
             </form>
           )}
 
-          {alert.isTheirs ? (
+          {alert.isTheirs && alert.sessionId ? (
             <Link href={`/sessions/${alert.sessionId}`} className="inline-block text-sm font-semibold text-navy-700 underline">
               {t("calert.openSession")}
+            </Link>
+          ) : null}
+          {/* 🔴 0192: a journal alert opens the chart's documents, where journals are read under the grant. */}
+          {alert.isTheirs && !alert.sessionId && alert.patientId ? (
+            <Link
+              href={`/patients/${alert.patientId}/documents`}
+              className="inline-block text-sm font-semibold text-navy-700 underline"
+            >
+              {t("calert.openRecord")}
             </Link>
           ) : null}
         </Card>

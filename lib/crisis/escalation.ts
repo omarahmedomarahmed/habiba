@@ -15,6 +15,10 @@ import type { RiskLevel } from "@/lib/db/schema";
  *            clinician on their own skips this stage.
  *   stage 2  the platform: back office managers and super admins. Final.
  *
+ * When every out-of-band send to the clinician fails, the next stage is due at
+ * once (`escalateNowIfExhausted`). A journal alert with no clinician holding a
+ * grant starts at stage 2.
+ *
  * Every rule here is pure so it is tested as arithmetic
  * (`tests/crisis-escalation.test.ts`); the I/O is `lib/crisis/alerts.ts`, and
  * the per-minute tick drives it (`lib/sessions/reminder-marker.ts`, `crisisDueAt`).
@@ -118,10 +122,35 @@ export function needsOutOfBandRetry(row: Pick<DueRow, "acknowledgedAt" | "outOfB
 }
 
 /**
+ * 🔴 Due diligence: every retry to the clinician failed. The alert used to stop
+ * there until its deadline; now it goes to the next stage at once.
+ */
+export function outOfBandExhausted(row: DueRow): boolean {
+  return (
+    !row.acknowledgedAt &&
+    !row.outOfBandAt &&
+    row.outOfBandAttempts >= MAX_OUT_OF_BAND_ATTEMPTS &&
+    row.escalationStage < FINAL_STAGE
+  );
+}
+
+/**
+ * The deadline an alert should have once its out-of-band attempts are spent:
+ * `now` when its deadline is still ahead (or missing), otherwise null, which
+ * means leave it as it is.
+ */
+export function escalateNowIfExhausted(row: DueRow, now: Date): Date | null {
+  if (!outOfBandExhausted(row)) return null;
+  if (row.escalateAt && row.escalateAt.getTime() <= now.getTime()) return null;
+  return now;
+}
+
+/**
  * The soonest moment the tick has crisis work to do, across the alerts still
  * open: an escalation coming due, or now for an out-of-band send that has not
- * left yet and has retries left. Null when there is nothing, which is what
- * lets the database sleep.
+ * left yet (with retries left, or with its retries spent and so due to go to
+ * the next stage). Null when there is nothing, which is what lets the
+ * database sleep.
  */
 export function crisisDueAt(rows: DueRow[], now: Date): Date | null {
   let soonest: number | null = null;
@@ -129,21 +158,35 @@ export function crisisDueAt(rows: DueRow[], now: Date): Date | null {
     if (row.acknowledgedAt) continue;
     const candidates: number[] = [];
     if (row.escalateAt && row.escalationStage < FINAL_STAGE) candidates.push(row.escalateAt.getTime());
-    if (needsOutOfBandRetry(row)) candidates.push(now.getTime());
+    if (needsOutOfBandRetry(row) || outOfBandExhausted(row)) candidates.push(now.getTime());
     for (const at of candidates) soonest = soonest === null ? at : Math.min(soonest, at);
   }
   return soonest === null ? null : new Date(soonest);
 }
 
 /**
- * Who may acknowledge an alert: the clinician it is for, a colleague in the
- * same practice (a backup at stage 1), or the back office (a backup at stage 2).
+ * The platform's on-call: the back office roles told at the last stage. There
+ * is no clinical or on-call staff role in the product, so these are also the
+ * only people from outside a practice who may acknowledge its alert.
+ */
+export const ON_CALL_ROLES = ["manager", "super_admin"] as const;
+
+/**
+ * 🔴 Due diligence: WHO MAY ACKNOWLEDGE. An acknowledgement stops every
+ * escalation, so only people who are told and can act may give one:
+ *
+ *   - the clinician the alert is for;
+ *   - a clinician (role `therapist`) in the same practice, the stage 1 backup;
+ *   - the platform on-call (`ON_CALL_ROLES`), the stage 2 backup.
+ *
+ * Not `staff` (they work queues and are never told). A journal alert with no
+ * clinician has no practice, so only the on-call may acknowledge it.
  */
 export function mayAcknowledge(
-  alert: { therapistId: string; organizationId: string },
+  alert: { therapistId: string | null; organizationId: string | null },
   actor: { userId: string; organizationId: string; role: string },
 ): boolean {
-  if (actor.userId === alert.therapistId) return true;
-  if (actor.organizationId === alert.organizationId) return true;
-  return actor.role === "super_admin" || actor.role === "manager" || actor.role === "staff";
+  if (alert.therapistId && actor.userId === alert.therapistId) return true;
+  if (actor.role === "therapist" && alert.organizationId && actor.organizationId === alert.organizationId) return true;
+  return (ON_CALL_ROLES as readonly string[]).includes(actor.role);
 }

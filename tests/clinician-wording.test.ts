@@ -43,7 +43,9 @@ test("K22 risk alerts are written in the clinician's language, never English lit
       /Risk language detected|may need a call|Pause and assess directly|"A patient"/,
       `${file} still writes an English alert`,
     );
-    assert.match(code, /wordsFor\(\{ userId/, `${file} does not pick the reader's language`);
+    /* A journal hands its alert to `raiseCrisisAlert`, which picks the language (due diligence). */
+    const pattern = file === "lib/data/journals.ts" ? /raiseCrisisAlert\(\{/ : /wordsFor\(\{ userId/;
+    assert.match(code, pattern, `${file} does not pick the reader's language`);
   }
   for (const key of ["talert.riskTitle", "talert.riskBodyLive", "talert.journalTitle", "talert.questionnaireTitle"] as const) {
     assert.ok(ar[key] && ar[key] !== en[key], `${key} has no Arabic`);

@@ -5683,6 +5683,13 @@ export const en = {
   "calert.subject": "Safety alert: please respond now",
   "calert.body":
     "Language linked to risk was detected for one of your patients. Open the alert to reach the session and tell us you have it. If nobody acknowledges it within {minutes} minutes, a backup is told.",
+  "calert.bodyJournal":
+    "A journal entry one of your patients wrote just now matched language linked to risk. Open the alert to reach their record and tell us you have it. If nobody acknowledges it within {minutes} minutes, a backup is told.",
+  "calert.noClinicianSubject": "Safety alert: no clinician to tell",
+  "calert.noClinicianBody":
+    "A patient wrote a journal entry that matched language linked to risk, and no clinician holds access to their record, so nobody else has been told. Open the alert and acknowledge it once somebody has it in hand.",
+  "calert.openRecord": "Open their record",
+  "calert.fromJournal": "From a journal entry, not a session.",
   "calert.ack": "Open and acknowledge",
   "calert.escSubject": "Safety alert not acknowledged",
   "calert.escBody":
@@ -10643,6 +10650,13 @@ export const ar: Record<MessageKey, string> = {
   "calert.subject": "تنبيه سلامة: يرجى الاستجابة الآن",
   "calert.body":
     "رُصدت عبارات مرتبطة بالخطر لدى أحد مرضاك. افتح التنبيه للوصول إلى الجلسة وأخبرنا أنك تتابعه. إن لم يؤكد أحد استلامه خلال {minutes} دقيقة، يُبلَّغ شخص احتياطي.",
+  "calert.bodyJournal":
+    "تطابق إدخال في اليوميات كتبه أحد مرضاك للتو مع عبارات مرتبطة بالخطر. افتح التنبيه للوصول إلى سجله وأخبرنا أنك تتابعه. إن لم يؤكد أحد استلامه خلال {minutes} دقيقة، يُبلَّغ شخص احتياطي.",
+  "calert.noClinicianSubject": "تنبيه سلامة: لا يوجد معالج لإبلاغه",
+  "calert.noClinicianBody":
+    "كتب مريض إدخالًا في اليوميات تطابق مع عبارات مرتبطة بالخطر، ولا يملك أي معالج صلاحية الوصول إلى سجله، فلم يُبلَّغ أحد غيركم. افتح التنبيه وأكّد استلامه حين يتولاه أحد.",
+  "calert.openRecord": "افتح سجله",
+  "calert.fromJournal": "من إدخال في اليوميات، وليس من جلسة.",
   "calert.ack": "افتح وأكّد الاستلام",
   "calert.escSubject": "تنبيه سلامة لم يُؤكَّد استلامه",
   "calert.escBody":

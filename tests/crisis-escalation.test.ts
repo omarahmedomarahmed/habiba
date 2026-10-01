@@ -6,13 +6,16 @@ import {
   ESCALATE_AFTER_MINUTES_DEFAULT,
   FINAL_STAGE,
   MAX_OUT_OF_BAND_ATTEMPTS,
+  ON_CALL_ROLES,
   crisisDueAt,
   dedupDecision,
   escalateAtFor,
+  escalateNowIfExhausted,
   escalationMinutes,
   mayAcknowledge,
   needsOutOfBandRetry,
   nextEscalation,
+  outOfBandExhausted,
 } from "../lib/crisis/escalation";
 import { patientFacingCrisisMessage } from "../lib/crisis/patient-message";
 import { sosLinesFor } from "../lib/crisis/sos";
@@ -114,12 +117,72 @@ test("a send that did not leave is retried at the next tick, a bounded number of
   assert.equal(needsOutOfBandRetry({ ...failed, outOfBandAt: at(0) }), false, "it left");
 });
 
-test("who may acknowledge: the clinician, a colleague in the practice, the back office; nobody else", () => {
+test("🔴 who may acknowledge: the clinician, a clinician in the practice, the platform on-call; nobody else", () => {
   const alert = { therapistId: "t1", organizationId: "o1" };
   assert.equal(mayAcknowledge(alert, { userId: "t1", organizationId: "o1", role: "therapist" }), true);
   assert.equal(mayAcknowledge(alert, { userId: "t2", organizationId: "o1", role: "therapist" }), true);
   assert.equal(mayAcknowledge(alert, { userId: "a1", organizationId: "o9", role: "super_admin" }), true);
+  assert.equal(mayAcknowledge(alert, { userId: "m1", organizationId: "o9", role: "manager" }), true);
+  assert.deepEqual([...ON_CALL_ROLES], ["manager", "super_admin"]);
+  /* Due diligence: any back-office user could acknowledge, which stops all escalation. */
+  assert.equal(mayAcknowledge(alert, { userId: "s1", organizationId: "o9", role: "staff" }), false, "staff are never told");
+  assert.equal(mayAcknowledge(alert, { userId: "s2", organizationId: "o1", role: "staff" }), false, "same practice, not a clinician");
   assert.equal(mayAcknowledge(alert, { userId: "t3", organizationId: "o2", role: "therapist" }), false);
+  /* A journal alert nobody holds a grant to: only the on-call. */
+  const orphan = { therapistId: null, organizationId: null };
+  assert.equal(mayAcknowledge(orphan, { userId: "a1", organizationId: "o9", role: "super_admin" }), true);
+  assert.equal(mayAcknowledge(orphan, { userId: "t1", organizationId: "o1", role: "therapist" }), false);
+  assert.equal(mayAcknowledge(orphan, { userId: "s1", organizationId: "o9", role: "staff" }), false);
+});
+
+test("🔴 retries spent: the alert escalates now, never just stops", () => {
+  const spent = {
+    acknowledgedAt: null,
+    escalationStage: 0,
+    escalateAt: at(15),
+    outOfBandAt: null,
+    outOfBandAttempts: MAX_OUT_OF_BAND_ATTEMPTS,
+  };
+  assert.equal(needsOutOfBandRetry(spent), false, "no more retries");
+  assert.equal(outOfBandExhausted(spent), true);
+  /* The deadline is pulled to now, and the tick then escalates it to the next stage. */
+  const pulled = escalateNowIfExhausted(spent, at(5));
+  assert.equal(pulled?.toISOString(), at(5).toISOString());
+  assert.deepEqual(nextEscalation({ ...spent, escalateAt: pulled }, { now: at(5), inClinic: true, minutes: 15 }), {
+    audience: "clinic",
+    nextStage: 1,
+    nextEscalateAt: at(20),
+  });
+  assert.equal(crisisDueAt([spent], at(5))?.toISOString(), at(5).toISOString(), "the tick wakes now");
+  /* A stage 1 alert whose sends are spent goes on to the platform the same way. */
+  const stage1 = { ...spent, escalationStage: 1, escalateAt: at(30) };
+  assert.equal(nextEscalation({ ...stage1, escalateAt: escalateNowIfExhausted(stage1, at(16)) }, { now: at(16), inClinic: true, minutes: 15 })?.audience, "platform");
+
+  /* Controls: nothing to do once it left, once acknowledged, once already due, or at the last stage. */
+  assert.equal(escalateNowIfExhausted({ ...spent, outOfBandAt: at(1) }, at(5)), null);
+  assert.equal(escalateNowIfExhausted({ ...spent, acknowledgedAt: at(1) }, at(5)), null);
+  assert.equal(escalateNowIfExhausted({ ...spent, escalateAt: at(2) }, at(5)), null, "already due");
+  assert.equal(escalateNowIfExhausted({ ...spent, escalationStage: FINAL_STAGE, escalateAt: null }, at(5)), null);
+  assert.equal(escalateNowIfExhausted({ ...spent, outOfBandAttempts: MAX_OUT_OF_BAND_ATTEMPTS - 1 }, at(5)), null, "retries left");
+  assert.equal(crisisDueAt([{ ...spent, escalationStage: FINAL_STAGE, escalateAt: null }], at(5)), null);
+});
+
+test("🔴 the pipeline pulls a spent alert forward, records the failure, and a journal raises the same alert", () => {
+  const alerts = readFileSync("lib/crisis/alerts.ts", "utf8");
+  const send = alerts.slice(alerts.indexOf("async function sendOutOfBand"), alerts.indexOf("async function afterFailedSend"));
+  assert.match(send, /if \(!delivery\.sent\) await afterFailedSend\(riskId\)/);
+  const after = alerts.slice(alerts.indexOf("async function afterFailedSend"), alerts.indexOf("type Backup"));
+  assert.match(after, /escalateNowIfExhausted\(row, now\)/);
+  assert.match(after, /recordCrisisFailure\(/);
+  assert.match(alerts, /import\("@\/lib\/observability\/errors"\)/, "failures reach /admin/errors");
+  const tick = alerts.slice(alerts.indexOf("export async function escalateCrisisAlerts"), alerts.indexOf("export async function nextCrisisDueAt"));
+  assert.ok(tick.indexOf("afterFailedSend(row.id, now)") < tick.indexOf("const due = await db"), "spent alerts are pulled forward before the due read");
+  const journals = readFileSync("lib/data/journals.ts", "utf8");
+  assert.match(journals, /raiseCrisisAlert\(\{ \.\.\.shared, journal, therapistId: null/, "no grant: the platform on-call");
+  assert.match(journals, /therapistId: holder\.userId/);
+  assert.doesNotMatch(journals, /insert\(notifications\)/, "no parallel in-app-only path");
+  const raise = alerts.slice(alerts.indexOf("export async function raiseCrisisAlert"), alerts.indexOf("function alertPath"));
+  assert.match(raise, /if \(noClinician\) \{\s*await tellPlatformNow\(riskId, now\)/);
 });
 
 /* ---------------------------------------------------- the upgrade, not deduped */

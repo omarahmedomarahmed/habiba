@@ -4,9 +4,11 @@ import { stillCounts } from "@/lib/crisis/context";
 import {
   FINAL_STAGE,
   MAX_OUT_OF_BAND_ATTEMPTS,
+  ON_CALL_ROLES,
   crisisDueAt,
   dedupDecision,
   escalateAtFor,
+  escalateNowIfExhausted,
   escalationMinutes,
   mayAcknowledge,
   needsOutOfBandRetry,
@@ -451,41 +453,59 @@ async function wakeTheTickAt(dueAt: Date): Promise<void> {
  * the alert in place (level, source, indicators) and notifies again, with the
  * acknowledgement cleared and the escalation clock restarted: the risk changed,
  * so whoever acknowledged the lower one has not acknowledged this.
+ *
+ * 🔴 0192: a journal raises the same alert, with `journal` in place of a
+ * session, once per clinician holding a live grant. With no clinician
+ * (`therapistId` null) it goes straight to the platform on-call.
  */
 export async function raiseCrisisAlert(opts: {
-  sessionId: string;
-  organizationId: string;
-  therapistId: string;
+  sessionId?: string | null;
+  journal?: { journalId: string; personId: string; name?: string | null } | null;
+  organizationId: string | null;
+  therapistId: string | null;
   patientId: string | null;
   level: RiskLevel;
   source: "keyword" | "model";
   indicators: string[];
   recommendedAction?: string;
 }): Promise<CrisisAlertOutcome> {
+  const sessionId = opts.sessionId ?? null;
+  const journal = opts.journal ?? null;
+  if (!sessionId && !journal) return { riskId: null, action: "failed", clinicianNotified: false };
+
+  /* The same subject: this session, or this person's journals for this clinician (or for nobody). */
+  const subject = sessionId
+    ? eq(riskAssessments.sessionId, sessionId)
+    : and(
+        eq(riskAssessments.personId, journal!.personId),
+        isNotNull(riskAssessments.journalId),
+        opts.therapistId ? eq(riskAssessments.therapistId, opts.therapistId) : isNull(riskAssessments.therapistId),
+      );
   const [recent] = await db
     .select({ id: riskAssessments.id, level: riskAssessments.level, alertStatus: riskAssessments.alertStatus })
     .from(riskAssessments)
-    .where(
-      and(
-        eq(riskAssessments.sessionId, opts.sessionId),
-        gt(riskAssessments.createdAt, new Date(Date.now() - DEDUP_WINDOW_MS)),
-      ),
-    )
+    .where(and(subject, gt(riskAssessments.createdAt, new Date(Date.now() - DEDUP_WINDOW_MS))))
     .orderBy(desc(riskAssessments.createdAt))
     .limit(1);
 
   const decision = dedupDecision(recent?.level ?? null, opts.level);
   if (decision === "skip" && recent) {
-    return { riskId: recent.id, action: "deduped", clinicianNotified: recent.alertStatus !== "pending" };
+    return { riskId: recent.id, action: "deduped", clinicianNotified: Boolean(opts.therapistId) && recent.alertStatus !== "pending" };
   }
 
   /* 🔴 K22: in the clinician's own language (Ruling 8), not English for all. */
-  const { wordsFor } = await import("@/lib/i18n/message-words");
-  const { t } = await wordsFor({ userId: opts.therapistId });
+  const { wordsFor, wordsIn } = await import("@/lib/i18n/message-words");
+  const { t } = opts.therapistId ? await wordsFor({ userId: opts.therapistId }) : await wordsIn(null);
 
   const now = new Date();
   const minutes = await escalationMinutesNow();
+  /* Nobody to tell first: the row starts at the platform, the last stage. */
+  const noClinician = !opts.therapistId;
   const escalateAt = escalateAtFor(now, minutes);
+  const subjectColumns = {
+    journalId: journal?.journalId ?? null,
+    personId: journal?.personId ?? null,
+  };
 
   let riskId: string | undefined;
   if (decision === "upgrade" && recent) {
@@ -499,10 +519,11 @@ export async function raiseCrisisAlert(opts: {
         alertStatus: "pending",
         acknowledgedAt: null,
         acknowledgedBy: null,
-        escalateAt,
-        escalationStage: 0,
+        escalateAt: noClinician ? null : escalateAt,
+        escalationStage: noClinician ? FINAL_STAGE : 0,
         outOfBandAt: null,
         outOfBandAttempts: 0,
+        ...(journal ? { journalId: journal.journalId } : {}),
       })
       .where(eq(riskAssessments.id, recent.id))
       .returning({ id: riskAssessments.id });
@@ -511,7 +532,8 @@ export async function raiseCrisisAlert(opts: {
     const inserted = await db
       .insert(riskAssessments)
       .values({
-        sessionId: opts.sessionId,
+        sessionId,
+        ...subjectColumns,
         organizationId: opts.organizationId,
         therapistId: opts.therapistId,
         patientId: opts.patientId,
@@ -521,7 +543,8 @@ export async function raiseCrisisAlert(opts: {
         recommendedAction:
           opts.recommendedAction ?? t("talert.riskAction"),
         alertStatus: "pending",
-        escalateAt,
+        escalateAt: noClinician ? null : escalateAt,
+        escalationStage: noClinician ? FINAL_STAGE : 0,
       })
       .returning({ id: riskAssessments.id });
     riskId = inserted[0]?.id;
@@ -529,17 +552,31 @@ export async function raiseCrisisAlert(opts: {
 
   if (!riskId) return { riskId: null, action: "failed", clinicianNotified: false };
 
+  if (noClinician) {
+    await tellPlatformNow(riskId, now);
+    log.warn("crisis alert raised with no clinician; platform on-call told", {
+      level: opts.level,
+      source: opts.source,
+      indicatorCount: opts.indicators.length,
+    });
+    return { riskId, action: decision === "upgrade" ? "upgraded" : "raised", clinicianNotified: false };
+  }
+
   // Note: the notification body never contains the matched phrases. The
   // clinician sees those in the room and in the chart, not in a push payload.
   let clinicianNotified = false;
   try {
     await db.insert(notifications).values({
-      userId: opts.therapistId,
+      userId: opts.therapistId!,
       kind: "crisis",
-      title: t("talert.riskTitle"),
-      body: t("talert.riskBodyLive"),
+      title: journal ? t("talert.journalTitle", { name: journal.name || t("talert.aPatient") }) : t("talert.riskTitle"),
+      body: journal
+        ? opts.indicators.length === 1
+          ? t("talert.journalBodyOne")
+          : t("talert.journalBody", { count: opts.indicators.length })
+        : t("talert.riskBodyLive"),
       /* The session id stays in the URL: opening the session clears this row (`markSessionNotificationsRead`). */
-      actionUrl: `${alertPath(riskId)}?session=${opts.sessionId}`,
+      actionUrl: sessionId ? `${alertPath(riskId)}?session=${sessionId}` : alertPath(riskId),
     });
     clinicianNotified = true;
 
@@ -549,7 +586,7 @@ export async function raiseCrisisAlert(opts: {
       .where(eq(riskAssessments.id, riskId));
   } catch (error) {
     log.error("crisis alert delivery failed; left pending for sweeper", {
-      session: ref(opts.sessionId),
+      session: sessionId ? ref(sessionId) : null,
       reason: safeErrorMessage(error),
     });
   }
@@ -560,7 +597,8 @@ export async function raiseCrisisAlert(opts: {
 
   // Logged without the matched phrases — those are the patient's words.
   log.warn("crisis alert raised", {
-    session: ref(opts.sessionId),
+    session: sessionId ? ref(sessionId) : null,
+    journal: journal ? ref(journal.journalId) : null,
     level: opts.level,
     source: opts.source,
     indicatorCount: opts.indicators.length,
@@ -577,6 +615,57 @@ function alertPath(riskId: string): string {
 }
 
 /**
+ * 🔴 Due diligence: a crisis path that failed is written where an operator
+ * looks (`/admin/errors`), not only to a log line. No patient detail, only
+ * the alert's id. Never throws.
+ */
+async function recordCrisisFailure(what: string, riskId: string): Promise<void> {
+  try {
+    const { recordError } = await import("@/lib/observability/errors");
+    await recordError({ error: new Error(`crisis alert ${riskId}: ${what}`), path: "/crisis/escalation" });
+  } catch {
+    /* The log line from the caller still stands. */
+  }
+}
+
+/**
+ * 🔴 0192: an alert with no clinician to tell first (a journal nobody holds a
+ * grant to) goes to the platform on-call at once. It is raised at the last
+ * stage, so nothing escalates it further; if nobody could be reached, the
+ * failure is recorded for `/admin/errors`.
+ */
+async function tellPlatformNow(riskId: string, now: Date): Promise<void> {
+  try {
+    const backups = await platformOnCall();
+    const ids = backups.map((b) => b.userId).filter((id): id is string => Boolean(id));
+    await db
+      .update(riskAssessments)
+      .set({ escalatedAt: now, escalatedTo: [...new Set(ids)] })
+      .where(eq(riskAssessments.id, riskId));
+
+    let inApp = 0;
+    let sent = 0;
+    for (const backup of backups) {
+      try {
+        const told = await tellBackup(backup, { riskId, clinician: null, minutes: 0, organizationId: null });
+        if (told.inApp) inApp += 1;
+        if (told.sent) sent += 1;
+      } catch (error) {
+        log.warn("platform on-call not told", { reason: safeErrorMessage(error) });
+      }
+    }
+    if (inApp > 0) {
+      await db.update(riskAssessments).set({ alertStatus: "delivered" }).where(eq(riskAssessments.id, riskId));
+    }
+    if (sent === 0) await recordCrisisFailure("no clinician, and no email reached the platform on-call", riskId);
+    log.warn("crisis alert sent to the platform on-call", { backups: backups.length, inApp, sent });
+  } catch (error) {
+    log.error("crisis alert to the platform on-call failed", { reason: safeErrorMessage(error) });
+    await recordCrisisFailure("no clinician, and telling the platform on-call failed", riskId);
+  }
+}
+
+/**
  * 🔴 F2: THE ALERT, OUT OF BAND, TO THE CLINICIAN IT IS FOR.
  *
  * Email always (every clinician has an address), WhatsApp too when a channel
@@ -586,7 +675,8 @@ function alertPath(riskId: string): string {
  * open every link in a message, and an alert acknowledged by a spam filter is
  * an alert nobody escalates.
  *
- * Records the attempt either way, and when it left. Never throws.
+ * Records the attempt either way, and when it left. When the last attempt
+ * fails, the alert goes to the next stage now (`afterFailedSend`). Never throws.
  */
 async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> {
   try {
@@ -594,6 +684,7 @@ async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> 
       .select({
         therapistId: riskAssessments.therapistId,
         organizationId: riskAssessments.organizationId,
+        journalId: riskAssessments.journalId,
         attempts: riskAssessments.outOfBandAttempts,
         email: users.email,
         profile: users.profile,
@@ -603,7 +694,7 @@ async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> 
       .innerJoin(users, eq(users.id, riskAssessments.therapistId))
       .where(eq(riskAssessments.id, riskId))
       .limit(1);
-    if (!row) return false;
+    if (!row || !row.therapistId) return false;
 
     /*
      * Claim this attempt before sending. The hourly crisis job and the minute
@@ -641,7 +732,7 @@ async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> 
       {
         kind: "crisis.alert",
         subject: t("calert.subject"),
-        body: t("calert.body", { minutes: String(minutes) }),
+        body: t(row.journalId ? "calert.bodyJournal" : "calert.body", { minutes: String(minutes) }),
         link: { label: t("calert.ack"), url: `${env.appUrl}${alertPath(riskId)}` },
         variables: [],
       },
@@ -654,6 +745,7 @@ async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> 
         outOfBandChannels: delivery.channels,
       })
       .where(eq(riskAssessments.id, riskId));
+    if (!delivery.sent) await afterFailedSend(riskId);
     return delivery.sent;
   } catch (error) {
     log.error("crisis alert out-of-band send failed", { reason: safeErrorMessage(error) });
@@ -665,6 +757,57 @@ async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> 
     } catch {
       /* The escalation deadline still stands; that is the backstop. */
     }
+    await afterFailedSend(riskId);
+    return false;
+  }
+}
+
+/**
+ * 🔴 Due diligence: retries spent, so the alert goes to the next stage NOW.
+ *
+ * It used to be retried five times and then left waiting for its deadline with
+ * nobody told. Its deadline is pulled to this minute (a conditional update, so
+ * two callers record it once), the failure is recorded for `/admin/errors`,
+ * and the tick is woken to escalate it. Never throws.
+ */
+async function afterFailedSend(riskId: string, now: Date = new Date()): Promise<boolean> {
+  try {
+    const [row] = await db
+      .select({
+        acknowledgedAt: riskAssessments.acknowledgedAt,
+        escalationStage: riskAssessments.escalationStage,
+        escalateAt: riskAssessments.escalateAt,
+        outOfBandAt: riskAssessments.outOfBandAt,
+        outOfBandAttempts: riskAssessments.outOfBandAttempts,
+      })
+      .from(riskAssessments)
+      .where(eq(riskAssessments.id, riskId))
+      .limit(1);
+    if (!row) return false;
+    const pulled = escalateNowIfExhausted(row, now);
+    if (!pulled) return false;
+
+    const moved = await db
+      .update(riskAssessments)
+      .set({ escalateAt: pulled })
+      .where(
+        and(
+          eq(riskAssessments.id, riskId),
+          isNull(riskAssessments.acknowledgedAt),
+          isNull(riskAssessments.outOfBandAt),
+          eq(riskAssessments.escalationStage, row.escalationStage),
+          row.escalateAt ? eq(riskAssessments.escalateAt, row.escalateAt) : isNull(riskAssessments.escalateAt),
+        ),
+      )
+      .returning({ id: riskAssessments.id });
+    if (moved.length === 0) return false;
+
+    log.error("crisis alert never reached the clinician; escalating now", { attempts: row.outOfBandAttempts });
+    await recordCrisisFailure(`every out-of-band attempt to the clinician failed (${row.outOfBandAttempts}); escalated to the next stage`, riskId);
+    await wakeTheTickAt(pulled);
+    return true;
+  } catch (error) {
+    log.warn("crisis alert exhaustion not handled", { reason: safeErrorMessage(error) });
     return false;
   }
 }
@@ -692,6 +835,8 @@ async function clinicBackups(organizationId: string, therapistId: string): Promi
       and(
         eq(users.organizationId, organizationId),
         ne(users.id, therapistId),
+        /* Only clinicians: they are the ones who may acknowledge (`mayAcknowledge`). */
+        eq(users.role, "therapist"),
         eq(users.status, "active"),
         isNull(users.deletedAt),
       ),
@@ -720,7 +865,7 @@ async function clinicBackups(organizationId: string, therapistId: string): Promi
 
 /**
  * 🔴 F2 RULING: THE PLATFORM'S ON-CALL IS EVERY ACTIVE BACK OFFICE MANAGER AND
- * SUPER ADMIN.
+ * SUPER ADMIN (`ON_CALL_ROLES`).
  *
  * There is no on-call rota in the product, and a flag nobody has set yet is a
  * list that is empty on the night it is needed. Managers and super admins are
@@ -734,7 +879,7 @@ async function platformOnCall(): Promise<Backup[]> {
     .from(users)
     .where(
       and(
-        inArray(users.role, ["manager", "super_admin"]),
+        inArray(users.role, [...ON_CALL_ROLES]),
         eq(users.status, "active"),
         isNull(users.deletedAt),
       ),
@@ -743,25 +888,37 @@ async function platformOnCall(): Promise<Backup[]> {
   return rows.map((r) => ({ userId: r.id, email: r.email, phone: null, timezone: r.timezone, reader: "staff" as const }));
 }
 
-/** Tell one backup: an in-app row when they have an account, then email and WhatsApp. */
+/**
+ * Tell one backup: an in-app row when they have an account, then email and
+ * WhatsApp. `clinician` null is an alert with no clinician (a journal nobody
+ * holds a grant to), worded as such.
+ */
 async function tellBackup(
   backup: Backup,
-  alert: { riskId: string; clinician: string; minutes: number; organizationId: string },
-): Promise<boolean> {
+  alert: { riskId: string; clinician: string | null; minutes: number; organizationId: string | null },
+): Promise<{ inApp: boolean; sent: boolean }> {
   const { wordsFor, wordsIn } = await import("@/lib/i18n/message-words");
   const { t, locale } = backup.userId ? await wordsFor({ userId: backup.userId }) : await wordsIn(null);
-  const values = { clinician: alert.clinician, minutes: String(alert.minutes) };
-  const body = backup.reader === "manager" ? t("calert.escBodyManager", values) : t("calert.escBody", values);
+  const values = { clinician: alert.clinician ?? "", minutes: String(alert.minutes) };
+  const subject = alert.clinician === null ? t("calert.noClinicianSubject") : t("calert.escSubject");
+  const body =
+    alert.clinician === null
+      ? t("calert.noClinicianBody")
+      : backup.reader === "manager"
+        ? t("calert.escBodyManager", values)
+        : t("calert.escBody", values);
 
+  let inApp = false;
   if (backup.userId) {
     try {
       await db.insert(notifications).values({
         userId: backup.userId,
         kind: "crisis",
-        title: t("calert.escSubject"),
+        title: subject,
         body,
         actionUrl: alertPath(alert.riskId),
       });
+      inApp = true;
     } catch (error) {
       log.warn("escalation in-app row not written", { reason: safeErrorMessage(error) });
     }
@@ -780,14 +937,14 @@ async function tellBackup(
     },
     {
       kind: "crisis.escalated",
-      subject: t("calert.escSubject"),
+      subject,
       body,
       /* A manager cannot open the alert (C259); they are asked to reach the clinician. */
       link: backup.userId ? { label: t("calert.ack"), url: `${env.appUrl}${alertPath(alert.riskId)}` } : null,
-      variables: [alert.clinician],
+      variables: [alert.clinician ?? t("talert.aPatient")],
     },
   );
-  return delivery.sent || Boolean(backup.userId);
+  return { inApp, sent: delivery.sent };
 }
 
 /**
@@ -797,11 +954,32 @@ async function tellBackup(
  * Each escalation is CLAIMED with a conditional update on its stage before
  * anybody is told, so two ticks in the same minute tell nobody twice. Every
  * alert is caught on its own: one bad row does not stop the rest.
+ *
+ * 🔴 Due diligence: an alert whose sends to the clinician are all spent is
+ * pulled forward first, so it escalates in this same run. A stage that reached
+ * nobody by email is recorded for `/admin/errors`.
  */
 export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ escalated: number; retried: number }> {
   const minutes = await escalationMinutesNow();
   let escalated = 0;
   let retried = 0;
+
+  /* Sends that are spent and still waiting on a later deadline: escalate now. */
+  const spent = await db
+    .select({ id: riskAssessments.id })
+    .from(riskAssessments)
+    .where(
+      and(
+        isNull(riskAssessments.acknowledgedAt),
+        isNull(riskAssessments.outOfBandAt),
+        gte(riskAssessments.outOfBandAttempts, MAX_OUT_OF_BAND_ATTEMPTS),
+        lt(riskAssessments.escalationStage, FINAL_STAGE),
+        or(isNull(riskAssessments.escalateAt), gt(riskAssessments.escalateAt, now)),
+        gt(riskAssessments.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000)),
+      ),
+    )
+    .limit(50);
+  for (const row of spent) await afterFailedSend(row.id, now);
 
   const due = await db
     .select({
@@ -831,6 +1009,7 @@ export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ es
 
   for (const row of due) {
     try {
+      if (!row.organizationId || !row.therapistId) continue;
       let step = nextEscalation(row, { now, inClinic: row.kind === "clinic", minutes });
       if (!step) continue;
 
@@ -862,18 +1041,23 @@ export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ es
 
       const clinician = `${row.firstName} ${row.lastName}`.trim();
       let reached = 0;
+      let sent = 0;
       for (const backup of backups) {
         try {
-          if (await tellBackup(backup, { riskId: row.id, clinician, minutes, organizationId: row.organizationId })) reached += 1;
+          const result = await tellBackup(backup, { riskId: row.id, clinician, minutes, organizationId: row.organizationId });
+          if (result.inApp || result.sent) reached += 1;
+          if (result.sent) sent += 1;
         } catch (error) {
           log.warn("escalation to one backup failed", { reason: safeErrorMessage(error) });
         }
       }
       escalated += 1;
+      if (sent === 0) await recordCrisisFailure(`escalated to the ${step.audience} but no email or message left`, row.id);
       /* Counts only, never who. */
-      log.warn("crisis alert escalated", { audience: step.audience, stage: step.nextStage, backups: backups.length, reached });
+      log.warn("crisis alert escalated", { audience: step.audience, stage: step.nextStage, backups: backups.length, reached, sent });
     } catch (error) {
       log.error("crisis escalation failed for one alert", { reason: safeErrorMessage(error) });
+      await recordCrisisFailure("escalation failed", row.id);
     }
   }
 
@@ -926,7 +1110,8 @@ export async function nextCrisisDueAt(now: Date = new Date()): Promise<Date | nu
           and(
             isNull(riskAssessments.outOfBandAt),
             gte(riskAssessments.outOfBandAttempts, 1),
-            lt(riskAssessments.outOfBandAttempts, MAX_OUT_OF_BAND_ATTEMPTS),
+            /* Retries left, or retries spent and a stage still to go to. */
+            or(lt(riskAssessments.outOfBandAttempts, MAX_OUT_OF_BAND_ATTEMPTS), lt(riskAssessments.escalationStage, FINAL_STAGE)),
             gt(riskAssessments.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000)),
           ),
         ),
@@ -943,11 +1128,14 @@ export async function alertForViewer(
   actor: { userId: string; organizationId: string; role: string },
 ): Promise<{
   id: string;
-  sessionId: string;
+  sessionId: string | null;
+  /** 🔴 0192: the chart a journal alert opens, for the clinician it is for. */
+  patientId: string | null;
+  fromJournal: boolean;
   level: RiskLevel;
   createdAt: Date;
   isTheirs: boolean;
-  clinician: string;
+  clinician: string | null;
   escalationStage: number;
   acknowledgedAt: Date | null;
   acknowledgedBy: string | null;
@@ -957,6 +1145,8 @@ export async function alertForViewer(
     .select({
       id: riskAssessments.id,
       sessionId: riskAssessments.sessionId,
+      journalId: riskAssessments.journalId,
+      patientId: riskAssessments.patientId,
       organizationId: riskAssessments.organizationId,
       therapistId: riskAssessments.therapistId,
       level: riskAssessments.level,
@@ -968,7 +1158,8 @@ export async function alertForViewer(
       lastName: users.lastName,
     })
     .from(riskAssessments)
-    .innerJoin(users, eq(users.id, riskAssessments.therapistId))
+    /* Left: a journal alert with no clinician has nobody to join. */
+    .leftJoin(users, eq(users.id, riskAssessments.therapistId))
     .where(eq(riskAssessments.id, riskId))
     .limit(1);
   if (!row || !mayAcknowledge(row, actor)) return null;
@@ -983,13 +1174,16 @@ export async function alertForViewer(
     acknowledgedBy = who ? `${who.firstName} ${who.lastName}`.trim() : null;
   }
 
+  const isTheirs = row.therapistId !== null && row.therapistId === actor.userId;
   return {
     id: row.id,
     sessionId: row.sessionId,
+    patientId: isTheirs ? row.patientId : null,
+    fromJournal: row.journalId !== null,
     level: row.level,
     createdAt: row.createdAt,
-    isTheirs: row.therapistId === actor.userId,
-    clinician: `${row.firstName} ${row.lastName}`.trim(),
+    isTheirs,
+    clinician: row.therapistId ? `${row.firstName ?? ""} ${row.lastName ?? ""}`.trim() : null,
     escalationStage: row.escalationStage,
     acknowledgedAt: row.acknowledgedAt,
     acknowledgedBy,
@@ -1002,6 +1196,9 @@ export async function alertForViewer(
  * Only the first acknowledgement is recorded: a second press is a no-op that
  * still answers true, because the alert is in hand either way. The marker is
  * written again from the database, so the tick stops waking for it.
+ *
+ * Who may press it is `mayAcknowledge` (through `alertForViewer`): the
+ * clinician, a clinician colleague in the practice, or the platform on-call.
  */
 export async function acknowledgeCrisisAlert(
   riskId: string,
@@ -1030,12 +1227,13 @@ export async function acknowledgeCrisisAlert(
   } catch (error) {
     log.warn("crisis marker not refreshed after acknowledgement", { reason: safeErrorMessage(error) });
   }
-  log.info("crisis alert acknowledged", { stage: viewed.escalationStage, byTherapist: viewed.isTheirs });
+  log.info("crisis alert acknowledged", { stage: viewed.escalationStage, byTherapist: viewed.isTheirs, role: actor.role });
   return true;
 }
 
 /**
  * Re-deliver alerts that were persisted but never delivered. Run on a schedule.
+ * Clinician alerts only: one with no clinician was given to the platform on-call.
  */
 export async function sweepUndeliveredAlerts(): Promise<number> {
   const stale = await db
@@ -1045,12 +1243,12 @@ export async function sweepUndeliveredAlerts(): Promise<number> {
       therapistId: riskAssessments.therapistId,
     })
     .from(riskAssessments)
-    .innerJoin(sessions, eq(sessions.id, riskAssessments.sessionId))
-    .where(eq(riskAssessments.alertStatus, "pending"))
+    .where(and(eq(riskAssessments.alertStatus, "pending"), isNotNull(riskAssessments.therapistId)))
     .limit(50);
 
   let delivered = 0;
   for (const row of stale) {
+    if (!row.therapistId) continue;
     try {
       const { wordsFor } = await import("@/lib/i18n/message-words");
       const { t } = await wordsFor({ userId: row.therapistId });
@@ -1058,8 +1256,8 @@ export async function sweepUndeliveredAlerts(): Promise<number> {
         userId: row.therapistId,
         kind: "crisis",
         title: t("talert.riskTitle"),
-        body: t("talert.riskBody"),
-        actionUrl: `${alertPath(row.id)}?session=${row.sessionId}`,
+        body: row.sessionId ? t("talert.riskBody") : t("talert.journalBodyOne"),
+        actionUrl: row.sessionId ? `${alertPath(row.id)}?session=${row.sessionId}` : alertPath(row.id),
       });
       await db
         .update(riskAssessments)

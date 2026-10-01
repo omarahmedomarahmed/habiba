@@ -5,6 +5,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   bigint,
   boolean,
+  check,
   date,
   index,
   integer,
@@ -1069,6 +1070,8 @@ export const sessions = pgTable(
      * result. Null when it ran, or never applied.
      */
     riskCheckFailedAt: timestamp("risk_check_failed_at", { withTimezone: true }),
+    /** 🔴 0192: when transcription, and with it live crisis detection, was refused because the patient paused AI. */
+    liveRiskOffAt: timestamp("live_risk_off_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     durationMinutes: integer("duration_minutes"),
 
@@ -1560,16 +1563,17 @@ export const riskAssessments = pgTable(
   "risk_assessments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    sessionId: uuid("session_id")
-      .notNull()
-      .references(() => sessions.id, { onDelete: "cascade" }),
-    organizationId: uuid("organization_id")
-      .notNull()
-      .references(() => organizations.id, { onDelete: "restrict" }),
-    therapistId: uuid("therapist_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
+    /**
+     * 🔴 0192: a session's alert, or a journal's. Every row names one of the two
+     * (`risk_assessments_subject_chk`). A journal alert with nobody holding a
+     * grant has no clinician and no practice, and goes straight to the platform.
+     */
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "restrict" }),
+    therapistId: uuid("therapist_id").references(() => users.id, { onDelete: "restrict" }),
     patientId: uuid("patient_id").references(() => patients.id, { onDelete: "restrict" }),
+    journalId: uuid("journal_id").references((): AnyPgColumn => journals.id, { onDelete: "cascade" }),
+    personId: uuid("person_id").references((): AnyPgColumn => people.id, { onDelete: "cascade" }),
 
     level: text("level").$type<RiskLevel>().notNull(),
     source: text("source").$type<"keyword" | "model">().notNull(),
@@ -1638,6 +1642,8 @@ export const riskAssessments = pgTable(
     index("risk_assessments_escalate_idx").on(t.escalateAt).where(sql`acknowledged_at IS NULL`),
     index("risk_assessments_alert_status_idx").on(t.alertStatus, t.createdAt),
     index("risk_assessments_therapist_idx").on(t.therapistId, t.createdAt),
+    index("risk_assessments_person_idx").on(t.personId, t.createdAt).where(sql`journal_id IS NOT NULL`),
+    check("risk_assessments_subject_chk", sql`${t.sessionId} IS NOT NULL OR ${t.journalId} IS NOT NULL`),
   ],
 );
 

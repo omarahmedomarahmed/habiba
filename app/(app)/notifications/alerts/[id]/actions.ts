@@ -11,7 +11,10 @@ import { acknowledgeCrisisAlert } from "@/lib/crisis/alerts";
  * stops its escalation. A POST from a button on a signed-in page, never a GET:
  * mail scanners open every link in an email, and an alert acknowledged by a
  * spam filter is one nobody escalates. Whether this person may acknowledge it
- * is decided inside `acknowledgeCrisisAlert`, from the alert, not the form.
+ * is decided inside `acknowledgeCrisisAlert`, from the alert, not the form:
+ * the clinician, a clinician in the same practice, or the platform on-call
+ * (`mayAcknowledge`). The alert row keeps who (`acknowledged_by`); the audit
+ * row keeps who and in what role.
  */
 export async function acknowledgeAlert(formData: FormData): Promise<void> {
   const actor = await requireUser();
@@ -24,6 +27,7 @@ export async function acknowledgeAlert(formData: FormData): Promise<void> {
       action: "crisis.acknowledge",
       resourceType: "risk_assessment",
       resourceId: riskId,
+      reason: `role:${actor.role}`,
     });
   }
   revalidatePath(`/notifications/alerts/${riskId}`);
