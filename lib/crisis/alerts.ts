@@ -104,6 +104,34 @@ const CRISIS_PHRASES = [
   "not wake up again",
   "never wake up",
   /*
+   * 🔴 DD-2: the forms the due diligence found missing. "wanted to die" was
+   * missing too: "want to die" is not inside it. "wanna die" and "take my
+   * life" are patterns below, for their word edges.
+   */
+  "wanted to die",
+  "want to be dead",
+  "wanna be dead",
+  "rather be dead",
+  "don't want to wake up",
+  "dont want to wake up",
+  "do not want to wake up",
+  "don't want to live",
+  "dont want to live",
+  "do not want to live",
+  "no longer want to live",
+  "don't want to be alive",
+  "dont want to be alive",
+  "do not want to be alive",
+  "wish i was never born",
+  "wish i had never been born",
+  "hang myself",
+  "hanging myself",
+  "shoot myself",
+  "slit my wrists",
+  "cut my wrists",
+  "jump off a bridge",
+  "ending it all",
+  /*
    * 🔴 32.x — perceived burdensomeness, which the list did not carry in EITHER
    * language until Arabic cases exposed the gap.
    *
@@ -181,6 +209,34 @@ const CRISIS_PHRASES = [
    * "هنتحرك" ("we'll get moving").
    */
   "هموت نفسي",
+  /*
+   * 🔴 DD-2: Egyptian forms the due diligence found missing: hanging, "kill
+   * myself" with other future prefixes, "God let me die", "death is kinder",
+   * "I wish I had died", and "want to die" without "that".
+   */
+  "اموت نفسي",
+  "حموت نفسي",
+  "هقتل نفسي",
+  "شنق نفسي",
+  "ارمي نفسي من",
+  "هرمي نفسي من",
+  "اخلص علي نفسي",
+  "هخلص علي نفسي",
+  "اخلص من حياتي",
+  "اتمني اموت",
+  "يارب اموت",
+  "يا رب اموت",
+  "الموت ارحم",
+  "ياريتني مت",
+  "يا ريتني مت",
+  "ياريتني ما اتولدت",
+  "يا ريتني ما اتولدت",
+  "مش عاوز اعيش",
+  "مش عاوزه اعيش",
+  "مبقتش عايز اعيش",
+  "مبقتش عايزه اعيش",
+  "مابقتش عايز اعيش",
+  "لا اريد الحياه",
   "اريد ان اموت",
   "بدي اموت",
   "انهي حياتي",
@@ -231,6 +287,12 @@ const CRISIS_PHRASES = [
   "لا معني لحياتي",
   "مفيش معني لحياتي",
   "حياتي مالهاش لازمه",
+  "حياتي ملهاش لازمه",
+  /* DD-2: parity with "no reason to live" and "nothing to live for". */
+  "مفيش سبب اعيش",
+  "لا يوجد سبب للعيش",
+  "لا شيء اعيش من اجله",
+  "مفيش حاجه اعيش عشانها",
 ] as const;
 
 /**
@@ -286,6 +348,20 @@ const ARABIZI_PHRASES = [
   "3awz amoot",
   "3ayza amout",
   "nfsy amoot",
+  /*
+   * 🔴 DD-2: "amut" with a single u, which the fold leaves apart from "amoot".
+   * And "ya rab amoot" (God let me die), "el mot ar7am" (death is kinder).
+   */
+  "3ayez amut",
+  "3ayz amut",
+  "3ayza amut",
+  "3awez amut",
+  "3awza amut",
+  "nefsy amut",
+  "bady amut",
+  "ya rab amoot",
+  "yarab amoot",
+  "el mot ar7am",
 
   /* end my life, kill myself */
   "an7ar",
@@ -293,6 +369,14 @@ const ARABIZI_PHRASES = [
   /* 🔴 F5: the same "I will kill myself" with the vowels written out. */
   "hantehar",
   "hante7ar",
+  /* DD-2: the same with the vowel dropped, "I will kill myself" Egyptian style, and hanging. */
+  "hant7r",
+  "hantehr",
+  "hamawet nafsy",
+  "hmawet nafsy",
+  "amawet nafsy",
+  "hashno2 nafsy",
+  "ashno2 nafsy",
   "ha2tel nafsy",
   "a2tel nafsy",
   "ba2tel nafsy",
@@ -395,10 +479,26 @@ export function scanForCrisisLanguage(text: string): string[] {
  * ran 5 kms" must not page a clinician at 3am. So it is a whole word, never
  * after a number, never before a slash ("kms/h").
  */
-const CRISIS_PATTERNS: { label: string; re: RegExp }[] = [
+export const CRISIS_PATTERNS: { label: string; re: RegExp }[] = [
   { label: "kms", re: /(?<![0-9][\s.,]*)(?<![a-z0-9])kms(?![a-z0-9/])/ },
-  /* "I will kill myself", never "هنتحرك" ("we'll get moving"). */
-  { label: "هنتحر", re: /(?<![\u0621-\u064A])هنتحر(?![\u0621-\u064A])/u },
+  /*
+   * 🔴 "I will kill myself", never "هنتحرك" ("we'll get moving").
+   *
+   * DD-2: af5343f made this a bare whole word, which then missed "وهنتحر" ("and
+   * I will kill myself") and "فهنتحر". The clitics و and ف are allowed in
+   * front, with the other future prefix ح and the plural "هننتحر".
+   */
+  {
+    label: "هنتحر",
+    re: /(?<![\u0621-\u064A\u066E-\u06D3])[\u0648\u0641]?[\u0647\u062D]\u0646?\u0646\u062A\u062D\u0631(?![\u0621-\u064A\u066E-\u06D3])/u,
+  },
+  /* DD-2: "I wanna die", never "I wanna diet". */
+  { label: "wanna die", re: /(?<![a-z])wanna die(?![a-z])/ },
+  /* DD-2: "take my (own) life", never "take my life back". */
+  {
+    label: "take my life",
+    re: /(?<![a-z])(?:take|taking|took) my (?:own )?life(?![a-z])(?!\s+(?:back|in|into|forward|seriously|over|again))/,
+  },
 ];
 
 /** What raising an alert actually did, so a caller can tell the patient the truth. */
