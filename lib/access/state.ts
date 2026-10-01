@@ -211,6 +211,20 @@ export function capabilitiesFor(state: AccessState, gated = false): Capabilities
 }
 
 /**
+ * May this clinician read the person's shared record: the AI standing
+ * profile, its timeline and the diagnoses on the person?
+ *
+ * Those are built from every clinic's sessions and the patient's own uploads,
+ * so they follow the grant, like files and journals. A live grant opens them.
+ * An unclaimed person is one clinician's private file, built only from that
+ * clinician's own material, so the holder keeps them. Revoked, refused,
+ * expired or no relationship: closed.
+ */
+export function maySeeSharedRecord(state: AccessState): boolean {
+  return state === "granted" || state === "unclaimed_documented" || state === "unclaimed_bare";
+}
+
+/**
  * What the therapist is told, in the banner. Never alarming about the patient.
  *
  * 🔴 A message KEY, rendered by the caller in the reader's language. These were

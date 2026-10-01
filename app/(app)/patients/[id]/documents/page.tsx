@@ -18,11 +18,11 @@ import {
   instrumentNames,
   publishedInstruments,
 } from "@/lib/data/assessments";
-import { listDiagnoses } from "@/lib/data/diagnoses";
+import { diagnosesForClinician } from "@/lib/data/diagnoses";
 import { listDocuments } from "@/lib/data/documents";
 import { journalsForClinician } from "@/lib/data/journals";
 import { draftedStepsFor, homeworkTrend, listHomework } from "@/lib/data/homework";
-import { isStale, profileFor, timelineFor } from "@/lib/data/memory";
+import { isStale, sharedProfileForClinician } from "@/lib/data/memory";
 import { accessFor } from "@/lib/data/grants";
 import { getPatient } from "@/lib/data/patients";
 import { liveSessionForPatient } from "@/lib/data/sessions";
@@ -89,15 +89,19 @@ export default async function PatientDocumentsPage({
    */
   const journals =
     personId && access.capabilities.patientFiles ? await journalsForClinician(personId) : [];
-  const diagnoses = personId ? await listDiagnoses(personId) : [];
+  /*
+   * DD-2 B1: the diagnoses, the standing profile and its timeline are built
+   * from every clinic and the patient's own uploads, so they follow the grant
+   * like the files above. The loaders check it themselves.
+   */
+  const diagnoses = await diagnosesForClinician(actor, id);
 
   /*
    * 9.1–9.5. All of this is on the *person*, so a clinician with no person row
    * yet simply sees the empty states — a patient created before sprint 5's
    * backfill is not an error, it is a record nobody has needed a person for.
    */
-  const profile = personId ? await profileFor(personId) : null;
-  const timeline = personId ? await timelineFor(personId) : [];
+  const { profile, timeline } = await sharedProfileForClinician(actor, id);
   const homework = personId ? await listHomework(personId) : [];
   const trend = personId
     ? await homeworkTrend(personId)

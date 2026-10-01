@@ -5,7 +5,7 @@ import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { MODELS, openai } from "@/lib/ai/client";
 import { controlDb } from "@/lib/db";
 import { qualified } from "@/lib/db/qualified";
-import { partnerConsents, partnerSessions, partnerSubjects } from "@/lib/db/schema";
+import { partnerConsents, partnerSessions } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 
 /**
@@ -156,23 +156,8 @@ export async function subjectRefusal(input: {
   partnerId: string;
   externalSubjectRef: string;
 }): Promise<{ status: 403; error: string } | null> {
-  const [revoked] = await controlDb
-    .select({ id: partnerSubjects.id })
-    .from(partnerSubjects)
-    .where(
-      and(
-        eq(partnerSubjects.partnerId, input.partnerId),
-        eq(partnerSubjects.externalRef, input.externalSubjectRef),
-        isNotNull(partnerSubjects.revokedAt),
-      ),
-    )
-    .limit(1);
-  if (revoked) {
-    return {
-      status: 403,
-      error: "This person has unlinked from your platform, so nothing about them is read for it.",
-    };
-  }
+  const { subjectUnlinked, UNLINKED } = await import("./platform");
+  if (await subjectUnlinked(input)) return { status: 403, error: UNLINKED };
 
   const [latest] = await controlDb
     .select({ state: partnerConsents.state })

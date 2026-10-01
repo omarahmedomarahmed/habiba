@@ -553,7 +553,7 @@ async function buildExport(
         import("@/lib/data/summaries").then((m) => m.summariesForPerson(extra.personId!)),
         import("@/lib/data/journals").then((m) => m.journalsForPerson(extra.personId!, 500)),
         import("@/lib/data/homework").then((m) => m.listHomework(extra.personId!)),
-        import("@/lib/data/diagnoses").then((m) => m.listDiagnoses(extra.personId!)),
+        import("@/lib/data/diagnoses").then((m) => m.listOwnDiagnoses(extra.personId!)),
       ])
     : [[], [], [], []];
 
