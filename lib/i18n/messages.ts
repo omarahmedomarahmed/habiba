@@ -389,10 +389,10 @@ export const en = {
   "contact.topic.a_partnership": "Partnering with us, or connecting your platform",
   "contact.topic.a_company": "Therapy for my company or university",
   "contact.topic.something_else": "Something else",
-  "contact.entity": "Who are you writing to?",
+  "contact.entity": "Where are you writing from?",
   "contact.entityHint": "Both reach the same team.",
-  "contact.entityUs": "24Therapy Inc., international",
-  "contact.entityEg": "24Therapy Egypt, Egypt",
+  "contact.entityUs": "Outside Egypt",
+  "contact.entityEg": "In Egypt",
   "contact.message": "Your message",
   "contact.attach": "Attach a photo or PDF",
   "contact.attachHint":
@@ -1669,6 +1669,9 @@ export const en = {
   "portal.session.bookedFor": "Booked for {when}",
   "portal.session.roomOpensBefore": "Room opens {minutes} min before.",
   "portal.session.notStarted": "Not started yet",
+  "portal.session.missed": "This session did not take place.",
+  "portal.session.missedBody": "Booked for {when}; nobody started it. It is not counted in your earnings.",
+  "portal.status.missed": "Did not take place",
   /*
    * 🔴 58.1 — cancelling a session, a promise the pricing page made and no
    * screen kept. `abandonSession` existed and nothing called it.
@@ -6133,10 +6136,10 @@ export const ar: Record<MessageKey, string> = {
   "contact.topic.a_partnership": "الشراكة معنا، أو ربط منصتك بنا",
   "contact.topic.a_company": "العلاج لموظفي شركتي أو طلاب جامعتي",
   "contact.topic.something_else": "شيء آخر",
-  "contact.entity": "إلى مَن تكتب؟",
+  "contact.entity": "من أين تكتب؟",
   "contact.entityHint": "كلاهما يصل إلى الفريق نفسه.",
-  "contact.entityUs": "‏24Therapy Inc.، الكيان الدولي",
-  "contact.entityEg": "‏24Therapy Egypt، مصر",
+  "contact.entityUs": "خارج مصر",
+  "contact.entityEg": "داخل مصر",
   "contact.message": "رسالتك",
   "contact.attach": "أرفق صورة أو ملف PDF",
   "contact.attachHint":
@@ -7189,6 +7192,9 @@ export const ar: Record<MessageKey, string> = {
   "portal.session.bookedFor": "محجوزة {when}",
   "portal.session.roomOpensBefore": "الغرفة تفتح قبلها بـ {minutes} دقائق.",
   "portal.session.notStarted": "لم تبدأ بعد",
+  "portal.session.missed": "لم تُعقد هذه الجلسة.",
+  "portal.session.missedBody": "كانت محجوزة في {when}، ولم يبدأها أحد. لا تُحسب ضمن أرباحك.",
+  "portal.status.missed": "لم تُعقد",
   "portal.session.cancel": "ألغِ هذه الجلسة",
   "portal.session.cancelConfirm": "لا يمكن التراجع، ولا تُحتسب عليك أي رسوم.",
   "portal.session.cancelConfirmPaid": "لا يمكن التراجع. المريض بيسترد فلوسه، والتحويل البنكي بيدخل محفظته.",
