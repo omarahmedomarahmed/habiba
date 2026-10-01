@@ -57,7 +57,7 @@ scribe, not an EHR.
 A therapist records a session, on a phone in a room or in our video call, and walks away
 with a transcript, a SOAP note, clinical insights and a report they can send to the patient.
 The patient owns that record and carries it to the next therapist. The second half of the
-product is on-demand: a patient opens **Crisis Radar** and books a therapist who is free
+product is on-demand: a patient opens **the Radar** and books a therapist who is free
 right now.
 
 It launches in **Egypt**, in Arabic and English, bilingual end to end.
@@ -80,9 +80,9 @@ disagrees with this table, you stop and ask rather than guessing.
 |---|---|---|
 | `navy-500` | `#0A2342` | **The identity colour.** The mark is navy |
 | `brand-500` | `#2EC4B6` | The primary button and every focus ring |
-| `teal-500` | `#2EC4B6` | The mark's teal. Live-and-now, and Crisis Radar's signature |
+| `teal-500` | `#2EC4B6` | The mark's teal. Live-and-now, and the Radar's signature |
 | `navy-600` | `#091E39` | The session room surface, painted edge to edge |
-| `radar-void` | `#04101F` | Crisis Radar's surface |
+| `radar-void` | `#04101F` | The Radar's surface |
 | `white` | `#FFFFFF` | The reversed ink on both dark surfaces |
 
 🔴 **The blue is gone, and the artifact predates its going.** `brand-500` used to be
