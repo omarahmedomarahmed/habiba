@@ -67,7 +67,7 @@ export const RIVALS: Rival[] = [
     rows: [
       { claim: "What the subscription buys", ours: "A flat plan with no per-session fee, or a per-session rate with nothing monthly.", theirs: "A tiered monthly plan. AI notes are a separate per-clinician add-on." },
       { claim: "Arabic", ours: "Arabic and English throughout, right to left, including the note itself.", theirs: "English product. No published Arabic interface." },
-      { claim: "Paying in Egypt", ours: "Bank transfer and local rails, priced in EGP with VAT shown.", theirs: "Card payments through US processing." },
+      { claim: "Paying in Egypt", ours: "Bank transfer and local rails, priced in EGP; VAT shown where it applies.", theirs: "Card payments through US processing." },
       { claim: "Who owns the record", ours: "The patient. They claim it and carry it to their next therapist.", theirs: "The practice holds the chart." },
       { claim: "On-demand sessions", ours: "Crisis Radar: a patient books whoever is free right now.", theirs: "Appointments are scheduled. No on-demand marketplace." },
       { claim: "Breadth of practice tooling", ours: "Younger. Fewer billing and reporting features than a decade-old EHR.", theirs: "Deeper: insurance claims, ERA, a public directory, a website builder.", concede: true },
@@ -117,7 +117,7 @@ export const RIVALS: Rival[] = [
     price: "Quote only",
     rows: [
       { claim: "Who buys it", ours: "A therapist, a clinic, or an employer funding a pot. Same product underneath.", theirs: "The employer. Clinicians are supply, not customers." },
-      { claim: "What the employer sees", ours: "The pot, the therapists paid and the amounts. Never who went.", theirs: "Aggregate utilisation reporting." },
+      { claim: "What the employer sees", ours: "What the pot paid, what is left, and who joined. Never who attended, when, or with whom.", theirs: "Aggregate utilisation reporting." },
       { claim: "Price transparency", ours: "Every price is on the pricing page, in EGP and USD.", theirs: "Quote only. Widely reported as out of reach for small and mid-size employers." },
       { claim: "The launch market", ours: "Egypt, in Arabic, on local payment rails.", theirs: "Primarily US and multinational enterprise." },
       { claim: "Clinical network", ours: "We are new and our network is small.", theirs: "A large vetted provider network, which is most of the value they sell.", concede: true },

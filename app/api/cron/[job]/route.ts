@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { lt } from "drizzle-orm";
+import { lt, sql } from "drizzle-orm";
 
 import { sweepUndeliveredAlerts } from "@/lib/crisis/alerts";
 import { purgeExpiredSessions } from "@/lib/auth/session";
@@ -491,12 +491,15 @@ const JOBS = {
    * table, and wrapped the query in `.catch(() => [])` — so it threw on every
    * run, swallowed the error, reported success, and had never deleted a single
    * row. Here the column is real and the error is not swallowed.
+   *
+   * 🔴 0184: the cutoff is the database's own clock and the same interval the
+   * append-only trigger checks, so this delete can never ask for a row the
+   * trigger refuses. A cutoff from this machine's clock could, by a second.
    */
   async retention() {
-    const cutoff = new Date(Date.now() - 6 * 365 * 24 * 60 * 60 * 1000);
     const purged = await db
       .delete(auditLog)
-      .where(lt(auditLog.createdAt, cutoff))
+      .where(lt(auditLog.createdAt, sql`now() - interval '2190 days'`))
       .returning({ id: auditLog.id });
 
     const sessionsPurged = await purgeExpiredSessions();

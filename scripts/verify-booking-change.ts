@@ -18,6 +18,7 @@
 import { readFileSync } from "node:fs";
 
 import { sql } from "drizzle-orm";
+import { auditFixtures } from "./_audit-fixtures";
 
 import { setRulesForThisCheck } from "./_rules";
 import { reporter, writesTo } from "./_verify";
@@ -347,13 +348,13 @@ async function main() {
       await db.execute(sql`DELETE FROM patient_notifications WHERE person_id IN (SELECT person_id FROM patients WHERE organization_id = ${orgId})`);
       await db.execute(sql`DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE organization_id = ${orgId})`);
       await db.execute(sql`DELETE FROM delivery_attempts WHERE organization_id = ${orgId}`);
-      await db.execute(sql`DELETE FROM audit_log WHERE organization_id = ${orgId}`);
+      await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND organization_id = ${orgId}`);
       await db.execute(sql`DELETE FROM availability_slots WHERE organization_id = ${orgId}`);
       await db.execute(sql`DELETE FROM sessions WHERE organization_id = ${orgId}`);
     }
     if (sponsorId) {
       await db.execute(sql`DELETE FROM enrolments WHERE sponsor_id = ${sponsorId}`);
-      await db.execute(sql`DELETE FROM audit_log WHERE resource_id IN (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsorId})`);
+      await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsorId})`);
       await db.execute(sql`DELETE FROM ledger_entries WHERE ref_id = ${sponsorId}`);
       await db.execute(sql`DELETE FROM sponsor_money_entries WHERE sponsor_id = ${sponsorId}`).catch(() => undefined);
       await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsorId}`);

@@ -13,6 +13,7 @@
 import { readFileSync } from "node:fs";
 
 import { sql } from "drizzle-orm";
+import { auditFixtures } from "./_audit-fixtures";
 
 import { reporter, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -114,7 +115,7 @@ async function main() {
     const actions = read("app/(app)/sessions/actions.ts");
     check("🔴 the price may be lowered and never raised above the therapist's own", /above your price per session/.test(actions));
   } finally {
-    await db.execute(sql`DELETE FROM audit_log WHERE organization_id IN (SELECT id FROM organizations WHERE slug = ${fixture})`);
+    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND organization_id IN (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM sessions WHERE organization_id IN (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM patients WHERE organization_id IN (SELECT id FROM organizations WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM users WHERE organization_id IN (SELECT id FROM organizations WHERE slug = ${fixture})`);

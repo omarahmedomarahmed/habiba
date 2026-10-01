@@ -34,6 +34,7 @@ process.env.EGYPT_PAYOUTS_HMAC = `verify-po-${randomBytes(24).toString("hex")}`;
 import { randomBytes } from "node:crypto";
 
 import { sql } from "drizzle-orm";
+import { auditFixtures } from "./_audit-fixtures";
 
 import { reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -519,7 +520,7 @@ async function main() {
     await db.execute(sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`);
     await db.execute(sql`DELETE FROM pot_returns WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`);
     await db.execute(sql`DELETE FROM sponsors WHERE id = ${sponsor.id}`);
-    await db.execute(sql`DELETE FROM audit_log WHERE actor_user_id IN (SELECT id FROM users WHERE organization_id = ${org.id})`).catch(() => undefined);
+    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND actor_user_id IN (SELECT id FROM users WHERE organization_id = ${org.id})`).catch(() => undefined);
     await db.execute(sql`DELETE FROM users WHERE organization_id = ${org.id}`);
     await db.execute(sql`DELETE FROM organizations WHERE id = ${org.id}`);
     await pool.end();

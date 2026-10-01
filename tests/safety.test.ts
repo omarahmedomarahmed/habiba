@@ -308,6 +308,49 @@ test("no page or component can print the database host (B1)", async () => {
   assert.deepEqual(offenders, []);
 });
 
+test("nothing the product runs can open the audit log's fixture door (0184)", async () => {
+  /*
+   * `audit_log` refuses UPDATE and DELETE (drizzle/0184), and /hipaa says the
+   * product cannot rewrite it. The one exception is `app.audit_fixtures`, which
+   * scripts set to tidy the rows their own invented fixtures wrote. If a file
+   * the product runs ever set it, the sentence on /hipaa would be false, so the
+   * walk covers app/, components/ and lib/, and the control proves it reads.
+   */
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const root = join(__dirname, "..");
+  const offenders: string[] = [];
+  let sawCron = false;
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) walk(path);
+      else if (/\.tsx?$/.test(entry)) {
+        const text = readFileSync(path, "utf8");
+        if (path.endsWith(join("cron", "[job]", "route.ts"))) sawCron = /delete\(auditLog\)/.test(text);
+        if (/app\.audit_fixtures|_audit-fixtures/.test(text)) offenders.push(path);
+      }
+    }
+  };
+  walk(join(root, "app"));
+  walk(join(root, "components"));
+  walk(join(root, "lib"));
+  assert.ok(sawCron, "the walk must reach the retention job, or it proves nothing");
+  assert.deepEqual(offenders, []);
+  /* And the trigger the sentence rests on is in a migration the journal lists. */
+  const migration = readFileSync(join(root, "drizzle", "0184_the_audit_log_cannot_be_rewritten.sql"), "utf8");
+  assert.match(migration, /BEFORE UPDATE OR DELETE ON "audit_log"/);
+  assert.match(readFileSync(join(root, "drizzle", "meta", "_journal.json"), "utf8"), /0184_the_audit_log_cannot_be_rewritten/);
+});
+
+test("a clinician's sign in lasts what /hipaa says it does (30 minutes idle, 8 hours)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const source = readFileSync(join(__dirname, "..", "lib", "auth", "session.ts"), "utf8");
+  assert.match(source, /const IDLE_MS = 30 \* 60 \* 1000;/);
+  assert.match(source, /const ABSOLUTE_MS = 8 \* 60 \* 60 \* 1000;/);
+});
+
 /* ------------------------------------------------------------------ billing */
 
 const TIERS = SETTINGS_DEFAULTS.pricing.tiers;

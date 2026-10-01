@@ -32,7 +32,7 @@ somebody to act on.
 
 Signs in at `/patient/login`. 2 testers.
 
-### P1 · Pick someone free, pay, and you are in a session.
+### P1 · Pick someone free and pay, and the session opens once the payment is confirmed.
 
 **Where we say it.** `/`, the radar card: “Somebody who is free now”
 

@@ -618,7 +618,7 @@ async function main() {
     const { openPot } = await import("../lib/data/sponsor-admin");
     const opened = await openPot({
       sponsorId: sponsor.id,
-      refundPolicy: "Unused balance is refunded within 30 days of written notice.",
+      refundPolicy: "Unused balance is refunded on request, by our staff.",
       expiresAt: new Date(now.getTime() + 365 * 86_400_000),
       /* $10, EGP 500: a session already started always completes, within this. */
       overdraftCents: 1_000,
