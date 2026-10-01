@@ -56,13 +56,25 @@ export function weekStartOf(at: Date): string {
 }
 
 /**
- * The newest week a company may see. Weekly: the last week that has ENDED.
- * Live: this week (still only ever as part of a period that clears the floor).
+ * The newest week a company may see: the last week that has ENDED.
+ *
+ * DD-2 B1: the current week is never shown, whatever `ledgerPublishing` says.
+ * An incomplete week at a small company is a person seen booking. `live` is
+ * kept as a stored value so old settings still parse, and reads as weekly.
  */
-export function lastPublishedWeek(mode: LedgerPublishing, now: Date): string {
+export function lastCompleteWeek(now: Date): string {
   const thisWeek = weekStartOf(now);
-  if (mode === "live") return thisWeek;
   return new Date(Date.parse(`${thisWeek}T00:00:00Z`) - 7 * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** Kept for its callers; the mode no longer opens the current week. */
+export function lastPublishedWeek(_mode: LedgerPublishing, now: Date): string {
+  return lastCompleteWeek(now);
+}
+
+/** The Monday after `week` (`YYYY-MM-DD`), as an instant. */
+export function weekAfter(week: string): Date {
+  return new Date(Date.parse(`${week}T00:00:00Z`) + 7 * DAY_MS);
 }
 
 /** How many different people these entries are. Untagged rows count as one between them. */
@@ -247,10 +259,15 @@ export function ledgerAnalytics(input: {
   /* Review fix: the burn reads the same published weeks, summed by month. */
   const months = monthsFromWeeks(periods);
   const reported = periods.length > 0;
+  /* DD-2 B1: the coverage mix counts only weeks already published, never held-back ones. */
+  const publishedThrough = periods.at(-1)?.to ?? null;
+  const published = input.entries.filter(
+    (entry) => publishedThrough !== null && entry.weekStart <= publishedThrough,
+  );
 
   /* A coverage bucket is a count over people too, so it has the same floor. */
   const buckets = new Map<number, LedgerEntry[]>();
-  for (const entry of input.entries) {
+  for (const entry of published) {
     buckets.set(entry.coverageBps, [...(buckets.get(entry.coverageBps) ?? []), entry]);
   }
   const coverageMix = [...buckets.keys()]
@@ -278,6 +295,63 @@ export function ledgerAnalytics(input: {
     },
     burnCents,
     runwayMonths,
+  };
+}
+
+/* ------------------------------------------------- the one company view -- */
+
+/**
+ * DD-2 B1: WHAT EVERY COMPANY SURFACE MAY SHOW, FROM ONE FUNCTION.
+ *
+ * The overview chart, its totals, the balance, the ledger page and its CSV all
+ * read this. Entries are cut at the last complete week, weeks are published
+ * only as periods of at least `floor` DIFFERENT people, and the chart marks
+ * every other week as held back (null, never zero). So one heavy user cannot
+ * be picked out of any of them.
+ */
+export type CompanyView = {
+  /** The last complete week; nothing newer is read. */
+  through: string;
+  floor: number;
+  weeks: LedgerPeriod[];
+  months: LedgerPeriod[];
+  heldBack: HeldBack | null;
+  /** The last week of the last published period, or null when none is. */
+  publishedThrough: string | null;
+  /** The overview chart: a week's spend only where a period closes, else null. */
+  series: { weekStart: string; spendCents: number | null }[];
+  stats: LedgerAnalytics;
+};
+
+export function companyView(input: {
+  entries: LedgerEntry[];
+  floor: number;
+  now: Date;
+  balanceCents?: number | null;
+  topUps?: { amountCents: number }[];
+}): CompanyView {
+  const floor = privacyFloor(input.floor);
+  const through = lastCompleteWeek(input.now);
+  const entries = input.entries.filter((entry) => entry.weekStart <= through);
+  const { periods, heldBack } = ledgerPeriods(entries, floor, "week");
+  const closing = new Map(periods.map((period) => [period.to, period.spendCents]));
+  const series = [...new Set(entries.map((entry) => entry.weekStart))]
+    .sort()
+    .map((weekStart) => ({ weekStart, spendCents: closing.get(weekStart) ?? null }));
+  return {
+    through,
+    floor,
+    weeks: periods,
+    months: monthsFromWeeks(periods),
+    heldBack,
+    publishedThrough: periods.at(-1)?.to ?? null,
+    series,
+    stats: ledgerAnalytics({
+      entries,
+      floor,
+      balanceCents: input.balanceCents ?? null,
+      topUps: input.topUps ?? [],
+    }),
   };
 }
 

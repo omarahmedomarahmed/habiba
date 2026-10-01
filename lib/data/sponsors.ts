@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, notInArray, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
 import {
   enrolments,
+  ledgerEntries,
   patientNotifications,
   people,
   sponsorCodes,
@@ -227,59 +228,33 @@ export function applyActivityFloor(
 /* ------------------------------------------------------------- the sponsor -- */
 
 /**
- * 🔴 The balance, and it goes through the floor too (C229).
+ * 🔴 The balance a company may see, under the same floor as every other figure.
  *
- * Returning a raw balance beside a suppressed chart is the differencing attack
- * with the chart removed: a sponsor who knows last week's balance and this
- * week's knows exactly what was spent, whatever the heatmap says.
+ * DD-2 B1: this used to publish a new balance once `activityFloor` SESSIONS had
+ * happened since the last one, and five sessions can be one person. Now it is
+ * the balance as of the end of the last published period (`publishedLedger`,
+ * at least `floor` different people, complete weeks only): the live balance
+ * with every session-driven movement since then added back. The company's own
+ * acts (top-ups and money returned to it) always show at once.
  *
- * So a balance is only shown once the period since it last moved has cleared
- * the floor. Until then the sponsor reads "not enough activity to report yet",
- * which is honest and is also useful to them.
+ * `published` is the session count and spend from the same periods, so the
+ * balance, the totals, the chart and the ledger page all move together.
  */
 export async function potBalance(
   sponsorId: string,
+  now = new Date(),
 ): Promise<{
   balanceCents: number | null;
   overdraftCents: number;
   expiresAt: Date | null;
-  /**
-   * 🔴 E1 — the session count and spend that go WITH the published balance,
-   * one snapshot, never the live totals. Null until a balance has been
-   * published, for the reason the balance is.
-   */
+  /** The sessions and spend of the published periods. Null when none is published. */
   published: { sessions: number; spentCents: number } | null;
 }> {
-  /*
-   * 🔴 C377 — THIS FUNCTION DESCRIBED A FLOOR IT DID NOT APPLY, and nothing
-   * called it anyway.
-   *
-   * The docblock above has always said "a balance is only shown once the period
-   * since it last moved has cleared the floor". The body read the live balance
-   * and returned it. Both sponsor screens ignored this function entirely and
-   * rendered `ledgerPotBalance` raw, so the ruling was unenforced twice over: by
-   * a body that did not implement it and by callers that did not call it.
-   *
-   * A comment describing a protection is the most expensive kind of defect in
-   * this repository, because it reads as coverage to the next person.
-   *
-   * The rule, built: a balance is publishable only when the live pot-funded
-   * session count has moved at least `activityFloor` beyond the count at which
-   * the last balance was published. Until then the sponsor sees the balance
-   * they already saw, or null if there has never been one.
-   *
-   * 🔴 Null is NOT zero and must never be rendered as it. "We have not got
-   * enough activity to report" and "the pot is empty" are different facts, and
-   * a sponsor who cannot tell them apart can subtract one from the other, which
-   * is the differencing attack in one subtraction.
-   */
   const [pot] = await controlDb
     .select({
       balanceCents: sponsorPots.balanceCents,
       overdraftCents: sponsorPots.overdraftCents,
       expiresAt: sponsorPots.expiresAt,
-      publishedBalanceCents: sponsorPots.publishedBalanceCents,
-      publishedSessions: sponsorPots.publishedSessions,
     })
     .from(sponsorPots)
     .where(eq(sponsorPots.sponsorId, sponsorId))
@@ -287,59 +262,43 @@ export async function potBalance(
 
   if (!pot) return { balanceCents: null, overdraftCents: 0, expiresAt: null, published: null };
 
-  const settings = await getSettings();
-  const floor = settings.sponsor.activityFloor;
-
-  /*
-   * The session count comes from `potTotals`, which reads the LEDGER, so this
-   * floor and the weekly heatmap beside it are counting the same events. Two
-   * counts of "how many sessions came out of this pot" would eventually
-   * disagree, and a sponsor able to see both could difference them.
-   */
-  const { potTotals, potSpentThrough } = await import("@/lib/billing/pot");
-  const { sessions } = await potTotals(sponsorId);
-
-  /*
-   * Enough has happened since the last publication, so a new balance may be
-   * published. The write is conditional on the count we just read, so two
-   * readers racing cannot both publish and reveal a one-session difference
-   * between their two answers.
-   */
-  if (sessions - pot.publishedSessions >= floor) {
-    await controlDb
-      .update(sponsorPots)
-      .set({
-        publishedBalanceCents: pot.balanceCents,
-        publishedSessions: sessions,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(sponsorPots.sponsorId, sponsorId),
-          eq(sponsorPots.publishedSessions, pot.publishedSessions),
-        ),
-      );
-
-    return {
-      balanceCents: pot.balanceCents,
-      overdraftCents: pot.overdraftCents,
-      expiresAt: pot.expiresAt,
-      published: { sessions, spentCents: await potSpentThrough(sponsorId, sessions) },
-    };
-  }
+  const { publishedLedger } = await import("@/lib/data/sponsor-ledger");
+  const { weekAfter } = await import("@/lib/sponsor/ledger");
+  const view = await publishedLedger(sponsorId, now);
+  const since = view.publishedThrough ? weekAfter(view.publishedThrough) : null;
+  const hidden = await sessionMovementSince(sponsorId, since);
 
   return {
-    balanceCents: pot.publishedBalanceCents,
+    balanceCents: pot.balanceCents + hidden,
     overdraftCents: pot.overdraftCents,
     expiresAt: pot.expiresAt,
     published:
-      pot.publishedBalanceCents === null
+      view.stats.sessions === null || view.stats.spendCents === null
         ? null
-        : {
-            sessions: pot.publishedSessions,
-            spentCents: await potSpentThrough(sponsorId, pot.publishedSessions),
-          },
+        : { sessions: view.stats.sessions, spentCents: view.stats.spendCents },
   };
+}
+
+/**
+ * DD-2 B1: the net of every session-driven pot movement since `since` (all
+ * time when null), from the ledger. A spend is a positive `sponsor_pot` leg and
+ * a refund back into the pot a negative one; the company's own top-ups and
+ * returns are left out, because those it may always see.
+ */
+export async function sessionMovementSince(sponsorId: string, since: Date | null): Promise<number> {
+  const [row] = await controlDb
+    .select({ cents: sql<number>`COALESCE(SUM(${ledgerEntries.amountCents}), 0)::int` })
+    .from(ledgerEntries)
+    .where(
+      and(
+        eq(ledgerEntries.account, "sponsor_pot"),
+        eq(ledgerEntries.refType, "sponsor"),
+        eq(ledgerEntries.refId, sponsorId),
+        notInArray(ledgerEntries.txnKind, ["pot_topup", "pot_return"]),
+        since ? gte(ledgerEntries.createdAt, since) : undefined,
+      ),
+    );
+  return Number(row?.cents ?? 0);
 }
 
 /** How many people are enrolled now (not removed), the roster's own count. */
@@ -633,79 +592,21 @@ export const ATTENDANCE_IS_NEVER_CONFIRMED = true;
 export const FINEST_GRANULARITY = "week" as const;
 
 /**
- * Weekly spend, from the ledger, through the floor. 53.25, 53.27.
+ * Weekly spend for the overview chart. 53.25, 53.27.
  *
- * 🔴 Spend, never session COUNTS and never people (C228). The count is computed
- * only to apply the floor and is not returned to the caller in a form a sponsor
- * sees — `applyActivityFloor` returns it so a verifier can assert the floor
- * fired, and the sponsor surface renders `spendCents` alone.
+ * DD-2 B1: from `publishedLedger`, the same periods the ledger page shows, so
+ * a week appears only inside a period of at least `floor` different people and
+ * the current week never does. It used to count sessions, so one person's five
+ * sessions published a week. Null is held back, never zero.
  */
-export async function weeklySpend(
-  sponsorId: string,
-  floor = DEFAULT_ACTIVITY_FLOOR,
-): Promise<WeeklySpend[]> {
-  /*
-   * 🔴 GROUPED BY WEEK IN SQL, so there is no daily row anywhere in the
-   * pipeline to leak. A query that fetched days and summed them in TypeScript
-   * would put daily figures in a variable, in a log, and in a debugger.
-   *
-   * ## 🔴 The sponsor is on the leg's `ref`, and there is no new ledger
-   *
-   * C226 is explicit that there are no new ledger accounts beyond the pot
-   * itself and no parallel billing path, so this uses the generic
-   * `ref_type` / `ref_id` that `ledger_entries` already has. The first draft of
-   * this query invented an `l.sponsor_id` column that does not exist, and
-   * typecheck could not see it because the query is raw SQL — a runtime failure
-   * that would have shipped.
-   *
-   * ## 🔴 And the join C244 forbids is one self-join away, deliberately
-   *
-   * Double entry means the pot leg and the session leg of one payment share a
-   * `txn_id`. So "every pot cent traces to one payment in and one session out"
-   * (53.16, C232) is TRUE, and "no screen may join a sponsor to a session, a
-   * booking, a date or a patient name" (C244) is a rule about screens rather
-   * than about the ledger — which is the only reading under which both hold.
-   *
-   * ## 🔴 SPEND IS A POSITIVE LEG, and the first draft of this had it backwards
-   *
-   * `sponsor_pot` is a liability, so it rises with a NEGATIVE amount — the
-   * schema states that convention once and `heldForTherapist` already negates
-   * for the same reason. A top-up is therefore negative and a session SPENDING
-   * the pot is positive, because spending reduces what we owe.
-   *
-   * This query originally read `amount_cents < 0` as spend, which is the sign of
-   * a top-up. It would have reported every deposit as expenditure and every
-   * session as nothing, and it would have looked entirely plausible on a chart.
-   * `verify:sprint53` now posts a top-up and a spend and asserts which one this
-   * counts, rather than trusting the sign written here.
-   *
-   * That is a knife-edge and it is named rather than hidden. The enforcement is
-   * that no surface performs that self-join, which `verify:sprint53` asserts by
-   * scanning for it across every file under `app/` and `components/` rather
-   * than trusting this paragraph.
-   */
-  const rows = await controlDb.execute(sql`
-    SELECT date_trunc('week', l.created_at) AS week_start,
-           SUM(l.amount_cents)::int         AS spend_cents,
-           COUNT(*)::int                    AS sessions
-      FROM ledger_entries l
-     WHERE l.account = 'sponsor_pot'
-       AND l.amount_cents > 0
-       AND l.txn_kind <> 'pot_return'
-       AND l.ref_type = 'sponsor'
-       AND l.ref_id = ${sponsorId}
-     GROUP BY 1
-     ORDER BY 1 ASC`);
-
-  const weeks = (rows.rows as { week_start: string; spend_cents: number; sessions: number }[]).map(
-    (row) => ({
-      weekStart: new Date(row.week_start),
-      spendCents: Number(row.spend_cents),
-      sessions: Number(row.sessions),
-    }),
-  );
-
-  return applyActivityFloor(weeks, floor);
+export async function weeklySpend(sponsorId: string, now = new Date()): Promise<WeeklySpend[]> {
+  const { publishedLedger } = await import("@/lib/data/sponsor-ledger");
+  const view = await publishedLedger(sponsorId, now);
+  return view.series.map((week) => ({
+    weekStart: new Date(`${week.weekStart}T00:00:00Z`),
+    spendCents: week.spendCents,
+    sessions: null,
+  }));
 }
 
 /* ------------------------------------------------ 60.1 to 60.6 · coverage -- */

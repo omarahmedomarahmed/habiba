@@ -458,9 +458,9 @@ export type PlatformSettings = {
      *
      * `weekly` (the default) publishes a week's entries once the week is over,
      * shuffled, dated by the week: a live entry at a small company is a person
-     * seen booking, and enrolled employees were told "not a date". `live`
-     * shows each entry as soon as it is paid, still dated by its week. An
-     * operator's decision, per the founder's; the safe direction is weekly.
+     * seen booking, and enrolled employees were told "not a date". DD-2 B1:
+     * `live` no longer shows the current week (`lastCompleteWeek`); it is
+     * kept so stored settings still parse, and reads as weekly.
      */
     ledgerPublishing: "weekly" | "live";
   };

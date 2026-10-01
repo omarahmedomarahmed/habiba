@@ -43,9 +43,16 @@ import { DEMO_SESSION_EGP, egp } from "@/lib/marketing/prices";
  * The real `SpendHeatmap` and the real `Meter` are still inside it, so 65.17
  * holds: this cannot outlive the feature it is about.
  */
-export function CompanyDemo({ initial }: { initial?: string } = {}) {
+export async function CompanyDemo({ initial }: { initial?: string } = {}) {
+  /* DD-2 B1: the ledger sentence names the live floor; without it "{floor}" showed raw. */
+  const settings = await getSettings();
+  const { privacyFloor } = await import("@/lib/sponsor/ledger");
   return (
-    <CompanyConsole initial={initial} frame={{ bodyClassName: "h-[30rem]" }} />
+    <CompanyConsole
+      initial={initial}
+      floor={privacyFloor(settings.sponsor.activityFloor)}
+      frame={{ bodyClassName: "h-[30rem]" }}
+    />
   );
 }
 
