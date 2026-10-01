@@ -265,8 +265,10 @@ test("the earnings page says when the held amount carries sessions the summary d
 
 test("a statement figure that differs from the row says so, even with nothing else expected", () => {
   const body = bodyOf(code("lib/billing/manual.ts"), "export async function confirmPayment(");
-  const check = body.indexOf("current.amountCents !== input.statementMinor) return { error: STATEMENT_DIFFERS }");
+  const check = body.indexOf("await statementDiffersFromRow(input.paymentId, input.statementMinor)) return { error: STATEMENT_DIFFERS }");
   const update = body.indexOf(".update(manualPayments)");
   assert.ok(check > 0, "the row's amount is not compared with the statement");
   assert.ok(check < update, "the comparison must come before the guarded update");
+  const helper = bodyOf(code("lib/billing/manual.ts"), "async function statementDiffersFromRow(");
+  assert.match(helper, /current\.amountCents !== statementMinor/);
 });

@@ -81,7 +81,7 @@ check(
   /guardedPage\(/.test(service) && /reportStaleRow\(/.test(service) && /recordError\(/.test(service),
 );
 {
-  const page = { slug: "cms-only", title: "About 24Therapy Inc.", description: "Run by 24Therapy Egypt", blocks: [
+  const page: { slug: string; title: string; description: string | null; blocks: unknown[] } = { slug: "cms-only", title: "About 24Therapy Inc.", description: "Run by 24Therapy Egypt", blocks: [
     { type: "prose", body: "A fine page." },
     { type: "prose", body: "We are 24Therapy Inc." },
   ] };
