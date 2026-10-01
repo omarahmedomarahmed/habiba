@@ -354,7 +354,7 @@ async function main() {
      * 🔴 CONTROL — and the reader can actually see values, or every line above
      * is a comparison between two empty sets reporting agreement.
      *
-     * `docs/TRAPS.md` T2: this is the exact shape that produced four green
+     * `docs/TESTING.md` T2: this is the exact shape that produced four green
      * lines about a constraint nobody had parsed. A regex that stopped matching
      * after a Postgres upgrade would make every union read as "0 values, both
      * sides agree".

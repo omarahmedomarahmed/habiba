@@ -6,26 +6,24 @@
  * ## What this is holding
  *
  * `scripts/_value-statements.ts` is twenty-five things this product promises.
- * `docs/PROVE-IT.md` is eight people walking them on real devices against a
- * real database. The obvious way for those two to come apart is the quiet one:
- * a promise is added to the array, the walk is not extended, and the document
- * still reads as complete because nothing in it is wrong.
+ * `docs/DEMO.md` names the seeded position that proves each one. (The long
+ * eight-person walk, `docs/PROVE-IT.md`, was retired on 2026-10-01 and lives
+ * on in the repository history.) The obvious way for those two to come apart
+ * is the quiet one: a promise is added to the array, the demo page is not
+ * extended, and the document still reads as complete because nothing in it is
+ * wrong.
  *
  * That is the same failure `verify:runbook` was written after, where every
  * count in the simulation documents disagreed with something and none of them
  * looked broken. The fix there was to derive every expectation from the code,
  * and it is the fix here.
  *
- * ## 🔴 AND THE GENERATED HALF IS COMPARED, NOT TRUSTED
+ * ## The promises themselves are not a file any more
  *
- * `docs/VALUE-STATEMENTS.md` is written by `npm run prove`. A generated file
- * that nobody regenerates is a hand-maintained file with a misleading banner on
- * it, which is worse than one that admits it. So this rebuilds the document in
- * memory and fails if what is on disk differs.
+ * `npm run prove` prints them from the array. Until 2026-10-01 it wrote
+ * `docs/VALUE-STATEMENTS.md` and this gate compared that file with the array.
+ * A generated copy of data that lives in code was retired with the file.
  */
-import { readFileSync } from "node:fs";
-
-import { VALUE_STATEMENTS_PATH, document } from "./_prove-doc";
 import {
   AUDIENCES,
   SCENARIOS,
@@ -40,11 +38,11 @@ import { readSource, reporter } from "./_verify";
 
 const { check, finish } = reporter();
 
-const WALK = "docs/PROVE-IT.md";
+const WALK = "docs/DEMO.md";
 
 function main(): void {
   /*
-   * 🔴 `readSource`, NOT `readFileSync`. T1 in `docs/TRAPS.md`: a file that
+   * 🔴 `readSource`, NOT `readFileSync`. T1 in `docs/TESTING.md`: a file that
    * EXPLAINS a rule reads, to a naive scan, exactly like one that follows it.
    * These are markdown rather than source so there are no comments to strip,
    * but the habit is the thing being kept: five gates have broken this rule and
@@ -211,29 +209,6 @@ function main(): void {
     `${String(shapes.size)} distinct money shapes across ${String(SCENARIOS.length)} positions`,
   );
 
-  /* ------------------------------------------ the generated half is current -- */
-
-  /*
-   * 🔴 AND THIS CHECK WAS UNFALSIFIABLE FOR ONE COMMIT, which is the reason
-   * `_prove-doc.ts` exists as a file with no `main()` in it.
-   *
-   * The builder and the writer were one script, guarded by
-   * `process.argv[1]?.endsWith("prove.ts")`. `scripts/verify-prove.ts` also
-   * ends with `prove.ts`, so importing `document()` REWROTE the file a moment
-   * before this line read it back, and it reported `current` on anything.
-   *
-   * §6: proved by planting the offender. A line deleted from the document by
-   * hand now reads `STALE, run \`npm run prove\`` and the gate goes red, which
-   * it could not do before the split.
-   */
-  const onDisk = readFileSync(VALUE_STATEMENTS_PATH, "utf8");
-  const fresh = document().join("\n");
-  check(
-    `${VALUE_STATEMENTS_PATH} is what \`npm run prove\` would write`,
-    onDisk === fresh,
-    onDisk === fresh ? "current" : "STALE, run `npm run prove`",
-  );
-
   /* ---------------------------------------- and the walk admits its limits -- */
 
   /*
@@ -248,7 +223,7 @@ function main(): void {
    */
   check(
     "the walk says what it cannot prove",
-    /cannot prove/i.test(walk) && /Cycle 5/.test(walk) && /Cycle 9/.test(walk),
+    /cannot prove/i.test(walk) && /sign[- ]?up/i.test(walk) && /Arabic/.test(walk) && /fail/i.test(walk),
     "sign-up, Arabic and deliberate failure are named as out of scope",
   );
 

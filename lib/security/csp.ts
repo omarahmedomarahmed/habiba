@@ -56,7 +56,7 @@
  * clinician into a room that cannot connect, with a console error nobody in
  * production ever reads.
  *
- * `docs/DAILY-HOSTS.md` is the audit, `npm run audit:daily-hosts` re-runs it,
+ * `docs/SECURITY-AND-PRIVACY.md` is the audit, `npm run audit:daily-hosts` re-runs it,
  * and `verify:csp` fails when the installed version moves past the audited one
  * so that the re-run is not something anybody has to remember.
  *
@@ -168,7 +168,7 @@ export function contentSecurityPolicy({ nonce, videoRoom = false }: CspOptions):
        * grepped for `eval(` and `new Function` and reported neither, which was
        * true and useless, because `Function(...)` without `new` is the same
        * capability. What caught it was a live session and a console. Recorded
-       * in `docs/TRAPS.md` and in `docs/DAILY-HOSTS.md`.
+       * in `docs/TESTING.md` and in `docs/SECURITY-AND-PRIVACY.md`.
        *
        * What it costs, stated rather than waved at: an injected `<script>`
        * still cannot run, because it carries no nonce and `strict-dynamic`

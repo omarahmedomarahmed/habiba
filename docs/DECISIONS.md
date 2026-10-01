@@ -1,74 +1,134 @@
-# Founder decisions
+# Decisions
 
-Rulings from 24 September 2026, rounds one and two. Where a ruling is still
-waiting for counsel or an accountant, it says so. The long-term list of
-everything waiting on someone is `docs/LONG-TERM.md`.
+Every product, clinical, legal and money decision still in force, with its original ID so
+code comments that cite it still resolve. New decisions are proposed in a pull request and
+added here (`CLAUDE.md` rule 6). Clinical wording and safety thresholds need a qualified
+clinician's review before real patients use them.
 
-## The rule above every ruling: nothing is set in stone
+IDs: plain numbers are the founder's rulings of 24 and 25 September 2026; `N` are rulings
+made on the founder's behalf during the night run of 25 to 26 September and the days after;
+`CR` are the crisis rulings and `DD` the due diligence rulings of 1 October. Rulings that only
+governed how the night run was organised were dropped; they are in the repository history.
 
-Every tax, document, provider, fee, timing and approval rule is a **setting in
-`/admin/settings`**, never a constant in code. This matters because the legal
-entity, the accountant and counsel may change any of these after the fact.
+## The rule above every ruling
 
-- A change applies to money from that moment on. It never rewrites a past
-  invoice, payout, receipt or ledger entry.
-- Every change is audited with its old and new value, who made it and when.
-- Provider names (card gateway, payouts, ETA signer) are settings. Their keys
-  and secrets stay in the environment and never in the repository.
-- What each user type sees and pays follows from settings, so a different rule
-  per user type is a settings change, not a rebuild.
+Every tax, document, provider, fee, timing and approval rule is a setting at
+`/admin/settings`, not a constant in code (`lib/settings/defs.ts`). A change applies from that
+moment on, never rewrites a past invoice, payout, receipt or ledger entry, and is audited with
+its old and new value. Provider keys stay in the environment.
 
-## Ruled
+## Money and tax
 
-| # | Decision | Ruling |
-|---|---|---|
-| 1 | Who sells the session | **We are the agent.** The therapist sells; we take our fee. A setting. |
-| 2 | VAT on the session price | **0% for patients.** Healthcare is exempt (VAT Law 67/2016, exempt list item 39). Only verified, licensed clinicians practise here; there is no unlicensed tier. The rate is a setting. |
-| 4 | Company top-up documents | **B now:** our document is a payment receipt, the ETA invoice is the only invoice. **C** (deposit on top-up, one ETA invoice a month for what was spent) is built behind the same setting. |
-| 5 | In-person session, patient paid the therapist directly | **Cash: free through us.** The therapist confirms the patient's consent and the recording. A pay-as-you-go therapist pays $1 (session) and $3 (AI, only if the patient said yes), told before starting; a subscription covers both. No 15%. |
-| 5b | In-person session, patient pays through 24Therapy | The therapist can charge an in-person session through us, exactly like a paid online session: our 15% applies, the company benefit can cover it, and a pay-as-you-go therapist also pays $1 + $3. **Pay before start (25 September): no priced session ever starts unpaid.** The patient pays on their own phone from a QR code; Start unlocks when paid. Design and closed loopholes in `docs/IN-PERSON-PAID.md`. |
-| 5c | In-person bookings | **New in round two.** A therapist chooses whether bookings can be in person, online, or both, and adds a practice address for in person. Patients can filter for in person on the radar and see it on the profile. Booked in-person sessions are paid in advance like online ones. |
-| 5d | Where our 15% applies | On every session paid **through us**: paid invite link, radar, future booking, and an in-person session the patient pays through us. Never on cash. |
-| 6 | Session length | **One length, 50 minutes, one price set by the therapist**, for every kind of session. The "30 minutes", "half hour" and "one hour" wording is left over and is wrong. The length is a setting. |
-| 6b | The 50 minutes | **50 in total, including the 10-minute countdown** (countdown from minute 40). Bookings stay on the hour with a 10-minute gap. A setting. |
-| 5e | New therapist from a patient QR | **Waits for verification** before the first session. |
-| 7 | Patient credits | **A wallet on the patient's profile.** Spent automatically on the next booking or radar session. A no-show radar therapist replaced by a cheaper one puts the difference in the wallet. No top-up. Collapsed when empty, never shown as zero. |
-| 8 | Language | **Revised in round two.** Patients and therapists choose their language in settings, and every message we send them uses it. |
-| 8b | Patient profile page | **New in round two.** The patient's "You" page becomes a real profile: their summary, each session's summary, tabs for billing and past sessions, an employer badge (or an Enrol button), future bookings, sessions live now and sessions starting in N minutes, hours or days. Editing anything lives under settings on that page, including the language. |
-| 9 | Bank details | **Leave as they are.** Production has no real users. |
-| 10 | Operator EGP rate | **Stays at 50**, changed by an admin by hand as often as needed. |
-| 11 | ETA | **Build the foundation**, wired up when registration, the e-seal and the signing provider exist. |
-| 12 | Card gateway | **Paymob.** The patient pays the Paymob fee, shown where the VAT line used to be. |
-| 13 | Two-person approval | **Revised in round two.** No two-person rule on payouts, company top-up confirmations, therapist verifications, or anything urgent. Refunds may keep it. Each one is a separate switch in settings. |
-| 13b | Payouts provider | **Paymob**, ready for the keys. |
-| 14a | Production demo data | **Full freedom** to delete, reseed, edit or add. Keep logins for every user type. |
-| 14b | Fewer navigation pages | **Yes**, with proof every feature is still reachable and clickable. |
-| 15 | Company enrolment rules | **Email is always required.** A company chooses: work-domain email, email on an uploaded staff list, or either one plus an employee ID. ID alone is removed. The staff list is emails only, stored hashed so no readable list exists, each upload replaces the last, and people no longer on it are paused after a grace period (setting). The company never sees who enrolled. |
-| 16 | Patient cancels a paid booking | **Full refund up to 24 hours before; none after, unless the therapist agrees.** The window is a setting. |
-| 17 | Stripe | **Not used.** Stays switched off; its code is left in place, untouched, and nothing new is built on it. Production must not need a Stripe secret to start (task #40). |
-| 13c | Two-person rule kept on two non-urgent actions | **Ruled:** "confirm a transfer without proof" and manual ledger adjustments keep two people, because either one alone creates money from nothing. Switches, on by default. |
-| 7b | Wallet and company money | A replacement-therapist difference goes back to the company pot for the company's share; only the patient's own share goes to the wallet. Spend order: company benefit, then wallet, then card. |
-| 18 | Transfer for a booking that was cancelled while it waited | **The patient's wallet by default.** When the money arrives it is credited to the patient's wallet once, and the patient is told they can ask for it back. On request, staff press "Refund instead" (while the credit is unspent), which reverses the credit and queues a normal refund. A transfer that never arrived changes nothing. Ruled 2026-09-25. |
-| 19 | Seats and moved sessions when card payments go live | **No change needed for Paymob.** Two gaps exist only on Stripe (ruling 17): a practice with a Stripe subscription is not sent a seat bill, and a Stripe card payment for a session moved to another clinician stays in the first clinician's Stripe account. Paymob card payments land on our own balance (`capture: "platform"` in `lib/billing/gateway/session.ts`) and create no Stripe subscription, so seat bills are raised and moved sessions are re-booked on our books exactly as for bank transfers. Revisit only if Paymob is ever set up to pay clinicians directly (split payments) or to run recurring subscriptions. Noted 2026-09-25. |
-| 20 | Verifying a clinician | **Only through the verification queue.** The one-click "Verify" on `/admin/therapists` is gone: it approved a licence with no documents, no second reviewer and no email to the clinician. Every approval now carries its documents, the reviewer's name and the two-reviewer rule when it is on. A clinician with no documents asks for them through the queue. Ruled 2026-09-25. |
-| 21 | Adding a second owner | **The first extra owner needs a written reason and is audited; every owner after that needs a second owner's approval.** With one founder there is nobody else to approve the first one, and without a second owner the two-person rules (ledger adjustments, credit without proof) can never be satisfied. The audit row names who added whom and why. Ruled 2026-09-25. |
-| 22 | The simulated checkout page | **Not found on the live site; no admin check on top.** It exists only for testing without real card keys, and the person who uses it is the patient paying, not an admin. On production every `/dev` page answers "not found". Ruled 2026-09-25. |
-| 23 | WhatsApp | **Off until the Meta keys and templates are approved; email carries every message meanwhile.** The three templates that gained a link button (record invite, payment confirmed, payment rejected) are resubmitted to Meta when WhatsApp is set up. The session join link goes in a WhatsApp button, not the message text. Ruled 2026-09-25. |
+| ID | Decision | Why |
+| --- | --- | --- |
+| 1 | We are the agent: the therapist sells the session, we take our fee | Counsel's default until ruled otherwise (setting `tax.sellerModel`) |
+| 2 | 0% VAT on session prices: healthcare is exempt, and only verified licensed clinicians practise | VAT Law 67/2016, exempt list item 39 |
+| 4 | Company top-up: our document is a payment receipt, the ETA invoice is the only invoice (option B). Option C is built behind the same setting | Waiting for counsel on C |
+| 5 | In person, paid to the therapist in cash: free through us; a pay-as-you-go therapist pays $1, and $3 more if the patient chose AI | No money passes through us |
+| 5b | In person, paid through us: like a paid online session (our 15%, company benefit allowed). No priced session starts unpaid: the patient pays from a QR code and Start unlocks when paid. Only the enrolled patient, signed in, can spend company money; at most 2 pot-funded in-person sessions a week; the price is never above the therapist's list price; paid and not started is refunded to the wallet (settings `rules.inPerson`) | Closes "never paid" and "drain the pot" |
+| 5c | A therapist chooses in person, online or both, and adds a practice address; patients can filter for in person | Founder, round two |
+| 5d | Our 15% applies to every session paid through us, never to cash | One rule for every booking path |
+| 5e | A new therapist added from a patient's QR waits for verification before the first session | No unverified clinician sees a patient under our name |
+| 6, 6b | One session length, 50 minutes in total including a 10 minute countdown; one price set by the therapist; bookings on the hour | One product, no leftover "30 minute" wording |
+| 7, 7b | A patient wallet, credited only when a cheaper replacement clinician steps in (the patient's own share; the company's share goes back to its pot). Spend order: company benefit, wallet, card. No top-up; hidden when empty | Money owed back without a refund trip |
+| 9 | Bank details left as placeholders until real accounts exist | Production has no real users |
+| 10 | Operator EGP rate stays at 50, changed by hand | Simple and visible |
+| 11 | ETA e-invoicing: foundation built, wired when registration, e-seal and signer exist | Waiting for registration |
+| 12 | Card gateway is Paymob; the patient pays the card fee, shown as its own line | Founder |
+| 13, 13c | No two-person rule on payouts, top-up confirmations, verifications or anything urgent. Two people still required for refunds, confirming a transfer without proof, and manual ledger adjustments. Each is a switch | Those three can create money from nothing |
+| 13b | Payouts provider is Paymob, ready for keys | Founder |
+| 16 | A patient cancelling a paid booking gets a full refund up to 24 hours before, none after unless the therapist agrees | Setting `refunds.patientCancelWindowHours` |
+| 17 | Stripe is not used; its code stays, nothing new is built on it, and production must boot without its secret | Egypt runs on transfer and Paymob |
+| 18 | A transfer that arrives for a booking cancelled meanwhile goes to the patient's wallet; staff can "Refund instead" while it is unspent | Nothing lost, nothing paid twice |
+| 19 | Paymob card payments land on our balance, so seat bills and moved sessions work as for transfers; revisit only if Paymob splits payments | Two gaps exist only on Stripe |
+| N11 | Bills are stored in USD cents and shown in EGP at 50, so EGP figures move in steps of 0.50 (a part-month seat shows EGP 666.50) | Storing EGP per bill would change the transfer path; see EGP-native books in `docs/SECURITY-AND-PRIVACY.md` |
 
-## Pending
+## Product and access
 
-| # | Decision | Status |
-|---|---|---|
-| 3 | Withholding on therapist payouts, and tax a company withholds from its top-up | **Waiting for counsel.** A setting at 0%; nothing is deducted until it is ruled. |
-| 4C | Top-up as a deposit with a monthly invoice | Built behind a setting, left on B until counsel rules. |
-| 11 | ETA live keys, e-seal, signing provider | Waiting for registration. |
+| ID | Decision | Why |
+| --- | --- | --- |
+| 8, 8b | Patients and therapists choose their language in settings and every message uses it. The patient's "You" page is a real profile (summaries, billing, bookings, employer badge or Enrol) | Founder, round two |
+| 14a, 14b | Production demo data may be deleted, reseeded or edited freely, keeping a login for every user type. Fewer navigation pages, with proof every feature stays reachable | Founder |
+| 15 | Company enrolment always needs an email: work domain, an uploaded staff list (stored hashed, each upload replaces the last, removed people paused after a grace period), or either plus an employee ID. The company never sees who enrolled | Privacy of employees |
+| 20 | Clinicians are verified only through the verification queue, with documents and the reviewer's name | The one-click verify approved licences with no documents |
+| 21 | The first extra owner needs a written reason and is audited; every later owner needs a second owner's approval | One founder cannot approve themselves |
+| 22 | `/dev` pages (the payment simulators) answer 404 on the live site | Testing only |
+| 23 | WhatsApp stays off until Meta approves the templates; email carries every message; the join link goes in a button | Meta approval pending |
+| N9 | Product pictures on the public site use invented people, EGP prices from settings and no "online now" claim | The site must sell the product that exists |
+| N16 | Server functions run in `pdx1` beside the database in `us-west-2` | Each page makes several database round trips |
+| N17 | The staff console stays English only and has no language switch | Its readers are our staff |
+| N22 | Production keeps `SIMULATION_RUNNING` (mail to `@example.com` stays in the outbox) with the strip hidden by `SIMULATION_BANNER=0` while strangers test with demo logins | Shared demo logins on the real product |
+| N23 | Production holds the event demo cast | Founders need shareable logins with history |
+| N25 | A verified clinician shows on the radar as a hollow dot, bright only while live | Shows the network without claiming anyone is available |
+| N27 | Session reminders at 60, 30 and 15 minutes and "go in now" at 5, once each, only while still ahead, ignoring quiet hours | The patient chose the hour |
+| N28 | The 50 minutes start when both people are in the room | An early patient must not lose minutes |
+| N29 | The radar shows one marker per country and places clinicians by district from a city lookup; unknown places sit in Cairo | Founder |
+| N34 | The every-minute tick reads a Blob marker and touches the database only when a session or crisis deadline is near | Keeps the database asleep |
+| N35 | Only `main` deploys; Neon keeps only `main` and the dev branch | Preview branches woke the database and cost builds |
+| N36 | Maps and country lists show Palestine (PS) and do not offer Israel; Hebrew is not a clinician language | Founder's market decision |
+| N37 | A company's monthly figures are built only from published weekly periods, with one held-back figure shared by both views | Two views could be subtracted to isolate one person |
+| N39 | A patient's "no" to a partner's recording links nobody; a consent link works only for that session's own patient | Declining must never widen access |
 
-## Correction on record
+## Clinical and AI
 
-The first decision table offered a VAT option for "unlicensed coaches". That
-was wrong. Licence verification is a hard gate in the code
-(`requireVerified`, `isVerifiedClinician`), and only licensed clinicians
-practise on the platform.
+| ID | Decision | Why |
+| --- | --- | --- |
+| N19 | A session with Arabic in it is transcribed twice (pinned to Arabic and to English) and the more confident pass kept | One pinned language mistranslated or romanised the other speaker |
+| N20 | Arabic notes take the patient's gender from how they speak and are addressed, else gender-neutral; screens naming a clinician use neutral forms | The product records no gender |
+| N21 | PHQ-9 and GAD-7 show in validated English on Arabic screens, with an Arabic line saying so, until a clinician signs the Arabic | Scores are valid only in a reviewed translation |
+| DD3 | Withdrawing cross-border consent stops every AI call about that person (the keyword check still runs); data is kept and the page says so | The button used to do nothing |
+| DD4 | Recording consent says audio is transcribed and summarised by OpenAI in the United States | It never mentioned AI or processing abroad |
+| DD5 | The radar says "Licence document reviewed by 24Therapy", not "checked with the regulator" | Licences are self-declared and reviewed by us |
+| DD6 | A failed or malformed risk check is stored and shown as "Risk check failed"; a malformed profile keeps the previous one | Failures used to look like clean sessions |
 
-The earlier founder ruling "four eyes for payouts, refunds and verifications"
-is replaced by ruling 13 above.
+## Crisis
+
+| ID | Decision | Why |
+| --- | --- | --- |
+| CR1 | Every crisis alert also goes out at once by email (and WhatsApp when approved), linking to a signed-in page with an Acknowledge button | An in-app row is invisible at 3am; mail scanners open every link |
+| CR2 | Unacknowledged after `crisis.escalateAfterMinutes` (default 15): a clinic's alert goes to its other clinicians and managers, then the platform; a solo clinician's goes straight to the platform | Nearest colleagues first |
+| CR3 | The platform's on-call is every active manager and super admin | No rota exists; a flag nobody set is an empty list |
+| CR4 | The minute tick wakes for crisis work through the marker's `crisisDueAt`; the hourly crisis job is the backstop | Escalate within a minute, keep the database asleep |
+| CR5 | A higher level inside 10 minutes upgrades the alert, clears the acknowledgement and notifies again; same or lower is deduplicated | A higher level has not been acknowledged |
+| CR6 | Egypt's SOS sheet lists the General Secretariat of Mental Health lines as "Mental health support"; 105 is "Health ministry hotline"; 123 and 112 stay | Source research; "نجدة" reads as the police |
+| CR7 | A server-rendered `/sos` page lists the numbers as plain links; the orb and footer link to it | The orb needs JavaScript |
+| CR8 | The patient's crisis reply is in their language and says the therapist was told only when that is true | It used to claim so to everyone |
+| CR9 | "kms" matches only as a whole word, never after a number or before a slash | "I ran 5 kms" must not page anyone |
+
+## Sign-up and security
+
+| ID | Decision | Why |
+| --- | --- | --- |
+| DD1 | Patient and clinician signup require a ticked notice naming OpenAI, Daily, Resend, Neon and Vercel (United States); the version and time are stored | Proof of what each person agreed to |
+| DD2 | The age gate is an "I am 18 or older" box; refusal shows help lines (Egypt Child Helpline 16000, ambulance 123) | A date of birth is data we cannot check |
+| DD7 | Clinician signup answers "check your inbox" for new and registered addresses alike | No account enumeration |
+| N38 | Clinician password resets: at most 3 an hour per address and network, and one email per address every 2 minutes (replaces the per-address limit in DD8) | A stranger cannot use up the owner's resets |
+| DD8 | The reset form's token check is limited to 10 per 15 minutes | Token guessing |
+| DD9 | drizzle-orm stays on 0.38 for now | From 0.44 query errors carry SQL parameters into logs |
+| DD10, DD11 | Signed-out visitors see slot times in Cairo time when their country is Egypt or unknown; country comes from `x-vercel-ip-country`, default Egypt | Headless browsers report UTC |
+| DD13 | Patient-facing errors on pay, join, booking, claim, sign-up, sign-in, account and feedback are bilingual | They were English under Arabic forms |
+
+## Needs the founder
+
+Open items only, as recorded on 2026-10-01.
+
+| ID | What | Why it waits for you |
+| --- | --- | --- |
+| F1 | The Egyptian entity's registered name, address and tax number for company receipts | Legal data only you hold |
+| F2, F-CR2 | Meta approval of the WhatsApp templates, including `crisis_alert` and `crisis_escalated`; then list them in `WHATSAPP_APPROVED_TEMPLATES` | Your Meta account |
+| F3 | In `/admin/settings`: the Arabic name on Egypt's regulator line and an Arabic note on the InstaPay line | Operator-typed text |
+| F4 | Save the rules once in `/admin/settings` so the 15 and 5 minute start clock is stored (the defaults already apply) | Console login |
+| F5 | Patient bank details on the transfer sheet if bank transfer (not only InstaPay) is wanted | A real account |
+| F6 | Set `TOKEN_ENCRYPTION_KEY` on Vercel production and keep the only copy in your password manager | Losing it makes every stored credential unreadable |
+| F7 | Whether production's database stays awake (turn off scale-to-zero) at a monthly cost | A recurring cost |
+| F8 | Name a clinical reviewer to sign the Arabic PHQ-9 and GAD-7 | A qualified person only |
+| F9 | Legal entity, address and data contact for `/privacy` and `/terms`, a lawyer's review (including Egypt's data protection law) and Arabic versions | Legal |
+| F10 | BAAs and DPAs with Vercel, Neon, OpenAI, Daily and Resend (needs the US entity) | Contracts and money |
+| F-CR1 | A native Arabic-speaking clinician reviews the crisis phrase list in `lib/crisis/alerts.ts` | Only a clinician can say it is complete and safe |
+| F-CR3 | Dial 08008880700, 0220816831 and 105 once and confirm they answer; correct them in settings if not | A crisis number nobody has dialled is a risk |
+| F-CR4 | Confirm migrations up to 0187 are on production now that the crisis and due diligence work is on `main` | Production migrations are applied by hand |
+| FD1 | Confirm by phone that Egypt's Child Helpline is 16000 | It is in the under-18 refusal |
+| FD2 | Counsel reads the signup notice, privacy notice and terms so they name the same processors | Legal text |
+| FD3 | Approve the drizzle-orm 0.45 upgrade plan (DD9) | Changes how every database error is reported |
+| Q | Counsel's questions, each already a setting with a safe default: seller model; VAT exemption scope; VAT on our fees and registration threshold; withholding on payouts and on company top-ups; top-up documents; patient receipts; passing the card fee to the patient; whether the wallet needs a licence; whether we may hold therapists' money between payment and payout (the largest); billing Egyptian therapists in USD and whose rate; data law 151/2020 and hosting outside Egypt; which licences count; our ETA issuer name and activity code | Counsel |
+| P | Provider accounts and keys: Paymob (cards and payouts), ETA registration with an e-seal and signing provider | Accounts in the company's name |

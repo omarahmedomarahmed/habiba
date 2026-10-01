@@ -151,11 +151,11 @@ function main() {
    * mentions. A policy read off the package blocks it, and the symptom is a
    * clinician in a room that never connects.
    *
-   * `docs/DAILY-HOSTS.md` carries the audit as data. These checks assert the
+   * `docs/SECURITY-AND-PRIVACY.md` carries the audit as data. These checks assert the
    * policy still matches it, and that the audit is not about an older version
    * than the one installed. See `npm run audit:daily-hosts`.
    */
-  const audit = readFileSync("docs/DAILY-HOSTS.md", "utf8");
+  const audit = readFileSync("docs/SECURITY-AND-PRIVACY.md", "utf8");
   const block = audit.match(/```audited\n([\s\S]*?)\n```/)?.[1] ?? "";
   const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
   const auditedVersion = lines.find((line) => line.startsWith("daily-js "))?.slice(9) ?? "";
@@ -193,7 +193,7 @@ function main() {
     auditedVersion === installedVersion(),
     auditedVersion === installedVersion()
       ? `daily-js ${auditedVersion}`
-      : `docs/DAILY-HOSTS.md audited ${auditedVersion || "nothing"}, installed is ${installedVersion()}. Run: npm run audit:daily-hosts -- --write`,
+      : `docs/SECURITY-AND-PRIVACY.md audited ${auditedVersion || "nothing"}, installed is ${installedVersion()}. Run: npm run audit:daily-hosts -- --write`,
   );
 
   check(
@@ -220,7 +220,7 @@ function main() {
    * 🔴 CONTROL. The coverage test has to say no to something. Four "is it
    * covered" passes in a row read exactly the same against a matcher that
    * returns true for everything, which is the shape of every trap in
-   * `docs/TRAPS.md`.
+   * `docs/TESTING.md`.
    */
   check(
     "🔴 CONTROL the coverage test refuses a host the policy does not name",

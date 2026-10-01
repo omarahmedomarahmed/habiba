@@ -86,7 +86,7 @@ function walk(dir: string): string[] {
 }
 
 /**
- * 🔴 Comments stripped first. `docs/TRAPS.md` T1: a file explaining that it
+ * 🔴 Comments stripped first. `docs/TESTING.md` T1: a file explaining that it
  * does not write a notice would otherwise read as one that does.
  */
 const read = (file: string) => stripCommentsKeepingLines(readFileSync(file, "utf8"));

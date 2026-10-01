@@ -11,7 +11,7 @@
     "prebuild": "(node --env-file-if-exists=.env.local --import tsx scripts/settings.ts seed || echo 'settings seed skipped, see above') && NODE_OPTIONS=--max-old-space-size=4096 tsc --noEmit -p .",
     "build": "NODE_OPTIONS=--max-old-space-size=4096 next build",
     "start": "next start",
-    "lint": "node -e \"console.error('No linter is configured here. The static analysis in this repository is: npm run typecheck, then npm run gates. See HAZARDS.md.'); process.exit(1)\"",
+    "lint": "node -e \"console.error('No linter is configured here. The static analysis in this repository is: npm run typecheck, then npm run gates. See docs/TESTING.md.'); process.exit(1)\"",
     "typecheck": "tsc --noEmit",
     "prose": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/prose-sweep.ts",
     "verify:sprint65": "node --env-file-if-exists=.env.local --import tsx --conditions=react-server scripts/verify-sprint65.ts",
