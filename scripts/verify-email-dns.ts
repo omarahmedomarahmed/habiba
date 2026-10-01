@@ -94,7 +94,7 @@ const BASELINE = {
    * `aspf=r` in our DMARC record the two are the same organisational domain,
    * so SPF passes and aligns.
    *
-   * The lesson is the one in `docs/TRAPS.md`: this check knew where it
+   * The lesson is the one in `docs/TESTING.md`: this check knew where it
    * expected the answer to be rather than where the product actually puts it.
    */
   spfCoversSender: true,

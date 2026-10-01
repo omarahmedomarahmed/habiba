@@ -9,7 +9,7 @@
  *
  * The five positions in `_value-statements.ts` are walks: each one is a diff of
  * the everyday cast, seeded to prove named promises, and `verify:prove` insists
- * every one of them has a section in `docs/PROVE-IT.md`. This is not a walk. It
+ * every one of them has a row in `docs/DEMO.md`. This is not a walk. It
  * is a whole, different cast, seeded so a stranger at a startup event can be
  * handed a login and find a product that looks lived in: a company paying for
  * its staff, a clinician with a month of notes, a clinic with a week booked.

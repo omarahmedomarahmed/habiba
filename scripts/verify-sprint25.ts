@@ -664,7 +664,7 @@ async function main() {
    *
    * So the URL may be built in exactly one place. Comments stripped first,
    * because this file and the component both NAME the route in prose and
-   * `docs/TRAPS.md` T1 is what happens when a scanner counts that as a use.
+   * `docs/TESTING.md` T1 is what happens when a scanner counts that as a use.
    */
   const avatarBuilders: string[] = [];
   const roots = ["app", "components", "lib"];
@@ -696,7 +696,7 @@ async function main() {
 
   /*
    * 🔴 CONTROL — the scan has to find the one place that IS allowed to, or
-   * "no offenders" means "I read nothing". Every trap in `docs/TRAPS.md` T2.
+   * "no offenders" means "I read nothing". Every trap in `docs/TESTING.md` T2.
    */
   check(
     "🔴 79.4 CONTROL the scan finds the component that legitimately builds it",

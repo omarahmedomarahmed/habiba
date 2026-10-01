@@ -10,7 +10,7 @@
  * walked into again, which is the whole argument for this file: a rule a person
  * has to remember is a rule that holds until the person is tired.
  *
- * So each one is a property of the source, checked on every pass. `docs/TRAPS.md`
+ * So each one is a property of the source, checked on every pass. `docs/TESTING.md`
  * is the prose half, and it is generated from the same list, so the register and
  * the enforcement cannot drift.
  *
@@ -223,7 +223,7 @@ function truncatesSilently(file: string): boolean {
  * The fix is not a longer list. It is that the list is AUDITED against the
  * thing that actually runs, the audit is pinned to a version, and the pin
  * fails when the version moves. `npm run audit:daily-hosts` writes it,
- * `docs/DAILY-HOSTS.md` holds it, `verify:csp` enforces it.
+ * `docs/SECURITY-AND-PRIVACY.md` holds it, `verify:csp` enforces it.
  *
  * This reads with comments stripped, because a detector asking whether a file
  * mentions a rule is T1 wearing a different hat: a comment describing the
@@ -232,7 +232,7 @@ function truncatesSilently(file: string): boolean {
 function dailyAuditIsWired(file: string): { wired: boolean; detail: string } {
   const body = readSource(file);
   const missing = [
-    /docs\/DAILY-HOSTS\.md/.test(body) ? "" : `${file} no longer reads the audit record`,
+    /docs\/SECURITY-AND-PRIVACY\.md/.test(body) ? "" : `${file} no longer reads the audit record`,
     /installedVersion\(\)/.test(body) ? "" : `${file} no longer pins the audit to the installed version`,
     /unclassified/.test(body) ? "" : `${file} no longer fails on a host with no decision`,
   ].filter(Boolean);
@@ -412,11 +412,11 @@ function main() {
   /*
    * 🔴 AND THE REGISTER IS THE SAME LIST AS THE ENFORCEMENT.
    *
-   * `docs/TRAPS.md` is what a person reads. If it can describe a trap this file
+   * `docs/TESTING.md` is what a person reads. If it can describe a trap this file
    * does not check, it is a document again, which is the thing this gate exists
    * to replace.
    */
-  const doc = read("docs/TRAPS.md");
+  const doc = read("docs/TESTING.md");
   const described = [...doc.matchAll(/^### T(\d+)/gm)].map((m) => m[1]!);
   const enforced = [...read("scripts/verify-traps.ts").matchAll(/"🔴 T(\d+) /g)].map((m) => m[1]!);
   const orphans = described.filter((t) => !enforced.includes(t));

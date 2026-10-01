@@ -8,8 +8,8 @@
  * make to that kind of user. Written as a document, that is a list somebody
  * checks once. Written here, three things read the same array:
  *
- *   - `npm run prove` writes `docs/VALUE-STATEMENTS.md` from it,
- *   - `docs/PROVE-IT.md` walks each one and `verify:prove` fails if a statement
+ *   - `npm run prove` prints them as a document,
+ *   - `docs/DEMO.md` names the position that proves each one, and `verify:prove` fails if a statement
  *     is never walked,
  *   - `seed:demo --scenario=<name>` seeds the position each walk starts from.
  *
@@ -47,7 +47,7 @@ export const AUDIENCES: { id: Audience; who: string; signsInAt: string }[] = [
 ];
 
 export type ValueStatement = {
-  /** `P1`, `T3`, `A2`. Stable: `PROVE-IT.md` refers to these. */
+  /** `P1`, `T3`, `A2`. Stable: `docs/DEMO.md` refers to these. */
   id: string;
   audience: Audience;
   /** The promise, in the words the product already uses. */

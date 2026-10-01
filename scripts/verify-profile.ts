@@ -301,7 +301,7 @@ async function main() {
      * hand-rolling an `<img>` that drew a broken image glyph for every patient
      * with no photo. The page got better and the check went red.
      *
-     * That is the trap `docs/TRAPS.md` records as "a check bound to a syntax
+     * That is the trap `docs/TESTING.md` records as "a check bound to a syntax
      * rather than a property", and the question it tells you to ask is: *if
      * somebody improved this code, would my check still pass?*
      *

@@ -201,7 +201,7 @@ async function main() {
    * The first draft allowed exactly `demo: therapistRadar.demo,` and nothing
    * else, so publishing the flag to the UI in 80.5 turned four honest reads
    * into four failures. A checker that goes red for an improvement is the
-   * "bound to a syntax rather than a property" trap in `docs/TRAPS.md`, and it
+   * "bound to a syntax rather than a property" trap in `docs/TESTING.md`, and it
    * is the one this repository walks into most.
    *
    * The rule is what it always meant: the column may be READ and never TESTED.

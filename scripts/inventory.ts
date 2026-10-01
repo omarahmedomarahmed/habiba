@@ -2,7 +2,7 @@
  * Every page in the product, every control on it, and whether it does anything.
  *
  *     npm run inventory            # print it
- *     npm run inventory -- --write # …and write docs/INVENTORY.md
+ *     npm run inventory -- --markdown # …and print the full listing as markdown
  *
  * ## Why this exists
  *
@@ -31,7 +31,7 @@
  * uncertainty rather than guessing. `verify:contrast` already proves these
  * pages RENDER; a later pass should prove each control's effect.
  */
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { ranDirectly } from "./_verify";
 
 /**
@@ -492,9 +492,13 @@ function main() {
   }
 
   const text = lines.join("\n");
-  if (process.argv.includes("--write")) {
-    writeFileSync("docs/INVENTORY.md", `${text}\n`);
-    console.log("wrote docs/INVENTORY.md");
+  /*
+   * `--write` committed this as `docs/INVENTORY.md` until 2026-10-01. A copy of
+   * what the code already says went stale between runs, so the full listing is
+   * printed on demand instead (`--markdown`, or the old `--write` flag).
+   */
+  if (process.argv.includes("--markdown") || process.argv.includes("--write")) {
+    console.log(text);
   }
   console.log(
     `${String(surfaces.length)} pages · ` +

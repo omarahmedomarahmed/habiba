@@ -135,7 +135,7 @@ export async function SiteHeader() {
             accident from the content editor.
 
             Teal ground, navy ink and a navy live dot: white on teal is 2.17:1
-            and cannot carry a label, navy on it passes. See docs/BRAND.md.
+            and cannot carry a label, navy on it passes. See docs/business/BRAND.md.
           */}
           <Link
             href={href("/radar")}

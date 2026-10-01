@@ -675,14 +675,16 @@ check(
 /* --------------------------------------------------------------- the log -- */
 
 /*
- * The hazard file is read by every new contributor before their first commit. An
- * entry describing a fixed defect is a false alarm, and H20 in that same file is
- * the record of what standing false alarms do.
+ * The hazard table is read by every new contributor before their first commit.
+ * An entry describing a fixed defect is a false alarm, and H20 in that table is
+ * the record of what standing false alarms do. It lived in `HAZARDS.md` until
+ * 2026-10-01 and is now the "Known hazards" table in `docs/OPERATIONS.md`.
  */
-const hazards = readFileSync("HAZARDS.md", "utf8");
+const HAZARDS_DOC = "docs/OPERATIONS.md";
+const hazards = readFileSync(HAZARDS_DOC, "utf8");
 check(
   "every hazard carries a status, so a fixed one cannot masquerade as live",
-  /\|\s*Status\s*\|/i.test(hazards),
+  /^## Known hazards/m.test(hazards) && /\|\s*Status\s*\|/i.test(hazards),
 );
 
 console.log(`\nverify:claims ${checks - failures}/${checks} checks pass\n`);
