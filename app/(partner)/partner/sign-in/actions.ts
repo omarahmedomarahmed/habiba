@@ -6,9 +6,10 @@ import { checkPartnerPassword } from "@/lib/data/partner-admin";
 import { createPartnerSession, revokePartnerSession } from "@/lib/partner-auth/session";
 import { minutesToWait } from "@/lib/auth/attempts";
 import { getI18n } from "@/lib/i18n/server";
+import { challengeAfterPassword, passPortalChallenge } from "@/lib/auth/portal-second-step";
 import { accountAttempt, accountSignedIn, callerKey, consume } from "@/lib/rate-limit";
 
-export type PartnerSignInState = { error?: string };
+export type PartnerSignInState = { error?: string; challenge?: string };
 
 /**
  * The partner's door. PLAN.md 55.2, C264.
@@ -22,6 +23,21 @@ export async function signInPartner(
   _prev: PartnerSignInState,
   formData: FormData,
 ): Promise<PartnerSignInState> {
+  /* DD-2 B2.4: the second half, when the password was right and this account has an app. */
+  if (formData.get("challenge")) {
+    const throttle = await consume(await callerKey("partner-sign-in"), 8, 15 * 60);
+    if (!throttle.allowed) return { error: "Too many attempts. Try again in a few minutes." };
+    const { t } = await getI18n();
+    const passed = await passPortalChallenge("partner", formData.get("challenge"), String(formData.get("code") ?? ""));
+    if (!passed.ok) {
+      return passed.expired
+        ? { error: t(passed.error) }
+        : { error: t(passed.error), challenge: String(formData.get("challenge")) };
+    }
+    await createPartnerSession(passed.id);
+    redirect("/partner");
+  }
+
   const throttle = await consume(await callerKey("partner-sign-in"), 8, 15 * 60);
   if (!throttle.allowed) return { error: "Too many attempts. Try again in a few minutes." };
 
@@ -39,6 +55,9 @@ export async function signInPartner(
     return { error: result.error ?? "That email address and password do not match." };
   }
   await accountSignedIn("partner-sign-in", email);
+
+  const challenge = await challengeAfterPassword("partner", result.partnerUserId);
+  if (challenge) return { challenge };
 
   await createPartnerSession(result.partnerUserId);
   redirect("/partner");

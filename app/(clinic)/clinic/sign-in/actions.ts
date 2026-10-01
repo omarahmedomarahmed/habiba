@@ -6,9 +6,10 @@ import { checkClinicPassword } from "@/lib/data/clinic-admin";
 import { createClinicSession, revokeClinicSession } from "@/lib/clinic-auth/session";
 import { minutesToWait } from "@/lib/auth/attempts";
 import { getI18n } from "@/lib/i18n/server";
+import { challengeAfterPassword, passPortalChallenge } from "@/lib/auth/portal-second-step";
 import { accountAttempt, accountSignedIn, callerKey, consume } from "@/lib/rate-limit";
 
-export type ClinicSignInState = { error?: string };
+export type ClinicSignInState = { error?: string; challenge?: string };
 
 /**
  * The clinic's door. PLAN.md 54.2, C259, C264.
@@ -21,6 +22,21 @@ export async function signInClinic(
   _prev: ClinicSignInState,
   formData: FormData,
 ): Promise<ClinicSignInState> {
+  /* DD-2 B2.4: the second half, when the password was right and this account has an app. */
+  if (formData.get("challenge")) {
+    const throttle = await consume(await callerKey("clinic-sign-in"), 8, 15 * 60);
+    if (!throttle.allowed) return { error: "Too many attempts. Try again in a few minutes." };
+    const { t } = await getI18n();
+    const passed = await passPortalChallenge("clinic", formData.get("challenge"), String(formData.get("code") ?? ""));
+    if (!passed.ok) {
+      return passed.expired
+        ? { error: t(passed.error) }
+        : { error: t(passed.error), challenge: String(formData.get("challenge")) };
+    }
+    await createClinicSession(passed.id);
+    redirect("/clinic");
+  }
+
   const throttle = await consume(await callerKey("clinic-sign-in"), 8, 15 * 60);
   if (!throttle.allowed) return { error: "Too many attempts. Try again in a few minutes." };
 
@@ -38,6 +54,9 @@ export async function signInClinic(
     return { error: result.error ?? "That email address and password do not match." };
   }
   await accountSignedIn("clinic-sign-in", email);
+
+  const challenge = await challengeAfterPassword("clinic", result.clinicManagerId);
+  if (challenge) return { challenge };
 
   await createClinicSession(result.clinicManagerId);
   redirect("/clinic");

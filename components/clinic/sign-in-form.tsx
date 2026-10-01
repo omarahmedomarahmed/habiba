@@ -32,6 +32,24 @@ export function ClinicSignInForm() {
   const t = useT();
   const [state, formAction] = useActionState(signInClinic, {});
 
+  if (state.challenge) {
+    return (
+      <form action={formAction} className="space-y-4">
+        <input type="hidden" name="challenge" value={state.challenge} />
+        <p className="text-sm text-navy-400">{t("tauth.secondAppBody")}</p>
+        <Field label={t("tauth.secondCode")} htmlFor="clinic-code">
+          <Input id="clinic-code" name="code" autoComplete="one-time-code" autoCapitalize="none" maxLength={40} required />
+        </Field>
+        {state.error ? (
+          <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+            {state.error}
+          </p>
+        ) : null}
+        <Submit label={t("tauth.secondVerify")} />
+      </form>
+    );
+  }
+
   return (
     <div>
       <form action={formAction} className="space-y-4">

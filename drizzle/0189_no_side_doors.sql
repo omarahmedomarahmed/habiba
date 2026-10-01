@@ -7,6 +7,9 @@
 -- 2. TRUNCATE is refused. Row triggers do not fire on TRUNCATE, so 0184 never
 --    covered it; a statement-level BEFORE TRUNCATE trigger does.
 --
+-- 3. Clinic managers and partner users may add an authenticator app (DD-2 B2.4),
+--    in the same shape as staff_second_factors. Clinicians use that table.
+--
 -- Still open (a founder and operations decision, docs/DECISIONS.md): the app
 -- and the migrations share the owner role, which can DROP or DISABLE these
 -- triggers. The full fix is a separate restricted role for the app.
@@ -57,3 +60,29 @@ DROP TRIGGER IF EXISTS "audit_log_no_truncate" ON "audit_log";
 CREATE TRIGGER "audit_log_no_truncate"
   BEFORE TRUNCATE ON "audit_log"
   FOR EACH STATEMENT EXECUTE FUNCTION "audit_log_no_truncate"();
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "portal_second_factors" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "clinic_manager_id" uuid REFERENCES "clinic_managers"("id") ON DELETE CASCADE,
+  "partner_user_id" uuid REFERENCES "partner_users"("id") ON DELETE CASCADE,
+  "secret_sealed" text NOT NULL,
+  "confirmed_at" timestamp with time zone,
+  "last_step" integer,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT "portal_second_factors_one_owner" CHECK (num_nonnulls("clinic_manager_id", "partner_user_id") = 1)
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "portal_second_factors_clinic_unique" ON "portal_second_factors" ("clinic_manager_id");
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "portal_second_factors_partner_unique" ON "portal_second_factors" ("partner_user_id");
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "portal_recovery_codes" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "factor_id" uuid NOT NULL REFERENCES "portal_second_factors"("id") ON DELETE CASCADE,
+  "code_hash" text NOT NULL,
+  "used_at" timestamp with time zone,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "portal_recovery_codes_hash_unique" ON "portal_recovery_codes" ("factor_id", "code_hash");

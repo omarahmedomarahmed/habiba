@@ -6,6 +6,13 @@ import { ClinicHead, Share } from "@/components/clinic/ui";
 import { Avatar, Badge, buttonClass, Card, EmptyState, IconTile, Stat } from "@/components/clinician/kit";
 import { can } from "@/lib/clinic-auth/capabilities";
 import { requireClinic } from "@/lib/clinic-auth/guard";
+import { AuthenticatorCard } from "@/components/auth/authenticator-card";
+import { authenticatorView } from "@/lib/auth/authenticator-view";
+import {
+  finishClinicAuthenticator,
+  removeClinicAuthenticator,
+  startClinicAuthenticator,
+} from "./authenticator-actions";
 import { clinicWeek } from "@/lib/clinic-week";
 import { clinicSchedule, clinicUsage } from "@/lib/data/clinic";
 import { getI18n } from "@/lib/i18n/server";
@@ -316,6 +323,14 @@ export default async function ClinicOverviewPage({
           </p>
         </Card>
       ) : null}
+
+      {/* DD-2 B2.4: this manager's own optional authenticator app. */}
+      <AuthenticatorCard
+        {...(await authenticatorView({ kind: "clinic", id: actor.clinicManagerId }, actor.email))}
+        start={startClinicAuthenticator}
+        finish={finishClinicAuthenticator}
+        remove={removeClinicAuthenticator}
+      />
     </div>
   );
 }

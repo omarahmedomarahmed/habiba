@@ -22,6 +22,9 @@ import { licenceLocked } from "@/lib/data/licence-change";
 import { invoices, organizations, users } from "@/lib/db/schema";
 import { getI18n } from "@/lib/i18n/server";
 import { saveMyLanguage } from "./actions";
+import { finishAuthenticator, removeAuthenticator, startAuthenticator } from "./authenticator-actions";
+import { AuthenticatorCard } from "@/components/auth/authenticator-card";
+import { authenticatorView } from "@/lib/auth/authenticator-view";
 import { LanguageSetting } from "@/components/settings/language-setting";
 import { savedLocale } from "@/lib/i18n/preference";
 
@@ -338,6 +341,13 @@ export default async function SettingsPage({
           why={t("portal.settings.whySecurity")}
         >
           <PasswordForm />
+          {/* DD-2 B2.4: an optional authenticator app, asked for at sign-in once it is on. */}
+          <AuthenticatorCard
+            {...(await authenticatorView({ kind: "user", id: actor.userId }, actor.email))}
+            start={startAuthenticator}
+            finish={finishAuthenticator}
+            remove={removeAuthenticator}
+          />
         </SettingsSection>
 
         {actor.role === "super_admin" ? (

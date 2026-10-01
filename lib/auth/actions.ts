@@ -357,6 +357,12 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
   );
 
   const wanted = safeNext(next, "/dashboard");
+  /* DD-2 B2.4: a clinician who added an authenticator app gives its code next. */
+  const { secondFactorStatus } = await import("./second-factor");
+  if ((await secondFactorStatus(user.id)).enrolled) {
+    const { STAFF_SECOND_STEP } = await import("@/lib/routing");
+    redirect(`${STAFF_SECOND_STEP}?next=${encodeURIComponent(cleared ? wanted : "/onboarding")}`);
+  }
   redirect(cleared ? wanted : "/onboarding");
 }
 

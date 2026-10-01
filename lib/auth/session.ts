@@ -14,12 +14,12 @@ import { and, eq, isNull, lt, or } from "drizzle-orm";
  * so that every clinical call downstream has it without asking.
  */
 import { controlDb as db } from "@/lib/db";
-import { authSessions, organizations, users } from "@/lib/db/schema";
+import { authSessions, organizations, staffSecondFactors, users } from "@/lib/db/schema";
 import { isRegion, DEFAULT_REGION, type Region } from "@/lib/db/region";
 import type { Role } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { isUserActivity } from "./activity";
-import { needsSecondFactor, secondFactorCurrent } from "./totp";
+import { secondFactorCurrent, secondStepOwed } from "./totp";
 
 export const SESSION_COOKIE = "24t_session";
 
@@ -166,6 +166,8 @@ export type SessionState = {
   actor: Actor;
   sessionId: string;
   secondFactorAt: Date | null;
+  /** DD-2 B2.4: whether this person has a confirmed authenticator app. */
+  secondFactorEnrolled: boolean;
   pendingSecondFactor: boolean;
 };
 
@@ -228,9 +230,12 @@ export async function sessionStateForToken(
       timezone: users.timezone,
       status: users.status,
       deletedAt: users.deletedAt,
+      /* DD-2 B2.4: a clinician who added an app owes the step too. */
+      appConfirmedAt: staffSecondFactors.confirmedAt,
     })
     .from(authSessions)
     .innerJoin(users, eq(users.id, authSessions.userId))
+    .leftJoin(staffSecondFactors, eq(staffSecondFactors.userId, users.id))
     /* 30.1 — the region comes with the session, so nothing downstream asks. */
     .innerJoin(organizations, eq(organizations.id, users.organizationId))
     .where(
@@ -289,7 +294,9 @@ export async function sessionStateForToken(
     actor,
     sessionId: row.sessionId,
     secondFactorAt: row.secondFactorAt,
-    pendingSecondFactor: needsSecondFactor(row.role) && !secondFactorCurrent(row.secondFactorAt, now),
+    secondFactorEnrolled: row.appConfirmedAt !== null,
+    pendingSecondFactor:
+      secondStepOwed(row.role, row.appConfirmedAt !== null) && !secondFactorCurrent(row.secondFactorAt, now),
   };
 }
 
