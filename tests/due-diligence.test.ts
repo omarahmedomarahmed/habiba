@@ -253,7 +253,7 @@ test("🔴 F9 the move script finds public sensitive files, leaves headshots, an
   assert.match(onProd, /"blobs:migrate-private": \{\s*writes: true,\s*why: "[^"]+"/);
   const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { scripts: Record<string, string> };
   assert.match(pkg.scripts["blobs:migrate-private"] ?? "", /scripts\/migrate-private-blobs\.ts/);
-  const { isPublicSensitiveBlob } = await import("../scripts/migrate-private-blobs");
+  const { isPublicSensitiveBlob } = await import("../scripts/_private-blobs");
   assert.equal(isPublicSensitiveBlob("https://abc.public.blob.vercel-storage.com/receipt/u/x.png"), true);
   assert.equal(isPublicSensitiveBlob("https://abc.public.blob.vercel-storage.com/headshot/u/x.png"), false);
   assert.equal(isPublicSensitiveBlob("https://abc.private.blob.vercel-storage.com/receipt/u/x.png"), false);

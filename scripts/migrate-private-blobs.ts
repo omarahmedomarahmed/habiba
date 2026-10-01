@@ -24,6 +24,7 @@
  */
 import { sql } from "drizzle-orm";
 
+import { isPublicSensitiveBlob } from "./_private-blobs";
 import { writesTo } from "./_verify";
 import { connect } from "./db";
 
@@ -40,20 +41,6 @@ export const SENSITIVE_COLUMNS = [
   { table: "support_attachments", column: "storage_key" },
   { table: "partners", column: "documents_url" },
 ] as const;
-
-/** Public by design and left alone. */
-const PUBLIC_KINDS = ["headshot/"];
-
-export function isPublicSensitiveBlob(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    if (!parsed.hostname.endsWith(".public.blob.vercel-storage.com")) return false;
-    const path = parsed.pathname.replace(/^\//, "");
-    return !PUBLIC_KINDS.some((kind) => path.startsWith(kind));
-  } catch {
-    return false;
-  }
-}
 
 /** The kind and a short tail, never the secret path segment. */
 function label(url: string): string {
