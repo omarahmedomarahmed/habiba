@@ -10,7 +10,8 @@ import { arabicWords, fold } from "@/lib/crisis/fold";
  * 1. It ignored who was speaking, so a therapist asking "any thoughts of
  *    suicide?" raised an alert. A line labelled as the therapist is not
  *    scanned. When nobody knows who spoke, every line is still scanned, but a
- *    question put to somebody else is not read as a disclosure.
+ *    question that asks somebody else about themselves ("kill yourself",
+ *    "تنتحر") is not read as a disclosure.
  * 2. Chunks are cut every eight seconds on a clock, so "I want to" in one and
  *    "die" in the next matched nothing. The new chunk is scanned joined to the
  *    tail of the previous one from the same speaker, and a phrase found only
@@ -25,28 +26,24 @@ export const TAIL_CHARS = 80;
 const QUESTION_OPENER =
   /^(?:(?:so|and|but|ok|okay|now|well|and so)\s+)?(?:do|does|did|have|has|had|are|is|were|was|would|could|can|any|how|when|what|why|ever)(?![a-z0-9])/;
 const ARABIC_OPENERS = ["هل", "ايه", "امتي", "ازاي", "ليه"].map((word) => arabicWords(word));
-const SECOND_PERSON_LATIN = /(?:^|[^a-z0-9])(?:you|your|yourself|u)(?:$|[^a-z0-9])/;
-const SECOND_PERSON_ARABIC = [
-  "عندك",
-  "انت",
-  "انتي",
-  "نفسك",
-  "حياتك",
-  "بتفكر",
-  "بتفكري",
-  "تنتحر",
-  "تنتحري",
-  "تموت",
-  "تموتي",
-].map((word) => arabicWords(word));
+/*
+ * 🔴 Review: the crisis words pointed at "you": "kill yourself", "your life",
+ * "تنتحر", "نفسك". A bare "you" is not enough: "Do you ever just want to die?"
+ * and "انت عارف اني عايز اموت؟" are the speaker's own.
+ */
+const SECOND_PERSON_LATIN = /(?:^|[^a-z0-9])(?:yourself|your own life|your life|kill you|hurt you)(?:$|[^a-z0-9])/;
+const SECOND_PERSON_ARABIC = ["نفسك", "حياتك", "تنتحر", "تنتحري", "تموت", "تموتي"].map((word) => arabicWords(word));
 
 /**
- * Is this sentence a question put to somebody else ("do you have thoughts of
- * suicide", "هل عندك افكار انتحار", "بتفكر تنتحر؟")?
+ * Is this sentence a question put to somebody else about themselves ("have
+ * you thought of killing yourself", "بتفكر تنتحر؟")?
  *
  * All three must hold: it is a question (a question mark, or a question word
- * first), it addresses "you", and it says nothing about "I". "Do you think I
- * want to die?" is the speaker's own and stays a disclosure.
+ * first), its crisis words point at "you" (`SECOND_PERSON_*`), and it says
+ * nothing about "I". When unsure it is scanned: a false alert costs a
+ * clinician a minute, a missed one cannot be undone. "Do you have thoughts
+ * of suicide?" from an unknown speaker is scanned; labelled as the
+ * therapist's, it is not.
  */
 export function isQuestionToOther(sentence: string): boolean {
   const folded = fold(sentence).trim();

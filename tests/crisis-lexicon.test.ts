@@ -79,7 +79,6 @@ test("DD-2 the near misses stay quiet", () => {
     "هنتحرك بكرة الصبح",
     "إحنا هنتحرك دلوقتي",
     "I ran 5 kms this morning",
-    "Two years ago I wanted to die. That is over and it has not come back.",
     "My brother took an overdose in 2019.",
     "أخي انتحر من سنتين.",
   ]) {
@@ -130,8 +129,133 @@ test("🔴 'no longer' and 'used to' are not resolved when an inability follows"
   assert.ok(alerts("كنت بستحمل لكن ما عدت اقدر اكمل"));
   // The resolution has to come after the phrase, not before it.
   assert.ok(alerts("That is over, years ago I was fine, I want to die"));
-  // A real resolution still resolves.
-  assert.equal(stillCounts("When I was nineteen I used to cut myself. That is over and it has not come back.", "cut myself"), false);
+  // A real resolution still resolves a phrase that names nobody.
+  assert.equal(stillCounts("Years ago I felt suicidal. That is over and it has not come back.", "suicidal"), false);
+});
+
+test("🔴 RULING: a first-person phrase in the past still alerts, even said to be over", () => {
+  // The speaker's own past attempt or wish is what a clinician must see. Proposed ruling, for clinician review.
+  assert.equal(stillCounts("When I was nineteen I used to cut myself. That is over and it has not come back.", "cut myself"), true);
+  assert.ok(alerts("Two years ago I wanted to die. That is over and it has not come back."));
+});
+
+/* ------------------------------------------------- the AI review, 2026-10 -- */
+
+test("🔴 Review: past and 'over' words no longer hide a first-person disclosure", () => {
+  for (const text of [
+    "بقالي ايام عايزه اموت، حاسه ان حياتي انتهت",
+    "كنت بفكر اموت نفسي وانتهي من العذاب ده",
+    "كنت عايزة اموت امبارح وتجاوزت الخوف وهعملها",
+    "كنت عايز انتحر عشان ارتاح وانتهي",
+    "I used to enjoy things but I want to die and I no longer feel anything",
+    "When I was younger I tried to kill myself, and I used to hope, but it passed, I have no hope",
+    "من ايام وانا عايز اموت والموضوع خلص خلاص قررت",
+    "زمان كنت كويس بس عايز اموت والموضوع خلص",
+  ]) {
+    assert.ok(alerts(text), text);
+  }
+});
+
+test("🔴 Review: 'take my life' with again, in, over", () => {
+  for (const text of [
+    "I tried to take my life again",
+    "I tried to take my life again last night",
+    "I will take my life in an hour",
+    "I'm going to take my life in the morning",
+    "I will take my life over this",
+    "taking my life over the weekend",
+  ]) {
+    assert.ok(alerts(text), text);
+  }
+  for (const text of ["She took my life savings", "I took my life savings", "I want to take my life back"]) {
+    assert.deepEqual(scanForCrisisLanguage(text), [], text);
+  }
+});
+
+test("🔴 Review: Arabizi forms", () => {
+  for (const text of [
+    "ana hant7ar",
+    "ana hanta7ar",
+    "ana hant7er",
+    "3aiz ant7ar",
+    "ba fakar anta7ar",
+    "ba fakar ant7r",
+    "ba fakar ant7er",
+    "msh 3ayz a3ish",
+    "mesh 3ayz a3ish",
+    "msh 3ayez a3ish",
+    "mesh 3aiz a3ish",
+    "ana hamoot nafsy",
+    "ana ha2tl nafsy",
+    "ana h2tl nafsy",
+    "ana ha2tel nafsy",
+    "ana hashna2 nafsy",
+    "mesh 2adra akamel",
+    "3aiz amoot",
+    "3ayez a mot",
+  ]) {
+    assert.ok(alerts(text), text);
+  }
+  assert.deepEqual(scanForCrisisLanguage("hant7arak bokra"), []);
+});
+
+test("🔴 Review: the phrase classes the probe found missing", () => {
+  for (const text of [
+    "I don't want to be here anymore",
+    "I want to disappear forever",
+    "There's no point in living",
+    "I want it all to end",
+    "I want to end it",
+    "I'm done with life",
+    "I have pills saved up and I'm going to take them all",
+    "I want to jump off the roof",
+    "I'm going to jump in front of a train",
+    "Life isn't worth living",
+    "I have a rope ready",
+    "why would you care if I killed myself",
+    "أتمنى لو كنت ميتا",
+    "لم أعد أرغب في الحياة",
+    "الحياة لا تستحق",
+    "هرمي نفسي قدام المترو",
+    "نفسي اخلص من الدنيا",
+    "يا ريتني أموت",
+    "ياريتني اموت",
+    "نفسي أنام وما أصحاش",
+    "نفسي أنام ومصحاش تاني",
+    "خلاص مش قادرة",
+    "اخدت كل البرشام",
+    "بلعت علبة البرشام كلها",
+    "هاخد كل الحبوب",
+    "عايزة اقطع شرايني",
+    "هقطع عروقي",
+    "عايز أأذي نفسي",
+    "بجرح نفسي",
+    "انا عبء على الكل",
+  ]) {
+    assert.ok(alerts(text), text);
+  }
+});
+
+test("Review: 'live in / with' and the idioms stay quiet, the real ones do not", () => {
+  for (const text of [
+    "I don't want to live in Cairo anymore",
+    "I don't want to live with my parents",
+    "مش عايز اعيش مع اهلي",
+    "مش عايز اعيش في القاهره",
+    "she will kill me with kindness",
+    "dont kill me with the homework",
+  ]) {
+    assert.deepEqual(scanForCrisisLanguage(text), [], text);
+  }
+  for (const text of [
+    "I don't want to live in this world",
+    "I don't want to live with this pain",
+    "مش عايز اعيش في الدنيا دي",
+    "I want him to kill me with a knife",
+    "I begged him, please don't kill me",
+  ]) {
+    assert.ok(alerts(text), text);
+  }
 });
 
 test("🔴 the af5343f pattern: clitics in front, 'we will get moving' never", () => {
@@ -151,14 +275,39 @@ test("🔴 a therapist's question is not a disclosure", () => {
   assert.deepEqual(scanLiveChunk({ text: "Any thoughts of suicide this week?", speaker: "therapist" }), []);
   for (const text of [
     "Do you have thoughts of suicide?",
-    "do you have thoughts of suicide",
-    "Have you ever wanted to kill yourself or thought about suicide?",
+    "Do you have thoughts of killing yourself?",
     "هل عندك افكار انتحار؟",
-    "هل عندك أفكار انتحار",
+  ]) {
+    assert.deepEqual(scanLiveChunk({ text, speaker: "therapist" }), [], text);
+  }
+  // Unknown speaker: skipped only when the crisis words point at "you".
+  for (const text of [
+    "Have you ever wanted to kill yourself or thought about suicide?",
+    "Do you have thoughts of killing yourself?",
+    "بتفكر تنتحر؟",
   ]) {
     assert.ok(isQuestionToOther(text), text);
     assert.deepEqual(scanLiveChunk({ text, speaker: "unknown" }), [], text);
   }
+});
+
+test("🔴 Review: an unknown speaker's question with 'you' in it is still scanned", () => {
+  for (const text of [
+    "انت عارف اني عايز اموت؟",
+    "انت متخيل اني بفكر انتحر؟",
+    "Do you know what it's like to want to die every day?",
+    "Do you ever just want to die?",
+    // RULING: unlabelled, so it is scanned; a clinician's question costs a minute, a missed answer cannot be undone.
+    "Do you have thoughts of suicide?",
+  ]) {
+    assert.equal(isQuestionToOther(text), false, text);
+    assert.ok(scanLiveChunk({ text, speaker: "unknown" }).length > 0, text);
+  }
+});
+
+test("🔴 Review: the cross-chunk join is skipped when the stored previous segment is another speaker's", () => {
+  const theirs = { text: "Honestly most nights I just want to", speaker: "therapist" as const };
+  assert.deepEqual(scanLiveChunk({ text: "die and be done with it", speaker: "patient", previous: theirs }), []);
 });
 
 test("…but a question with the speaker in it, or a labelled patient, is scanned", () => {
@@ -194,7 +343,15 @@ test("…without raising the previous chunk's phrase again, or gluing two speake
  * Written down so the list can only shrink on purpose: a new miss fails here.
  */
 const KNOWN_MISSES = ["en-implicit-goodbye", "ar-no-meaning"];
-const KNOWN_FALSE_ALARMS = ["en-news-overdose", "en-film-overdose", "arz-film"];
+/* Review RULING: the three "resolved" cases are a first-person past, which now alerts on purpose. */
+const KNOWN_FALSE_ALARMS = [
+  "en-resolved-clearly",
+  "ar-resolved-clearly",
+  "en-news-overdose",
+  "en-film-overdose",
+  "ar-past-resolved",
+  "arz-film",
+];
 
 test("🔴 the eval's risk cases, gated in CI", () => {
   const missed = RISK_CASES.filter((c) => c.risk && !alerts(c.text)).map((c) => c.id);

@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Card, PageHeader } from "@/components/clinician/kit";
+import { MIN_REASON } from "@/lib/admin/reason";
+import { INVESTIGATION_WINDOW_MINUTES, crisisContactGrantHolds } from "@/lib/audit";
 import { requireUser } from "@/lib/auth/guard";
-import { alertForViewer } from "@/lib/crisis/alerts";
+import { alertForViewer, crisisContactForOnCall } from "@/lib/crisis/alerts";
 import { getI18n } from "@/lib/i18n/server";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { formatDateTime } from "@/lib/utils";
 
-import { acknowledgeAlert } from "./actions";
+import { acknowledgeAlert, revealCrisisContact } from "./actions";
 
 /** W3: the tab title in the reader's language. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -27,9 +29,19 @@ export const dynamic = "force-dynamic";
  * the way into the session (or, for a journal alert, the chart). One button
  * acknowledges it, which stops the escalation to a backup. Who may open and
  * press it is `mayAcknowledge` in `lib/crisis/escalation.ts`.
+ *
+ * Review: the one exception to "never the name" is break-glass, below, for
+ * the platform on-call on a journal alert no clinician can act on.
  */
-export default async function AlertPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AlertPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ grant?: string; short?: string }>;
+}) {
   const { id } = await params;
+  const { grant, short } = await searchParams;
   const { t, locale } = await getI18n();
   const actor = await requireUser();
   const alert = await alertForViewer(id, actor);
@@ -95,7 +107,90 @@ export default async function AlertPage({ params }: { params: Promise<{ id: stri
             </Link>
           ) : null}
         </Card>
+
+        {alert.breakGlass ? (
+          <BreakGlass riskId={alert.id} actor={actor} grant={grant} short={Boolean(short)} />
+        ) : null}
       </div>
     </div>
+  );
+}
+
+/**
+ * 🔴 Review: the platform on-call's way to the person behind a journal alert
+ * no clinician can act on. A reason first (audited, `revealCrisisContact`),
+ * then the name, phone, email and the words that raised it, and the
+ * emergency numbers. Proposed protocol in docs/DECISIONS.md, for clinician
+ * review.
+ */
+async function BreakGlass({
+  riskId,
+  actor,
+  grant,
+  short,
+}: {
+  riskId: string;
+  actor: Awaited<ReturnType<typeof requireUser>>;
+  grant: string | undefined;
+  short: boolean;
+}) {
+  const { t } = await getI18n();
+  const granted = await crisisContactGrantHolds({ grantId: grant, actorUserId: actor.userId, riskId });
+  const sos = (
+    <p className="text-sm text-navy-700">
+      {t("calert.bgSos")}{" "}
+      <Link href="/sos" className="font-semibold underline">
+        {t("calert.bgSosLink")}
+      </Link>
+    </p>
+  );
+
+  if (!granted) {
+    return (
+      <Card className="space-y-3 border-amber-200 bg-amber-50 p-5">
+        <p className="text-sm font-semibold text-amber-900">{t("calert.bgTitle")}</p>
+        <p className="text-sm text-amber-900">{t("calert.bgIntro")}</p>
+        {short ? (
+          <p role="alert" className="text-sm text-rose-700">
+            {t("aconfirm.tooShort")}
+          </p>
+        ) : grant ? (
+          <p className="text-sm text-amber-900">{t("calert.bgExpired", { minutes: INVESTIGATION_WINDOW_MINUTES })}</p>
+        ) : null}
+        <form action={revealCrisisContact.bind(null, riskId)} className="space-y-3">
+          <input
+            name="why"
+            required
+            minLength={MIN_REASON}
+            placeholder={t("aconfirm.why")}
+            aria-label={t("aconfirm.why")}
+            className="h-10 w-full rounded-lg border border-amber-200 bg-white px-3 text-sm"
+          />
+          <button type="submit" className="tap-target h-11 rounded-xl bg-navy-500 px-4 text-sm font-semibold text-white">
+            {t("calert.bgReveal")}
+          </button>
+        </form>
+        {sos}
+      </Card>
+    );
+  }
+
+  const contact = await crisisContactForOnCall(riskId, actor);
+  if (!contact) return null;
+  return (
+    <Card className="space-y-2 border-amber-200 bg-amber-50 p-5">
+      <p className="text-sm font-semibold text-amber-900">{t("calert.bgTitle")}</p>
+      <p className="text-sm text-navy-800">{t("calert.bgName", { name: contact.name })}</p>
+      {contact.phone ? <p className="text-sm text-navy-800">{t("calert.bgPhone", { phone: contact.phone })}</p> : null}
+      {contact.email ? <p className="text-sm text-navy-800">{t("calert.bgEmail", { email: contact.email })}</p> : null}
+      {!contact.phone && !contact.email ? <p className="text-sm text-navy-700">{t("calert.bgNoContact")}</p> : null}
+      <p className="pt-2 text-xs font-bold tracking-wider text-navy-500 uppercase">{t("calert.bgExcerpt")}</p>
+      {contact.excerpt ? (
+        <blockquote className="text-sm leading-relaxed whitespace-pre-line text-navy-800 italic">{contact.excerpt}</blockquote>
+      ) : (
+        <p className="text-sm text-navy-700">{t("calert.bgGone")}</p>
+      )}
+      {sos}
+    </Card>
   );
 }

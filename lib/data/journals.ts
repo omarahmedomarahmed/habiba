@@ -166,7 +166,8 @@ async function alertGrantHolders(
   indicators: string[],
 ): Promise<void> {
   const now = new Date();
-  const db = dbFor(await regionOfPerson(personId));
+  const region = await regionOfPerson(personId);
+  const db = dbFor(region);
 
   const holders = await db
     .selectDistinct({ userId: historyGrants.therapistUserId, organizationId: users.organizationId })
@@ -194,7 +195,8 @@ async function alertGrantHolders(
     .limit(1);
   const name = [person?.firstName, person?.lastName].filter(Boolean).join(" ");
   const journal = { journalId, personId, name };
-  const shared = { level: "high" as const, source: "keyword" as const, indicators };
+  /* Review: written in the person's region, where the journal and its foreign keys are. */
+  const shared = { level: "high" as const, source: "keyword" as const, indicators, region };
 
   /* Nobody holds a grant: the platform on-call, at once. */
   if (holders.length === 0) {
@@ -202,6 +204,7 @@ async function alertGrantHolders(
     return;
   }
 
+  let raised = 0;
   for (const holder of holders) {
     /* Their chart for this person, so the alert opens the record they read journals in. */
     const [chart] = await db
@@ -217,17 +220,23 @@ async function alertGrantHolders(
       .orderBy(desc(eq(patients.therapistId, holder.userId)))
       .limit(1);
     try {
-      await raiseCrisisAlert({
+      const outcome = await raiseCrisisAlert({
         ...shared,
         journal,
         therapistId: holder.userId,
         organizationId: holder.organizationId,
         patientId: chart?.id ?? null,
       });
+      if (outcome.riskId) raised += 1;
     } catch (error) {
       /* One clinician's alert failing does not stop the next one. */
       log.error("journal alert to one clinician failed", { journal: ref(journalId), reason: safeErrorMessage(error) });
     }
+  }
+
+  /* Review: not one clinician's alert was written, so the platform on-call is told instead. */
+  if (raised === 0) {
+    await raiseCrisisAlert({ ...shared, journal, therapistId: null, organizationId: null, patientId: null });
   }
 }
 

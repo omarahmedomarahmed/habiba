@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, lt, sql } from "drizzle-orm";
 
 import { raiseCrisisAlert } from "@/lib/crisis/alerts";
 import { scanLiveChunk } from "@/lib/crisis/live";
@@ -128,10 +128,30 @@ export async function appendTranscriptSegment(input: {
       if (result.length === 0) break;
       inserted = true;
       sequence = next;
-      before = previous ? { text: previous.text, speaker: speakerOf(previous.speaker) } : null;
     } catch (error) {
       if (!lostTheNumber(error)) throw error;
     }
+  }
+
+  /*
+   * 🔴 Review: the segment joined across the boundary is the last one from the
+   * SAME speaker. The last stored segment was used, so "I want to" from the
+   * patient, a therapist's "mm" in between, then "die" matched nothing.
+   */
+  if (inserted && sequence !== null) {
+    const [same] = await db
+      .select({ text: transcriptSegments.text, speaker: transcriptSegments.speaker })
+      .from(transcriptSegments)
+      .where(
+        and(
+          eq(transcriptSegments.sessionId, input.sessionId),
+          eq(transcriptSegments.speaker, input.speaker),
+          lt(transcriptSegments.sequence, sequence),
+        ),
+      )
+      .orderBy(desc(transcriptSegments.sequence))
+      .limit(1);
+    before = same ? { text: same.text, speaker: speakerOf(same.speaker) } : null;
   }
 
   /*

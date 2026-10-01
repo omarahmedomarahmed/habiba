@@ -256,17 +256,16 @@ test("…while a real pronoun still names somebody else", () => {
   assert.ok(scanForCrisisLanguage("Suicide was on my mind for years.").length > 0);
 });
 
-test("something said to be over does not alert", () => {
-  assert.deepEqual(
-    scanForCrisisLanguage(
-      "When I was nineteen I used to cut myself. That is over and it has not come back.",
-    ),
-    [],
+test("something that names nobody, said to be over, does not alert", () => {
+  assert.deepEqual(scanForCrisisLanguage("Years ago I felt suicidal. That is over and it has not come back."), []);
+});
+
+test("🔴 RULING (CR16): a first-person past still alerts, even said to be over", () => {
+  // The speaker's own past attempt or wish is for the clinician to read. For clinician review.
+  assert.ok(
+    scanForCrisisLanguage("When I was nineteen I used to cut myself. That is over and it has not come back.").length > 0,
   );
-  assert.deepEqual(
-    scanForCrisisLanguage("زمان كنت أجرح نفسي، لكن ذلك انتهى ولم أعد أفعله."),
-    [],
-  );
+  assert.ok(scanForCrisisLanguage("زمان كنت أجرح نفسي، لكن ذلك انتهى ولم أعد أفعله.").length > 0);
 });
 
 test("🔴 …but the present beats the past, ANYWHERE in the text", () => {
@@ -291,16 +290,16 @@ test("🔴 …but the present beats the past, ANYWHERE in the text", () => {
 test("a present marker is a whole word: \"now\" inside \"know\" is not the present", () => {
   // It was a substring test, so a resolved past alerted whenever the text had
   // "know", "snow" or "against" in it. The control proves the real word still wins.
-  const known = "You know, when I was nineteen I used to cut myself. That is over and it has not come back.";
+  const known = "You know, years ago I felt suicidal. That is over and it has not come back.";
   assert.deepEqual(scanForCrisisLanguage(known), [], known);
   assert.ok(
     scanForCrisisLanguage(
-      "When I was nineteen I used to cut myself. That is over, but I feel it again now.",
+      "You know, years ago I felt suicidal. That is over, but I feel it again now.",
     ).length > 0,
     "CONTROL: the whole word still beats the past",
   );
   assert.ok(
-    scanForCrisisLanguage("When I was nineteen I used to cut myself. That is over, nowadays it is worse.")
+    scanForCrisisLanguage("Years ago I felt suicidal. That is over, nowadays it is worse.")
       .length > 0,
     "a form the loose match used to catch is listed on its own",
   );

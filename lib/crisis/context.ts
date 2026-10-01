@@ -136,35 +136,51 @@ export const THIRD_PARTY = [
   "عمتي",
 ];
 
-/** A time that is over, said about the thing itself. */
+/**
+ * A time that is over, said about the thing itself.
+ *
+ * 🔴 Review: a real time phrase only. "كنت" (I was), "ايام" (days), "used to"
+ * and Arabizi "kont" / "kan" are tense, not time, and they hid live
+ * disclosures ("بقالي ايام عايزه اموت", "كنت بفكر اموت نفسي وانتهي").
+ */
 export const PAST = [
   "years ago",
   "year ago",
   "months ago",
   "back then",
   "at the time",
-  "used to",
   "when i was",
   "as a teenager",
+  "as a kid",
+  "as a child",
   "in my twenties",
-  "after the divorce i",
+  "in my teens",
   "قبل سنوات",
   "قبل سنين",
+  "من سنين",
+  "من سنوات",
   "قبل شهور",
+  "من شهور",
   "زمان",
   "في الماضي",
-  "كنت",
-  "ايام",
+  "في طفولتي",
+  "وانا صغير",
+  "وانا صغيره",
   /* Arabizi, for the same reason as the third-party list above. */
   "zaman",
   "men sneen",
   "mn sneen",
-  "kont",
-  "kan",
   "sanawat fatet",
 ];
 
-/** Said to have ended. The half of "past" that does the real work. */
+/**
+ * Said to have ended, naming the feeling. The half of "past" that does the
+ * real work.
+ *
+ * 🔴 Review: "انتهي" / "انتهت" (ended), "تجاوزت" (I got past), "it passed"
+ * and "no longer feel" also say "my life is over", "I got past the fear" and
+ * "I no longer feel anything". Each entry now names the feeling as over.
+ */
 export const RESOLVED = [
   "not since",
   "never since",
@@ -172,40 +188,47 @@ export const RESOLVED = [
   "haven t felt",
   "haven't felt",
   "havent felt",
-  /*
-   * 🔴 DD-2: bare "no longer" read "I used to cope but I no longer can, I want
-   * to die" as resolved. It now counts only with what stopped.
-   */
-  "no longer feel",
-  "no longer think",
+  "no longer feel that way",
+  "no longer feel like that",
+  "don't feel that way anymore",
+  "dont feel that way anymore",
+  "do not feel that way anymore",
+  "don't feel like that anymore",
+  "no longer think about it",
+  "no longer think that way",
   "no longer do that",
   "no longer have those",
   "that is over",
   "that was over",
-  "it passed",
+  "that's over",
+  "the feeling passed",
+  "that feeling passed",
+  "the thoughts passed",
+  "those thoughts passed",
   "long past",
   "nothing like that since",
   "anything like that since",
-  "انتهي",
-  "انتهت",
-  /*
-   * 🔴 DD-2: "خلصت" is also "I am finished", and bare "لم اعد" / "ما عاد" /
-   * "مابقاش" are also "I can no longer". Each now names what stopped.
-   */
+  "ذلك انتهي",
+  "ده انتهي",
+  "دا انتهي",
+  "الموضوع ده انتهي",
+  "الموضوع انتهي",
+  "الاحساس ده راح",
+  "الاحساس ده انتهي",
+  "الشعور ده انتهي",
   "ده خلص",
   "دا خلص",
   "الموضوع خلص",
-  "لم اعد افكر",
+  "لم اعد افكر في ذلك",
   "لم اعد افعل",
-  "لم اعد اشعر",
-  "ما عدت افكر",
+  "لم اعد اشعر بذلك",
+  "ما عدت افكر في ذلك",
   "ما عاد يجيني",
   "مابقاش يجيلي",
-  "مابقتش افكر",
-  "مبقتش افكر",
-  "مابقتش احس",
-  "مبقتش احس",
-  "تجاوزت",
+  "مابقتش افكر في كده",
+  "مبقتش افكر في كده",
+  "مابقتش احس بكده",
+  "مبقتش احس بكده",
 ];
 
 /**
@@ -293,9 +316,13 @@ export function sentences(text: string): string[] {
 
 /* ------------------------------------------------------------------ DD-2 -- */
 
-/** The speaker before the phrase: I, me, myself, Arabizi "ana", Arabic انا نفسي عندي حاسس. */
-const FIRST_PERSON_LATIN = /(?:^|[^a-z0-9])(?:i|i'm|im|i'd|i'll|me|myself|ana)(?:$|[^a-z0-9])/;
-const FIRST_PERSON_ARABIC = ["انا", "نفسي", "عندي", "حاسس", "حاسه"].map((word) => arabicWords(word));
+/**
+ * The speaker before the phrase: I, me, myself, Arabizi "ana" / "eny", Arabic
+ * انا اني انني نفسي عندي حاسس. Review: "اني" (that I) and Arabizi "eny" / "ani"
+ * were missing, so "انت عارف اني عايز اموت؟" read as a question to somebody else.
+ */
+const FIRST_PERSON_LATIN = /(?:^|[^a-z0-9])(?:i|i'm|im|i'd|i'll|me|myself|ana|eny|enny|ani|inni)(?:$|[^a-z0-9])/;
+const FIRST_PERSON_ARABIC = ["انا", "اني", "انني", "نفسي", "عندي", "حاسس", "حاسه"].map((word) => arabicWords(word));
 
 export function firstPersonIn(text: string): boolean {
   const folded = fold(text);
@@ -350,6 +377,22 @@ export function lastClause(before: string): string {
   return parts[parts.length - 1] ?? "";
 }
 
+/**
+ * A real past time phrase in the phrase's own clause, before it. "زمان كنت
+ * كويس بس عايز اموت" puts "زمان" on being fine, not on the wish.
+ */
+export function pastGoverns(folded: string, at: number): boolean {
+  if (at < 0) return false;
+  const clause = lastClause(folded.slice(0, at));
+  return PAST.some((marker) => containsWords(clause, marker));
+}
+
+/** Past in the phrase's clause, and the feeling named as over after it. */
+function pastAndResolved(folded: string, at: number): boolean {
+  if (!pastGoverns(folded, at)) return false;
+  return RESOLVED.some((marker) => containsWords(folded.slice(at), marker));
+}
+
 export type Suppression = { suppressed: boolean; because: "third_party" | "resolved" | null };
 
 /**
@@ -371,17 +414,15 @@ export function suppressedIn(sentence: string, phrase: string): Suppression {
   }
 
   /*
-   * 🔴 Past AND resolved, together. A past tense alone is not enough: "I tried
-   * to kill myself last year" is past, unresolved, and exactly the sentence a
-   * clinician must see. Only an explicit statement that it ended suppresses.
+   * 🔴 Review: past AND resolved suppresses only a phrase that names nobody
+   * ("suicidal", "self-harm"). A first-person phrase ("I wanted to die", "I
+   * tried to kill myself", "اجرح نفسي") is the speaker's own history, and a
+   * past attempt or wish is exactly what a clinician must see. Proposed
+   * ruling, for clinician review.
    */
-  /*
-   * 🔴 DD-2: the ending must come AFTER the phrase. "I used to cope but that is
-   * over, I want to die" ends something else, then discloses.
-   */
-  const past = PAST.some((marker) => containsWords(sentence, marker));
-  const resolved = RESOLVED.some((marker) => containsWords(folded.slice(at), marker));
-  if (past && resolved) return { suppressed: true, because: "resolved" };
+  if (!firstPersonPhrase(phrase) && pastAndResolved(folded, at)) {
+    return { suppressed: true, because: "resolved" };
+  }
 
   /*
    * 🔴 DD-2: a phrase said in the first person ("اموت", "kill myself", "my
@@ -458,8 +499,10 @@ export function stillCounts(text: string, phrase: string): boolean {
        * ago I felt suicidal. I feel that way again now." must alert, and the
        * cost of getting that wrong is the only cost that cannot be undone.
        */
-      const past = PAST.some((marker) => containsWords(part, marker));
-      if (!past) return true;
+      /* Review: only a phrase that names nobody, as in `suppressedIn`. */
+      if (firstPersonPhrase(phrase)) return true;
+      const folded = fold(part);
+      if (!pastGoverns(folded, folded.indexOf(fold(phrase)))) return true;
 
       const after = parts.slice(index + 1);
       if (after.some((later) => presentIn(later))) return true;

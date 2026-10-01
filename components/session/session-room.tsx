@@ -164,6 +164,8 @@ export function SessionRoom(props: RoomProps) {
   const [crisis, setCrisis] = useState(false);
   /* 🔴 Due diligence: set from the page, or by the first chunk refused because the patient paused AI mid-session. */
   const [liveRiskOff, setLiveRiskOff] = useState(props.liveRiskOff);
+  /* Review: a chunk refused because nobody confirmed 18 or over is not scanned either. */
+  const [adultRefused, setAdultRefused] = useState(false);
   /* 🔴 F2: the alert the last crisis flag raised, so the banner can acknowledge it. */
   const [alertId, setAlertId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -236,9 +238,11 @@ export function SessionRoom(props: RoomProps) {
           if (response.status === 409) {
             const refused = (await response.json().catch(() => null)) as { error?: string } | null;
             if (refused?.error === "ai_paused") setLiveRiskOff(true);
+            if (refused?.error === "adult_unconfirmed") setAdultRefused(true);
           }
           return;
         }
+        setAdultRefused(false);
 
         const data = (await response.json()) as {
           text?: string;
@@ -554,7 +558,10 @@ export function SessionRoom(props: RoomProps) {
     }
     startTransition(async () => {
       const result = await confirmAdult(props.sessionId);
-      if (result.ok) setAdult("confirmed");
+      if (result.ok) {
+        setAdult("confirmed");
+        setAdultRefused(false);
+      }
     });
   };
 
@@ -729,7 +736,7 @@ export function SessionRoom(props: RoomProps) {
         patient's decision rather than a bug, or they will simply "fix" it.
       */}
       {/* 🔴 Due diligence: risk detection off is said where it cannot be missed, with the reason being the patient's choice. */}
-      {liveRiskOff ? (
+      {liveRiskOff || adultRefused ? (
         <p
           role="status"
           data-live-risk-off
@@ -738,7 +745,7 @@ export function SessionRoom(props: RoomProps) {
           <MicOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden />
           <span>
             <strong className="font-semibold">{t("troom.liveRiskOff", { name: props.patientLabel })}</strong>{" "}
-            {t("troom.liveRiskOffBody")}
+            {liveRiskOff ? t("troom.liveRiskOffBody") : t("troom.liveRiskOffAdultBody")}
           </span>
         </p>
       ) : null}

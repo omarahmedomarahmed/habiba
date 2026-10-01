@@ -1145,7 +1145,7 @@ export const FLOOR_CASES: RiskCase[] = [
   { id: "dd2-diet", language: "en", text: "I wanna diet before the wedding", risk: false, note: "word edge" },
   { id: "dd2-life-back", language: "en", text: "I want to take my life back from this anxiety", risk: false, note: "reclaiming, not ending" },
   { id: "dd2-moving", language: "ar", text: "هنتحرك بكرة الصبح", risk: false, note: "'we will get moving' must not read as 'I will kill myself'" },
-  { id: "dd2-past-over", language: "en", text: "Two years ago I wanted to die. That is over and it has not come back.", risk: false, note: "past and explicitly ended, nothing present" },
+  { id: "dd2-past-over", language: "en", text: "Two years ago I wanted to die. That is over and it has not come back.", risk: true, note: "RULING (review): a first-person past wish alerts even when said to be over; for clinician review" },
 ];
 
 /* ------------------------------------------------------------ the speech -- */

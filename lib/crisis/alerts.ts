@@ -18,9 +18,9 @@ import { contains, containsArabizi, fold } from "@/lib/crisis/fold";
 
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 
-import { dbFor} from "@/lib/db";
-import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { clinicManagers, notifications, organizations, riskAssessments, sessions, users } from "@/lib/db/schema";
+import { acrossRegions, dbFor } from "@/lib/db";
+import { pinnedToDefaultRegion, type Region } from "@/lib/db/region";
+import { clinicManagers, journals, notifications, organizations, patientAccounts, people, riskAssessments, sessions, users } from "@/lib/db/schema";
 import type { RiskLevel } from "@/lib/db/schema";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 
@@ -33,6 +33,15 @@ import { log, ref, safeErrorMessage } from "@/lib/logger";
  * is the "seam by convention" this sprint exists to prevent.
  */
 const db = dbFor(pinnedToDefaultRegion("lib/crisis/alerts.ts", "not routed yet: this call site has no entity in hand, so 30.x threads one"));
+
+/**
+ * 🔴 Review: the database an alert row lives in. A journal alert is written
+ * where the journal and the person are (their region), because its foreign
+ * keys point there; a session alert stays where it always was. Users,
+ * notifications and practices are read from `db` as before, never joined
+ * across the two, so the code is right on the day the two differ.
+ */
+type Db = ReturnType<typeof dbFor>;
 
 
 /**
@@ -133,6 +142,41 @@ const CRISIS_PHRASES = [
   "cut my wrists",
   "jump off a bridge",
   "ending it all",
+  /*
+   * 🔴 Review: the phrase classes a probe of 121 sentences found missing.
+   * Each is a concept (not being here, no point, an end, a plan or means), and
+   * where a bare form is everyday speech the collocation is listed instead:
+   * "disappear forever", not "disappear".
+   */
+  "killed myself",
+  "want to be here anymore",
+  "want to be here any more",
+  "want to be around anymore",
+  "want to exist anymore",
+  "disappear forever",
+  "disappear for good",
+  "no point in living",
+  "no point living",
+  "no point to living",
+  "no point in life",
+  "no point in going on",
+  "want it all to end",
+  "want everything to end",
+  "done with life",
+  "done with living",
+  "tired of living",
+  "sick of living",
+  "isn't worth living",
+  "isnt worth living",
+  "pills saved up",
+  "saved up pills",
+  "saving up pills",
+  "stockpiling pills",
+  "take all the pills",
+  "take all of my pills",
+  "took all the pills",
+  "rope ready",
+  "noose",
   /*
    * 🔴 32.x — perceived burdensomeness, which the list did not carry in EITHER
    * language until Arabic cases exposed the gap.
@@ -295,6 +339,49 @@ const CRISIS_PHRASES = [
   "لا يوجد سبب للعيش",
   "لا شيء اعيش من اجله",
   "مفيش حاجه اعيش عشانها",
+
+  /*
+   * 🔴 Review: Egyptian and MSA forms the probe found missing. Stored folded
+   * (أ إ آ to ا, ة to ه, ى to ي), and written as the shortest piece that is
+   * still the concept, so the prefixes (ا ه ح ب, "I", "will", "-ing") and the
+   * feminine endings all match: "رمي نفسي من" is ارمي, هرمي and برمي.
+   */
+  "رمي نفسي من",
+  "رمي نفسي قدام",
+  "رمي نفسي تحت",
+  "اخلص من الدنيا",
+  "اخلص من نفسي",
+  "اخلص من عمري",
+  "ياريتني اموت",
+  "يا ريتني اموت",
+  "ياريت اموت",
+  "يا ريت اموت",
+  "ياريتني كنت ميت",
+  "يا ريتني كنت ميت",
+  "اتمني لو كنت ميت",
+  "اتمني لو مت",
+  "لم اعد ارغب في الحياه",
+  "لا ارغب في الحياه",
+  "لم اعد اريد العيش",
+  "لا اريد العيش",
+  "لم اعد اريد ان اعيش",
+  "الحياه لا تستحق",
+  "الحياه مش مستاهله",
+  "الحياه ماتستاهلش",
+  "مش قادر اعيش",
+  "مش قادره اعيش",
+  "قطع شرايني",
+  "قطع شرايين",
+  "قطع عروقي",
+  "اذي نفسي",
+  "ءذي نفسي",
+  "جرح نفسي",
+  "عبء علي الكل",
+  "عبء علي الجميع",
+  "عبء علي كل الناس",
+  "جرعه زياده",
+  "جرعه زايده",
+  "جرعه مفرطه",
 ] as const;
 
 /**
@@ -365,15 +452,11 @@ const ARABIZI_PHRASES = [
   "yarab amoot",
   "el mot ar7am",
 
-  /* end my life, kill myself */
-  "an7ar",
-  "hant7er",
-  /* 🔴 F5: the same "I will kill myself" with the vowels written out. */
-  "hantehar",
-  "hante7ar",
-  /* DD-2: the same with the vowel dropped, "I will kill myself" Egyptian style, and hanging. */
-  "hant7r",
-  "hantehr",
+  /*
+   * end my life, kill myself. Review: the "kill myself" verb is in
+   * `ARABIZI_VERB` below, matched up to a word end. "an7ar" is gone: it is
+   * inside "an7araf" (swerved).
+   */
   "hamawet nafsy",
   "hmawet nafsy",
   "amawet nafsy",
@@ -382,18 +465,21 @@ const ARABIZI_PHRASES = [
   "ha2tel nafsy",
   "a2tel nafsy",
   "ba2tel nafsy",
+  "ha2tl nafsy",
+  "h2tl nafsy",
+  "h2tel nafsy",
+  "a2tl nafsy",
+  "hamoot nafsy",
+  "hamut nafsy",
+  "hashna2 nafsy",
+  "ashna2 nafsy",
+  "a5ls 3ala nafsy",
+  "a5las 3ala nafsy",
   "anhy 7ayaty",
   "anhi 7ayati",
   "akhls 3ala nafsy",
 
-  /* do not want to live */
-  "mesh 3ayez a3eesh",
-  "msh 3ayez a3eesh",
-  "mesh 3ayz a3eesh",
-  "msh 3ayz a3eesh",
-  "mesh 3ayza a3eesh",
-  "msh 3ayza a3eesh",
-  "mesh 3ayez a3ish",
+  /* do not want to live: see `ARABIZI_COMBINED` below for every spelling. */
 
   /* cannot carry on */
   "mesh 2ader akmel",
@@ -401,6 +487,10 @@ const ARABIZI_PHRASES = [
   "mesh 2adra akmel",
   "msh 2adra akmel",
   "mesh 2ader astamer",
+  "mesh 2adra akamel",
+  "msh 2adra akamel",
+  "mesh 2ader akamel",
+  "msh 2ader akamel",
   "ta3abt men el 7ayah",
   "te3ebt men el 7ayah",
   "ta3abt mn el 7aya",
@@ -421,7 +511,31 @@ const ARABIZI_PHRASES = [
   "a2za nafsy",
   "gar7t nafsy",
   "bagra7 nafsy",
+  "a2zy nafsy",
+  "azy nafsy",
 ] as const;
+
+/*
+ * 🔴 Review: the spellings, generated rather than typed one by one. Arabizi
+ * has no standard spelling, and a list that has "3ayez amoot" but not "3aiz
+ * amoot" misses the person who types it the other way.
+ */
+const ARABIZI_WANT = ["3ayez", "3ayz", "3aiz", "3ayza", "3ayzah", "3awez", "3awz", "3awza", "nefsy", "nfsy", "nifsy"];
+const ARABIZI_DIE = ["amoot", "amut", "a mot", "a moot"];
+const ARABIZI_NOT = ["mesh", "msh", "mish"];
+const ARABIZI_LIVE = ["a3eesh", "a3ish", "a3esh"];
+const ARABIZI_COMBINED: readonly string[] = [
+  ...ARABIZI_WANT.flatMap((want) => ARABIZI_DIE.map((die) => `${want} ${die}`)),
+  ...ARABIZI_NOT.flatMap((not) => ARABIZI_WANT.slice(0, 8).flatMap((want) => ARABIZI_LIVE.map((live) => `${not} ${want} ${live}`))),
+];
+
+/**
+ * 🔴 Review: "I will kill myself" / "kill myself" as one Arabizi verb, matched
+ * up to a word end. As a plain substring "hant7ar" is inside "hant7arak" (we
+ * will get you moving), the same trap "هنتحرك" is in Arabic script. The start
+ * is left open so "hant7ar", "7ant7ar" and "wana ant7ar" all match.
+ */
+const ARABIZI_VERB = ["ant7ar", "anta7ar", "ant7r", "ant7er", "anta7er", "antehar", "antehr", "anteher", "ante7ar"];
 
 
 /** Ten minutes. Re-alerting on every mention turns the alert into noise. */
@@ -446,7 +560,7 @@ const DEDUP_WINDOW_MS = 10 * 60 * 1000;
  */
 export function scanForCrisisLanguage(text: string): string[] {
   const script = CRISIS_PHRASES.filter(
-    (phrase) => contains(text, phrase) && stillCounts(text, phrase),
+    (phrase) => contains(text, phrase) && notOnlyIdiom(text, phrase) && stillCounts(text, phrase),
   );
 
   /*
@@ -462,15 +576,64 @@ export function scanForCrisisLanguage(text: string): string[] {
    * specific, and skipping it here would make Arabizi the one register where a
    * quoted lyric pages a clinician at 3am.
    */
-  const arabizi = ARABIZI_PHRASES.filter(
+  const arabizi = [...ARABIZI_PHRASES, ...ARABIZI_COMBINED].filter(
     (phrase) => containsArabizi(text, phrase) && stillCounts(text, phrase),
+  );
+  const verb = ARABIZI_VERB.filter(
+    (phrase) => containsArabizi(text, phrase, { wordEnd: true }) && stillCounts(text, phrase),
   );
 
   const patterns = CRISIS_PATTERNS.filter(
     (pattern) => pattern.re.test(fold(text)) && stillCounts(text, pattern.label),
   ).map((pattern) => pattern.label);
 
-  return [...script, ...arabizi, ...patterns];
+  return [...new Set([...script, ...arabizi, ...verb, ...patterns])];
+}
+
+/**
+ * 🔴 Review: what may follow a phrase and make it something else. Checked per
+ * occurrence, so one idiom does not hide a second, real mention. Narrow on
+ * purpose: "I don't want to live in this world" and "kill me with a knife"
+ * still alert.
+ */
+const LAUGHTER = /^\s*(?:من\s+الضحك|من\s+الكسوف|of\s+laughter|laughing|of\s+embarrassment|from\s+embarrassment)/u;
+const IDIOM_AFTER: { phrases: string[]; after: RegExp; before?: RegExp }[] = [
+  {
+    phrases: ["want to die", "wanted to die", "عايز اموت", "عايزه اموت", "عاوز اموت", "عاوزه اموت", "نفسي اموت"],
+    after: LAUGHTER,
+  },
+  {
+    phrases: ["don't want to live", "dont want to live", "do not want to live", "no longer want to live"],
+    after:
+      /^\s+(?:(?:in|at|near)\s+(?!(?:this|the)\s+(?:world|pain|misery|body|life|agony|hell)|pain|misery|agony|fear|hell)|with\s+(?!(?:this|the|myself|that|it)(?![a-z]))|there(?![a-z])|here\s+with(?![a-z]))/,
+  },
+  {
+    phrases: ["مش عايز اعيش", "مش عايزه اعيش", "مش عاوز اعيش", "مش عاوزه اعيش", "مبقتش عايز اعيش", "مبقتش عايزه اعيش", "مابقتش عايز اعيش"],
+    after:
+      /^\s+(?:مع\s+(?!نفسي|الوجع|الالم|العذاب)|في\s+(?!الدنيا|العالم|الحياه|الوجع|الالم|العذاب|الدنيا))/u,
+  },
+  /* Only the idioms: "kill me with a knife" is not one. */
+  {
+    phrases: ["kill me"],
+    after: /^\s+(?:with\s+(?:kindness|laughter|your\s+jokes)(?![a-z])|laughing(?![a-z]))/,
+    /* "don't kill me with the homework": a plea, then "with". "don't kill me" alone still alerts. */
+    before: /(?:^|[^a-z])(?:don'?t|do not)\s+$/,
+  },
+  { phrases: ["kill him", "kill her", "kill them"], after: /^\s+with\s+kindness/ },
+];
+
+function notOnlyIdiom(text: string, phrase: string): boolean {
+  const rule = IDIOM_AFTER.find((entry) => entry.phrases.includes(phrase));
+  if (!rule) return true;
+  const haystack = fold(text);
+  const needle = fold(phrase);
+  for (let at = haystack.indexOf(needle); at >= 0; at = haystack.indexOf(needle, at + 1)) {
+    const rest = haystack.slice(at + needle.length);
+    const idiom =
+      rule.after.test(rest) || (Boolean(rule.before?.test(haystack.slice(0, at))) && /^\s+with(?![a-z])/.test(rest));
+    if (!idiom) return true;
+  }
+  return false;
 }
 
 /**
@@ -496,10 +659,46 @@ export const CRISIS_PATTERNS: { label: string; re: RegExp }[] = [
   },
   /* DD-2: "I wanna die", never "I wanna diet". */
   { label: "wanna die", re: /(?<![a-z])wanna die(?![a-z])/ },
-  /* DD-2: "take my (own) life", never "take my life back". */
+  /*
+   * DD-2: "take my (own) life", never "take my life back". Review: "again",
+   * "over this", "in an hour" were excluded too, so "I tried to take my life
+   * again" raised nothing. Only the safe exclusions remain, each a whole word.
+   */
   {
     label: "take my life",
-    re: /(?<![a-z])(?:take|taking|took) my (?:own )?life(?![a-z])(?!\s+(?:back|in|into|forward|seriously|over|again))/,
+    re: /(?<![a-z])(?:take|taking|took|taken) my (?:own )?life(?![a-z'])(?!\s+(?:back|into my own hands|in my own hands|savings|insurance)(?![a-z]))/,
+  },
+  /* Review: "I want to end it", never "end it with him". */
+  {
+    label: "end it",
+    re: /(?<![a-z])(?:want|wanna|going|gonna|plan|planning) to end it(?![a-z])(?!\s+(?:with|between)(?![a-z]))|(?<![a-z])(?:gonna|wanna) end it(?![a-z])(?!\s+(?:with|between)(?![a-z]))/,
+  },
+  /* Review: a fall, a train: a method named. */
+  {
+    label: "jump off",
+    re: /(?<![a-z])jump(?:ing)? (?:off|from) (?:the |a |my |our |this )?(?:roof|building|balcony|bridge|cliff|tower|window)(?![a-z])/,
+  },
+  {
+    label: "in front of a train",
+    re: /(?<![a-z])(?:jump|jumping|throw myself|step|stepping|walk|lie down) in front of (?:a|the) (?:train|car|bus|truck|lorry|metro|subway|tram)(?![a-z])/,
+  },
+  /*
+   * Review: Egyptian forms that need more than a substring. "Sleep and not
+   * wake up" (نفسي انام وما اصحاش, ومصحاش), "I am done, I cannot" said as the
+   * whole sentence (خلاص مش قادره), and an overdose: "all the pills", never
+   * "I took my pill".
+   */
+  {
+    label: "انام وما اصحاش",
+    re: /انام\s+و\s*ما?\s*ا?صحا?ش|انام\s+ولا\s+(?:اصحو|استيقظ)/u,
+  },
+  {
+    label: "خلاص مش قادر",
+    re: /خلاص\s+(?:مش|مبقتش|مابقتش)\s+قادر[ه]?(?=\s*(?:$|[.!؟?،,]|(?:خلاص|تعبت|بجد|استحمل)))/u,
+  },
+  {
+    label: "كل البرشام",
+    re: /(?:خدت|خت|بلعت|شربت|هاخد|حاخد|هخد|هبلع|حبلع|ابلع|اخد)\s+(?:كل\s+(?:ال)?(?:برشام|حبوب|اقراص|دوا)|(?:علبه|علب|شريط|شرايط)\s+(?:ال)?(?:برشام|حبوب|اقراص|دوا))/u,
   },
 ];
 
@@ -561,6 +760,8 @@ async function wakeTheTickAt(dueAt: Date): Promise<void> {
 export async function raiseCrisisAlert(opts: {
   sessionId?: string | null;
   journal?: { journalId: string; personId: string; name?: string | null } | null;
+  /** Review: the person's region, for a journal alert. Absent: the default database. */
+  region?: Region | null;
   organizationId: string | null;
   therapistId: string | null;
   patientId: string | null;
@@ -572,16 +773,17 @@ export async function raiseCrisisAlert(opts: {
   const sessionId = opts.sessionId ?? null;
   const journal = opts.journal ?? null;
   if (!sessionId && !journal) return { riskId: null, action: "failed", clinicianNotified: false };
+  const rdb: Db = opts.region ? dbFor(opts.region) : db;
 
   /* The same subject: this session, or this person's journals for this clinician (or for nobody). */
   const subject = sessionId
     ? eq(riskAssessments.sessionId, sessionId)
     : and(
         eq(riskAssessments.personId, journal!.personId),
-        isNotNull(riskAssessments.journalId),
+        isNotNull(riskAssessments.journalRef),
         opts.therapistId ? eq(riskAssessments.therapistId, opts.therapistId) : isNull(riskAssessments.therapistId),
       );
-  const [recent] = await db
+  const [recent] = await rdb
     .select({ id: riskAssessments.id, level: riskAssessments.level, alertStatus: riskAssessments.alertStatus })
     .from(riskAssessments)
     .where(and(subject, gt(riskAssessments.createdAt, new Date(Date.now() - DEDUP_WINDOW_MS))))
@@ -604,12 +806,14 @@ export async function raiseCrisisAlert(opts: {
   const escalateAt = escalateAtFor(now, minutes);
   const subjectColumns = {
     journalId: journal?.journalId ?? null,
+    /* 0194: kept when the journal is deleted, so the alert's history stays whole. */
+    journalRef: journal?.journalId ?? null,
     personId: journal?.personId ?? null,
   };
 
   let riskId: string | undefined;
   if (decision === "upgrade" && recent) {
-    const upgraded = await db
+    const upgraded = await rdb
       .update(riskAssessments)
       .set({
         level: opts.level,
@@ -623,13 +827,13 @@ export async function raiseCrisisAlert(opts: {
         escalationStage: noClinician ? FINAL_STAGE : 0,
         outOfBandAt: null,
         outOfBandAttempts: 0,
-        ...(journal ? { journalId: journal.journalId } : {}),
+        ...(journal ? { journalId: journal.journalId, journalRef: journal.journalId } : {}),
       })
       .where(eq(riskAssessments.id, recent.id))
       .returning({ id: riskAssessments.id });
     riskId = upgraded[0]?.id;
   } else {
-    const inserted = await db
+    const inserted = await rdb
       .insert(riskAssessments)
       .values({
         sessionId,
@@ -653,7 +857,7 @@ export async function raiseCrisisAlert(opts: {
   if (!riskId) return { riskId: null, action: "failed", clinicianNotified: false };
 
   if (noClinician) {
-    await tellPlatformNow(riskId, now);
+    await tellPlatformNow(riskId, now, rdb);
     log.warn("crisis alert raised with no clinician; platform on-call told", {
       level: opts.level,
       source: opts.source,
@@ -680,7 +884,7 @@ export async function raiseCrisisAlert(opts: {
     });
     clinicianNotified = true;
 
-    await db
+    await rdb
       .update(riskAssessments)
       .set({ alertStatus: "delivered" })
       .where(eq(riskAssessments.id, riskId));
@@ -692,7 +896,7 @@ export async function raiseCrisisAlert(opts: {
   }
 
   /* 🔴 F2: out of band, now. A send that did not leave is retried by the tick. */
-  const sent = await sendOutOfBand(riskId, minutes);
+  const sent = await sendOutOfBand(riskId, minutes, rdb);
   await wakeTheTickAt(sent ? escalateAt : now);
 
   // Logged without the matched phrases — those are the patient's words.
@@ -734,11 +938,11 @@ async function recordCrisisFailure(what: string, riskId: string): Promise<void> 
  * stage, so nothing escalates it further; if nobody could be reached, the
  * failure is recorded for `/admin/errors`.
  */
-async function tellPlatformNow(riskId: string, now: Date): Promise<void> {
+async function tellPlatformNow(riskId: string, now: Date, rdb: Db): Promise<void> {
   try {
     const backups = await platformOnCall();
     const ids = backups.map((b) => b.userId).filter((id): id is string => Boolean(id));
-    await db
+    await rdb
       .update(riskAssessments)
       .set({ escalatedAt: now, escalatedTo: [...new Set(ids)] })
       .where(eq(riskAssessments.id, riskId));
@@ -755,7 +959,7 @@ async function tellPlatformNow(riskId: string, now: Date): Promise<void> {
       }
     }
     if (inApp > 0) {
-      await db.update(riskAssessments).set({ alertStatus: "delivered" }).where(eq(riskAssessments.id, riskId));
+      await rdb.update(riskAssessments).set({ alertStatus: "delivered" }).where(eq(riskAssessments.id, riskId));
     }
     if (sent === 0) await recordCrisisFailure("no clinician, and no email reached the platform on-call", riskId);
     log.warn("crisis alert sent to the platform on-call", { backups: backups.length, inApp, sent });
@@ -778,23 +982,26 @@ async function tellPlatformNow(riskId: string, now: Date): Promise<void> {
  * Records the attempt either way, and when it left. When the last attempt
  * fails, the alert goes to the next stage now (`afterFailedSend`). Never throws.
  */
-async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> {
+async function sendOutOfBand(riskId: string, minutes: number, rdb: Db): Promise<boolean> {
   try {
-    const [row] = await db
+    const [alert] = await rdb
       .select({
         therapistId: riskAssessments.therapistId,
         organizationId: riskAssessments.organizationId,
-        journalId: riskAssessments.journalId,
+        journalRef: riskAssessments.journalRef,
         attempts: riskAssessments.outOfBandAttempts,
-        email: users.email,
-        profile: users.profile,
-        timezone: users.timezone,
       })
       .from(riskAssessments)
-      .innerJoin(users, eq(users.id, riskAssessments.therapistId))
       .where(eq(riskAssessments.id, riskId))
       .limit(1);
-    if (!row || !row.therapistId) return false;
+    if (!alert || !alert.therapistId) return false;
+    const [clinician] = await db
+      .select({ email: users.email, profile: users.profile, timezone: users.timezone })
+      .from(users)
+      .where(eq(users.id, alert.therapistId))
+      .limit(1);
+    if (!clinician) return false;
+    const row = { ...alert, therapistId: alert.therapistId, ...clinician };
 
     /*
      * Claim this attempt before sending. The hourly crisis job and the minute
@@ -802,7 +1009,7 @@ async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> 
      * moves the attempt count first sends, the other sees zero rows and stops,
      * so a clinician is never emailed twice and the attempt budget is spent once.
      */
-    const claimed = await db
+    const claimed = await rdb
       .update(riskAssessments)
       .set({ outOfBandAttempts: row.attempts + 1 })
       .where(
@@ -832,32 +1039,32 @@ async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> 
       {
         kind: "crisis.alert",
         subject: t("calert.subject"),
-        body: t(row.journalId ? "calert.bodyJournal" : "calert.body", { minutes: String(minutes) }),
+        body: t(row.journalRef ? "calert.bodyJournal" : "calert.body", { minutes: String(minutes) }),
         link: { label: t("calert.ack"), url: `${env.appUrl}${alertPath(riskId)}` },
         variables: [],
       },
     );
 
-    await db
+    await rdb
       .update(riskAssessments)
       .set({
         outOfBandAt: delivery.sent ? new Date() : null,
         outOfBandChannels: delivery.channels,
       })
       .where(eq(riskAssessments.id, riskId));
-    if (!delivery.sent) await afterFailedSend(riskId);
+    if (!delivery.sent) await afterFailedSend(riskId, rdb);
     return delivery.sent;
   } catch (error) {
     log.error("crisis alert out-of-band send failed", { reason: safeErrorMessage(error) });
     try {
-      await db
+      await rdb
         .update(riskAssessments)
         .set({ outOfBandAttempts: sql`${riskAssessments.outOfBandAttempts} + 1` })
         .where(eq(riskAssessments.id, riskId));
     } catch {
       /* The escalation deadline still stands; that is the backstop. */
     }
-    await afterFailedSend(riskId);
+    await afterFailedSend(riskId, rdb);
     return false;
   }
 }
@@ -870,9 +1077,9 @@ async function sendOutOfBand(riskId: string, minutes: number): Promise<boolean> 
  * two callers record it once), the failure is recorded for `/admin/errors`,
  * and the tick is woken to escalate it. Never throws.
  */
-async function afterFailedSend(riskId: string, now: Date = new Date()): Promise<boolean> {
+async function afterFailedSend(riskId: string, rdb: Db, now: Date = new Date()): Promise<boolean> {
   try {
-    const [row] = await db
+    const [row] = await rdb
       .select({
         acknowledgedAt: riskAssessments.acknowledgedAt,
         escalationStage: riskAssessments.escalationStage,
@@ -887,7 +1094,7 @@ async function afterFailedSend(riskId: string, now: Date = new Date()): Promise<
     const pulled = escalateNowIfExhausted(row, now);
     if (!pulled) return false;
 
-    const moved = await db
+    const moved = await rdb
       .update(riskAssessments)
       .set({ escalateAt: pulled })
       .where(
@@ -1061,11 +1268,20 @@ async function tellBackup(
  */
 export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ escalated: number; retried: number }> {
   const minutes = await escalationMinutesNow();
+  /* Review: every region's alerts, one database at a time (a journal alert lives in the person's). */
+  const counts = await acrossRegions(async (rdb) => [await escalateIn(rdb, now, minutes)]);
+  return counts.reduce((sum, c) => ({ escalated: sum.escalated + c.escalated, retried: sum.retried + c.retried }), {
+    escalated: 0,
+    retried: 0,
+  });
+}
+
+async function escalateIn(rdb: Db, now: Date, minutes: number): Promise<{ escalated: number; retried: number }> {
   let escalated = 0;
   let retried = 0;
 
   /* Sends that are spent and still waiting on a later deadline: escalate now. */
-  const spent = await db
+  const spent = await rdb
     .select({ id: riskAssessments.id })
     .from(riskAssessments)
     .where(
@@ -1073,15 +1289,16 @@ export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ es
         isNull(riskAssessments.acknowledgedAt),
         isNull(riskAssessments.outOfBandAt),
         gte(riskAssessments.outOfBandAttempts, MAX_OUT_OF_BAND_ATTEMPTS),
-        lt(riskAssessments.escalationStage, FINAL_STAGE),
+        /* Review: still with the clinician. A clinic stage keeps its own deadline. */
+        eq(riskAssessments.escalationStage, 0),
         or(isNull(riskAssessments.escalateAt), gt(riskAssessments.escalateAt, now)),
         gt(riskAssessments.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000)),
       ),
     )
     .limit(50);
-  for (const row of spent) await afterFailedSend(row.id, now);
+  for (const row of spent) await afterFailedSend(row.id, rdb, now);
 
-  const due = await db
+  const due = await rdb
     .select({
       id: riskAssessments.id,
       organizationId: riskAssessments.organizationId,
@@ -1090,13 +1307,8 @@ export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ es
       escalationStage: riskAssessments.escalationStage,
       escalateAt: riskAssessments.escalateAt,
       escalatedTo: riskAssessments.escalatedTo,
-      kind: organizations.kind,
-      firstName: users.firstName,
-      lastName: users.lastName,
     })
     .from(riskAssessments)
-    .innerJoin(organizations, eq(organizations.id, riskAssessments.organizationId))
-    .innerJoin(users, eq(users.id, riskAssessments.therapistId))
     .where(
       and(
         isNull(riskAssessments.acknowledgedAt),
@@ -1110,7 +1322,19 @@ export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ es
   for (const row of due) {
     try {
       if (!row.organizationId || !row.therapistId) continue;
-      let step = nextEscalation(row, { now, inClinic: row.kind === "clinic", minutes });
+      /* The practice and the clinician, read apart from the alert: they may be in another database. */
+      const [org] = await db
+        .select({ kind: organizations.kind })
+        .from(organizations)
+        .where(eq(organizations.id, row.organizationId))
+        .limit(1);
+      const [who] = await db
+        .select({ firstName: users.firstName, lastName: users.lastName })
+        .from(users)
+        .where(eq(users.id, row.therapistId))
+        .limit(1);
+      if (!org || !who) continue;
+      let step = nextEscalation(row, { now, inClinic: org.kind === "clinic", minutes });
       if (!step) continue;
 
       let backups = step.audience === "clinic" ? await clinicBackups(row.organizationId, row.therapistId) : await platformOnCall();
@@ -1121,7 +1345,7 @@ export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ es
       }
 
       const told = [...row.escalatedTo, ...backups.map((b) => b.userId).filter((id): id is string => Boolean(id))];
-      const [claimed] = await db
+      const [claimed] = await rdb
         .update(riskAssessments)
         .set({
           escalationStage: step.nextStage,
@@ -1139,7 +1363,7 @@ export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ es
         .returning({ id: riskAssessments.id });
       if (!claimed) continue;
 
-      const clinician = `${row.firstName} ${row.lastName}`.trim();
+      const clinician = `${who.firstName} ${who.lastName}`.trim();
       let reached = 0;
       let sent = 0;
       for (const backup of backups) {
@@ -1162,7 +1386,7 @@ export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ es
   }
 
   /* Out-of-band sends that did not leave, with retries left, from the last day. */
-  const unsent = await db
+  const unsent = await rdb
     .select({
       id: riskAssessments.id,
       acknowledgedAt: riskAssessments.acknowledgedAt,
@@ -1182,7 +1406,7 @@ export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ es
     .limit(50);
   for (const row of unsent) {
     if (!needsOutOfBandRetry(row)) continue;
-    if (await sendOutOfBand(row.id, minutes)) retried += 1;
+    if (await sendOutOfBand(row.id, minutes, rdb)) retried += 1;
   }
 
   return { escalated, retried };
@@ -1193,7 +1417,7 @@ export async function escalateCrisisAlerts(now: Date = new Date()): Promise<{ es
  * marker (`lib/data/reminder-marker.ts`). Null when no open alert needs it.
  */
 export async function nextCrisisDueAt(now: Date = new Date()): Promise<Date | null> {
-  const rows = await db
+  const rows = await acrossRegions((rdb) => rdb
     .select({
       acknowledgedAt: riskAssessments.acknowledgedAt,
       escalationStage: riskAssessments.escalationStage,
@@ -1210,16 +1434,69 @@ export async function nextCrisisDueAt(now: Date = new Date()): Promise<Date | nu
           and(
             isNull(riskAssessments.outOfBandAt),
             gte(riskAssessments.outOfBandAttempts, 1),
-            /* Retries left, or retries spent and a stage still to go to. */
-            or(lt(riskAssessments.outOfBandAttempts, MAX_OUT_OF_BAND_ATTEMPTS), lt(riskAssessments.escalationStage, FINAL_STAGE)),
+            /* Retries left, or retries spent while still with the clinician. */
+            or(lt(riskAssessments.outOfBandAttempts, MAX_OUT_OF_BAND_ATTEMPTS), eq(riskAssessments.escalationStage, 0)),
             gt(riskAssessments.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000)),
           ),
         ),
       ),
     )
     .orderBy(asc(riskAssessments.escalateAt))
-    .limit(200);
+    .limit(200));
   return crisisDueAt(rows, now);
+}
+
+/** Review: find an alert by id in whichever region holds it. */
+async function findAlert(riskId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(riskId)) return null;
+  const found = await acrossRegions(async (rdb, region) => {
+    const rows = await rdb
+      .select({
+        id: riskAssessments.id,
+        sessionId: riskAssessments.sessionId,
+        journalId: riskAssessments.journalId,
+        journalRef: riskAssessments.journalRef,
+        personId: riskAssessments.personId,
+        patientId: riskAssessments.patientId,
+        organizationId: riskAssessments.organizationId,
+        therapistId: riskAssessments.therapistId,
+        level: riskAssessments.level,
+        createdAt: riskAssessments.createdAt,
+        escalationStage: riskAssessments.escalationStage,
+        acknowledgedAt: riskAssessments.acknowledgedAt,
+        acknowledgedBy: riskAssessments.acknowledgedBy,
+      })
+      .from(riskAssessments)
+      .where(eq(riskAssessments.id, riskId))
+      .limit(1);
+    return rows.map((row) => ({ row, region }));
+  });
+  return found[0] ?? null;
+}
+
+async function nameOf(userId: string | null): Promise<string | null> {
+  if (!userId) return null;
+  const [who] = await db
+    .select({ firstName: users.firstName, lastName: users.lastName })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return who ? `${who.firstName ?? ""} ${who.lastName ?? ""}`.trim() : null;
+}
+
+/**
+ * 🔴 Review: may the platform on-call reach the person behind this alert? A
+ * journal alert that is theirs to act on (nobody holds a grant, or it reached
+ * the platform), read by a back office manager or super admin. The reading
+ * itself is break-glass: audited, with a reason (`revealCrisisContact`).
+ */
+export function mayBreakGlass(
+  alert: { journalRef: string | null; journalId: string | null; therapistId: string | null; escalationStage: number },
+  actor: { role: string },
+): boolean {
+  if (!(ON_CALL_ROLES as readonly string[]).includes(actor.role)) return false;
+  if (!alert.journalRef && !alert.journalId) return false;
+  return alert.therapistId === null || alert.escalationStage >= FINAL_STAGE;
 }
 
 /** One alert as the acknowledge page shows it, or null when this reader may not see it. */
@@ -1232,6 +1509,8 @@ export async function alertForViewer(
   /** 🔴 0192: the chart a journal alert opens, for the clinician it is for. */
   patientId: string | null;
   fromJournal: boolean;
+  /** Review: the platform on-call may reach the person, through break-glass. */
+  breakGlass: boolean;
   level: RiskLevel;
   createdAt: Date;
   isTheirs: boolean;
@@ -1240,53 +1519,63 @@ export async function alertForViewer(
   acknowledgedAt: Date | null;
   acknowledgedBy: string | null;
 } | null> {
-  if (!/^[0-9a-f-]{36}$/i.test(riskId)) return null;
-  const [row] = await db
-    .select({
-      id: riskAssessments.id,
-      sessionId: riskAssessments.sessionId,
-      journalId: riskAssessments.journalId,
-      patientId: riskAssessments.patientId,
-      organizationId: riskAssessments.organizationId,
-      therapistId: riskAssessments.therapistId,
-      level: riskAssessments.level,
-      createdAt: riskAssessments.createdAt,
-      escalationStage: riskAssessments.escalationStage,
-      acknowledgedAt: riskAssessments.acknowledgedAt,
-      acknowledgedBy: riskAssessments.acknowledgedBy,
-      firstName: users.firstName,
-      lastName: users.lastName,
-    })
-    .from(riskAssessments)
-    /* Left: a journal alert with no clinician has nobody to join. */
-    .leftJoin(users, eq(users.id, riskAssessments.therapistId))
-    .where(eq(riskAssessments.id, riskId))
-    .limit(1);
-  if (!row || !mayAcknowledge(row, actor)) return null;
-
-  let acknowledgedBy: string | null = null;
-  if (row.acknowledgedBy) {
-    const [who] = await db
-      .select({ firstName: users.firstName, lastName: users.lastName })
-      .from(users)
-      .where(eq(users.id, row.acknowledgedBy))
-      .limit(1);
-    acknowledgedBy = who ? `${who.firstName} ${who.lastName}`.trim() : null;
-  }
+  const found = await findAlert(riskId);
+  if (!found) return null;
+  const { row } = found;
+  if (!mayAcknowledge(row, actor)) return null;
 
   const isTheirs = row.therapistId !== null && row.therapistId === actor.userId;
   return {
     id: row.id,
     sessionId: row.sessionId,
     patientId: isTheirs ? row.patientId : null,
-    fromJournal: row.journalId !== null,
+    fromJournal: row.journalRef !== null || row.journalId !== null,
+    breakGlass: mayBreakGlass(row, actor),
     level: row.level,
     createdAt: row.createdAt,
     isTheirs,
-    clinician: row.therapistId ? `${row.firstName ?? ""} ${row.lastName ?? ""}`.trim() : null,
+    clinician: row.therapistId ? await nameOf(row.therapistId) : null,
     escalationStage: row.escalationStage,
     acknowledgedAt: row.acknowledgedAt,
-    acknowledgedBy,
+    acknowledgedBy: await nameOf(row.acknowledgedBy),
+  };
+}
+
+/**
+ * 🔴 Review: the person behind a no-grant journal alert, for the platform
+ * on-call: name, phone and email, and the words that raised it. Null unless
+ * `mayBreakGlass`. The caller has already written the break-glass audit row;
+ * this only reads.
+ */
+export async function crisisContactForOnCall(
+  riskId: string,
+  actor: { userId: string; organizationId: string; role: string },
+): Promise<{ name: string; phone: string | null; email: string | null; excerpt: string | null } | null> {
+  const found = await findAlert(riskId);
+  if (!found || !mayAcknowledge(found.row, actor) || !mayBreakGlass(found.row, actor)) return null;
+  const { row, region } = found;
+  if (!row.personId) return null;
+  const rdb = dbFor(region);
+  const [person] = await rdb
+    .select({ firstName: people.firstName, lastName: people.lastName, phone: people.phone, email: people.email })
+    .from(people)
+    .where(eq(people.id, row.personId))
+    .limit(1);
+  if (!person) return null;
+  const [account] = await rdb
+    .select({ phone: patientAccounts.phone, email: patientAccounts.email })
+    .from(patientAccounts)
+    .where(eq(patientAccounts.personId, row.personId))
+    .limit(1);
+  const journalId = row.journalId;
+  const [entry] = journalId
+    ? await rdb.select({ body: journals.body }).from(journals).where(eq(journals.id, journalId)).limit(1)
+    : [];
+  return {
+    name: [person.firstName, person.lastName].filter(Boolean).join(" "),
+    phone: person.phone ?? account?.phone ?? null,
+    email: person.email ?? account?.email ?? null,
+    excerpt: entry ? entry.body.slice(0, 600) : null,
   };
 }
 
@@ -1314,7 +1603,9 @@ export async function acknowledgeCrisisAlert(
    */
   if (viewed.acknowledgedAt) return false;
 
-  const recorded = await db
+  const found = await findAlert(riskId);
+  if (!found) return false;
+  const recorded = await dbFor(found.region)
     .update(riskAssessments)
     .set({ acknowledgedAt: new Date(), acknowledgedBy: actor.userId, alertStatus: "acknowledged", escalateAt: null })
     .where(and(eq(riskAssessments.id, riskId), isNull(riskAssessments.acknowledgedAt)))
@@ -1336,7 +1627,12 @@ export async function acknowledgeCrisisAlert(
  * Clinician alerts only: one with no clinician was given to the platform on-call.
  */
 export async function sweepUndeliveredAlerts(): Promise<number> {
-  const stale = await db
+  const counts = await acrossRegions(async (rdb) => [await sweepIn(rdb)]);
+  return counts.reduce((sum, n) => sum + n, 0);
+}
+
+async function sweepIn(rdb: Db): Promise<number> {
+  const stale = await rdb
     .select({
       id: riskAssessments.id,
       sessionId: riskAssessments.sessionId,
@@ -1359,7 +1655,7 @@ export async function sweepUndeliveredAlerts(): Promise<number> {
         body: row.sessionId ? t("talert.riskBody") : t("talert.journalBodyOne"),
         actionUrl: row.sessionId ? `${alertPath(row.id)}?session=${row.sessionId}` : alertPath(row.id),
       });
-      await db
+      await rdb
         .update(riskAssessments)
         .set({ alertStatus: "delivered" })
         .where(eq(riskAssessments.id, row.id));

@@ -196,8 +196,7 @@ async function main() {
   const suppressed: [string, string][] = [
     ["somebody else's story", "My brother took an overdose in 2019."],
     ["…in Arabic", "أخي انتحر من سنتين."],
-    ["something said to be over", "When I was nineteen I used to cut myself. That is over and it has not come back."],
-    ["…in Arabic", "زمان كنت أجرح نفسي، لكن ذلك انتهى ولم أعد أفعله."],
+    ["something that names nobody, said to be over", "Years ago I felt suicidal. That is over and it has not come back."],
     ["DD-2 'we will get moving', which هنتحر must never read as", "هنتحرك بكرة الصبح"],
     ["DD-2 an idiom about a brother", "أخويا كان عايز يموت من الضحك"],
   ];
@@ -227,6 +226,9 @@ async function main() {
     ["DD-2 the missing forms", "I wanna die"],
     ["…hanging", "هشنق نفسي"],
     ["…Arabizi", "3ayez amut"],
+    /* Review RULING (CR16): the speaker's own past, even said to be over, is for the clinician to read. */
+    ["🔴 a first-person past said to be over", "When I was nineteen I used to cut myself. That is over and it has not come back."],
+    ["🔴 …in Arabic", "زمان كنت أجرح نفسي، لكن ذلك انتهى ولم أعد أفعله."],
   ];
 
   for (const [what, text] of mustAlert) {
