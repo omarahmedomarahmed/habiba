@@ -157,9 +157,19 @@ function displayNames(locale: Locale): Intl.DisplayNames {
   return found;
 }
 
+/*
+ * Names we set ourselves rather than take from ICU, for the markets this
+ * product serves: ICU calls PS "Palestinian Territories".
+ */
+const NAME_OVERRIDES: Record<string, { en: string; ar: string }> = {
+  PS: { en: "Palestine", ar: "فلسطين" },
+};
+
 export function countryName(code: string | null | undefined, locale: Locale): string | null {
   if (!code) return null;
   const upper = code.toUpperCase();
+  const override = NAME_OVERRIDES[upper];
+  if (override) return locale === "ar" ? override.ar : override.en;
   try {
     const named = displayNames(locale).of(upper);
     // `of` returns the code itself for something it does not recognise.
@@ -215,7 +225,6 @@ export const RADAR_LANGUAGES = [
   "Italian",
   "Dutch",
   "Arabic",
-  "Hebrew",
   "Turkish",
   "Russian",
   "Ukrainian",
@@ -252,7 +261,6 @@ export const LANGUAGE_FLAGS: Record<string, string> = {
   Italian: "🇮🇹",
   Dutch: "🇳🇱",
   Arabic: "🇪🇬",
-  Hebrew: "🇮🇱",
   Turkish: "🇹🇷",
   Russian: "🇷🇺",
   Ukrainian: "🇺🇦",

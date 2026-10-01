@@ -95,3 +95,4 @@ with the reason, so any of them can be reversed in the morning.
 | FD1 | Confirm by phone that Egypt's Child Helpline is 16000 before launch (it is in the under-18 refusal) | A help number in the product must be checked by a person, as the crisis line file requires |
 | FD2 | Have counsel read the signup notice and the updated privacy notice and terms pages so they name the same processors and the United States | Legal text; the signup notice now names them and the full pages must agree |
 | FD3 | Approve the drizzle-orm 0.45 upgrade plan (DD9) for the next pass | It changes how every database error is reported |
+| N36 | The map and every country list show Palestine (PS, "فلسطين") for the territory the base map labelled Israel, Israel is not offered anywhere, and Hebrew is not a language a clinician can list | Founder's market decision: the product is built for Arabic-speaking users and this is how its maps and lists should read to them |
