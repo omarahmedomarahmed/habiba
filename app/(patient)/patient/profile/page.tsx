@@ -7,7 +7,7 @@ import { OwnProfilePanel } from "@/components/documents/own-profile-panel";
 import { Card } from "@/components/patient/kit";
 import { SeesWhat } from "@/components/visual/primitives";
 import { PatientBack } from "@/components/patient/back";
-import { listDiagnoses } from "@/lib/data/diagnoses";
+import { listOwnDiagnoses } from "@/lib/data/diagnoses";
 import { listDocuments } from "@/lib/data/documents";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
@@ -52,7 +52,7 @@ export default async function OwnProfilePage() {
   const { t } = await getI18n();
 
   const documents = await listDocuments(actor.personId);
-  const diagnoses = await listDiagnoses(actor.personId);
+  const diagnoses = await listOwnDiagnoses(actor.personId);
 
   const userIds = [
     ...new Set(documents.map((d) => d.uploadedByUserId).filter(Boolean)),

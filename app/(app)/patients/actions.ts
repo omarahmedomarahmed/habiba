@@ -39,6 +39,13 @@ export async function addPatient(
   const firstName = String(formData.get("firstName") ?? "").trim();
   if (!firstName) return { error: "Enter their first name." };
 
+  /* DD-2 B1: 18 or over, confirmed by the clinician, or no chart. */
+  const { adultTicked } = await import("@/lib/consent/adult");
+  if (!adultTicked(formData)) {
+    const { getI18n } = await import("@/lib/i18n/server");
+    return { error: (await getI18n()).t("adultCheck.refused") };
+  }
+
   /*
    * 12.4 / §3b — the number is mandatory, and the form says why rather than
    * just refusing. "A first name is the only thing we need" was the old
@@ -92,6 +99,8 @@ export async function addPatient(
     /* 🔴 B39: so the invitation and every message before they choose is in their language. */
     locale: isLocale(reads) ? reads : null,
   });
+  const { confirmAdultForChart } = await import("@/lib/data/adult");
+  await confirmAdultForChart(actor, patient.id);
 
   revalidatePath("/patients");
   redirect(`/patients/${patient.id}`);

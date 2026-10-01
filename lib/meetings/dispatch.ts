@@ -95,6 +95,23 @@ export async function sendBotForConsent(sessionId: string): Promise<void> {
   if (!source.provisionedAt || !source.externalMeetingId) return;
   if (source.botId) return;
 
+  /*
+   * DD-2 B1: and not for a person who paused AI processing. The bot sends the
+   * meeting's audio to Recall.ai and on to transcription, which is exactly the
+   * processing they stopped. A guest with no chart yet has nobody to ask.
+   */
+  const { aiPausedForPatient } = await import("@/lib/data/ai-consent");
+  if (await aiPausedForPatient(source.patientId)) {
+    log.info("bot not dispatched: AI processing is paused for this person", { session: ref(sessionId) });
+    return;
+  }
+  /* DD-2 B1: nor before somebody has confirmed the patient is 18 or over. */
+  const { adultConfirmedForSession } = await import("@/lib/data/adult");
+  if (!(await adultConfirmedForSession(sessionId))) {
+    log.info("bot not dispatched: no adult confirmation", { session: ref(sessionId) });
+    return;
+  }
+
   const sent = await dispatchBot({
     meetingUrl: source.externalMeetingId,
     /*

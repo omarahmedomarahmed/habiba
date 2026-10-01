@@ -102,6 +102,7 @@ export async function buildRoster(actor: {
   const rows = await db
     .select({
       patientId: patients.id,
+      personId: patients.personId,
       firstName: patients.firstName,
       lastName: patients.lastName,
       lastSessionAt: patients.lastSessionAt,
@@ -153,7 +154,14 @@ export async function buildRoster(actor: {
     .orderBy(desc(patients.lastSessionAt))
     .limit(200);
 
-  return rows.map((row) => ({
+  /*
+   * DD-2 B1: a person who paused AI processing is left off the roster, which
+   * exists only to be sent to the model, so their name never reaches it.
+   */
+  const { pausedAmong } = await import("@/lib/data/ai-consent");
+  const paused = await pausedAmong(rows.map((row) => row.personId));
+
+  return rows.filter((row) => !(row.personId && paused.has(row.personId))).map((row) => ({
     patientId: row.patientId,
     name: [row.firstName, row.lastName].filter(Boolean).join(" ").trim(),
     lastSessionAt: row.lastSessionAt,
@@ -166,8 +174,12 @@ export async function buildRoster(actor: {
   }));
 }
 
+/* DD-2 B1: so a missing name is explained rather than guessed at. */
+const PAUSED_NOTE =
+  "Anyone who has paused AI processing is left off this list. If asked about a patient who is not here, say they may have paused it and point the therapist to that patient's chart.";
+
 function rosterBlock(roster: RosterRow[]): string {
-  if (roster.length === 0) return "The roster is empty. They have no patients yet.";
+  if (roster.length === 0) return `The roster is empty. ${PAUSED_NOTE}`;
 
   const lines = roster.map((row) => {
     const bits = [
@@ -180,7 +192,7 @@ function rosterBlock(roster: RosterRow[]): string {
     return `- ${row.name}, ${bits.join(", ")}`;
   });
 
-  return `THE ROSTER (${roster.length} patients). Names and dates only:\n${lines.join("\n")}`;
+  return `THE ROSTER (${roster.length} patients). Names and dates only:\n${lines.join("\n")}\n${PAUSED_NOTE}`;
 }
 
 /* ---------------------------------------------------------------- asking -- */

@@ -68,6 +68,10 @@ its old and new value. Provider keys stay in the environment.
 | N36 | Maps and country lists show Palestine (PS) and do not offer Israel; Hebrew is not a clinician language | Founder's market decision |
 | N37 | A company's monthly figures are built only from published weekly periods, with one held-back figure shared by both views | Two views could be subtracted to isolate one person |
 | N39 | A patient's "no" to a partner's recording links nobody; a consent link works only for that session's own patient | Declining must never widen access |
+| B1-1 | The AI standing profile, its timeline and the diagnoses follow the grant like files and journals: a refused, revoked or expired clinician sees none of them. The holder of an unclaimed chart keeps them (built only from their own material) | They are built from every clinic and the patient's uploads |
+| B1-2 | A partner gets a note only for a session held in its own practices, and only while the person's link stands; an unlink also stops transcript, note, summary, media, memory and copilot | The note API matched on the person and ignored an unlink |
+| B1-3 | Every company figure (chart, totals, balance, ledger, CSV) comes from one view: complete weeks only, and a week shows only inside a period of at least the floor of different people. The balance is the one at the end of the last published period. `ledgerPublishing: live` no longer shows the current week. Proposed: a money entry is written for every pot-funded session, told or not (replaces "told first") | Five sessions can be one person, and a figure left out of one view but not another can be subtracted |
+| B1-4 | A record link lives 24 hours and opens once: opening asks for a press, then gives 15 minutes to read and download. Not a sign-in, because many patients have no account | A forwarded or scanned email exposed the whole record for three days |
 
 ## Clinical and AI
 
@@ -80,6 +84,7 @@ its old and new value. Provider keys stay in the environment.
 | DD4 | Recording consent says audio is transcribed and summarised by OpenAI in the United States | It never mentioned AI or processing abroad |
 | DD5 | The radar says "Licence document reviewed by 24Therapy", not "checked with the regulator" | Licences are self-declared and reviewed by us |
 | DD6 | A failed or malformed risk check is stored and shown as "Risk check failed"; a malformed profile keeps the previous one | Failures used to look like clean sessions |
+| B1-5 | The clinician's assistant leaves anyone who paused AI processing off the roster it sends to the model, and the meeting bot is not sent for them | Both bypassed the pause |
 
 ## Crisis
 
@@ -104,7 +109,7 @@ its old and new value. Provider keys stay in the environment.
 
 | ID | Decision | Why |
 | --- | --- | --- |
-| DD1 | Patient and clinician signup require a ticked notice naming OpenAI, Daily, Resend, Neon and Vercel (United States); the version and time are stored | Proof of what each person agreed to |
+| DD1 | Patient and clinician signup require a ticked notice naming OpenAI, Daily, Resend, Neon and Vercel (United States), and since terms version 2026-10-02 Recall.ai, WhatsApp (Meta) and Paymob; the version and time are stored | Proof of what each person agreed to |
 | DD2 | The age gate is an "I am 18 or older" box; refusal shows help lines (Egypt Child Helpline 16000, ambulance 123) | A date of birth is data we cannot check |
 | DD7 | Clinician signup answers "check your inbox" for new and registered addresses alike | No account enumeration |
 | N38 | Clinician password resets: at most 3 an hour per address and network, and one email per address every 2 minutes (replaces the per-address limit in DD8) | A stranger cannot use up the owner's resets |
@@ -116,6 +121,7 @@ its old and new value. Provider keys stay in the environment.
 | B2.3 | The staff console requires an authenticator app; the emailed code is removed and there is no break-glass. A member without an app enrols on the second step page; an owner resets another member's app (proposed, DD-2) | An inbox is not a second factor |
 | B2.4 | Clinicians, clinic managers and partner users may add an authenticator app; once on, every sign-in asks for it. Optional until F-MFA is ruled (proposed, DD-2) | No second factor outside the back office |
 | B2.5 | The idle timeout counts a person's own requests only; polls, refreshes and prefetches do not. A session in progress keeps its clinician signed in; the note editor only while they type (proposed, DD-2) | An unattended screen stayed signed in for 8 hours |
+| B1-6 | A clinician confirms the patient is 18 or over (stored with who and when) when adding a chart, starting a session, or in the room. Nothing is recorded, transcribed or sent to the meeting bot without a confirmation on the session, its chart or the patient's own account. Under 18 is refused; there is no guardian model | Only self-signup had an age check |
 
 ## Needs the founder
 
@@ -144,6 +150,10 @@ Open items only, as recorded on 2026-10-01.
 | FD3 | Approve the drizzle-orm 0.45 upgrade plan (DD9) | Changes how every database error is reported |
 | F-MON | Choose and pay for a real uptime monitor and an error tracker, alerting someone who can act at any hour. Today only `.github/workflows/uptime.yml` checks the site (every 15 minutes, emails the repository owner on failure), and server errors are written to the same database they report on | A recurring cost and an on-call decision |
 | Q | Counsel's questions, each already a setting with a safe default: seller model; VAT exemption scope; VAT on our fees and registration threshold; withholding on payouts and on company top-ups; top-up documents; patient receipts; passing the card fee to the patient; whether the wallet needs a licence; whether we may hold therapists' money between payment and payout (the largest); billing Egyptian therapists in USD and whose rate; data law 151/2020 and hosting outside Egypt; which licences count; our ETA issuer name and activity code | Counsel |
+| FB1 | Proposed ruling: no one under 18 on 24Therapy until counsel and a clinician design consent through a parent or guardian; the refusal (B1-6) stands until then. A clinician reviews the refusal wording | Clinical and legal |
+| FB2 | Proposed ruling: company money entries are written for every pot-funded session, whether or not the employee has seen the ledger notice yet (B1-3). The company still sees only periods of at least the floor of people, as the overview always showed | Changes the W2-S10 "told first" rule |
+| FB3 | In the content console, update the live `/hipaa` and `/privacy` pages so they name Recall.ai, WhatsApp (Meta) and Paymob as the code's built-in copy now does; the stored pages win over the code | Console login |
+| FB4 | Data processing agreements with Recall.ai, Meta (WhatsApp) and Paymob, beside F10 | Contracts |
 | P | Provider accounts and keys: Paymob (cards and payouts), ETA registration with an e-seal and signing provider | Accounts in the company's name |
 | F-MFA | Proposed ruling: make the authenticator app mandatory for clinicians (they read clinical records), and later for clinic managers and partner admins, after a notice period; patients and companies stay optional (B2.4) | A product and support decision: a lost phone then needs a recovery path we staff |
 | F-ROLE | Proposed ruling: run the app as a restricted Postgres role. Steps: create role `app_rw` with LOGIN; GRANT SELECT, INSERT, UPDATE, DELETE on all tables and USAGE on sequences to it; REVOKE UPDATE, DELETE, TRUNCATE ON `audit_log` FROM it (INSERT and SELECT only); keep the owner role for `db:migrate` only; set Vercel's `DATABASE_URL` to `app_rw` and the migration runner's to the owner; rotate the owner password. Until then the owner role the app uses can DROP or DISABLE the audit triggers (0184, 0189) | Neon roles, secrets and a deploy only you can make |

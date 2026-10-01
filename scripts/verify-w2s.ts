@@ -199,10 +199,16 @@ async function balanceAfterTopUp(db: Db) {
       await db.execute(sql`UPDATE sponsor_pots SET balance_cents = 12000 WHERE sponsor_id = ${sponsorId}`);
       await publishTopUp(sponsorId, 5_000);
       const after = await potBalance(sponsorId);
+      /*
+       * DD-2 B1: the published balance is now the live one plus every session
+       * movement since the last published people-floored period, so a top-up
+       * (the company's own act) shows at once and in full. With no session legs
+       * here, that is the live figure.
+       */
       check(
-        "W2-S02 a top-up moves the published balance by the top-up and nothing else",
-        after.balanceCents === 15_000,
-        `published ${String(after.balanceCents)}, live 12000: the hidden spend stays hidden`,
+        "W2-S02 / DD-2 B1 a top-up shows in the published balance at once, in full",
+        after.balanceCents === 12_000,
+        `published ${String(after.balanceCents)}, live 12000, no session spend to hold back`,
       );
 
       /*
@@ -235,6 +241,13 @@ async function balanceAfterTopUp(db: Db) {
         "C21 CONTROL …and a session spent from the pot is still not in it, so nothing can be differenced",
         published !== 10_000 + 5_000 - 3_000 - 2_000,
         `published ${published}`,
+      );
+      /* DD-2 B1: nothing is published for this company, so the session spend is added back. */
+      const held = await potBalance(sponsorId);
+      check(
+        "🔴 DD-2 B1 a session not yet in a published period is held back from the balance",
+        held.balanceCents === 12_000 + 2_000 && held.published === null,
+        `published ${String(held.balanceCents)}; live 12000, unpublished session spend 2000`,
       );
 
       /*
@@ -717,12 +730,16 @@ async function moneyLedger(db: Db) {
         employee_cents: number;
       }[];
 
-    /* Before they are told: their session is paid, and enters no ledger. */
+    /*
+     * DD-2 B1: before they are told, their session is STILL an entry. Left out,
+     * the balance moved for it while the ledger did not, and the difference was
+     * that one person. The company sees only periods over the people floor.
+     */
     const nour = await world.cast("Nour", 2500);
     await payFromPot(nour.sessionId);
     check(
-      "W2-S10 a session paid before the employee was told enters no ledger",
-      (await entries()).length === 0,
+      "DD-2 B1 a session paid before the employee was told is still one money entry",
+      (await entries()).length === 1,
       `${(await entries()).length} entries`,
     );
 
@@ -805,7 +822,8 @@ async function moneyLedger(db: Db) {
     check(
       "W2-S10 / F7 …and the week comes out as one total once it holds the floor's worth of different people",
       cleared.weeks.length === 1 &&
-        period?.sessions === 2 * floor - 1 &&
+        /* DD-2 B1: both of Nour's sessions are entries now, told or not. */
+        period?.sessions === 2 * floor &&
         !("priceCents" in (period ?? {})) &&
         !("employeeCents" in (period ?? {})),
       JSON.stringify(cleared.weeks),

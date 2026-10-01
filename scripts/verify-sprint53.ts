@@ -920,7 +920,7 @@ async function main() {
     /*  53.10 to 53.16 · the pot's money, and the sign that broke once  */
     /* ================================================================ */
 
-    const { weeklySpend } = await import("../lib/data/sponsors");
+    const { sessionMovementSince } = await import("../lib/data/sponsors");
     const { ledgerPotBalance, potTotals, reconcilePots } = await import("../lib/billing/pot");
     const { journal } = await import("../lib/billing/ledger");
 
@@ -1058,13 +1058,17 @@ async function main() {
      * is whether `weeklySpend` finds the spend at all, which is the half the sign
      * bug broke.
      */
-    const series = await weeklySpend(fixture.id, 1);
-    const charted = series.reduce((total, week) => total + (week.spendCents ?? 0), 0);
+    /*
+     * DD-2 B1: the chart now comes from the people-floored ledger periods, and
+     * the ledger read that remains is the balance's: session movement since the
+     * last published period. Same question of the sign, same legs.
+     */
+    const charted = await sessionMovementSince(fixture.id, null);
 
     check(
-      "🔴 53.25 the weekly series finds the spend legs and not the deposit",
+      "🔴 53.25 the session movement finds the spend legs and not the deposit",
       charted === 4_000,
-      `$40 charted across ${series.length} week(s), and the $5,000 deposit charted as nothing`,
+      `$${charted / 100} found, and the $5,000 deposit counted as nothing`,
     );
 
     /* ============================================================ */

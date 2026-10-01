@@ -1,9 +1,9 @@
 import "server-only";
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
-import { partnerClinicians, partnerSessions } from "@/lib/db/schema";
+import { partnerClinicians, partnerSessions, partnerSubjects } from "@/lib/db/schema";
 import { log } from "@/lib/logger";
 
 import { boundaryAfterAnswer, coverageSentence, recordingFrom } from "./consent";
@@ -230,6 +230,8 @@ export type PartnerSessionRow = {
   recordingFromSeconds: number | null;
   stoppedReason: string | null;
   personId: string | null;
+  /** The partner's reference for the person, checked against an unlink. */
+  externalSubjectRef: string;
   /** W2-X02: when their platform said the session was over. Null while it runs. */
   endedAt: Date | null;
   /** W2-X05: whether its first audio has been billed. */
@@ -253,6 +255,7 @@ async function sessionFor(input: {
       recordingFromSeconds: partnerSessions.recordingFromSeconds,
       stoppedReason: partnerSessions.stoppedReason,
       personId: partnerSessions.personId,
+      externalSubjectRef: partnerSessions.externalSubjectRef,
       endedAt: partnerSessions.endedAt,
       billable: partnerSessions.billable,
     })
@@ -284,6 +287,38 @@ async function sessionFor(input: {
  * forgetting. Returns the session when the answer is yes, so the caller has what it
  * needs and no reason to re-query.
  */
+export const UNLINKED =
+  "This person has unlinked from your platform, so nothing about them is read for it.";
+
+/**
+ * DD-2 B1: has the person cut this partner's link? By the partner's reference,
+ * or by the person when the session is linked to one. One revoked row is
+ * enough, even if a later placeholder with the same reference is still open.
+ */
+export async function subjectUnlinked(input: {
+  partnerId: string;
+  externalSubjectRef: string;
+  personId?: string | null;
+}): Promise<boolean> {
+  const [revoked] = await controlDb
+    .select({ id: partnerSubjects.id })
+    .from(partnerSubjects)
+    .where(
+      and(
+        eq(partnerSubjects.partnerId, input.partnerId),
+        isNotNull(partnerSubjects.revokedAt),
+        input.personId
+          ? or(
+              eq(partnerSubjects.externalRef, input.externalSubjectRef),
+              eq(partnerSubjects.personId, input.personId),
+            )
+          : eq(partnerSubjects.externalRef, input.externalSubjectRef),
+      ),
+    )
+    .limit(1);
+  return Boolean(revoked);
+}
+
 export async function mayAnswer(input: {
   partnerId: string;
   externalSessionRef: string;
@@ -297,6 +332,20 @@ export async function mayAnswer(input: {
 
   if (!session) {
     return { ok: false, status: 404, error: "We have no session with that reference." };
+  }
+
+  /*
+   * DD-2 B1: a person who unlinked this partner is no longer its subject, so
+   * nothing about their sessions is answered: transcript, note, summary, media.
+   */
+  if (
+    await subjectUnlinked({
+      partnerId: input.partnerId,
+      externalSubjectRef: session.externalSubjectRef,
+      personId: session.personId,
+    })
+  ) {
+    return { ok: false, status: 403, error: UNLINKED };
   }
 
   if (session.stoppedReason) {

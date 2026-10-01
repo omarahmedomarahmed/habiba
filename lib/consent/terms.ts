@@ -27,7 +27,8 @@
  * account.
  */
 
-export const TERMS_VERSION = "2026-10-01";
+/* DD-2 B1: moved forward when Recall.ai, WhatsApp and Paymob joined the list. */
+export const TERMS_VERSION = "2026-10-02";
 
 /**
  * Who processes the data, and for what. The source the copy is checked against
@@ -39,6 +40,21 @@ export const PROCESSORS = [
   { name: "Resend", purpose: "email", where: "United States" },
   { name: "Neon", purpose: "the database", where: "United States" },
   { name: "Vercel", purpose: "hosting", where: "United States" },
+  /* DD-2 B1: three that process data and were missing from the notice. */
+  { name: "Recall.ai", purpose: "the recorder in a Zoom, Meet or Teams session", where: "United States" },
+  { name: "WhatsApp", purpose: "confirmations, reminders and codes, run by Meta", where: "Meta" },
+  { name: "Paymob", purpose: "card and wallet payments in Egypt", where: "Egypt" },
+] as const;
+
+/** The lines of the signup notice, in order. Each processor above is named in one. */
+export const SIGNUP_NOTICE_KEYS = [
+  "signupConsent.openai",
+  "signupConsent.daily",
+  "signupConsent.recall",
+  "signupConsent.resend",
+  "signupConsent.whatsapp",
+  "signupConsent.paymob",
+  "signupConsent.hosting",
 ] as const;
 
 export type SignupConsentProblem = "terms" | "adult" | null;

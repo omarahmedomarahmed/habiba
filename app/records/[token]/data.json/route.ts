@@ -17,7 +17,8 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
-  const record = await openExport(token);
+  /* DD-2 B1: only inside the window the page itself started; a GET never starts one. */
+  const record = await openExport(token, { start: false });
 
   if (!record) {
     return NextResponse.json(

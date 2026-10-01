@@ -792,6 +792,13 @@ export const patients = pgTable(
      * somebody who was in the room, which is a different claim and gets a different source.
      */
     source: text("source").$type<"therapist" | "join_link" | "walk_in">().notNull().default("therapist"),
+    /**
+     * 0190 / DD-2 B1: when a clinician confirmed this person is 18 or over, and
+     * who. Null means nobody has; recording and transcription then wait for a
+     * confirmation on the session or the patient's own account.
+     */
+    adultConfirmedAt: timestamp("adult_confirmed_at", { withTimezone: true }),
+    adultConfirmedBy: uuid("adult_confirmed_by").references(() => users.id, { onDelete: "set null" }),
 
     /**
      * 🔴 63.12 / C327 / C354 — WHEN WE TOLD THEM WHAT THE CLINIC CAN SEE.
@@ -1010,6 +1017,9 @@ export const sessions = pgTable(
     recordingConsentAt: timestamp("recording_consent_at", { withTimezone: true }),
     /** Consent is to particular words, and the words will be edited. */
     recordingConsentVersion: text("recording_consent_version"),
+    /** 0190 / DD-2 B1: the clinician who confirmed, for this session, that the patient is 18 or over. */
+    adultConfirmedAt: timestamp("adult_confirmed_at", { withTimezone: true }),
+    adultConfirmedBy: uuid("adult_confirmed_by").references(() => users.id, { onDelete: "set null" }),
 
     /**
      * When the microphone actually started. PLAN.md 7.8.
@@ -1748,7 +1758,13 @@ export const copilotMessages = pgTable(
 
 // ------------------------------------------------------------ data access ---
 
-export const EXPORT_TTL_HOURS = 72;
+/*
+ * DD-2 B1: a record link lives 24 hours (was 72), and the first time it is
+ * opened starts a short window to read and download it, after which it is
+ * spent. A forwarded or scanned email then reaches nothing.
+ */
+export const EXPORT_TTL_HOURS = 24;
+export const EXPORT_OPEN_WINDOW_MINUTES = 15;
 
 /**
  * A patient asking for their own record.

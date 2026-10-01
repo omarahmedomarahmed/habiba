@@ -2,7 +2,9 @@ import "server-only";
 
 import { and, desc, eq, isNull } from "drizzle-orm";
 
+import { maySeeSharedRecord } from "@/lib/access/state";
 import { audit } from "@/lib/audit";
+import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { contentFlags, personDiagnoses, personDocuments } from "@/lib/db/schema";
@@ -39,7 +41,11 @@ export type DiagnosisView = {
   flags: { id: string; reason: string; note: string | null }[];
 };
 
-export async function listDiagnoses(personId: string): Promise<DiagnosisView[]> {
+/**
+ * The person's own diagnoses, for the patient's app and their own export.
+ * A clinician reads through `diagnosesForClinician`, which checks the grant.
+ */
+export async function listOwnDiagnoses(personId: string): Promise<DiagnosisView[]> {
   const rows = await db
     .select({
       id: personDiagnoses.id,
@@ -76,6 +82,18 @@ export async function listDiagnoses(personId: string): Promise<DiagnosisView[]> 
     ...row,
     flags: flags.filter((f) => f.targetId === row.id),
   }));
+}
+
+/**
+ * Due diligence (DD-2 B1): the diagnoses on a person as one clinician may see
+ * them. They come from the patient's documents and other clinics, so a
+ * refused, revoked or expired clinician gets none.
+ */
+export async function diagnosesForClinician(actor: Actor, patientId: string): Promise<DiagnosisView[]> {
+  const { accessFor } = await import("@/lib/data/grants");
+  const access = await accessFor(actor, patientId);
+  if (!access.personId || !maySeeSharedRecord(access.state)) return [];
+  return listOwnDiagnoses(access.personId);
 }
 
 /**

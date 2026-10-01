@@ -1196,14 +1196,16 @@ async function potSpendOf(
  * carries the price, the coverage, the two shares, the Monday of the week and a
  * random `shuffle`; no session, person, therapist or payment id, and no time.
  *
- * 🔴 ONLY FOR A PERSON WHO WAS TOLD FIRST. `ledger_told_at` is set when the
- * in-app notice reaches them (`tellEnrolledAboutLedger`), and a session paid
- * before it never enters a view they were not told about.
+ * DD-2 B1: written for EVERY pot-funded session, told or not. These entries
+ * are now the one source of every company figure (chart, totals, balance,
+ * ledger), and a session left out of them while the balance still moved for
+ * it could be recovered by subtraction: at a small company, the one person
+ * who enrolled that day. The company only ever sees periods of at least
+ * `floor` different people, which is what the overview always showed. The
+ * in-app notice (`ledger_told_at`) is still sent.
  *
- * 🔴 Never allowed to fail a payment. The told-at read is its own query, so a
- * payment still works on a database that has not had 0134 yet (H16), and any
- * failure is logged: a missing report line is recoverable, a refused booking
- * is not.
+ * 🔴 Never allowed to fail a payment. Any failure is logged: a missing report
+ * line is recoverable, a refused booking is not.
  */
 async function recordMoneyEntry(input: {
   sponsorId: string;
@@ -1217,11 +1219,11 @@ async function recordMoneyEntry(input: {
 }): Promise<void> {
   try {
     const [row] = await controlDb
-      .select({ toldAt: enrolments.ledgerToldAt, personId: enrolments.personId })
+      .select({ personId: enrolments.personId })
       .from(enrolments)
       .where(eq(enrolments.id, input.enrolmentId))
       .limit(1);
-    if (!row?.toldAt || row.toldAt.getTime() > input.paidAt.getTime()) return;
+    if (!row) return;
 
     const { weekStartOf } = await import("@/lib/sponsor/ledger");
     const { randomInt } = await import("node:crypto");

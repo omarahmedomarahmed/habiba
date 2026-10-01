@@ -75,6 +75,8 @@ function functionSource(source: string, name: string): string {
    */
   let start = source.indexOf(`export async function ${name}`);
   if (start === -1) start = source.indexOf(`async function ${name}`);
+  /* DD-2 B1: a query builder is a plain function. */
+  if (start === -1) start = source.indexOf(`export function ${name}(`);
   if (start === -1) return "";
 
   /*
@@ -785,7 +787,9 @@ async function main() {
     /*  55.8 · a note is delivered only once a clinician approved it       */
     /* ================================================================== */
 
-    const deliverable = functionSource(api, "deliverableNote");
+    /* DD-2 B1: the query moved into `deliverableNoteQuery`, so both are read. */
+    const deliverable =
+      functionSource(api, "deliverableNote") + functionSource(api, "deliverableNoteQuery");
 
     check(
       "🔴 55.8 deliverableNote requires approval IN THE WHERE, never in a branch after the read",
@@ -799,6 +803,15 @@ async function main() {
       "🔴 CONTROL …and the subject scope is in the same WHERE, so a borrowed id delivers nothing",
       /partnerSubjects|partnerId/.test(deliverable),
       "approval alone would deliver any approved note to any partner",
+    );
+
+    const noteQuery = functionSource(api, "deliverableNoteQuery");
+    check(
+      "🔴 DD-2 B1 …and an unlinked subject delivers nothing, and only this partner's own practices' sessions",
+      /isNull\(partnerSubjects\.revokedAt\)/.test(noteQuery) &&
+        /eq\(organizations\.partnerId, partnerId\)/.test(noteQuery) &&
+        /eq\(organizations\.billingMode, "partner_billed"\)/.test(noteQuery),
+      noteQuery === "" ? "deliverableNoteQuery not found" : "revoked link and partner practice in the WHERE",
     );
 
     /* ================================================================== */

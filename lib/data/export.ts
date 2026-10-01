@@ -15,6 +15,7 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import {
   dataExports,
   notifications,
+  EXPORT_OPEN_WINDOW_MINUTES,
   EXPORT_TTL_HOURS,
   organizations,
   patients,
@@ -272,32 +273,75 @@ async function alertStaffOfExport(input: {
 export type ExportRecord = Awaited<ReturnType<typeof buildExport>>;
 
 /**
- * Exchange a token for the record.
+ * DD-2 B1: what a record link can do right now. Pure, so the window is tested.
  *
- * Returns null for anything that is not a live link — expired, revoked,
- * unknown. Deliberately one outcome for all three: telling an anonymous caller
- * *why* a token failed tells them whether it ever existed.
+ *   ready    live and never opened: the page asks the holder to open it
+ *   open     opened less than `EXPORT_OPEN_WINDOW_MINUTES` ago: readable
+ *   dead     unknown, revoked, expired, or opened and its window is over
+ *
+ * The first open starts the window rather than ending the link at once, so
+ * the person can read the page and then take the JSON copy it links to.
  */
-export async function openExport(token: string) {
-  if (!token || token.length < 20 || token.length > 200) return null;
+export type ExportLinkState = "ready" | "open" | "dead";
 
+export function exportLinkState(
+  row: { revokedAt: Date | null; expiresAt: Date; firstOpenedAt: Date | null } | null,
+  now: Date,
+): ExportLinkState {
+  if (!row || row.revokedAt) return "dead";
+  if (row.expiresAt.getTime() <= now.getTime()) return "dead";
+  if (!row.firstOpenedAt) return "ready";
+  const closes = row.firstOpenedAt.getTime() + EXPORT_OPEN_WINDOW_MINUTES * 60_000;
+  return closes > now.getTime() ? "open" : "dead";
+}
+
+async function exportRow(token: string) {
+  if (!token || token.length < 20 || token.length > 200) return null;
   const [row] = await db
     .select()
     .from(dataExports)
     .where(eq(dataExports.tokenHash, HASH(token)))
     .limit(1);
+  return row ?? null;
+}
 
-  if (!row) return null;
-  if (row.revokedAt) return null;
-  if (row.expiresAt.getTime() < Date.now()) return null;
+/** DD-2 B1: the state of a link without opening it. A GET never spends one. */
+export async function exportLinkFor(token: string): Promise<ExportLinkState> {
+  return exportLinkState(await exportRow(token), new Date());
+}
 
-  await db
-    .update(dataExports)
-    .set({
-      firstOpenedAt: row.firstOpenedAt ?? new Date(),
-      openCount: row.openCount + 1,
-    })
-    .where(eq(dataExports.id, row.id));
+/**
+ * Exchange a token for the record.
+ *
+ * Returns null for anything that is not a live link — expired, revoked,
+ * unknown, or spent. Deliberately one outcome for all of them: telling an
+ * anonymous caller *why* a token failed tells them whether it ever existed.
+ *
+ * DD-2 B1: `start` opens an unopened link (the holder pressed the button) and
+ * starts its window; without it only a link already inside its window opens
+ * (the JSON download from the page). Starting is conditional on nobody having
+ * started it, so two racing opens cannot both get a fresh window.
+ */
+export async function openExport(token: string, opts: { start: boolean } = { start: true }) {
+  const row = await exportRow(token);
+  const now = new Date();
+  const state = exportLinkState(row, now);
+  if (!row || state === "dead") return null;
+
+  if (state === "ready") {
+    if (!opts.start) return null;
+    const [started] = await db
+      .update(dataExports)
+      .set({ firstOpenedAt: now, openCount: sql`${dataExports.openCount} + 1` })
+      .where(and(eq(dataExports.id, row.id), isNull(dataExports.firstOpenedAt)))
+      .returning({ id: dataExports.id });
+    if (!started) return null;
+  } else {
+    await db
+      .update(dataExports)
+      .set({ openCount: sql`${dataExports.openCount} + 1` })
+      .where(eq(dataExports.id, row.id));
+  }
 
   return buildExport(row.patientId, row.expiresAt, {
     personId: row.personId,
@@ -554,7 +598,7 @@ async function buildExport(
         import("@/lib/data/summaries").then((m) => m.summariesForPerson(extra.personId!)),
         import("@/lib/data/journals").then((m) => m.journalsForPerson(extra.personId!, 500)),
         import("@/lib/data/homework").then((m) => m.listHomework(extra.personId!)),
-        import("@/lib/data/diagnoses").then((m) => m.listDiagnoses(extra.personId!)),
+        import("@/lib/data/diagnoses").then((m) => m.listOwnDiagnoses(extra.personId!)),
       ])
     : [[], [], [], []];
 
