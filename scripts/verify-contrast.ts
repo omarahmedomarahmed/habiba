@@ -222,7 +222,12 @@ const SIGNED_IN = [
   {
     who: "admin",
     door: "/staff/sign-in",
-    email: "omarabdelgawad001@gmail.com",
+    /*
+     * DD-2 B2.3: the console asks every staff member for an authenticator code. The
+     * founder's own account never has a known secret, so the sweep signs in as the
+     * support account, enrolled from DEMO_TOTP_SECRET (scripts/seed-demo.ts).
+     */
+    email: "staff.demo@example.com",
     paths: [
       "/admin",
       "/admin/usage",
@@ -623,9 +628,24 @@ async function audit(exe: string) {
     }
     await p.locator('input[name="password"]').first().fill(password ?? "").catch(() => {});
     await p.locator('form:has(input[name="password"]) button[type="submit"]').first().click().catch(() => {});
+    /* DD-2 B2.3: the console's second step, answered from DEMO_TOTP_SECRET when it is set. */
+    if (person.door === "/staff/sign-in") {
+      const reached = await p
+        .waitForURL((u: URL) => u.pathname.startsWith("/staff/second-step"), { timeout: 30_000 })
+        .then(() => true)
+        .catch(() => false);
+      const secret = process.env.DEMO_TOTP_SECRET?.trim();
+      if (reached && secret) {
+        const { base32Decode, totpAt } = await import("../lib/auth/totp");
+        await p.locator('input#code[name="code"]').first().fill(totpAt(base32Decode(secret), Date.now())).catch(() => {});
+        await p.locator('form:has(input#code) button[type="submit"]').first().click().catch(() => {});
+      } else if (reached) {
+        console.log(`  ${person.who}: set DEMO_TOTP_SECRET to answer the console's second step`);
+      }
+    }
     const inside = await p
-      .waitForURL((u: URL) => !/sign-in|login/.test(u.pathname), {
-        timeout: 30_000,
+      .waitForURL((u: URL) => !/sign-in|login|second-step/.test(u.pathname), {
+        timeout: 60_000,
       })
       .then(() => true)
       .catch(() => false);
