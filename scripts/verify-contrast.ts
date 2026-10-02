@@ -644,8 +644,9 @@ async function audit(exe: string) {
       }
     }
     const inside = await p
+      /* A first visit compiles the landing page on `next dev`; the console's took 100 s cold. */
       .waitForURL((u: URL) => !/sign-in|login|second-step/.test(u.pathname), {
-        timeout: 60_000,
+        timeout: 180_000,
       })
       .then(() => true)
       .catch(() => false);
