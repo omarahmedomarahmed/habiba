@@ -15,7 +15,6 @@
  */
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { connect, schema } from "./db";
 
@@ -265,8 +264,10 @@ async function main() {
         role: "therapist" as const,
       };
 
-      // Unclaimed: the therapist's own file, and nobody to ask.
-      const unclaimed = await accessFor(actor as never, patientId);
+      // Unclaimed: the therapist's own file, and nobody to ask. DD-2 B1-1: a person with a
+      // patient account counts as claimed, so this one is a person with no account at all.
+      const loneId = await newPatient(db, therapist.id, therapist.org, await newPerson(db));
+      const unclaimed = await accessFor(actor as never, loneId);
       check(
         "7.7 an unclaimed record reads as unclaimed, with no request button",
         unclaimed.state.startsWith("unclaimed") && !unclaimed.capabilities.canRequestAccess,
@@ -390,11 +391,6 @@ async function main() {
       check("7.6 an audit row cannot name a clinician AND a patient", bothRefused);
     }
   } finally {
-    await db
-      .delete(auditLog)
-      .where(
-        sql`${auditFixtures()} AND actor_account_id IN (SELECT id FROM patient_accounts WHERE email LIKE ${`${TAG}%`})`,
-      );
     await db.delete(patients).where(sql`last_name = ${TAG}`);
     await db.delete(patientAccounts).where(sql`email LIKE ${`${TAG}%`}`);
     /*

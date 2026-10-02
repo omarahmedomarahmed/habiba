@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 
 import { classifyRisk } from "@/lib/ai/risk";
 import { MODELS, logUsage } from "@/lib/ai/client";
@@ -342,7 +342,8 @@ export async function priorRiskFor(
         eq(riskAssessments.therapistId, therapistId),
         eq(riskAssessments.organizationId, organizationId),
         inArray(riskAssessments.patientId, sameHuman),
-        ne(riskAssessments.sessionId, sessionId),
+        /* Review: a journal alert has no session, and NULL <> x is NULL, so it was dropped. */
+        or(isNull(riskAssessments.sessionId), ne(riskAssessments.sessionId, sessionId)),
       ),
     )
     .orderBy(desc(riskAssessments.createdAt))

@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
+import { SPONSOR_FLOOR_MIN } from "@/lib/sponsor/ledger";
 import { DeviceFrame } from "./device-frame";
 import { MotionRoot, soft, spring } from "./motion";
 import { Avatar, Badge, Card, Glow } from "@/components/clinician/kit";
@@ -395,7 +396,16 @@ const COMPANY_PATHS: Record<string, string> = {
   team: "/sponsor/team",
 };
 
-export function CompanyConsole({ initial = "overview", frame }: { initial?: string; frame?: { bodyClassName?: string } }) {
+export function CompanyConsole({
+  initial = "overview",
+  frame,
+  floor = SPONSOR_FLOOR_MIN,
+}: {
+  initial?: string;
+  frame?: { bodyClassName?: string };
+  /** DD-2 B1: the reporting floor the ledger sentence names. */
+  floor?: number;
+}) {
   const t = useT();
   const [tab, setTab] = useState(COMPANY_TABS.some((x) => x.key === initial) ? initial : "overview");
 
@@ -413,7 +423,7 @@ export function CompanyConsole({ initial = "overview", frame }: { initial?: stri
       }}
     >
       {tab === "overview" ? <CompanyOverview onTab={setTab} /> : null}
-      {tab === "ledger" ? <CompanyLedger /> : null}
+      {tab === "ledger" ? <CompanyLedger floor={floor} /> : null}
       {tab === "people" ? <CompanyPeople /> : null}
       {tab === "code" ? <CompanyCode /> : null}
       {tab === "pot" ? <CompanyPot /> : null}
@@ -491,7 +501,7 @@ function CompanyOverview({ onTab }: { onTab: (key: string) => void }) {
 }
 
 /** `/sponsor/ledger`: the figures, the months, the coverage mix and the top-ups. No names. */
-function CompanyLedger() {
+function CompanyLedger({ floor }: { floor: number }) {
   const t = useT();
   const locale = useLocale();
   const money = useMoney();
@@ -500,7 +510,7 @@ function CompanyLedger() {
 
   return (
     <>
-      <Head title={t("sponsor.nav.ledger")} subtitle={`${t("sponsor.ledgerBody")} ${t("sponsor.ledgerWeekly")}`} />
+      <Head title={t("sponsor.nav.ledger")} subtitle={`${t("sponsor.ledgerBody", { floor })} ${t("sponsor.ledgerWeekly")}`} />
       <div className="grid grid-cols-2 gap-2.5 @3xl:grid-cols-3">
         <Stat tone="dark" label={t("sponsor.spentTotal")}>
           {money(COMPANY.spentEgp)}

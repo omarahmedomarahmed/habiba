@@ -19,7 +19,9 @@ import { dispatchBot, removeBot } from "./recall";
  * > untranscribed; a button they can press is a bot that can be sent somewhere
  * > it should not go.*
  *
- * So `sendBotForConsent` has exactly one caller: `answerConsent`. It is not
+ * So `sendBotForConsent` has exactly one caller: `answerConsent` (and, in this
+ * file, `sendBotOnceAdult`, which the 18+ confirmation calls to finish a yes
+ * that waited on it). It is not
  * exported to any component, no server action calls it directly, and there is
  * no admin tool that dispatches. A decline dispatches nothing at all — not a
  * bot that joins and stays quiet — which is both the ethics and the cost
@@ -95,6 +97,23 @@ export async function sendBotForConsent(sessionId: string): Promise<void> {
   if (!source.provisionedAt || !source.externalMeetingId) return;
   if (source.botId) return;
 
+  /*
+   * DD-2 B1: and not for a person who paused AI processing. The bot sends the
+   * meeting's audio to Recall.ai and on to transcription, which is exactly the
+   * processing they stopped. A guest with no chart yet has nobody to ask.
+   */
+  const { aiPausedForPatient } = await import("@/lib/data/ai-consent");
+  if (await aiPausedForPatient(source.patientId)) {
+    log.info("bot not dispatched: AI processing is paused for this person", { session: ref(sessionId) });
+    return;
+  }
+  /* DD-2 B1: nor before somebody has confirmed the patient is 18 or over. */
+  const { adultConfirmedForSession } = await import("@/lib/data/adult");
+  if (!(await adultConfirmedForSession(sessionId))) {
+    log.info("bot not dispatched: no adult confirmation", { session: ref(sessionId) });
+    return;
+  }
+
   const sent = await dispatchBot({
     meetingUrl: source.externalMeetingId,
     /*
@@ -140,6 +159,42 @@ export async function sendBotForConsent(sessionId: string): Promise<void> {
   }
 
   log.info("bot dispatched on consent", { session: ref(sessionId) });
+}
+
+/**
+ * Review fix: the patient said yes before anybody confirmed 18 or over, so
+ * the consent path above skipped the bot and nothing would ever send it.
+ * Called once, by `confirmAdultForSession`, after the confirmation lands. It
+ * re-reads the recorded consent and sends only on a standing "granted"; every
+ * other refusal is `sendBotForConsent`'s own. Never throws.
+ */
+export async function sendBotOnceAdult(sessionId: string): Promise<void> {
+  try {
+    const rows = await acrossRegions((db) =>
+      db
+        .select({ consent: sessions.recordingConsent })
+        .from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .limit(1),
+    );
+    if (rows[0]?.consent !== "granted") return;
+    await sendBotForConsent(sessionId);
+  } catch (error) {
+    log.warn("bot after adult confirmation not dispatched", { session: ref(sessionId), reason: String(error) });
+  }
+}
+
+/** Whether this session has a meeting of ours a recorder could join, for the room to say it waits. */
+export async function meetingBotPossible(sessionId: string): Promise<boolean> {
+  const rows = await acrossRegions((db) =>
+    db
+      .select({ kind: sessionSources.kind, provisionedAt: sessionSources.provisionedAt })
+      .from(sessionSources)
+      .where(eq(sessionSources.sessionId, sessionId))
+      .limit(1),
+  );
+  const source = rows[0];
+  return Boolean(source && EXTERNAL_SOURCE_KINDS.includes(source.kind) && source.provisionedAt);
 }
 
 /**

@@ -139,6 +139,7 @@ export default async function PayoutsPage() {
             proofUrl: row.proofUrl,
             providerState: row.providerState,
             providerError: row.providerError,
+            noRecordHours: row.noRecordHours,
           }))}
           providerReady={providerReady}
           automated={automated.map((row) => ({

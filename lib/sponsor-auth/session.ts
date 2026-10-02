@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 
 import { cookies, headers } from "next/headers";
+import { isUserActivity } from "@/lib/auth/activity";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { controlDb } from "@/lib/db";
@@ -122,10 +123,13 @@ export async function getSponsorActor(): Promise<SponsorActor | null> {
 
   if (!row) return null;
 
-  await controlDb
-    .update(sponsorAuthSessions)
-    .set({ lastSeenAt: now })
-    .where(eq(sponsorAuthSessions.tokenHash, hashToken(token)));
+  /* DD-2 B2.5: only the person's own requests extend the idle window. */
+  if (isUserActivity(await headers())) {
+    await controlDb
+      .update(sponsorAuthSessions)
+      .set({ lastSeenAt: now })
+      .where(eq(sponsorAuthSessions.tokenHash, hashToken(token)));
+  }
 
   return {
     sponsorUserId: row.sponsorUserId,

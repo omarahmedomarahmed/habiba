@@ -5,16 +5,26 @@ import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { patientAccounts, patientAuthTokens, RESET_CODE_ATTEMPTS } from "@/lib/db/schema";
+import { patientAccounts, patientAuthTokens } from "@/lib/db/schema";
 import { normaliseEmail } from "@/lib/data/people";
 import { wordsFor } from "@/lib/i18n/message-words";
 import { notify } from "@/lib/notify";
 import { whatsappConfigured } from "@/lib/notify/whatsapp";
 import { toE164 } from "@/lib/phone/e164";
-import { callerKey, consume } from "@/lib/rate-limit";
+import {
+  CODE_ACCOUNT_ATTEMPTS,
+  CODE_ACCOUNT_WINDOW_SECONDS,
+  CODES_SENT_PER_HANDLE,
+  CODES_SENT_WINDOW_SECONDS,
+  minutesToWait,
+  sendSubject,
+} from "@/lib/auth/attempts";
+import { accountAttempt, accountSignedIn, callerKey, callerNetwork, consume } from "@/lib/rate-limit";
 import { log, ref } from "@/lib/logger";
 import { patientLanding } from "@/lib/routing";
 
+import { spendCodeGuess } from "./code-attempts";
+import { handleSubject } from "./handle-subject";
 import { createPatientSession } from "./session";
 import { say } from "@/lib/i18n/say";
 
@@ -119,6 +129,21 @@ export async function requestSignInCode(
   const account = await findAccount(handle, country);
   const channelDown = !whatsappConfigured();
 
+  /*
+   * DD-2 B2.2, review fix: codes to one handle are capped per network and
+   * handle, so a stranger elsewhere cannot use up the owner's codes. An
+   * unknown handle counts the same way, so saying so reveals nothing.
+   */
+  const perHandle = await accountAttempt(
+    "patient:code-send",
+    sendSubject(account?.id ?? handleSubject(handle, country), await callerNetwork()),
+    CODES_SENT_PER_HANDLE,
+    CODES_SENT_WINDOW_SECONDS,
+  );
+  if (!perHandle.allowed) {
+    return { error: await say("perr.tooManyCodesMinutes", { minutes: minutesToWait(perHandle.retryAfter) }) };
+  }
+
   if (account) {
     const code = newCode();
     const channel = handle.includes("@") ? ("email" as const) : ("whatsapp" as const);
@@ -184,39 +209,29 @@ export async function signInWithCode(
 
   const account = await findAccount(handle, country);
   const wrong = { error: await say("perr.codeWrong") };
+
+  /*
+   * DD-2 B2.2: per account as well as per network. An unknown handle is
+   * counted the same way, so "too many" says nothing about who exists, and a
+   * code that has run out of guesses answers like a wrong one for that reason.
+   */
+  const subject = account?.id ?? handleSubject(handle, country);
+  const perAccount = await accountAttempt("patient:code-confirm", subject, CODE_ACCOUNT_ATTEMPTS, CODE_ACCOUNT_WINDOW_SECONDS);
+  if (!perAccount.allowed) {
+    return { error: await say("auth.tooManyForSignIn", { minutes: minutesToWait(perAccount.retryAfter) }) };
+  }
   if (!account) return wrong;
 
-  const [row] = await db
-    .select()
-    .from(patientAuthTokens)
-    .where(
-      and(
-        eq(patientAuthTokens.patientAccountId, account.id),
-        eq(patientAuthTokens.purpose, "sign_in"),
-        isNull(patientAuthTokens.usedAt),
-        gt(patientAuthTokens.expiresAt, new Date()),
-      ),
-    )
-    .orderBy(desc(patientAuthTokens.createdAt))
-    .limit(1);
-
-  if (!row) return wrong;
-
-  if (row.tokenHash !== hash(code)) {
-    const spent = row.attempts + 1;
-    if (spent > RESET_CODE_ATTEMPTS) {
-      await db
-        .update(patientAuthTokens)
-        .set({ usedAt: new Date() })
-        .where(eq(patientAuthTokens.id, row.id));
-      return { error: await say("perr.tooManyWrongCodes") };
-    }
-    await db
-      .update(patientAuthTokens)
-      .set({ attempts: spent })
-      .where(eq(patientAuthTokens.id, row.id));
-    return wrong;
-  }
+  const guess = await spendCodeGuess(db, {
+    accountId: account.id,
+    purpose: "sign_in",
+    matches: (tokenHash) => tokenHash === hash(code),
+  });
+  if (guess.outcome !== "match") return wrong;
+  await accountSignedIn("patient:code-confirm", subject);
+  /* Review fix: proving the handle also clears the password counter a stranger may have run up. */
+  await accountSignedIn("patient:signin", account.id);
+  const row = { id: guess.id, channel: guess.channel };
 
   /*
    * 🔴 The code proves the handle it went to, and signing in is what happens
@@ -234,10 +249,6 @@ export async function signInWithCode(
       )
       .where(eq(patientAccounts.id, account.id));
 
-    await tx
-      .update(patientAuthTokens)
-      .set({ usedAt: now })
-      .where(eq(patientAuthTokens.id, row.id));
   });
 
   await createPatientSession(account.id);

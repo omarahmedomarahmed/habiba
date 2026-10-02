@@ -5,6 +5,7 @@ import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
+import { isUserActivity } from "@/lib/auth/activity";
 import { cache } from "react";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
@@ -193,7 +194,8 @@ const actorForToken = cache(async (token: string): Promise<PatientActor | null> 
 
   // Throttled: bumping `last_seen_at` on every request is a write per page view
   // for no benefit.
-  if (now.getTime() - row.lastSeenAt.getTime() > TOUCH_THROTTLE_MS) {
+  /* DD-2 B2.5: and only for the person's own requests, never a poll or a refresh. */
+  if (now.getTime() - row.lastSeenAt.getTime() > TOUCH_THROTTLE_MS && isUserActivity(await headers())) {
     await db
       .update(patientAuthSessions)
       .set({ lastSeenAt: now })

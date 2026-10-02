@@ -67,10 +67,37 @@ async function main() {
     .select({
       slug: contentPages.slug,
       locale: contentPages.locale,
+      title: contentPages.title,
+      description: contentPages.description,
       blocks: contentPages.blocks,
     })
     .from(contentPages)
     .where(like(contentPages.locale, "%-x-staging"));
+
+  /*
+   * DD-2: each row is rendered as a reader would get it, through the same
+   * claims guard `getPublicPage` applies (the code default instead of a row
+   * with a false claim, or the row without the offending blocks when it has
+   * none). A stale staging row is named, not rendered as if it were served.
+   */
+  const { guardedPage } = await import("../lib/content/claims");
+  const { defaultsFor } = await import("../lib/content/registry");
+  const guardedRows: string[] = [];
+  for (const row of rows) {
+    const base = row.locale.replace("-x-staging", "");
+    const shipped = defaultsFor(base).find((page) => page.slug === row.slug);
+    const guarded = guardedPage(
+      `${row.slug}[${row.locale}]`,
+      row,
+      shipped ? { ...row, title: shipped.title, description: shipped.description, blocks: shipped.blocks } : null,
+    );
+    if (guarded.served === "row") continue;
+    guardedRows.push(`${row.slug}[${row.locale}] ${guarded.served}: ${guarded.hits.map((hit) => hit.rule).join(", ")}`);
+    Object.assign(row, guarded.page);
+  }
+  if (guardedRows.length > 0) {
+    console.log(`  stale staging rows, rendered as the guard serves them (re-run republish --staging): ${guardedRows.join(" · ")}\n`);
+  }
 
   check(
     "🔴 19.0a the staging rows exist, so what sprint 22 publishes has been RUN, not written",
@@ -252,10 +279,11 @@ async function main() {
 
   const contact = html["contact.en-x-staging"] ?? "";
   check(
-    "🔴 18R.2 the rendered contact page carries a real form and both companies",
+    "🔴 18R.2 the rendered contact page carries a real form and both desks, naming no unregistered company (DD-2)",
     /<form/.test(contact) &&
-      contact.includes("24Therapy Inc.") &&
-      contact.includes("24Therapy Egypt"),
+      contact.includes("Outside Egypt") &&
+      contact.includes("In Egypt") &&
+      !/24Therapy (Inc|Egypt)/.test(contact),
   );
   check(
     "🔴 18R.4 …with the urgent warning above the box, not under the button",
@@ -336,7 +364,7 @@ async function main() {
     "Finding clinicians",
     "Do not send anything urgent",
     "Not an emergency service",
-    "Who are you writing to?",
+    "Where are you writing from?",
     "Joining is free",
   ];
 

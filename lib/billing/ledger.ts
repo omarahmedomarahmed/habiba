@@ -19,6 +19,8 @@ import {
 import { log, ref } from "@/lib/logger";
 import { counterAccountFor } from "@/lib/billing/adjust-effect";
 
+import { egpBackFor, payableEgpFor } from "./egp-books";
+
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
  *
@@ -56,6 +58,13 @@ export type Leg = {
    */
   entity?: Entity;
   memo: string;
+  /**
+   * 0188: the pounds this leg stands for and the rate actually charged. Set on
+   * the cash and payable legs of a patient payment and on payouts, so a
+   * clinician's EGP balance is what was collected, not a re-conversion.
+   */
+  egpMinor?: number | null;
+  fxRateMicro?: number | null;
 };
 
 export class UnbalancedTransaction extends Error {
@@ -65,8 +74,34 @@ export class UnbalancedTransaction extends Error {
   }
 }
 
+/**
+ * 0188: the same business event posted a second time. The database's unique
+ * posting key refused it, so nothing was written.
+ */
+export class DuplicatePosting extends Error {
+  constructor(key: string) {
+    super(`Ledger posting "${key}" is already on the books`);
+    this.name = "DuplicatePosting";
+  }
+}
+
+function isUniqueViolation(error: unknown, constraint: string): boolean {
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const e = current as { code?: string; constraint?: string; message?: string; cause?: unknown };
+    if (e.code === "23505" && (e.constraint === constraint || String(e.message ?? "").includes(constraint))) return true;
+    current = e.cause;
+  }
+  return false;
+}
+
 /** Anything that can insert: the pool, or a transaction opened on it. */
 export type LedgerExecutor = Pick<typeof db, "insert" | "select">;
+
+/** A transaction that also moves rows other than ledger legs (claims, payment rows). */
+export type MoneyExecutor = Pick<typeof db, "insert" | "select" | "update" | "execute">;
 
 /**
  * Post one balanced transaction.
@@ -87,6 +122,11 @@ export async function journal(input: {
   executor?: LedgerExecutor;
   /** Which entity's books, when the caller knows. Otherwise resolved below. */
   entity?: Entity;
+  /**
+   * 0188: one business event, one posting. Stamped on every leg with its leg
+   * number; the database refuses the same key twice (`DuplicatePosting`).
+   */
+  postingKey?: string;
 }): Promise<string> {
   const legs = input.legs.filter((leg) => leg.amountCents !== 0);
   if (legs.length === 0) return "";
@@ -124,21 +164,32 @@ export async function journal(input: {
 
   const txnId = input.txnId ?? crypto.randomUUID();
 
-  await (input.executor ?? db).insert(ledgerEntries).values(
-    legs.map((leg) => ({
-      txnId,
-      txnKind: input.kind,
-      account: leg.account,
-      organizationId: leg.organizationId ?? null,
-      userId: leg.userId ?? null,
-      amountCents: leg.amountCents,
-      entity: leg.entity ?? txnEntity,
-      refType: input.refType ?? null,
-      refId: input.refId ?? null,
-      memo: leg.memo,
-      createdBy: input.createdBy ?? null,
-    })),
-  );
+  try {
+    await (input.executor ?? db).insert(ledgerEntries).values(
+      legs.map((leg, index) => ({
+        txnId,
+        txnKind: input.kind,
+        account: leg.account,
+        organizationId: leg.organizationId ?? null,
+        userId: leg.userId ?? null,
+        amountCents: leg.amountCents,
+        entity: leg.entity ?? txnEntity,
+        refType: input.refType ?? null,
+        refId: input.refId ?? null,
+        memo: leg.memo,
+        createdBy: input.createdBy ?? null,
+        postingKey: input.postingKey ?? null,
+        leg: input.postingKey ? index : null,
+        egpMinor: leg.egpMinor ?? null,
+        fxRateMicro: leg.egpMinor != null ? (leg.fxRateMicro ?? null) : null,
+      })),
+    );
+  } catch (error) {
+    if (input.postingKey && isUniqueViolation(error, "ledger_entries_posting_key_unique")) {
+      throw new DuplicatePosting(input.postingKey);
+    }
+    throw error;
+  }
 
   return txnId;
 }
@@ -423,9 +474,22 @@ export async function postSessionPayment(payment: {
    * from. `payFromPot` said it did this; the id was never passed.
    */
   txnId?: string;
+  /** 0188: post inside the caller's transaction, with its claim. */
+  executor?: LedgerExecutor;
+  /** 0188: the business event, so it cannot be posted twice. */
+  postingKey?: string;
+  /**
+   * 0188: what the patient actually paid in pounds for `grossCents + vatCents`,
+   * and the rate it was charged at. Stamped on the cash leg, and the
+   * clinician's share of it on the payable leg (`payableEgpFor`).
+   */
+  collected?: { egpMinor: number; fxRateMicro: number } | null;
 }): Promise<void> {
   const org = payment.organizationId;
   const user = payment.therapistId;
+  const collected = payment.collected && payment.collected.egpMinor > 0 && payment.collected.fxRateMicro > 0
+    ? payment.collected
+    : null;
   // The fee we keep, after the part of it that cleared their own bills — that
   // part is revenue too, but it is invoice revenue and it is recognised when
   // the invoice is settled, not twice.
@@ -463,6 +527,8 @@ export async function postSessionPayment(payment: {
       refType: "session_payment",
       refId: payment.id,
       txnId: payment.txnId,
+      executor: payment.executor,
+      postingKey: payment.postingKey,
       /*
        * 🔴 NO VAT LEG HERE, AND ON THIS PATH THERE IS NEVER ANY VAT TO POST.
        *
@@ -502,11 +568,27 @@ export async function postSessionPayment(payment: {
     return;
   }
 
+  const egp = collected
+    ? {
+        cash: { egpMinor: collected.egpMinor, fxRateMicro: collected.fxRateMicro },
+        payable: {
+          egpMinor: -payableEgpFor({
+            netCents: payment.therapistNetCents,
+            paidCents: payment.grossCents + vat,
+            collectedEgpMinor: collected.egpMinor,
+          }),
+          fxRateMicro: collected.fxRateMicro,
+        },
+      }
+    : { cash: {}, payable: {} };
+
   await journal({
     kind: "session_payment",
     refType: "session_payment",
     refId: payment.id,
     txnId: payment.txnId,
+    executor: payment.executor,
+    postingKey: payment.postingKey,
     legs: [
       /*
        * 🔴 GROSS PLUS VAT, because that is what arrived.
@@ -517,7 +599,7 @@ export async function postSessionPayment(payment: {
        * fine: cash too low never trips a reconciliation that compares our own
        * numbers to each other.
        */
-      { account: "cash", amountCents: payment.grossCents + vat, organizationId: org, memo: "Session payment captured by the platform" },
+      { account: "cash", amountCents: payment.grossCents + vat, organizationId: org, memo: "Session payment captured by the platform", ...egp.cash },
       {
         /*
          * 🔴 Negative, because a liability rises with a negative amount, the
@@ -547,6 +629,7 @@ export async function postSessionPayment(payment: {
         organizationId: org,
         userId: user,
         memo: "Held for the clinician until payouts are open",
+        ...egp.payable,
       },
     ],
   });
@@ -613,6 +696,22 @@ export async function postSessionRefund(payment: {
     });
   }
 
+  /*
+   * 0188: the clinician's pounds go back with their cents, in proportion to
+   * what the payment booked, so their EGP balance never keeps money refunded.
+   */
+  if (payment.capture === "platform" && payment.therapistNetCents > 0) {
+    const payable = (await bookedLegs(payment.id, payment.executor)).filter(
+      (row) => row.account === "therapist_payable",
+    );
+    const bookedCents = payable.reduce((total, row) => total + Number(row.totalCents), 0);
+    const bookedEgp = payable.reduce((total, row) => total + Number(row.egpMinor ?? 0), 0);
+    const rate = payable.find((row) => row.fxRateMicro)?.fxRateMicro;
+    const back = egpBackFor({ refundCents: payment.therapistNetCents, bookedCents, bookedEgpMinor: bookedEgp });
+    const leg = legs.find((l) => l.account === "therapist_payable");
+    if (leg && back !== 0 && rate) Object.assign(leg, { egpMinor: back, fxRateMicro: Number(rate) });
+  }
+
   await journal({
     kind: "session_refund",
     refType: "session_payment",
@@ -644,6 +743,9 @@ async function bookedLegs(paymentId: string, executor: LedgerReader = db) {
       userId: ledgerEntries.userId,
       entity: ledgerEntries.entity,
       totalCents: sql<number>`COALESCE(SUM(${ledgerEntries.amountCents}), 0)::int`,
+      /* 0188: the pounds behind those cents, where the posting carried them. */
+      egpMinor: sql<number | null>`SUM(${ledgerEntries.egpMinor})::int`,
+      fxRateMicro: sql<number | null>`MAX(${ledgerEntries.fxRateMicro})::int`,
     })
     .from(ledgerEntries)
     .where(
@@ -698,6 +800,9 @@ export async function postReversalOf(input: {
       userId: row.userId,
       entity: row.entity,
       memo: "Reversed: the session was refunded",
+      ...(row.egpMinor != null && Number(row.egpMinor) !== 0 && row.fxRateMicro
+        ? { egpMinor: -Number(row.egpMinor), fxRateMicro: Number(row.fxRateMicro) }
+        : {}),
     }));
 
   await journal({
@@ -1073,7 +1178,11 @@ export async function postManualPayout(input: {
   sentByUserId: string;
   txnId?: string;
   executor?: LedgerExecutor;
+  /** 0188: the pounds that left and the rate frozen on the request, for an EGP payout. */
+  egpMinor?: number | null;
+  fxRateMicro?: number | null;
 }): Promise<string> {
+  const egp = input.egpMinor && input.fxRateMicro ? { egpMinor: input.egpMinor, fxRateMicro: input.fxRateMicro } : {};
   return journal({
     txnId: input.txnId,
     executor: input.executor,
@@ -1081,6 +1190,8 @@ export async function postManualPayout(input: {
     refType: "payout_request",
     refId: input.requestId,
     createdBy: input.sentByUserId,
+    /* 0188: a request leaves the books once. */
+    postingKey: `payout_request:${input.requestId}:sent`,
     legs: [
       {
         account: "therapist_payable",
@@ -1089,6 +1200,7 @@ export async function postManualPayout(input: {
         userId: input.therapistId,
         entity: input.entity,
         memo: "Manual payout sent",
+        ...egp,
       },
       {
         account: "cash",
@@ -1118,7 +1230,10 @@ export async function postManualPayoutReturned(input: {
   actorUserId: string;
   txnId: string;
   executor: LedgerExecutor;
+  egpMinor?: number | null;
+  fxRateMicro?: number | null;
 }): Promise<string> {
+  const egp = input.egpMinor && input.fxRateMicro ? { egpMinor: -input.egpMinor, fxRateMicro: input.fxRateMicro } : {};
   return journal({
     txnId: input.txnId,
     executor: input.executor,
@@ -1126,6 +1241,7 @@ export async function postManualPayoutReturned(input: {
     refType: "payout_request",
     refId: input.requestId,
     createdBy: input.actorUserId,
+    postingKey: `payout_request:${input.requestId}:returned`,
     legs: [
       {
         account: "therapist_payable",
@@ -1134,6 +1250,7 @@ export async function postManualPayoutReturned(input: {
         userId: input.therapistId,
         entity: input.entity,
         memo: "Manual payout did not arrive",
+        ...egp,
       },
       {
         account: "cash",

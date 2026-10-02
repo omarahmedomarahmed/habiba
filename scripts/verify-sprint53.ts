@@ -356,10 +356,33 @@ async function main() {
    * Asserted on the SQL, because the pipeline is where it matters: a query that
    * fetched days and summed them in TypeScript would put daily figures in a
    * variable, a log and a debugger.
+   *
+   * DD-2 B1: spend now comes from `sponsor_money_entries`, whose finest date is
+   * `week_start` (a date column, written as `weekStartOf(now)`). The table has
+   * no timestamp at all, `weeklySpend` reads it only through `publishedLedger`,
+   * and that reader selects `weekStart` and nothing finer.
    */
+  const sponsorLedgerData = readSource("lib/data/sponsor-ledger.ts");
+  const potSource = readSource("lib/billing/pot.ts");
+  const schemaSource = readSource("lib/db/schema.ts");
+  const moneyTable = schemaSource.slice(
+    schemaSource.indexOf('pgTable(\n  "sponsor_money_entries"'),
+    schemaSource.indexOf("export type SponsorMoneyEntry"),
+  );
+  const weeklySpendBody = sponsorData.slice(
+    sponsorData.indexOf("export async function weeklySpend"),
+    sponsorData.indexOf("export async function weeklySpend") + 500,
+  );
   check(
     "🔴 53.3 / C228 sponsor spend is grouped by week in SQL, never by day",
-    /date_trunc\('week'/.test(sponsorData) && !/date_trunc\('day'/.test(sponsorData),
+    moneyTable.length > 0 &&
+      /weekStart: date\("week_start"/.test(moneyTable) &&
+      !/timestamp\(/.test(moneyTable) &&
+      /weekStart: weekStartOf\(/.test(potSource) &&
+      /publishedLedger/.test(weeklySpendBody) &&
+      /weekStart: sponsorMoneyEntries\.weekStart/.test(sponsorLedgerData) &&
+      !/createdAt|created_at/.test(sponsorLedgerData) &&
+      !/date_trunc\('day'/.test(sponsorData + sponsorLedgerData),
     "no daily row exists anywhere in the pipeline to leak",
   );
 
@@ -920,7 +943,7 @@ async function main() {
     /*  53.10 to 53.16 · the pot's money, and the sign that broke once  */
     /* ================================================================ */
 
-    const { weeklySpend } = await import("../lib/data/sponsors");
+    const { sessionMovementSince } = await import("../lib/data/sponsors");
     const { ledgerPotBalance, potTotals, reconcilePots } = await import("../lib/billing/pot");
     const { journal } = await import("../lib/billing/ledger");
 
@@ -1058,13 +1081,17 @@ async function main() {
      * is whether `weeklySpend` finds the spend at all, which is the half the sign
      * bug broke.
      */
-    const series = await weeklySpend(fixture.id, 1);
-    const charted = series.reduce((total, week) => total + (week.spendCents ?? 0), 0);
+    /*
+     * DD-2 B1: the chart now comes from the people-floored ledger periods, and
+     * the ledger read that remains is the balance's: session movement since the
+     * last published period. Same question of the sign, same legs.
+     */
+    const charted = await sessionMovementSince(fixture.id, null);
 
     check(
-      "🔴 53.25 the weekly series finds the spend legs and not the deposit",
+      "🔴 53.25 the session movement finds the spend legs and not the deposit",
       charted === 4_000,
-      `$40 charted across ${series.length} week(s), and the $5,000 deposit charted as nothing`,
+      `$${charted / 100} found, and the $5,000 deposit counted as nothing`,
     );
 
     /* ============================================================ */

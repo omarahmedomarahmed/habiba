@@ -51,6 +51,8 @@
  */
 import { spawnSync } from "node:child_process";
 
+import { CONFIRM_FLAG, confirmationRefusal, type Allowed } from "./_production-confirm";
+
 /** The read-write compute on `main`. The same constant `_verify.ts` refuses by. */
 const PRODUCTION_ENDPOINT = "ep-wild-lake-a6tgm2r6";
 
@@ -61,7 +63,11 @@ const PRODUCTION_ENDPOINT = "ep-wild-lake-a6tgm2r6";
  * so a command that reads cannot become a command that writes by being on the
  * same list as one that does.
  */
-const ALLOWED: Record<string, { writes: boolean; why: string }> = {
+/*
+ * `destroys` marks a command that deletes or rewrites production data. It
+ * refuses to run without the typed confirmation in `_production-confirm.ts`.
+ */
+const ALLOWED: Record<string, Allowed> = {
   /* ---------------------------------------------------------------- writing */
   "simulate:seed": {
     writes: true,
@@ -70,20 +76,23 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
   age: {
     writes: true,
     why: "moves the clock at the end of a wave, and only rows created since the marker opened",
+    destroys: { unless: ["--dry"] },
   },
   "sim:clock": {
     writes: true,
     why: "moves every timestamp back by the simulated gap between rounds, so the month passes",
+    destroys: { unless: ["--dry", "--show"] },
   },
   "settings:seed": {
     writes: true,
     why: "fills in missing settings defaults. Idempotent, and it writes no people",
   },
-  "settings:reprice": { writes: true, why: "the prices this product charges" },
+  "settings:reprice": { writes: true, why: "the prices this product charges", destroys: true },
   "settings:rails": { writes: true, why: "fills blanks on country rows that already exist" },
   "ship:content": {
     writes: true,
     why: "rewrites content_pages from the shipped defaults, and nothing else",
+    destroys: true,
   },
   /*
    * 🔴 The surgical half of the entry above, and the one to reach for first.
@@ -94,6 +103,23 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
   "content:sync": {
     writes: true,
     why: "replaces the named block types on one page and proves nothing else changed",
+    destroys: { unless: ["--dry"] },
+  },
+  /* DD-2: one exact phrase in hand-written blocks that have no code default to sync from. */
+  "content:rename": {
+    writes: true,
+    why: "replaces one exact phrase in block text, refusing any other change",
+    destroys: { unless: ["--dry"] },
+  },
+  /*
+   * Review fix: the break glass for a sole super_admin who lost the phone and
+   * the recovery codes. Team resets another member, never yourself, so this is
+   * the only way back in. Clears one back office member's app, audited.
+   */
+  "factor:reset": {
+    writes: true,
+    why: "clears one back office member's authenticator app, audited. Break glass only",
+    destroys: { unless: ["--dry"] },
   },
   /*
    * It opens a copilot thread against real patients from the run and asks the
@@ -135,6 +161,7 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
   "seed:demo": {
     writes: true,
     why: "wipes the cast and seeds the demo one. Snapshot first. It DELETES PEOPLE",
+    destroys: true,
   },
   /*
    * 🔴 F9: the sensitive files the old fallback put on the PUBLIC blob store
@@ -146,6 +173,7 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
   "blobs:migrate-private": {
     writes: true,
     why: "moves sensitive files off the public blob store. Dry run unless --apply",
+    destroys: { onlyWith: "--apply" },
   },
 
   /* ---------------------------------------------------------------- reading */
@@ -180,7 +208,11 @@ const ALLOWED: Record<string, { writes: boolean; why: string }> = {
   "sim:inbox": { writes: false, why: "reads the kept messages to one invented address or number" },
   "settings:check": { writes: false, why: "whether it holds what it should" },
   "verify:migrations": { writes: false, why: "journal and ledger agree, every CHECK validated" },
+  /* Run before merging a pull request that adds a migration. */
+  "db:status": { writes: false, why: "lists the migrations production has not applied yet" },
   "verify:board": { writes: false, why: "the founders' board, and none of its nine queries writes" },
+  /* DD-2: the live rows against the list of claims that are false today. SELECTs only. */
+  "verify:cms-claims": { writes: false, why: "no published page row makes a claim that is false today" },
   "verify:cast": { writes: false, why: "every seeded login exists and can sign in" },
   /*
    * The half of `seed:demo` that reads. It hashes a candidate password against
@@ -302,6 +334,16 @@ function main(): void {
     process.exit(1);
   }
 
+  const refusal = confirmationRefusal(entry, rest, process.env.CONFIRM_PRODUCTION, host);
+  if (refusal) {
+    console.error(`\n  🔴 \`${command}\` deletes or rewrites production data, so it needs ${refusal}.\n`);
+    console.error("     Take a Neon snapshot first. Then, for example:\n");
+    console.error(`         CONFIRM_PRODUCTION=<host> npm run on:production -- ${command} -- ${CONFIRM_FLAG}\n`);
+    console.error(`     <host> is the host part of DATABASE_URL_PRODUCTION, typed in full (it starts ${PRODUCTION_ENDPOINT}).\n`);
+    process.exit(1);
+  }
+  const forwarded = rest.filter((arg) => arg !== CONFIRM_FLAG);
+
   console.log(`\n  🔴 PRODUCTION. ${host}`);
   console.log(`     ${command}: ${entry.why}`);
   console.log(`     this command ${entry.writes ? "WRITES" : "only reads"}.\n`);
@@ -315,14 +357,16 @@ function main(): void {
   if (entry.writes) env.I_MEAN_PRODUCTION = PRODUCTION_ENDPOINT;
   else delete env.I_MEAN_PRODUCTION;
 
-  const run = spawnSync("npm", ["run", command, "--", ...rest], { stdio: "inherit", env });
+  delete env.CONFIRM_PRODUCTION;
+  const run = spawnSync("npm", ["run", command, "--", ...forwarded], { stdio: "inherit", env });
   process.exit(run.status ?? 1);
 }
 
 function list(): void {
   console.error("  Allowed:\n");
   for (const [name, entry] of Object.entries(ALLOWED)) {
-    console.error(`      ${entry.writes ? "writes" : "reads "}  ${name.padEnd(18)} ${entry.why}`);
+    const kind = entry.destroys ? "DELETES" : entry.writes ? "writes " : "reads  ";
+    console.error(`      ${kind}  ${name.padEnd(18)} ${entry.why}`);
   }
   console.error("");
 }

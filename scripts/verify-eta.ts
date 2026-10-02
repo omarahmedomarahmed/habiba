@@ -19,7 +19,6 @@
  *               for its credentials
  */
 import { sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -449,7 +448,6 @@ async function main() {
       await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${s}`);
       await db.execute(sql`DELETE FROM sponsors WHERE id = ${s}`);
     }
-    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND actor_user_id IN (SELECT id FROM users WHERE organization_id = ${org.id})`).catch(() => undefined);
     await db.execute(sql`UPDATE platform_settings SET updated_by = NULL WHERE updated_by IN (SELECT id FROM users WHERE organization_id = ${org.id})`).catch(() => undefined);
     await db.execute(sql`DELETE FROM users WHERE organization_id = ${org.id}`);
     await db.execute(sql`DELETE FROM organizations WHERE id = ${org.id}`);

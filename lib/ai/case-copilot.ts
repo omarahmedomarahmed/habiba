@@ -542,11 +542,10 @@ export async function askPatientCopilot(opts: {
   /**
    * What this clinician may read. PLAN.md 7.7.
    *
-   * Optional so the one other caller (the in-session suggestions) is not
-   * forced to answer a question it does not have — absent means "no
-   * restriction beyond the scoping the caller already did".
+   * Required (DD-2 B1): absent used to mean "no restriction", so a new caller
+   * that forgot it would hand a revoked clinician the profile and files.
    */
-  capabilities?: Capabilities;
+  capabilities: Capabilities;
   /**
    * 🔴 48.4 / C211 — the instant the room opened, when this is asked from
    * inside a live session.

@@ -59,6 +59,26 @@ import {
 } from "./_event-story";
 import type { connect } from "./db";
 
+/**
+ * 🔴 0188: `ledger_entries` refuses UPDATE (drizzle/0188). The event cast moves
+ * what the product just posted to the day it happened, dates only, so this one
+ * statement runs with the append-only trigger off, inside one transaction that
+ * holds the table's lock: nothing else sees it off, and it is back on at commit
+ * whatever happens. Like seed-demo's clinical summary wipe, this is a demo
+ * reset's act and no file under app/ or lib/ does it.
+ */
+async function backdateLedger(db: ReturnType<typeof connect>["db"], update: ReturnType<typeof sql>): Promise<void> {
+  await db.transaction(async (tx) => {
+    const { rows } = await tx.execute(
+      sql`SELECT 1 FROM pg_trigger WHERE tgname = 'ledger_entries_append_only' AND NOT tgisinternal`,
+    );
+    const guarded = rows.length > 0;
+    if (guarded) await tx.execute(sql`ALTER TABLE ledger_entries DISABLE TRIGGER ledger_entries_append_only`);
+    await tx.execute(update);
+    if (guarded) await tx.execute(sql`ALTER TABLE ledger_entries ENABLE TRIGGER ledger_entries_append_only`);
+  });
+}
+
 type Db = ReturnType<typeof connect>["db"];
 type Row = Record<string, unknown>;
 
@@ -304,33 +324,35 @@ type Person = {
   /** `event`: the shared password. `hidden`: an account nobody is told the password of. `none`: no account. */
   login: "event" | "hidden" | "none";
   employer?: "foundry" | "pharma";
+  /** DD-2: how their notes refer to them in Arabic (`patients.address_as`, 0191). */
+  addressAs: "female" | "male";
 };
 
 const PEOPLE: Person[] = [
-  { key: "mariam", first: "Mariam", last: "Hassan", email: EVENT.mariam, phone: EVENT.mariamPhone, login: "event", employer: "foundry" },
-  { key: "omar", first: "Omar", last: "Khaled", email: "omar.khaled@example.com", phone: "+201009000062", login: "event", employer: "foundry" },
-  { key: "yara", first: "Yara", last: "Mostafa", email: "yara.mostafa@example.com", phone: "+201009000063", login: "event", employer: "pharma" },
-  { key: "ahmed", first: "Ahmed", last: "Samir", email: "ahmed.samir@example.com", phone: "+201009000064", login: "event" },
-  { key: "nadine", first: "Nadine", last: "Farouk", email: "nadine.farouk@example.com", phone: "+201009000065", login: "event" },
-  { key: "sherif", first: "Sherif", last: "Wahba", email: EVENT.moved, phone: "+201009000066", login: "event" },
-  { key: "hazem", first: "Hazem", last: "Tawfik", email: "hazem.tawfik@example.com", phone: "+201009000067", login: "event", employer: "pharma" },
-  { key: "hoda", first: "Hoda", last: "Ibrahim", email: EVENT.unclaimed, phone: "+201009000068", login: "none" },
+  { key: "mariam", first: "Mariam", last: "Hassan", email: EVENT.mariam, phone: EVENT.mariamPhone, login: "event", employer: "foundry", addressAs: "female" },
+  { key: "omar", first: "Omar", last: "Khaled", email: "omar.khaled@example.com", phone: "+201009000062", login: "event", employer: "foundry", addressAs: "male" },
+  { key: "yara", first: "Yara", last: "Mostafa", email: "yara.mostafa@example.com", phone: "+201009000063", login: "event", employer: "pharma", addressAs: "female" },
+  { key: "ahmed", first: "Ahmed", last: "Samir", email: "ahmed.samir@example.com", phone: "+201009000064", login: "event", addressAs: "male" },
+  { key: "nadine", first: "Nadine", last: "Farouk", email: "nadine.farouk@example.com", phone: "+201009000065", login: "event", addressAs: "female" },
+  { key: "sherif", first: "Sherif", last: "Wahba", email: EVENT.moved, phone: "+201009000066", login: "event", addressAs: "male" },
+  { key: "hazem", first: "Hazem", last: "Tawfik", email: "hazem.tawfik@example.com", phone: "+201009000067", login: "event", employer: "pharma", addressAs: "male" },
+  { key: "hoda", first: "Hoda", last: "Ibrahim", email: EVENT.unclaimed, phone: "+201009000068", login: "none", addressAs: "female" },
   /* The rest of the two rosters. On the lists, enrolled, and nobody's login. */
-  { key: "mohamed", first: "Mohamed", last: "Gaber", email: "mohamed.gaber@example.com", phone: "+201009000071", login: "hidden", employer: "foundry" },
-  { key: "tamer", first: "Tamer", last: "Adly", email: "tamer.adly@example.com", phone: "+201009000072", login: "hidden", employer: "foundry" },
-  { key: "rana", first: "Rana", last: "Shawky", email: "rana.shawky@example.com", phone: "+201009000073", login: "hidden", employer: "foundry" },
-  { key: "dina", first: "Dina", last: "Lotfy", email: "dina.lotfy@example.com", phone: "+201009000074", login: "hidden", employer: "foundry" },
-  { key: "hany", first: "Hany", last: "Zaki", email: "hany.zaki@example.com", phone: "+201009000075", login: "hidden", employer: "foundry" },
-  { key: "mai", first: "Mai", last: "Soliman", email: "mai.soliman@example.com", phone: "+201009000076", login: "hidden", employer: "foundry" },
-  { key: "aya", first: "Aya", last: "Hamdy", email: "aya.hamdy@example.com", phone: "+201009000081", login: "hidden", employer: "pharma" },
-  { key: "mostafa", first: "Mostafa", last: "Reda", email: "mostafa.reda@example.com", phone: "+201009000082", login: "hidden", employer: "pharma" },
-  { key: "ingy", first: "Ingy", last: "Sabry", email: "ingy.sabry@example.com", phone: "+201009000083", login: "hidden", employer: "pharma" },
+  { key: "mohamed", first: "Mohamed", last: "Gaber", email: "mohamed.gaber@example.com", phone: "+201009000071", login: "hidden", employer: "foundry", addressAs: "male" },
+  { key: "tamer", first: "Tamer", last: "Adly", email: "tamer.adly@example.com", phone: "+201009000072", login: "hidden", employer: "foundry", addressAs: "male" },
+  { key: "rana", first: "Rana", last: "Shawky", email: "rana.shawky@example.com", phone: "+201009000073", login: "hidden", employer: "foundry", addressAs: "female" },
+  { key: "dina", first: "Dina", last: "Lotfy", email: "dina.lotfy@example.com", phone: "+201009000074", login: "hidden", employer: "foundry", addressAs: "female" },
+  { key: "hany", first: "Hany", last: "Zaki", email: "hany.zaki@example.com", phone: "+201009000075", login: "hidden", employer: "foundry", addressAs: "male" },
+  { key: "mai", first: "Mai", last: "Soliman", email: "mai.soliman@example.com", phone: "+201009000076", login: "hidden", employer: "foundry", addressAs: "female" },
+  { key: "aya", first: "Aya", last: "Hamdy", email: "aya.hamdy@example.com", phone: "+201009000081", login: "hidden", employer: "pharma", addressAs: "female" },
+  { key: "mostafa", first: "Mostafa", last: "Reda", email: "mostafa.reda@example.com", phone: "+201009000082", login: "hidden", employer: "pharma", addressAs: "male" },
+  { key: "ingy", first: "Ingy", last: "Sabry", email: "ingy.sabry@example.com", phone: "+201009000083", login: "hidden", employer: "pharma", addressAs: "female" },
   /* The new clinicians' patients. They pay for themselves, so no company's pot moves. */
-  { key: "salah", first: "Salah", last: "Mekky", email: "salah.mekky@example.com", phone: "+201009000091", login: "hidden" },
-  { key: "lobna", first: "Lobna", last: "Fathy", email: "lobna.fathy@example.com", phone: "+201009000092", login: "hidden" },
-  { key: "mona", first: "Mona", last: "Serag", email: "mona.serag@example.com", phone: "+201009000093", login: "hidden" },
-  { key: "waleed", first: "Waleed", last: "Nasr", email: "waleed.nasr@example.com", phone: "+201009000094", login: "hidden" },
-  { key: "khaled", first: "Khaled", last: "Anwar", email: "khaled.anwar@example.com", phone: "+201009000095", login: "hidden" },
+  { key: "salah", first: "Salah", last: "Mekky", email: "salah.mekky@example.com", phone: "+201009000091", login: "hidden", addressAs: "male" },
+  { key: "lobna", first: "Lobna", last: "Fathy", email: "lobna.fathy@example.com", phone: "+201009000092", login: "hidden", addressAs: "female" },
+  { key: "mona", first: "Mona", last: "Serag", email: "mona.serag@example.com", phone: "+201009000093", login: "hidden", addressAs: "female" },
+  { key: "waleed", first: "Waleed", last: "Nasr", email: "waleed.nasr@example.com", phone: "+201009000094", login: "hidden", addressAs: "male" },
+  { key: "khaled", first: "Khaled", last: "Anwar", email: "khaled.anwar@example.com", phone: "+201009000095", login: "hidden", addressAs: "male" },
 ];
 
 /** The same shape `seed-demo.ts` writes, so every screen that reads a note reads this one. */
@@ -593,7 +615,7 @@ export async function seedEvent(ctx: { db: Db; adminId: string }): Promise<void>
 
     /* The pot opened, and was topped up, on the day it did: moved there, amounts untouched. */
     const opening = daysAgo(opts.openedDaysAgo);
-    await db.execute(sql`
+    await backdateLedger(db, sql`
       UPDATE ledger_entries SET created_at = ${opening.toISOString()}
        WHERE created_at >= ${t0.toISOString()}
          AND txn_id IN (SELECT txn_id FROM ledger_entries
@@ -706,9 +728,9 @@ export async function seedEvent(ctx: { db: Db; adminId: string }): Promise<void>
     const x = person[personKey]!;
     const row = await one<{ id: string }>(sql`
       INSERT INTO patients (organization_id, therapist_id, person_id, first_name, last_name, email, phone,
-                            source, timezone, created_at)
+                            source, timezone, address_as, created_at)
       VALUES (${c.orgId}, ${c.id}, ${x.id}, ${x.p.first}, ${x.p.last}, ${x.p.email}, ${x.p.phone},
-              ${x.p.login === "none" ? "therapist" : "self"}, 'Africa/Cairo', ${daysAgo(65).toISOString()})
+              ${x.p.login === "none" ? "therapist" : "self"}, 'Africa/Cairo', ${x.p.addressAs}, ${daysAgo(65).toISOString()})
       RETURNING id`);
     chartOf.set(key, row.id);
     return row.id;
@@ -760,7 +782,7 @@ export async function seedEvent(ctx: { db: Db; adminId: string }): Promise<void>
 
   /** Move everything the product just wrote about one session to the day it happened. */
   const dateSession = async (sessionId: string, t0: Date, when: Date, paidAt: Date) => {
-    await db.execute(sql`
+    await backdateLedger(db, sql`
       UPDATE ledger_entries SET created_at = ${when.toISOString()}
        WHERE created_at >= ${t0.toISOString()}
          AND txn_id IN (

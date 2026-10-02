@@ -52,6 +52,8 @@ const MARKS = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g;
 export function fold(text: string): string {
   return text
     .toLowerCase()
+    /* A phone keyboard types a curly apostrophe: "can’t go on" is "can't go on". */
+    .replace(/[\u2018\u2019\u02BC\u0060\u00B4]/g, "'")
     .replace(MARKS, "")
     .replace(/[\u0623\u0625\u0622\u0671]/g, "\u0627")
     .replace(/\u0629/g, "\u0647")
@@ -77,26 +79,56 @@ export function contains(haystack: string, needle: string): boolean {
   return fold(haystack).includes(folded);
 }
 
+/** One Arabic letter after `fold`. JS `\b` and `\w` know nothing about these. */
+export const AR_LETTER = "[\\u0621-\\u064A\\u066E-\\u06D3]";
+
 /**
- * 🔴 Does `haystack` contain `needle` as whole words, when the needle is Latin?
+ * The clitics written onto the front of an Arabic word: و and ف ("and"), then
+ * ب ل ك ("with", "to", "like"), then ال ("the"). "وامي" is "and my mother";
+ * "قدامي" ("in front of me") is not "امي", because ق and د are not clitics.
+ */
+const AR_CLITICS = "(?:[\\u0648\\u0641])?(?:[\\u0628\\u0644\\u0643])?(?:\\u0627\\u0644)?";
+
+function escape(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * A regular expression for a folded Arabic needle as whole words, with the
+ * common clitic prefixes allowed on its first word. Exported for the phrase
+ * patterns, so the boundary is written in one place.
+ */
+export function arabicWords(needle: string, flags = "u"): RegExp {
+  const words = fold(needle).trim().split(/\s+/).map(escape).join("\\s+");
+  return new RegExp(`(?<!${AR_LETTER})${AR_CLITICS}${words}(?!${AR_LETTER})`, flags);
+}
+
+/**
+ * 🔴 Does `haystack` contain `needle` as whole words?
  *
- * `contains` is a substring test, which is right for Arabic (a prefix like و
- * or ب is written onto the word) and wrong for a short Latin marker: the
- * third-party marker "he " matched inside "the ", so "The only way out is to
- * kill myself" read as a sentence about somebody else and raised nothing.
+ * Latin: the third-party marker "he " matched inside "the ", so "The only way
+ * out is to kill myself" read as a sentence about somebody else and raised
+ * nothing. A Latin needle must sit between word edges.
  *
- * So a needle made only of Latin letters, digits and spaces must sit between
- * word edges. Anything else falls back to `contains`. Use this for every list
- * that SUPPRESSES an alert: a stricter match there can only suppress less.
- * PRESENT uses it too, since "now" inside "know" is not the present; the forms
- * the loose match caught on purpose are listed there as their own markers.
+ * Arabic (DD-2): this used to fall back to a substring test, so "امي" (my
+ * mother) matched inside "قدامي" (in front of me) and "the knife is in front
+ * of me and I want to die" raised nothing. An Arabic needle is now a whole
+ * word too, with the clitic prefixes و ف ب ل ك ال allowed in front.
+ *
+ * Use this for every list that SUPPRESSES an alert: a stricter match there can
+ * only suppress less. Mixed needles fall back to `contains`.
  */
 export function containsWords(haystack: string, needle: string): boolean {
   const folded = fold(needle).trim();
   if (folded.length === 0) return false;
-  if (!/^[a-z0-9 ]+$/.test(folded)) return contains(haystack, needle);
-  const words = folded.split(/ +/).join(" +");
-  return new RegExp(`(?:^|[^a-z0-9])${words}(?:$|[^a-z0-9])`).test(fold(haystack));
+  if (/^[a-z0-9' ]+$/.test(folded)) {
+    const words = folded.split(/ +/).map(escape).join(" +");
+    return new RegExp(`(?:^|[^a-z0-9])${words}(?:$|[^a-z0-9])`).test(fold(haystack));
+  }
+  if (new RegExp(`^(?:${AR_LETTER}| )+$`, "u").test(folded)) {
+    return arabicWords(folded).test(fold(haystack));
+  }
+  return contains(haystack, needle);
 }
 
 /**
@@ -168,8 +200,14 @@ function foldArabizi(text: string): string {
  * normalisers, and both times it turned a scanner into something that alerted
  * on everything. A third normaliser gets the guard at birth.
  */
-export function containsArabizi(haystack: string, needle: string): boolean {
+export function containsArabizi(haystack: string, needle: string, opts: { wordEnd?: boolean } = {}): boolean {
   const folded = foldArabizi(needle);
   if (folded.length === 0) return false;
-  return foldArabizi(haystack).includes(folded);
+  const text = foldArabizi(haystack);
+  if (!opts.wordEnd) return text.includes(folded);
+  /* Review: up to a word end, so "hant7ar" is not read inside "hant7arak". */
+  for (let at = text.indexOf(folded); at >= 0; at = text.indexOf(folded, at + 1)) {
+    if (!/[a-z0-9]/.test(text.charAt(at + folded.length))) return true;
+  }
+  return false;
 }

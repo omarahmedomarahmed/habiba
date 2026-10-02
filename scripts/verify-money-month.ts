@@ -40,7 +40,6 @@ process.env.EGYPT_PAYOUTS_HMAC = `verify-mm-${randomBytes(24).toString("hex")}`;
 import { randomBytes } from "node:crypto";
 
 import { sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -365,7 +364,6 @@ async function usMonth(db: Db) {
       sql`DELETE FROM sessions WHERE organization_id = ${org.id}`,
       sql`DELETE FROM enrolments WHERE sponsor_id = ${sponsor.id}`,
       sql`DELETE FROM patients WHERE organization_id = ${org.id}`,
-      sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsor.id})`,
       sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsor.id}`,
       sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
       sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
@@ -621,12 +619,19 @@ async function main() {
     await db.execute(sql`UPDATE sponsor_pots SET balance_cents = balance_cents + 1 WHERE sponsor_id = ${sponsor.id}`);
     const drifted = await one<{ balance_cents: number }>(sql`SELECT balance_cents FROM sponsor_pots WHERE sponsor_id = ${sponsor.id}`);
     await db.execute(sql`UPDATE sponsor_pots SET balance_cents = balance_cents - 1 WHERE sponsor_id = ${sponsor.id}`);
+    /* 🔴 0188: the database refuses a one-legged transaction at commit, so it is planted and removed inside one. */
     const plantTxn = crypto.randomUUID();
-    await db.execute(sql`
-      INSERT INTO ledger_entries (txn_id, txn_kind, account, organization_id, amount_cents, ref_type, memo)
-      VALUES (${plantTxn}, 'adjustment', 'cash', ${org.id}, 1, 'session_payment', 'month: planted')`);
-    const plantedUnbalanced = await unbalanced();
-    await db.execute(sql`DELETE FROM ledger_entries WHERE txn_id = ${plantTxn}`);
+    const plantedUnbalanced = await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        INSERT INTO ledger_entries (txn_id, txn_kind, account, organization_id, amount_cents, ref_type, memo)
+        VALUES (${plantTxn}, 'adjustment', 'cash', ${org.id}, 1, 'session_payment', 'month: planted')`);
+      const seen = (await tx.execute(sql`
+        SELECT txn_id FROM ledger_entries
+         WHERE organization_id = ${org.id} OR (ref_type = 'sponsor' AND ref_id = ${sponsor.id})
+         GROUP BY txn_id HAVING SUM(amount_cents) <> 0`)).rows.length;
+      await tx.execute(sql`DELETE FROM ledger_entries WHERE txn_id = ${plantTxn}`);
+      return seen;
+    });
     check(
       "CONTROL a one-cent drift in the pot and a one-legged transaction are both seen",
       Number(drifted.balance_cents) !== potLedger && plantedUnbalanced === 1,
@@ -648,7 +653,6 @@ async function main() {
       sql`DELETE FROM sessions WHERE organization_id = ${org.id}`,
       sql`DELETE FROM enrolments WHERE sponsor_id = ${sponsor.id}`,
       sql`DELETE FROM patients WHERE organization_id = ${org.id}`,
-      sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsor.id})`,
       sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsor.id}`,
       sql`DELETE FROM eta_documents WHERE kind = 'credit_note' AND sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,
       sql`DELETE FROM eta_documents WHERE sponsor_id IN (SELECT id FROM sponsors WHERE id = ${sponsor.id})`,

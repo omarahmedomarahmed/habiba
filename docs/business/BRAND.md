@@ -12,7 +12,7 @@ Stroke is a constant 20.4% of the mark's height, round caps and joins throughout
 | Token | Hex | Where it is used |
 |---|---|---|
 | `navy-500` | `#0A2342` | The identity. Light grounds, print, stamps, a patient's record extract. |
-| `teal-500` | `#2EC4B6` | Crisis Radar only, on `radar-void`. It reads 2.19:1 on white, so never on a light ground. |
+| `teal-500` | `#2EC4B6` | The Radar only, on `radar-void`. It reads 2.19:1 on white, so never on a light ground. |
 | `white` | `#FFFFFF` | Reversed, on `navy-600` in the session room and on `radar-void`. |
 
 `brand-500` `#1F5EFF` is the interactive colour and is never the mark.

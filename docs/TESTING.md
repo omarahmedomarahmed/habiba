@@ -7,12 +7,36 @@ an npm script, so one command runs one check.
 
 | Pass | Command | Needs | Runs |
 | --- | --- | --- | --- |
-| Static | `npm run ci` | Nothing but the repository (and Chromium for the alarm suite) | `typecheck`, every `test:*` suite except the database ones, `prose`, and the static verifiers listed in `scripts/ci.ts` |
+| Static | `npm run ci` | Nothing but the repository (and Chromium for the alarm suite) | `typecheck`, every `test:*` suite except the database ones, `prose`, and the static verifiers listed in `scripts/_ci-lists.ts` |
+| Database | `npm run ci:db` | A Postgres on this machine behind Neon's WebSocket proxy (`DATABASE_WS_PROXY`), migrated and seeded | Every suite in `NEEDS_DATABASE_SUITES` (`scripts/_ci-lists.ts`) except `test:e2e`, including `test:ledger` and `test:tenancy` (clinician A cannot reach clinician B's chart, sessions, transcript, notes, files, profile, copilot thread or export; each refusal paired with B's own call). Refuses any database host that is not local |
 | Full | `npm run gates` | `.env.local` with `DATABASE_URL` on the dev branch | Every gate in `scripts/_gates.ts`, which includes `suites` (every unit suite), `verifiers` (every `verify:*` that is not a gate) and the build-and-serve checks |
 
-GitHub Actions runs `npm run ci` on every pull request and on `main`
-(`.github/workflows/ci.yml`). `npm run gates` is run locally before a merge that deploys; it
+GitHub Actions runs both on every pull request and on `main` (`.github/workflows/ci.yml`): the
+static pass, and a "Database checks" job that starts `postgres:18` (Neon runs 18) with
+`ghcr.io/neondatabase/wsproxy` in front of it, runs `db:migrate`, `settings:seed` and
+`db:seed`, then `npm run ci:db`. No secret is involved. To run the database pass locally:
+
+```
+docker network create ci
+docker run -d --network ci --network-alias postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=ci -p 5432:5432 postgres:18
+docker run -d --network ci -e APPEND_PORT=postgres:5432 -e ALLOW_ADDR_REGEX='.*' -p 5488:80 ghcr.io/neondatabase/wsproxy:latest
+export DATABASE_URL=postgres://postgres:postgres@localhost:5432/ci DATABASE_WS_PROXY=localhost:5488
+npm run db:migrate && npm run settings:seed && SEED_ADMIN_EMAIL=ci-admin@example.com SEED_ADMIN_PASSWORD=<any> npm run db:seed && npm run ci:db
+```
+
+Variables set in the shell win over `.env.local`, so this never reaches dev. `npm run gates` is run locally before a merge that deploys; it
 takes a long time, so between edits run only the narrow check for what you touched.
+
+When a run needs the secrets file, keep it outside the repository (it is public) and load it in a
+subshell so no value is expanded onto a command line, where `ps` and shell history would show it:
+`(set -a; . ~/24therapy-secrets.env; set +a; npm run gates)`. Never `env $(xargs < file) ...`.
+
+Heavy runs (`npm run gates`, `verify:served`, `smoke`, `render:check`, `test:e2e`) share port
+3199, the `.next` build directory and about 4GB of memory. When more than one agent or terminal
+works in the same machine, take a shared lock so they queue instead of colliding, for example
+`flock /tmp/24therapy-heavy.lock npm run gates`, and run the served checks on an otherwise quiet
+machine: under load `verify:served` and `verify:contrast` time out on the harness, not the
+product.
 
 `npm test` alone runs the safety and due diligence suites (`tests/safety.test.ts`,
 `tests/due-diligence.test.ts`, `tests/due-diligence-consent.test.ts`).
@@ -31,9 +55,10 @@ npm run on:production -- verify:migrations   # read-only checks allowed on produ
 | Family | Examples | Reads |
 | --- | --- | --- |
 | Structure and boundaries | `verify:principals`, `verify:boundary`, `verify:reachable`, `verify:raw-sql`, `verify:machines`, `verify:sprint24` (no model output reaches a patient) | Source |
-| Copy and language | `prose`, `verify:claims`, `verify:notices`, `verify:sprint37l` (i18n ratchet), `verify:message-language`, `verify:palette`, `verify:contrast` | Source, dictionaries, rendered pages |
+| Copy and language | `prose`, `verify:claims`, `verify:claims-defaults` (no shipped default page makes a claim in `lib/content/claims.ts`, and the CMS guard is wired; static, in CI), `verify:cms-claims` (the same rules over the stored `content_pages` rows; read-only, allowed on production), `verify:notices`, `verify:sprint37l` (i18n ratchet), `verify:message-language`, `verify:palette`, `verify:contrast` | Source, dictionaries, rendered pages |
 | Security | `verify:csp`, `verify:blobs`, `verify:staff-2fa`, `verify:limits` | Source, database |
 | Money | `verify:money`, `verify:cycle`, `verify:edges`, `verify:month`, `verify:payout`, `verify:wallet`, `verify:rail`, `verify:gateway`, `verify:entitlement`, `verify:finance`, `verify:plan` | Database fixtures they plant and remove |
+| Migrations | `verify:journal` (the journal only grows at the end against the fork point with `main`; past entries and their SQL unchanged; needs full history, so CI checks out with `fetch-depth: 0`), `verify:migrations` | Git history, the database |
 | Documents | `verify:runbook` (`docs/simulation/`, README, `docs/*.md` paths), `verify:traps` (this page's trap list), `verify:prove` (`docs/DEMO.md`), `verify:claims` (the hazards table in `docs/OPERATIONS.md`), `verify:csp` (the video host audit in `docs/SECURITY-AND-PRIVACY.md`) | Markdown |
 | A seeded database | `verify:cast`, `verify:demo`, `verify:event-demo`, `verify:synthetic`, `verify:board` | The database it is pointed at; skipped by `verifiers` |
 | The running site | `smoke`, `verify:served`, `render:check`, `check:live`, `verify:email-dns` | A build, the live site, or live DNS |
@@ -44,6 +69,19 @@ Ratchets only move one way: `evals/prose.json` (words per portal), `scripts/_i18
 number is a decision made in a diff, with the reason written beside the number in that file and
 in the pull request.
 
+## The crisis keyword floor
+
+`npm run test:crisis-lexicon` (`tests/crisis-lexicon.test.ts`) needs no database and no network
+and runs in CI. It holds every sentence due diligence found silenced or missed, the near misses
+that must stay quiet, the live scan (speaker, questions, the chunk join) and the eval risk and
+floor cases (`evals/cases.ts`), so the keyword half of the risk eval now gates a merge.
+
+On 2026-10-01 ruling CR16 (first-person phrases alert even in the past) moved
+`risk.specificity` in `evals/baseline.json` from 93.1% to 79.3% on purpose; sensitivity stayed
+at 94.4% and the 121-sentence probe went from 49 missed to 0. The reason is beside the number
+(`whyRiskSpecificityDD2`). Any further move needs the same: a ruling, a reason in the file, and
+the pull request saying so.
+
 ## Known flaky or conditional checks
 
 | Check | Why it can go red without a product defect |
@@ -51,7 +89,8 @@ in the pull request.
 | Anything that signs in | The sign-in limiter is at its production setting locally (H50). Run once; wait 15 minutes after "Too many attempts" |
 | Repo-walking verifiers | An agent worktree under `.claude/worktrees/` is scanned as source (H51) |
 | `verify:email-dns` | Asks live DNS; fails from 2026-10-06 while DMARC is still `p=none` (deliberate deadline) |
-| `verify:served`, `smoke`, `render:check` | Need a build and free port 3199; a killed run leaves a server behind |
+| `verify:served`, `smoke`, `render:check` | Need a build, free port 3199 and a quiet machine; a killed run leaves a server behind (B4) |
+| `verify:journal` | Reports deferred, not failed, on a shallow clone with no `origin/main` to compare against |
 | `verify:contrast` | Under load the harness, not the product, is slow; it asks the server log which it was |
 | `verify:cast`, `verify:demo`, `verify:event-demo` | True only on a database seeded with that cast |
 | `settings:compare` | Reports an absent environment while `DATABASE_URL_SIMULATION` is unset |
@@ -60,8 +99,8 @@ in the pull request.
 
 | To add | Do |
 | --- | --- |
-| A unit suite | `tests/<name>.test.ts` and a `test:<name>` script. `suites` fails on a test file no script runs. If it needs a database, add it to `NEEDS_DATABASE_SUITES` in `scripts/ci.ts` |
-| A verifier | `scripts/verify-<name>.ts` using `reporter()` and `readSource()` from `scripts/_verify.ts`, and a `verify:<name>` script. `verifiers` picks it up automatically. If it needs no database, add it to `STATIC_VERIFIERS` in `scripts/ci.ts` so CI runs it |
+| A unit suite | `tests/<name>.test.ts` and a `test:<name>` script. `suites` fails on a test file no script runs. If it needs a database, add it to `NEEDS_DATABASE_SUITES` in `scripts/_ci-lists.ts`; CI then runs it in the database job against an empty, migrated and seeded database, so it must plant its own fixtures |
+| A verifier | `scripts/verify-<name>.ts` using `reporter()` and `readSource()` from `scripts/_verify.ts`, and a `verify:<name>` script. `verifiers` picks it up automatically. If it needs no database, add it to `STATIC_VERIFIERS` in `scripts/_ci-lists.ts` so CI runs it |
 | A gate | An entry in `GATES` in `scripts/_gates.ts` with a one-line reason |
 | A script that writes | Call `writesTo()` so it refuses production; only `scripts/on-production.ts` lets a command through |
 

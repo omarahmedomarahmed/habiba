@@ -355,54 +355,7 @@ export async function deliverableNote(input: {
 }): Promise<{ content: unknown; approvedAt: string; language: string } | ApiFailure> {
   /* 🔴 Real records answer live keys only; a sandbox key is self-serve. */
   if (input.key.environment !== "live") return { error: "Use your live key for records.", status: 403 };
-  const [note] = await controlDb
-    .select({
-      content: sessionNotes.content,
-      language: sessionNotes.language,
-      approvedAt: sessionNotes.approvedAt,
-      sessionId: sessionNotes.sessionId,
-    })
-    .from(sessionNotes)
-    .innerJoin(sessions, eq(sessions.id, sessionNotes.sessionId))
-    /*
-     * 🔴 `patients` BEFORE `partner_subjects`, and the first version had them the other way
-     * round.
-     *
-     * The join condition on `partner_subjects` reads `patients.person_id`, and a JOIN cannot
-     * reference a table that is joined later: Postgres rejects it with "invalid reference to
-     * FROM-clause entry for table patients". So this function threw on EVERY call, and nothing
-     * noticed, because nothing called it: the route existed, the handler compiled, the scope
-     * check was right, and the query was unrunnable.
-     *
-     * Drizzle emits the joins in the order they are chained, which is what makes chaining
-     * order load-bearing rather than stylistic.
-     */
-    .innerJoin(patients, eq(patients.id, sessions.patientId))
-    .innerJoin(partnerSubjects, eq(partnerSubjects.personId, patients.personId))
-    .where(
-      and(
-        eq(sessionNotes.sessionId, input.sessionId),
-        /* 🔴 All three. See above. */
-        eq(sessionNotes.status, "approved"),
-        isNotNull(sessionNotes.approvedAt),
-        isNotNull(sessionNotes.approvedBy),
-        /*
-         * 🔴 AND THE SESSION'S SUBJECT MUST BE THIS PARTNER'S SUBJECT.
-         *
-         * Without this a key could fetch any approved note in the product by guessing a
-         * session id. The join is the scope, in the query, rather than a check somebody
-         * remembers afterwards.
-         */
-        eq(partnerSubjects.partnerId, input.key.partnerId),
-      ),
-    )
-    /*
-     * 🔴 W2-F01: a session can carry a signed note per format. The one
-     * delivered is the first signed, which is also where the patient's copy
-     * comes from, so the partner's chart and the patient agree.
-     */
-    .orderBy(asc(sessionNotes.approvedAt), desc(sessionNotes.isPrimary))
-    .limit(1);
+  const [note] = await deliverableNoteQuery(input.key.partnerId, input.sessionId);
 
   if (!note?.approvedAt) {
     /*
@@ -432,6 +385,76 @@ export async function deliverableNote(input: {
 }
 
 /**
+ * The query behind `deliverableNote`, apart so a unit test can read its SQL.
+ * Scope: this partner's live subject link, and a session held in one of this
+ * partner's own practices.
+ */
+export function deliverableNoteQuery(partnerId: string, sessionId: string) {
+  return controlDb
+    .select({
+      content: sessionNotes.content,
+      language: sessionNotes.language,
+      approvedAt: sessionNotes.approvedAt,
+      sessionId: sessionNotes.sessionId,
+    })
+    .from(sessionNotes)
+    .innerJoin(sessions, eq(sessions.id, sessionNotes.sessionId))
+    /*
+     * 🔴 `patients` BEFORE `partner_subjects`, and the first version had them the other way
+     * round.
+     *
+     * The join condition on `partner_subjects` reads `patients.person_id`, and a JOIN cannot
+     * reference a table that is joined later: Postgres rejects it with "invalid reference to
+     * FROM-clause entry for table patients". So this function threw on EVERY call, and nothing
+     * noticed, because nothing called it: the route existed, the handler compiled, the scope
+     * check was right, and the query was unrunnable.
+     *
+     * Drizzle emits the joins in the order they are chained, which is what makes chaining
+     * order load-bearing rather than stylistic.
+     */
+    .innerJoin(patients, eq(patients.id, sessions.patientId))
+    .innerJoin(partnerSubjects, eq(partnerSubjects.personId, patients.personId))
+    /* DD-2 B1: the session must belong to one of THIS partner's own practices. */
+    .innerJoin(organizations, eq(organizations.id, sessions.organizationId))
+    .where(
+      and(
+        eq(sessionNotes.sessionId, sessionId),
+        /* 🔴 All three. See above. */
+        eq(sessionNotes.status, "approved"),
+        isNotNull(sessionNotes.approvedAt),
+        isNotNull(sessionNotes.approvedBy),
+        /*
+         * 🔴 AND THE SESSION'S SUBJECT MUST BE THIS PARTNER'S SUBJECT.
+         *
+         * Without this a key could fetch any approved note in the product by guessing a
+         * session id. The join is the scope, in the query, rather than a check somebody
+         * remembers afterwards.
+         */
+        eq(partnerSubjects.partnerId, partnerId),
+        /*
+         * DD-2 B1: and the link must still stand. A person who unlinked this
+         * partner is no longer its subject, so their notes stop here too.
+         */
+        isNull(partnerSubjects.revokedAt),
+        /*
+         * DD-2 B1: and the session was held by this partner's own clinician.
+         * Matching on the person alone let a partner read an approved note
+         * from any practice that treats the same person.
+         */
+        eq(organizations.partnerId, partnerId),
+        eq(organizations.billingMode, "partner_billed"),
+      ),
+    )
+    /*
+     * 🔴 W2-F01: a session can carry a signed note per format. The one
+     * delivered is the first signed, which is also where the patient's copy
+     * comes from, so the partner's chart and the patient agree.
+     */
+    .orderBy(asc(sessionNotes.approvedAt), desc(sessionNotes.isPrimary))
+    .limit(1);
+}
+
+/**
  * 🔴 42.2 — the partner's own reference, resolved within the partner.
  *
  * *Two partners will both send `"P123"`.* So every lookup in this file goes through here
@@ -456,8 +479,9 @@ async function resolveSubject(
          * design: *"there is no function that resolves an `external_ref` on its own,
          * because the first one written would be the collision."* That property is now
          * doing a second job. Every partner endpoint that can reach a person reaches it
-         * through this line, so one `isNull` closes `whoMayRead`, `writeBackSession` and
-         * `deliverNote` at once, and closes the next one before it is written.
+         * through this line, so one `isNull` closes `whoMayRead` and `writeBackSession`.
+         * DD-2 B1: `deliverableNote` starts from a session id, not a reference, so it
+         * carries the same `isNull` in its own join.
          *
          * A revocation checked in each caller would be three checks, and the fourth
          * endpoint would have two of them.

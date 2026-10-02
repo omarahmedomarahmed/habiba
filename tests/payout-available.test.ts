@@ -24,3 +24,9 @@ test("requested and approved payouts are still inside held and are subtracted", 
 test("never below zero", () => {
   assert.equal(availableToWithdraw(1_000, [request("requested", 3_000)]), 0);
 });
+
+test("0188: earnings still in their holding period are not available yet", () => {
+  assert.equal(availableToWithdraw(10_000, [request("requested", 3_000)], 4_000), 3_000);
+  assert.equal(availableToWithdraw(10_000, [], 12_000), 0);
+  assert.equal(availableToWithdraw(10_000, [], 0), 10_000);
+});

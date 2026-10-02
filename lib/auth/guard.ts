@@ -8,6 +8,7 @@ import { admission, getSessionState, SESSION_COOKIE, type Actor } from "./sessio
 import { env } from "@/lib/env";
 import { signInDoorFor, STAFF_SECOND_STEP } from "@/lib/routing";
 import { holdLaunchedSession, isLaunchedSession } from "./launch-hold";
+import { isSafeNext, safeNext } from "./safe-redirect";
 
 export class AuthorizationError extends Error {
   constructor(message = "Not authorized") {
@@ -53,7 +54,7 @@ export async function requireUser(): Promise<Actor> {
 async function toSecondStep(): Promise<never> {
   const hdrs = await headers();
   const path = hdrs.get("x-pathname") ?? hdrs.get("x-invoke-path") ?? "";
-  const next = path.startsWith("/admin") ? path : "";
+  const next = isSafeNext(path) ? path : "";
   redirect(`${STAFF_SECOND_STEP}${next ? `?next=${encodeURIComponent(next)}` : ""}`);
 }
 
@@ -77,7 +78,7 @@ async function bounceToLogin(): Promise<never> {
 
   const hdrs = await headers();
   const path = hdrs.get("x-pathname") ?? hdrs.get("x-invoke-path") ?? "";
-  const next = path.startsWith("/") && !path.startsWith("//") ? path : "";
+  const next = safeNext(path, "");
 
   const query = next ? `?next=${encodeURIComponent(next)}` : "";
 

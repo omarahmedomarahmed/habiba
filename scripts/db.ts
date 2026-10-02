@@ -8,9 +8,12 @@ import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 
+import { applyLocalProxy } from "../lib/db/local-proxy";
 import * as schema from "../lib/db/schema";
 
 neonConfig.webSocketConstructor = ws;
+/* CI only: see lib/db/local-proxy.ts. A no-op when DATABASE_WS_PROXY is unset. */
+applyLocalProxy(neonConfig);
 
 export function connect(url = process.env.DATABASE_URL) {
   if (!url) {

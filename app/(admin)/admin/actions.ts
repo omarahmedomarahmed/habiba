@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 
 import { CMS_TAG, saveContentPage } from "@/lib/content/service";
+import { claimMessage, pageClaims } from "@/lib/content/claims";
 import { honestyMessage, honestyProblemsIn } from "@/lib/content/honesty";
 import { and, eq, isNull } from "drizzle-orm";
 
@@ -132,6 +133,14 @@ export async function savePage(
    */
   const dishonest = honestyProblemsIn(input.title.trim() || "this page", blocks);
   if (dishonest.length > 0) return { error: honestyMessage(dishonest[0]!) };
+  /* DD-2: nor a claim that is false today (lib/content/claims.ts). */
+  /* Its title and description too: they are the search result and the tab. */
+  const falseClaims = pageClaims(input.title.trim() || "this page", {
+    title: input.title.trim(),
+    description: input.description.trim() || null,
+    blocks,
+  });
+  if (falseClaims.length > 0) return { error: claimMessage(falseClaims[0]!) };
 
   /*
    * 🔴 W2-A07: a draft of a live page is kept beside it and the live page

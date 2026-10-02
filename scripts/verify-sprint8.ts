@@ -15,7 +15,6 @@
  */
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { connect, schema } from "./db";
 
@@ -326,11 +325,6 @@ async function main() {
       check("8.10 a person they have no record for is a flat refusal", stranger.allowed === false);
     }
   } finally {
-    await db
-      .delete(auditLog)
-      .where(
-        sql`${auditFixtures()} AND resource_id IN (SELECT id FROM person_documents WHERE person_id IN (SELECT id FROM people WHERE last_name = ${TAG}))`,
-      );
     await db.delete(patients).where(sql`last_name = ${TAG}`);
     await db.delete(patientAccounts).where(sql`email LIKE ${`${TAG}%`}`);
     // documents, chunks, diagnoses and flags all cascade from people.

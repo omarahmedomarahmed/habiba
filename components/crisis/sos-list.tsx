@@ -16,6 +16,7 @@ export type SosListWords = {
   anyTime: string;
   openNow: string;
   closedNow: string;
+  checkHours: string;
 };
 
 export function SosList({
@@ -45,11 +46,16 @@ export function SosList({
             <span className="text-2xl font-bold tracking-wide" dir="ltr">
               {entry.line.label}
             </span>
-            {entry.open !== null ? (
-              <span className="text-xs font-semibold">
-                {entry.line.hours === "always" ? words.anyTime : entry.open ? words.openNow : words.closedNow}
-              </span>
-            ) : null}
+            {/* Due diligence: hours nobody has confirmed are never invented; the reader is told to check them. */}
+            <span className="text-xs font-semibold">
+              {entry.open === null
+                ? words.checkHours
+                : entry.line.hours === "always"
+                  ? words.anyTime
+                  : entry.open
+                    ? words.openNow
+                    : words.closedNow}
+            </span>
             {entry.line.steps ? (
               <span className="text-xs opacity-90">{arabic ? entry.line.steps.ar : entry.line.steps.en}</span>
             ) : null}

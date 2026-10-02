@@ -3,14 +3,18 @@
  */
 import "server-only";
 
-import { and, count, eq, gt, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { audit } from "@/lib/audit";
 import { decryptSecret, encryptSecret, secretsConfigured } from "@/lib/crypto/secretbox";
 import { controlDb as db } from "@/lib/db";
 import {
   authSessions,
+  clinicManagers,
   BACK_OFFICE_ROLES,
+  partnerUsers,
+  portalRecoveryCodes,
+  portalSecondFactors,
   staffEmailCodes,
   staffRecoveryCodes,
   staffSecondFactors,
@@ -22,75 +26,355 @@ import { consume, subjectKey } from "@/lib/rate-limit";
 import type { Actor } from "./session";
 import {
   base32Encode,
-  EMAIL_CODE_MINUTES,
-  hashEmailCode,
   hashRecoveryCode,
   looksLikeRecoveryCode,
-  newEmailCode,
   newRecoveryCodes,
   newTotpSecret,
   otpauthUri,
+  pendingEnrolmentCurrent,
   verifyTotp,
 } from "./totp";
+import { mayResetAccountFactor, type FactorResetTarget } from "./factor-reset";
 
 /**
- * 🔴 TASK 40: THE BACK OFFICE'S SECOND STEP, THE HALF THAT STORES THINGS.
+ * 🔴 TASK 40: THE SECOND STEP, THE HALF THAT STORES THINGS.
  *
  * The rule itself (who must, for how long, what a code is) is pure and lives
- * in `lib/auth/totp.ts`. This file holds the four things that touch rows:
- * the authenticator secret, sealed; the recovery codes, hashed; the emailed
- * codes, hashed and bound to one session; and the time on the session that
+ * in `lib/auth/totp.ts`. This file holds what touches rows: the authenticator
+ * secret, sealed; the recovery codes, hashed; and the time on a session that
  * says the step was passed.
  *
- * 🔴 Nothing here logs a secret, a code or a recovery code. The log lines
- * carry a short user reference and an outcome, and the audit rows carry the
- * outcome and the method. A code in a log drain is a code anybody with the
- * drain can type.
+ * DD-2 B2.3: the console's emailed code is gone. A back office member signs
+ * in with an authenticator app or a recovery code, and one without an app is
+ * enrolled on the second step page before anything else, once six digits
+ * emailed to their address prove the inbox (review fix: a password alone
+ * never reaches the QR code). An owner resets another member's app from Team.
  *
- * Every enrolment, every reset and every failed attempt is an audit row, which
- * is what a regulator or a founder asks for the morning after a payout that
- * nobody remembers approving.
+ * DD-2 B2.4: the same app, optional, for a clinician (a `users` row, so the
+ * staff tables), a clinic manager or a partner user (`portal_second_factors`).
+ * Once enrolled, it is asked for at every sign-in.
+ *
+ * 🔴 Nothing here logs a secret, a code or a recovery code.
  */
 
 const ISSUER = "24Therapy";
 
-/** Six digit guesses per member, across every method, per window. */
+/** Six digit guesses per person, across every method, per window. */
 const VERIFY_LIMIT = 10;
 const VERIFY_WINDOW_SECONDS = 15 * 60;
-/** Emails per member per window: enough for a slow inbox, not enough to flood one. */
-const EMAIL_LIMIT = 3;
-const EMAIL_WINDOW_SECONDS = 10 * 60;
 
 type Who = Pick<Actor, "userId" | "organizationId" | "email" | "role">;
 
 export type StepResult = { ok: true } | { ok: false; error: MessageKey };
 
 /* ------------------------------------------------------------------ */
-/*  What is enrolled                                                   */
+/*  Whose app: a users row, a clinic manager or a partner user         */
+/* ------------------------------------------------------------------ */
+
+export type FactorOwner =
+  | { kind: "user"; id: string }
+  | { kind: "clinic"; id: string }
+  | { kind: "partner"; id: string };
+
+type FactorRow = { sealed: string; confirmedAt: Date | null; lastStep: number | null; updatedAt: Date };
+
+const portalOwner = (owner: Exclude<FactorOwner, { kind: "user" }>) =>
+  owner.kind === "clinic"
+    ? eq(portalSecondFactors.clinicManagerId, owner.id)
+    : eq(portalSecondFactors.partnerUserId, owner.id);
+
+async function readFactor(owner: FactorOwner): Promise<(FactorRow & { portalId?: string }) | null> {
+  if (owner.kind === "user") {
+    const [row] = await db
+      .select({
+        sealed: staffSecondFactors.secretSealed,
+        confirmedAt: staffSecondFactors.confirmedAt,
+        lastStep: staffSecondFactors.lastStep,
+        updatedAt: staffSecondFactors.updatedAt,
+      })
+      .from(staffSecondFactors)
+      .where(eq(staffSecondFactors.userId, owner.id))
+      .limit(1);
+    return row ?? null;
+  }
+  const [row] = await db
+    .select({
+      portalId: portalSecondFactors.id,
+      sealed: portalSecondFactors.secretSealed,
+      confirmedAt: portalSecondFactors.confirmedAt,
+      lastStep: portalSecondFactors.lastStep,
+      updatedAt: portalSecondFactors.updatedAt,
+    })
+    .from(portalSecondFactors)
+    .where(portalOwner(owner))
+    .limit(1);
+  return row ?? null;
+}
+
+/** A new pending secret, never over a confirmed one: replacing a working app is a reset. */
+async function writePending(owner: FactorOwner, sealed: string): Promise<void> {
+  if (owner.kind === "user") {
+    await db
+      .insert(staffSecondFactors)
+      .values({ userId: owner.id, secretSealed: sealed })
+      .onConflictDoUpdate({
+        target: staffSecondFactors.userId,
+        set: { secretSealed: sealed, confirmedAt: null, lastStep: null, updatedAt: new Date() },
+        setWhere: isNull(staffSecondFactors.confirmedAt),
+      });
+    return;
+  }
+  const existing = await readFactor(owner);
+  if (existing?.confirmedAt) return;
+  if (existing) {
+    await db
+      .update(portalSecondFactors)
+      .set({ secretSealed: sealed, lastStep: null, updatedAt: new Date() })
+      .where(and(portalOwner(owner), isNull(portalSecondFactors.confirmedAt)));
+    return;
+  }
+  await db
+    .insert(portalSecondFactors)
+    .values({
+      secretSealed: sealed,
+      clinicManagerId: owner.kind === "clinic" ? owner.id : null,
+      partnerUserId: owner.kind === "partner" ? owner.id : null,
+    })
+    .onConflictDoNothing();
+}
+
+/** Turn a pending app on and replace the recovery codes, in one transaction. */
+async function confirmFactor(owner: FactorOwner, step: number, codes: string[]): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    if (owner.kind === "user") {
+      const done = await tx
+        .update(staffSecondFactors)
+        .set({ confirmedAt: new Date(), lastStep: step, updatedAt: new Date() })
+        .where(and(eq(staffSecondFactors.userId, owner.id), isNull(staffSecondFactors.confirmedAt)))
+        .returning({ userId: staffSecondFactors.userId });
+      if (done.length !== 1) return false;
+      await tx.delete(staffRecoveryCodes).where(eq(staffRecoveryCodes.userId, owner.id));
+      await tx
+        .insert(staffRecoveryCodes)
+        .values(codes.map((code) => ({ userId: owner.id, codeHash: hashRecoveryCode(code) })));
+      return true;
+    }
+    const done = await tx
+      .update(portalSecondFactors)
+      .set({ confirmedAt: new Date(), lastStep: step, updatedAt: new Date() })
+      .where(and(portalOwner(owner), isNull(portalSecondFactors.confirmedAt)))
+      .returning({ id: portalSecondFactors.id });
+    if (done.length !== 1) return false;
+    const factorId = done[0]!.id;
+    await tx.delete(portalRecoveryCodes).where(eq(portalRecoveryCodes.factorId, factorId));
+    await tx
+      .insert(portalRecoveryCodes)
+      .values(codes.map((code) => ({ factorId, codeHash: hashRecoveryCode(code) })));
+    return true;
+  });
+}
+
+/** `last_step` only moves forward, so one code cannot pass twice even in a race. */
+async function advanceStep(owner: FactorOwner, step: number): Promise<boolean> {
+  if (owner.kind === "user") {
+    const moved = await db
+      .update(staffSecondFactors)
+      .set({ lastStep: step, updatedAt: new Date() })
+      .where(
+        and(
+          eq(staffSecondFactors.userId, owner.id),
+          or(isNull(staffSecondFactors.lastStep), lt(staffSecondFactors.lastStep, step)),
+        ),
+      )
+      .returning({ userId: staffSecondFactors.userId });
+    return moved.length === 1;
+  }
+  const moved = await db
+    .update(portalSecondFactors)
+    .set({ lastStep: step, updatedAt: new Date() })
+    .where(
+      and(
+        portalOwner(owner),
+        isNotNull(portalSecondFactors.confirmedAt),
+        or(isNull(portalSecondFactors.lastStep), lt(portalSecondFactors.lastStep, step)),
+      ),
+    )
+    .returning({ id: portalSecondFactors.id });
+  return moved.length === 1;
+}
+
+/** 🔴 ONE STATEMENT SPENDS IT: `used_at IS NULL` is in the WHERE. */
+async function spendRecovery(owner: FactorOwner, typed: string, portalId?: string): Promise<boolean> {
+  const hash = hashRecoveryCode(typed);
+  if (owner.kind === "user") {
+    const spent = await db
+      .update(staffRecoveryCodes)
+      .set({ usedAt: new Date() })
+      .where(
+        and(
+          eq(staffRecoveryCodes.userId, owner.id),
+          eq(staffRecoveryCodes.codeHash, hash),
+          isNull(staffRecoveryCodes.usedAt),
+        ),
+      )
+      .returning({ id: staffRecoveryCodes.id });
+    return spent.length === 1;
+  }
+  if (!portalId) return false;
+  const spent = await db
+    .update(portalRecoveryCodes)
+    .set({ usedAt: new Date() })
+    .where(
+      and(
+        eq(portalRecoveryCodes.factorId, portalId),
+        eq(portalRecoveryCodes.codeHash, hash),
+        isNull(portalRecoveryCodes.usedAt),
+      ),
+    )
+    .returning({ id: portalRecoveryCodes.id });
+  return spent.length === 1;
+}
+
+async function recoveryLeft(owner: FactorOwner, portalId?: string): Promise<number> {
+  if (owner.kind === "user") {
+    const [left] = await db
+      .select({ n: count() })
+      .from(staffRecoveryCodes)
+      .where(and(eq(staffRecoveryCodes.userId, owner.id), isNull(staffRecoveryCodes.usedAt)));
+    return Number(left?.n ?? 0);
+  }
+  if (!portalId) return 0;
+  const [left] = await db
+    .select({ n: count() })
+    .from(portalRecoveryCodes)
+    .where(and(eq(portalRecoveryCodes.factorId, portalId), isNull(portalRecoveryCodes.usedAt)));
+  return Number(left?.n ?? 0);
+}
+
+async function withinLimit(owner: FactorOwner): Promise<boolean> {
+  /* The staff key is kept for users rows, so a limit in flight is not reset by this change. */
+  const key = owner.kind === "user" ? subjectKey("staff-2fa-verify", owner.id) : subjectKey(`${owner.kind}-2fa-verify`, owner.id);
+  const verdict = await consume(key, VERIFY_LIMIT, VERIFY_WINDOW_SECONDS);
+  return verdict.allowed;
+}
+
+/* ------------------------------------------------------------------ */
+/*  The generic steps, for any owner                                   */
 /* ------------------------------------------------------------------ */
 
 export type SecondFactorStatus = {
-  /** A confirmed authenticator. Only this retires the email fallback. */
+  /** A confirmed authenticator. */
   enrolled: boolean;
   confirmedAt: Date | null;
   recoveryLeft: number;
 };
 
-export async function secondFactorStatus(userId: string): Promise<SecondFactorStatus> {
-  const [row] = await db
-    .select({ confirmedAt: staffSecondFactors.confirmedAt })
-    .from(staffSecondFactors)
-    .where(eq(staffSecondFactors.userId, userId))
-    .limit(1);
-
+export async function factorStatus(owner: FactorOwner): Promise<SecondFactorStatus> {
+  const row = await readFactor(owner);
   const confirmedAt = row?.confirmedAt ?? null;
   if (!confirmedAt) return { enrolled: false, confirmedAt: null, recoveryLeft: 0 };
+  return { enrolled: true, confirmedAt, recoveryLeft: await recoveryLeft(owner, row?.portalId) };
+}
 
-  const [left] = await db
-    .select({ n: count() })
-    .from(staffRecoveryCodes)
-    .where(and(eq(staffRecoveryCodes.userId, userId), isNull(staffRecoveryCodes.usedAt)));
-  return { enrolled: true, confirmedAt, recoveryLeft: Number(left?.n ?? 0) };
+/** Whether this server can seal a secret at all. Asked before offering enrolment. */
+export function enrolmentAvailable(): boolean {
+  return secretsConfigured();
+}
+
+/** Start, or restart, an enrolment. Unconfirmed until the first code from the app matches. */
+export async function startFactor(owner: FactorOwner): Promise<StepResult> {
+  if (!enrolmentAvailable()) return { ok: false, error: "asec.unavailable" };
+  if ((await factorStatus(owner)).enrolled) return { ok: false, error: "asec.already" };
+  await writePending(owner, encryptSecret(newTotpSecret().toString("base64")));
+  return { ok: true };
+}
+
+export type PendingEnrolment = { key: string; uri: string };
+
+/** The pending enrolment's key and QR payload, for the one page that shows it. */
+export async function pendingFactor(owner: FactorOwner, account: string): Promise<PendingEnrolment | null> {
+  const row = await readFactor(owner);
+  if (!row || row.confirmedAt || !pendingEnrolmentCurrent(row.updatedAt)) return null;
+  const secret = Buffer.from(decryptSecret(row.sealed), "base64");
+  return {
+    key: base32Encode(secret).replace(/(.{4})/g, "$1 ").trim(),
+    uri: otpauthUri({ secret, account, issuer: ISSUER }),
+  };
+}
+
+/** The first code from the app turns it on and returns ten recovery codes, once. */
+export async function confirmFactorCode(
+  owner: FactorOwner,
+  typed: string,
+): Promise<{ ok: true; recoveryCodes: string[] } | { ok: false; error: MessageKey; reason: string }> {
+  if (!(await withinLimit(owner))) return { ok: false, error: "tauth.secondTooMany", reason: "rate limited" };
+  const row = await readFactor(owner);
+  if (!row) return { ok: false, error: "asec.startAgain", reason: "no pending enrolment" };
+  if (row.confirmedAt) return { ok: false, error: "asec.already", reason: "already enrolled" };
+  /* A pending app nobody confirmed in time is not left for a later visitor to finish. */
+  if (!pendingEnrolmentCurrent(row.updatedAt)) return { ok: false, error: "asec.startAgain", reason: "pending expired" };
+
+  const secret = Buffer.from(decryptSecret(row.sealed), "base64");
+  const verdict = verifyTotp(secret, typed, Date.now(), null);
+  if (!verdict.ok) return { ok: false, error: "tauth.secondWrong", reason: verdict.reason };
+
+  const codes = newRecoveryCodes();
+  if (!(await confirmFactor(owner, verdict.step, codes))) {
+    return { ok: false, error: "asec.already", reason: "already enrolled" };
+  }
+  return { ok: true, recoveryCodes: codes };
+}
+
+/** Six digits from the app, or a recovery code. */
+export async function checkFactor(
+  owner: FactorOwner,
+  typed: string,
+): Promise<{ ok: true; method: "app" | "recovery" } | { ok: false; error: MessageKey; method: string; reason: string }> {
+  if (!(await withinLimit(owner))) {
+    return { ok: false, error: "tauth.secondTooMany", method: "any", reason: "rate limited" };
+  }
+  const row = await readFactor(owner);
+  if (!row?.confirmedAt) return { ok: false, error: "tauth.secondWrong", method: "app", reason: "not enrolled" };
+
+  if (looksLikeRecoveryCode(typed)) {
+    return (await spendRecovery(owner, typed, row.portalId))
+      ? { ok: true, method: "recovery" }
+      : { ok: false, error: "tauth.secondWrong", method: "recovery", reason: "wrong" };
+  }
+
+  let secret: Buffer;
+  try {
+    secret = Buffer.from(decryptSecret(row.sealed), "base64");
+  } catch (error) {
+    // The reason, never the value. A key rotated without re-enrolment lands here.
+    log.error("second factor could not be opened", { owner: ref(owner.id), reason: safeErrorMessage(error) });
+    return { ok: false, error: "tauth.secondWrong", method: "app", reason: "secret unreadable" };
+  }
+  const verdict = verifyTotp(secret, typed, Date.now(), row.lastStep);
+  if (!verdict.ok) return { ok: false, error: "tauth.secondWrong", method: "app", reason: verdict.reason };
+  return (await advanceStep(owner, verdict.step))
+    ? { ok: true, method: "app" }
+    : { ok: false, error: "tauth.secondWrong", method: "app", reason: "replayed" };
+}
+
+/** Turn an app off. The person themselves, after a code from it, or an owner's reset. */
+export async function removeFactor(owner: FactorOwner): Promise<void> {
+  if (owner.kind === "user") {
+    await db.transaction(async (tx) => {
+      await tx.delete(staffSecondFactors).where(eq(staffSecondFactors.userId, owner.id));
+      await tx.delete(staffRecoveryCodes).where(eq(staffRecoveryCodes.userId, owner.id));
+    });
+    return;
+  }
+  await db.delete(portalSecondFactors).where(portalOwner(owner));
+}
+
+/* ------------------------------------------------------------------ */
+/*  The users-table session: back office, and clinicians who enrolled  */
+/* ------------------------------------------------------------------ */
+
+export async function secondFactorStatus(userId: string): Promise<SecondFactorStatus> {
+  return factorStatus({ kind: "user", id: userId });
 }
 
 /** Which members have an app, for the team page. Never the secret. */
@@ -102,15 +386,6 @@ export async function enrolledAmong(userIds: string[]): Promise<Set<string>> {
     .where(and(inArray(staffSecondFactors.userId, userIds), isNotNull(staffSecondFactors.confirmedAt)));
   return new Set(rows.map((row) => row.userId));
 }
-
-/** Whether this server can seal a secret at all. Asked before offering enrolment. */
-export function enrolmentAvailable(): boolean {
-  return secretsConfigured();
-}
-
-/* ------------------------------------------------------------------ */
-/*  Passing the step                                                   */
-/* ------------------------------------------------------------------ */
 
 /** Written on the session, and read by every request after it. */
 async function markPassed(sessionId: string): Promise<void> {
@@ -128,81 +403,17 @@ async function failed(who: Who, method: string, reason: string): Promise<void> {
   });
 }
 
-async function withinLimit(who: Who): Promise<boolean> {
-  const verdict = await consume(
-    subjectKey("staff-2fa-verify", who.userId),
-    VERIFY_LIMIT,
-    VERIFY_WINDOW_SECONDS,
-  );
-  return verdict.allowed;
-}
-
 /**
  * Check what a pending session typed, and on success record the time on it.
- *
- * With an app enrolled: six digits from the app, or a recovery code. Without
- * one: the six digits emailed to this session. Never the email code once an
- * app exists, because the point of enrolling is that the inbox stops being a
- * way in.
+ * The app's six digits or a recovery code; nothing else. 🔴 DD-2 B2.3: the
+ * emailed code is no longer a way in, so an inbox is never a second factor.
  */
 export async function passSecondStep(who: Who, sessionId: string, typed: string): Promise<StepResult> {
-  if (!(await withinLimit(who))) {
-    await failed(who, "any", "rate limited");
-    return { ok: false, error: "tauth.secondTooMany" };
+  const result = await checkFactor({ kind: "user", id: who.userId }, typed);
+  if (!result.ok) {
+    await failed(who, result.method, result.reason);
+    return { ok: false, error: result.error };
   }
-
-  const status = await secondFactorStatus(who.userId);
-  let method: "app" | "recovery" | "email";
-  let passed = false;
-  let reason = "wrong";
-
-  if (status.enrolled && looksLikeRecoveryCode(typed)) {
-    method = "recovery";
-    /*
-     * 🔴 ONE STATEMENT SPENDS IT. `used_at IS NULL` is in the WHERE, so two
-     * tabs submitting the same code race to one row and only one gets it back.
-     */
-    const spent = await db
-      .update(staffRecoveryCodes)
-      .set({ usedAt: new Date() })
-      .where(
-        and(
-          eq(staffRecoveryCodes.userId, who.userId),
-          eq(staffRecoveryCodes.codeHash, hashRecoveryCode(typed)),
-          isNull(staffRecoveryCodes.usedAt),
-        ),
-      )
-      .returning({ id: staffRecoveryCodes.id });
-    passed = spent.length === 1;
-  } else if (status.enrolled) {
-    method = "app";
-    const verdict = await checkApp(who.userId, typed);
-    passed = verdict.ok;
-    if (!verdict.ok) reason = verdict.reason;
-  } else {
-    method = "email";
-    const digits = typed.replace(/\D/g, "");
-    const spent = await db
-      .update(staffEmailCodes)
-      .set({ usedAt: new Date() })
-      .where(
-        and(
-          eq(staffEmailCodes.userId, who.userId),
-          eq(staffEmailCodes.sessionId, sessionId),
-          eq(staffEmailCodes.codeHash, hashEmailCode(digits)),
-          isNull(staffEmailCodes.usedAt),
-          gt(staffEmailCodes.expiresAt, new Date()),
-        ),
-      )
-      .returning({ id: staffEmailCodes.id });
-    passed = digits.length === 6 && spent.length === 1;
-  }
-
-  if (!passed) {
-    await failed(who, method, reason);
-    return { ok: false, error: "tauth.secondWrong" };
-  }
-
   await markPassed(sessionId);
   await audit({
     actor: who,
@@ -210,182 +421,50 @@ export async function passSecondStep(who: Who, sessionId: string, typed: string)
     action: "second_factor.passed",
     resourceType: "user",
     resourceId: who.userId,
-    reason: method,
+    reason: result.method,
   });
   return { ok: true };
 }
 
 /**
- * The app's six digits, with the replay rule held by the database.
- *
- * `verifyTotp` refuses a step at or before `last_step`, and the UPDATE below
- * only moves `last_step` forward, so two requests with the same code cannot
- * both pass even if they read the row at the same moment.
+ * Review fix: a back office member's first app only after the emailed code
+ * proved this session (`lib/auth/enrolment-proof.ts`). A clinician's optional
+ * app is gated by their password in the settings action instead.
  */
-async function checkApp(
-  userId: string,
-  typed: string,
-): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const [row] = await db
-    .select({ sealed: staffSecondFactors.secretSealed, lastStep: staffSecondFactors.lastStep })
-    .from(staffSecondFactors)
-    .where(eq(staffSecondFactors.userId, userId))
-    .limit(1);
-  if (!row) return { ok: false, reason: "not enrolled" };
+async function proofMissing(who: Who, sessionId: string): Promise<boolean> {
+  if (!(BACK_OFFICE_ROLES as readonly string[]).includes(who.role)) return false;
+  const { enrolmentProven } = await import("./enrolment-proof");
+  return !(await enrolmentProven(who.userId, sessionId));
+}
 
-  let secret: Buffer;
-  try {
-    secret = Buffer.from(decryptSecret(row.sealed), "base64");
-  } catch (error) {
-    // The reason, never the value. A key rotated without re-enrolment lands here.
-    log.error("staff second factor could not be opened", { user: ref(userId), reason: safeErrorMessage(error) });
-    return { ok: false, reason: "secret unreadable" };
-  }
+export async function beginEnrolment(who: Who, sessionId: string): Promise<StepResult> {
+  if (await proofMissing(who, sessionId)) return { ok: false, error: "asec.proveFirst" };
+  return startFactor({ kind: "user", id: who.userId });
+}
 
-  const verdict = verifyTotp(secret, typed, Date.now(), row.lastStep);
-  if (!verdict.ok) return { ok: false, reason: verdict.reason };
-
-  const moved = await db
-    .update(staffSecondFactors)
-    .set({ lastStep: verdict.step, updatedAt: new Date() })
-    .where(
-      and(
-        eq(staffSecondFactors.userId, userId),
-        or(isNull(staffSecondFactors.lastStep), lt(staffSecondFactors.lastStep, verdict.step)),
-      ),
-    )
-    .returning({ userId: staffSecondFactors.userId });
-  return moved.length === 1 ? { ok: true } : { ok: false, reason: "replayed" };
+export async function pendingEnrolment(who: Who, sessionId: string): Promise<PendingEnrolment | null> {
+  if (await proofMissing(who, sessionId)) return null;
+  return pendingFactor({ kind: "user", id: who.userId }, who.email);
 }
 
 /**
- * Email six digits to the member's own address, for this session only.
- *
- * Refused once an app is enrolled. Rate limited per member with the same
- * `consume` every door uses, so a pending session cannot turn somebody's
- * inbox into a stream of codes.
- */
-export async function emailSecondStepCode(who: Who, sessionId: string): Promise<StepResult> {
-  const status = await secondFactorStatus(who.userId);
-  if (status.enrolled) return { ok: false, error: "tauth.secondUseApp" };
-
-  const verdict = await consume(subjectKey("staff-2fa-email", who.userId), EMAIL_LIMIT, EMAIL_WINDOW_SECONDS);
-  if (!verdict.allowed) return { ok: false, error: "tauth.secondTooMany" };
-
-  const code = newEmailCode();
-  await db.insert(staffEmailCodes).values({
-    userId: who.userId,
-    sessionId,
-    codeHash: hashEmailCode(code),
-    expiresAt: new Date(Date.now() + EMAIL_CODE_MINUTES * 60_000),
-  });
-
-  const { notify } = await import("@/lib/notify");
-  const delivery = await notify(
-    { email: who.email, phone: null, prefers: "email", organizationId: who.organizationId },
-    {
-      kind: "staff.second_factor_code",
-      subject: "Your 24Therapy console code",
-      body: `${code} is your code to finish signing in to the 24Therapy console. It works once, for ${EMAIL_CODE_MINUTES} minutes. If you did not just sign in, tell the owner today: somebody has your password.`,
-    },
-  );
-
-  log.info("staff second step code sent", { user: ref(who.userId), delivered: delivery.sent });
-  return delivery.sent ? { ok: true } : { ok: false, error: "tauth.secondSendFailed" };
-}
-
-/* ------------------------------------------------------------------ */
-/*  Enrolment                                                          */
-/* ------------------------------------------------------------------ */
-
-export type PendingEnrolment = { key: string; uri: string };
-
-/**
- * Start, or restart, an enrolment. The secret is sealed before it is written
- * and the row stays unconfirmed until the first code from the app matches, so
- * a QR code scanned into the wrong app changes nothing.
- */
-export async function beginEnrolment(who: Who): Promise<StepResult> {
-  if (!enrolmentAvailable()) return { ok: false, error: "asec.unavailable" };
-  const status = await secondFactorStatus(who.userId);
-  if (status.enrolled) return { ok: false, error: "asec.already" };
-
-  const sealed = encryptSecret(newTotpSecret().toString("base64"));
-  await db
-    .insert(staffSecondFactors)
-    .values({ userId: who.userId, secretSealed: sealed })
-    .onConflictDoUpdate({
-      target: staffSecondFactors.userId,
-      set: { secretSealed: sealed, confirmedAt: null, lastStep: null, updatedAt: new Date() },
-      /* 🔴 Never over a confirmed one. Replacing a working app is a reset, and a reset is the owner's. */
-      setWhere: isNull(staffSecondFactors.confirmedAt),
-    });
-  return { ok: true };
-}
-
-/** The pending enrolment's key and QR payload, for the one page that shows it. */
-export async function pendingEnrolment(who: Who): Promise<PendingEnrolment | null> {
-  const [row] = await db
-    .select({ sealed: staffSecondFactors.secretSealed, confirmedAt: staffSecondFactors.confirmedAt })
-    .from(staffSecondFactors)
-    .where(eq(staffSecondFactors.userId, who.userId))
-    .limit(1);
-  if (!row || row.confirmedAt) return null;
-
-  const secret = Buffer.from(decryptSecret(row.sealed), "base64");
-  return {
-    key: base32Encode(secret).replace(/(.{4})/g, "$1 ").trim(),
-    uri: otpauthUri({ secret, account: who.email, issuer: ISSUER }),
-  };
-}
-
-/**
- * The first code from the app turns it on, and returns ten recovery codes,
- * once. Only their hashes are kept, so this is the only moment they exist in
- * a form anybody can read.
+ * The first code from the app turns it on, returns ten recovery codes once,
+ * and counts as this session's second step.
  */
 export async function confirmEnrolment(
   who: Who,
   sessionId: string,
   typed: string,
 ): Promise<{ ok: true; recoveryCodes: string[] } | { ok: false; error: MessageKey }> {
-  if (!(await withinLimit(who))) {
-    await failed(who, "enrolment", "rate limited");
-    return { ok: false, error: "tauth.secondTooMany" };
+  if (await proofMissing(who, sessionId)) {
+    await failed(who, "enrolment", "not proved by email");
+    return { ok: false, error: "asec.proveFirst" };
   }
-
-  const [row] = await db
-    .select({ sealed: staffSecondFactors.secretSealed, confirmedAt: staffSecondFactors.confirmedAt })
-    .from(staffSecondFactors)
-    .where(eq(staffSecondFactors.userId, who.userId))
-    .limit(1);
-  if (!row) return { ok: false, error: "asec.startAgain" };
-  if (row.confirmedAt) return { ok: false, error: "asec.already" };
-
-  const secret = Buffer.from(decryptSecret(row.sealed), "base64");
-  const verdict = verifyTotp(secret, typed, Date.now(), null);
-  if (!verdict.ok) {
-    await failed(who, "enrolment", verdict.reason);
-    return { ok: false, error: "tauth.secondWrong" };
+  const result = await confirmFactorCode({ kind: "user", id: who.userId }, typed);
+  if (!result.ok) {
+    await failed(who, "enrolment", result.reason);
+    return { ok: false, error: result.error };
   }
-
-  const codes = newRecoveryCodes();
-  const confirmed = await db.transaction(async (tx) => {
-    const done = await tx
-      .update(staffSecondFactors)
-      .set({ confirmedAt: new Date(), lastStep: verdict.step, updatedAt: new Date() })
-      .where(and(eq(staffSecondFactors.userId, who.userId), isNull(staffSecondFactors.confirmedAt)))
-      .returning({ userId: staffSecondFactors.userId });
-    if (done.length !== 1) return false;
-    await tx.delete(staffRecoveryCodes).where(eq(staffRecoveryCodes.userId, who.userId));
-    await tx
-      .insert(staffRecoveryCodes)
-      .values(codes.map((code) => ({ userId: who.userId, codeHash: hashRecoveryCode(code) })));
-    return true;
-  });
-  if (!confirmed) return { ok: false, error: "asec.already" };
-
-  /* The app is proof of the step as well, so the session is fresh from now. */
   await markPassed(sessionId);
   await audit({
     actor: who,
@@ -395,7 +474,31 @@ export async function confirmEnrolment(
     resourceId: who.userId,
     reason: "authenticator app, 10 recovery codes",
   });
-  return { ok: true, recoveryCodes: codes };
+  return result;
+}
+
+/**
+ * DD-2 B2.4: a clinician turns their own app off, with a code from it, so a
+ * stolen session alone cannot remove it. Back office members cannot: theirs is
+ * required, and only an owner's reset clears it.
+ */
+export async function removeOwnFactor(who: Who, typed: string): Promise<StepResult> {
+  if ((BACK_OFFICE_ROLES as readonly string[]).includes(who.role)) return { ok: false, error: "asec.already" };
+  const check = await checkFactor({ kind: "user", id: who.userId }, typed);
+  if (!check.ok) {
+    await failed(who, check.method, check.reason);
+    return { ok: false, error: check.error };
+  }
+  await removeFactor({ kind: "user", id: who.userId });
+  await audit({
+    actor: who,
+    category: "auth",
+    action: "second_factor.removed",
+    resourceType: "user",
+    resourceId: who.userId,
+    reason: check.method,
+  });
+  return { ok: true };
 }
 
 /* ------------------------------------------------------------------ */
@@ -404,16 +507,15 @@ export async function confirmEnrolment(
 
 /**
  * 🔴 A super_admin clears another back office member's app and recovery
- * codes, and every session of theirs has to pass the step again, by email,
- * until they enrol a new one.
+ * codes, and every session of theirs has to pass the step again: from DD-2
+ * B2.3 that means enrolling a new app on the second step page.
  *
  * Never their own. An owner who could reset their own second step would need
- * only a password to do it, and a password alone is what this whole change
- * exists to stop being enough. Another owner resets it, or the database does.
+ * only a password to do it. Another owner resets it, or, for a sole owner, the
+ * audited break glass `npm run factor:reset` (scripts/reset-second-factor.ts).
  *
- * The role is asked again here, not only by the action's guard, for the same
- * reason `lib/data/payroll.ts` asks: a second caller of this function tomorrow
- * does not inherit a guard it did not write.
+ * The role is asked again here, not only by the action's guard: a second
+ * caller of this function tomorrow does not inherit a guard it did not write.
  */
 export async function resetSecondFactor(
   actor: Pick<Actor, "userId" | "organizationId" | "role">,
@@ -455,9 +557,76 @@ export async function resetSecondFactor(
 
   /*
    * The success row is written by the caller, `resetMemberSecondFactor` in
-   * `app/(admin)/admin/team/actions.ts`, beside every other act on the team,
-   * which `tests/account-links.test.ts` holds. The refusal above is written
-   * here because it is this function's rule that refused.
+   * `app/(admin)/admin/team/actions.ts`, beside every other act on the team.
    */
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Reset of a clinician's, clinic manager's or partner user's app      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Review fix: the optional app's support reset. A super_admin or a manager in
+ * the console names the account by its email; the app and its recovery codes
+ * are cleared and the next sign-in is a password again, until they enrol a
+ * new one. Every attempt is an audit row, found or not.
+ */
+export async function resetAccountFactor(
+  actor: Pick<Actor, "userId" | "organizationId" | "role">,
+  target: FactorResetTarget,
+  email: string,
+): Promise<{ ok: true } | { ok: false; error: MessageKey }> {
+  if (!mayResetAccountFactor(actor.role)) return { ok: false, error: "ateam.errNotChangeable" };
+  const address = email.trim().toLowerCase();
+  if (!address) return { ok: false, error: "asec.resetNotFound" };
+
+  let owner: FactorOwner | null = null;
+  if (target === "clinician") {
+    const [row] = await db
+      .select({ id: users.id, role: users.role })
+      .from(users)
+      .where(and(sql`lower(${users.email}) = ${address}`, isNull(users.deletedAt)))
+      .limit(1);
+    /* Never a back office member: theirs is required, and Team resets it. */
+    if (row && !(BACK_OFFICE_ROLES as readonly string[]).includes(row.role)) owner = { kind: "user", id: row.id };
+  } else if (target === "clinic") {
+    const [row] = await db
+      .select({ id: clinicManagers.id })
+      .from(clinicManagers)
+      .where(sql`lower(${clinicManagers.email}) = ${address}`)
+      .limit(1);
+    if (row) owner = { kind: "clinic", id: row.id };
+  } else {
+    const [row] = await db
+      .select({ id: partnerUsers.id })
+      .from(partnerUsers)
+      .where(and(sql`lower(${partnerUsers.email}) = ${address}`, isNull(partnerUsers.deletedAt)))
+      .limit(1);
+    if (row) owner = { kind: "partner", id: row.id };
+  }
+
+  const resourceType = target === "clinician" ? "user" : target === "clinic" ? "clinic_manager" : "partner_user";
+  if (!owner) {
+    await audit({
+      actor,
+      category: "admin",
+      action: "second_factor.reset_refused",
+      resourceType,
+      reason: `${target}: no such account`,
+    });
+    return { ok: false, error: "asec.resetNotFound" };
+  }
+
+  await removeFactor(owner);
+  if (owner.kind === "user") await db.delete(staffEmailCodes).where(eq(staffEmailCodes.userId, owner.id));
+  await audit({
+    actor,
+    category: "admin",
+    action: "second_factor.reset",
+    resourceType,
+    resourceId: owner.id,
+    reason: `${target} app reset from the console`,
+  });
   return { ok: true };
 }

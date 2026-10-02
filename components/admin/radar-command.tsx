@@ -1,5 +1,6 @@
 "use client";
 
+import { backgroundFetch } from "@/lib/auth/activity";
 import { PAGE_SIZE } from "@/lib/admin/paging";
 import { useT } from "@/lib/i18n/client";
 import { ConfirmWithReason } from "@/components/admin/confirm-with-reason";
@@ -81,7 +82,7 @@ export function RadarCommand({
     const tick = async () => {
       if (document.visibilityState !== "visible") return;
       try {
-        const response = await fetch("/api/admin/radar", { cache: "no-store" });
+        const response = await backgroundFetch("/api/admin/radar", { cache: "no-store" });
         if (!response.ok || cancelled) return;
         setView((await response.json()) as CommandView);
         setBeat((b) => b + 1);

@@ -9,7 +9,6 @@
  * refuses production by name.
  */
 import { sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { readSource, reporter, required, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -36,8 +35,6 @@ async function plantSponsor(db: Db, label: string): Promise<string> {
 }
 
 async function dropSponsor(db: Db, sponsorId: string) {
-  await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN
-    (SELECT id FROM sponsor_pots WHERE sponsor_id = ${sponsorId})`);
   await db.execute(sql`DELETE FROM ledger_entries WHERE ref_id = ${sponsorId}`);
   await db.execute(sql`DELETE FROM sponsor_pots WHERE sponsor_id = ${sponsorId}`);
   await db.execute(sql`DELETE FROM sponsor_codes WHERE sponsor_id = ${sponsorId}`);
@@ -119,8 +116,6 @@ async function plantWorld(db: Db, label: string) {
     await db.execute(sql`DELETE FROM patient_notifications WHERE person_id IN
       (SELECT person_id FROM patients WHERE organization_id = ${org.id})`);
     await db.execute(sql`DELETE FROM sessions WHERE organization_id = ${org.id}`);
-    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND resource_id IN
-      (SELECT id FROM enrolments WHERE sponsor_id = ${sponsorId})`);
     await db.execute(sql`DELETE FROM enrolments WHERE sponsor_id = ${sponsorId}`);
     const people = (
       await db.execute(sql`SELECT person_id FROM patients WHERE organization_id = ${org.id}`)
@@ -204,10 +199,16 @@ async function balanceAfterTopUp(db: Db) {
       await db.execute(sql`UPDATE sponsor_pots SET balance_cents = 12000 WHERE sponsor_id = ${sponsorId}`);
       await publishTopUp(sponsorId, 5_000);
       const after = await potBalance(sponsorId);
+      /*
+       * DD-2 B1: the published balance is now the live one plus every session
+       * movement since the last published people-floored period, so a top-up
+       * (the company's own act) shows at once and in full. With no session legs
+       * here, that is the live figure.
+       */
       check(
-        "W2-S02 a top-up moves the published balance by the top-up and nothing else",
-        after.balanceCents === 15_000,
-        `published ${String(after.balanceCents)}, live 12000: the hidden spend stays hidden`,
+        "W2-S02 / DD-2 B1 a top-up shows in the published balance at once, in full",
+        after.balanceCents === 12_000,
+        `published ${String(after.balanceCents)}, live 12000, no session spend to hold back`,
       );
 
       /*
@@ -219,10 +220,13 @@ async function balanceAfterTopUp(db: Db) {
       const leg = (kind: string, account: string, cents: number, txn: string) => sql`
         INSERT INTO ledger_entries (txn_id, txn_kind, account, amount_cents, ref_type, ref_id, memo, entity)
         VALUES (${txn}::uuid, ${kind}, ${account}, ${cents}, 'sponsor', ${sponsorId}, ${`C21 ${fixture}`}, 'us')`;
+      /* 🔴 0188: one transaction, because the database checks each one sums to zero at commit. */
       const pair = async (kind: string, potCents: number) => {
         const txn = crypto.randomUUID();
-        await db.execute(leg(kind, "sponsor_pot", potCents, txn));
-        await db.execute(leg(kind, "cash", -potCents, txn));
+        await db.transaction(async (tx) => {
+          await tx.execute(leg(kind, "sponsor_pot", potCents, txn));
+          await tx.execute(leg(kind, "cash", -potCents, txn));
+        });
       };
       await db.execute(sql`UPDATE sponsor_pots SET published_balance_cents = NULL WHERE sponsor_id = ${sponsorId}`);
       await pair("pot_return", 3_000);
@@ -240,6 +244,13 @@ async function balanceAfterTopUp(db: Db) {
         "C21 CONTROL …and a session spent from the pot is still not in it, so nothing can be differenced",
         published !== 10_000 + 5_000 - 3_000 - 2_000,
         `published ${published}`,
+      );
+      /* DD-2 B1: nothing is published for this company, so the session spend is added back. */
+      const held = await potBalance(sponsorId);
+      check(
+        "🔴 DD-2 B1 a session not yet in a published period is held back from the balance",
+        held.balanceCents === 12_000 + 2_000 && held.published === null,
+        `published ${String(held.balanceCents)}; live 12000, unpublished session spend 2000`,
       );
 
       /*
@@ -722,12 +733,16 @@ async function moneyLedger(db: Db) {
         employee_cents: number;
       }[];
 
-    /* Before they are told: their session is paid, and enters no ledger. */
+    /*
+     * DD-2 B1: before they are told, their session is STILL an entry. Left out,
+     * the balance moved for it while the ledger did not, and the difference was
+     * that one person. The company sees only periods over the people floor.
+     */
     const nour = await world.cast("Nour", 2500);
     await payFromPot(nour.sessionId);
     check(
-      "W2-S10 a session paid before the employee was told enters no ledger",
-      (await entries()).length === 0,
+      "DD-2 B1 a session paid before the employee was told is still one money entry",
+      (await entries()).length === 1,
       `${(await entries()).length} entries`,
     );
 
@@ -810,7 +825,8 @@ async function moneyLedger(db: Db) {
     check(
       "W2-S10 / F7 …and the week comes out as one total once it holds the floor's worth of different people",
       cleared.weeks.length === 1 &&
-        period?.sessions === 2 * floor - 1 &&
+        /* DD-2 B1: both of Nour's sessions are entries now, told or not. */
+        period?.sessions === 2 * floor &&
         !("priceCents" in (period ?? {})) &&
         !("employeeCents" in (period ?? {})),
       JSON.stringify(cleared.weeks),
@@ -1049,12 +1065,22 @@ async function splitRefunds(db: Db) {
     sessionIds.push(lina.sessionId);
     const start4 = await balance();
     await payFromPot(lina.sessionId);
+    /* 🔴 0188: the ledger refuses UPDATE, so the legs are taken out and put back under a new id. */
     await db.execute(sql`
-      UPDATE ledger_entries SET txn_id = ${crypto.randomUUID()}
-       WHERE ref_type = 'sponsor' AND ref_id = ${world.sponsorId}
-         AND txn_id IN (SELECT txn_id FROM ledger_entries
-                         WHERE ref_type = 'session_payment'
-                           AND ref_id = (SELECT id FROM session_payments WHERE session_id = ${lina.sessionId}))`);
+      WITH moved AS (
+        DELETE FROM ledger_entries
+         WHERE ref_type = 'sponsor' AND ref_id = ${world.sponsorId}
+           AND txn_id IN (SELECT txn_id FROM ledger_entries
+                           WHERE ref_type = 'session_payment'
+                             AND ref_id = (SELECT id FROM session_payments WHERE session_id = ${lina.sessionId}))
+        RETURNING *
+      )
+      INSERT INTO ledger_entries (id, txn_id, txn_kind, account, organization_id, user_id, amount_cents, currency,
+                                  entity, ref_type, ref_id, memo, created_by, created_at, posting_key, leg,
+                                  egp_minor, fx_rate_micro)
+      SELECT gen_random_uuid(), ${crypto.randomUUID()}::uuid, txn_kind, account, organization_id, user_id, amount_cents, currency,
+             entity, ref_type, ref_id, memo, created_by, created_at, posting_key, leg, egp_minor, fx_rate_micro
+        FROM moved`);
     const legacy = await payment(lina.sessionId);
     const r4 = await refundSessionPayment({ paymentId: legacy.id, reason: "W2-S12 legacy", adminUserId: null });
     check(

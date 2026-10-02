@@ -14,7 +14,6 @@ import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { startMockOpenAi } from "../tests/mock-openai";
 import { readSource, reporter, writesTo } from "./_verify";
@@ -432,11 +431,35 @@ async function main() {
         }),
         { params: Promise.resolve({ ref }) },
       );
+    /*
+     * F6: on a live key the partner's yes records nothing; the patient answers on
+     * our page (`answerAsPatient`). That answer, planted directly, as sprint 68 does.
+     */
+    const { recordConsent } = await import("../lib/partner/consent");
+    const { openSession: openLive } = await import("../lib/partner/platform");
+    const patientSays = async (session: string) => {
+      await recordConsent({
+        partnerId: partner.id,
+        externalSessionRef: session,
+        externalSubjectRef: `${fixture}-L`,
+        state: "given",
+        answeredAt: new Date(),
+        offsetSeconds: 0,
+        source: "patient",
+      });
+      await openLive({
+        partnerId: partner.id,
+        environment: "live",
+        externalSessionRef: session,
+        externalSubjectRef: `${fixture}-L`,
+      });
+    };
     const usage = await import("../lib/partner/usage");
     const used = async () => (await usage.usageFor(partner.id)).used;
 
     await usage.setLimit({ partnerId: partner.id, monthlySessionLimit: 2 });
     await liveConsent(`${fixture}-L1`);
+    await patientSays(`${fixture}-L1`);
     const afterConsent = await used();
     check(
       "🔴 W2-X05 a consent on its own bills nothing: no audio, no session on the bill",
@@ -456,6 +479,8 @@ async function main() {
 
     await liveConsent(`${fixture}-L2`);
     await liveConsent(`${fixture}-L3`);
+    await patientSays(`${fixture}-L2`);
+    await patientSays(`${fixture}-L3`);
     await liveMedia(`${fixture}-L2`);
     const heardBefore = mock.state.transcriptionRequests.length;
     const overLimit = await liveMedia(`${fixture}-L3`);
@@ -860,9 +885,6 @@ async function main() {
     await db.execute(sql`DELETE FROM sim_outbox WHERE to_address LIKE ${`%.${fixture}@example.com`}`);
     await db.execute(sql`DELETE FROM partner_users WHERE partner_id IN
       (SELECT id FROM partners WHERE slug = ${fixture})`);
-    /* The key and team audit rows name the partner in `reason`, so they go by it. */
-    await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND reason LIKE
-      'partner ' || (SELECT id::text FROM partners WHERE slug = ${fixture}) || '%'`);
     await db.execute(sql`DELETE FROM partner_api_keys WHERE partner_id IN
       (SELECT id FROM partners WHERE slug = ${fixture})`);
     await db.execute(sql`DELETE FROM partner_limits WHERE partner_id IN

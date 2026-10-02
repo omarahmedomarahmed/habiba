@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { destroyCurrentSession } from "@/lib/auth/session";
+import { isSafeNext } from "@/lib/auth/safe-redirect";
 import { env } from "@/lib/env";
 import { signInDoorFor } from "@/lib/routing";
 
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
   target.searchParams.set("expired", "1");
   // Only ever a path on this origin — an absolute URL here would be an open
   // redirect handed to anyone who can craft a link.
-  if (next && next.startsWith("/") && !next.startsWith("//")) {
+  if (isSafeNext(next)) {
     target.searchParams.set("next", next);
   }
 

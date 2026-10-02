@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { safeNext } from "@/lib/auth/safe-redirect";
 import { Suspense } from "react";
 import Link from "next/link";
 
@@ -57,7 +58,7 @@ export default async function LoginPage({
       }
     >
       <Suspense>
-        <SignInForm next={params.next} notice={notice} />
+        <SignInForm next={safeNext(params.next, "")} notice={notice} />
       </Suspense>
     </AuthShell>
   );

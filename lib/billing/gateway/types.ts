@@ -25,6 +25,11 @@ export type ProviderRefusal = {
   ok: false;
   /** For the operator's screen and the log. Never shown to a patient as is. */
   reason: string;
+  /**
+   * 0188: the provider did not say no; it gave no usable answer (a 5xx or a
+   * timeout), so the instruction may still have landed.
+   */
+  uncertain?: boolean;
 };
 
 /**
@@ -115,4 +120,10 @@ export type PayoutProvider = {
   ): Promise<{ ok: true; providerRef: string; settled?: PayoutEvent } | ProviderRefusal>;
   verifyCallback(input: CallbackInput): Promise<PayoutEvent | null>;
   fetchStatus(providerRef: string): Promise<PayoutEvent | ProviderRefusal>;
+  /**
+   * 0188: the status of a payout found by OUR reference (the request id), for
+   * a send that got no answer and so never learned the provider's own id.
+   * `null` when the provider has no record of that reference.
+   */
+  fetchByReference(reference: string): Promise<PayoutEvent | ProviderRefusal | null>;
 };

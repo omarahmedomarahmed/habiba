@@ -367,7 +367,7 @@ async function main() {
         if (!ok) orbFailures += 1;
 
         await orb.click();
-        await page.waitForSelector('[role="dialog"][aria-label="Crisis Radar"]', {
+        await page.waitForSelector('[role="dialog"][aria-label="Radar"]', {
           timeout: 10_000,
         });
         // Let `animate-fade-rise` finish, or the shot catches a half-faded

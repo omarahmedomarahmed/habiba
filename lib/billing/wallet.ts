@@ -236,8 +236,8 @@ export async function holdWallet(
 class WalletRace extends Error {}
 
 /** The practice a session belongs to, so a wallet leg lands in the same entity's books as the session's. */
-async function practiceOf(sessionId: string): Promise<string | null> {
-  const [row] = await db.select({ id: sessions.organizationId }).from(sessions).where(eq(sessions.id, sessionId)).limit(1);
+async function practiceOf(sessionId: string, reader: Pick<typeof db, "select"> = db): Promise<string | null> {
+  const [row] = await reader.select({ id: sessions.organizationId }).from(sessions).where(eq(sessions.id, sessionId)).limit(1);
   return row?.id ?? null;
 }
 
@@ -245,18 +245,24 @@ async function practiceOf(sessionId: string): Promise<string | null> {
  * The session is paid: the hold is spent, once. Called from `claimSessionPaid`,
  * the one claim every rail makes, so no rail can forget it.
  */
-export async function spendHold(sessionId: string): Promise<void> {
-  const [spent] = await db
+export async function spendHold(
+  sessionId: string,
+  /** 0188: inside the caller's transaction, so the hold is spent with the claim or not at all. */
+  executor: Pick<typeof db, "insert" | "select" | "update"> = db,
+): Promise<void> {
+  const [spent] = await executor
     .update(walletHolds)
     .set({ state: "spent", spentAt: new Date() })
     .where(and(eq(walletHolds.sessionId, sessionId), eq(walletHolds.state, "held")))
     .returning({ id: walletHolds.id, cents: walletHolds.cents });
   if (!spent) return;
-  const organizationId = await practiceOf(sessionId);
+  const organizationId = await practiceOf(sessionId, executor);
   await journal({
     kind: "wallet_spend",
     refType: "wallet_hold",
     refId: spent.id,
+    executor,
+    postingKey: `wallet_hold:${spent.id}:spent`,
     legs: [
       { account: "patient_wallet", amountCents: spent.cents, organizationId, memo: "Wallet spent on a session" },
       { account: "cash", amountCents: -spent.cents, organizationId, memo: "Paid from the wallet, not received" },

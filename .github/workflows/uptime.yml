@@ -1,0 +1,53 @@
+# A stopgap uptime check, not a monitor.
+#
+# Every 15 minutes it fetches the home page and /api/health and fails if either
+# is not a 200 within 10 seconds. GitHub emails the repository owner when a
+# scheduled run fails. Neither URL opens a database connection (the home page is
+# statically rendered and /api/health imports nothing), so this does not keep
+# the database awake.
+#
+# GitHub may delay scheduled runs and disables them after 60 days with no
+# repository activity. A real uptime service and an error tracker are a founder
+# item in docs/DECISIONS.md.
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Production answers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch the home page and the health endpoint
+        shell: bash
+        run: |
+          set -u
+          failed=0
+          for url in "https://24therapy.app/" "https://24therapy.app/api/health"; do
+            ok=0
+            # One retry, so a single dropped connection is not an email.
+            for attempt in 1 2; do
+              out=$(curl -sS -o /dev/null --max-time 10 -w '%{http_code} %{time_total}' "$url" 2>/dev/null) || true
+              code=${out%% *}
+              secs=${out##* }
+              echo "$url attempt $attempt: status $code in ${secs}s"
+              if [ "$code" = "200" ]; then ok=1; break; fi
+              sleep 20
+            done
+            if [ "$ok" != "1" ]; then
+              echo "::error::$url did not answer 200 within 10 seconds"
+              failed=1
+            fi
+          done
+          exit "$failed"

@@ -352,13 +352,13 @@ test("no page or component can print the database host (B1)", async () => {
   assert.deepEqual(offenders, []);
 });
 
-test("nothing the product runs can open the audit log's fixture door (0184)", async () => {
+test("the audit log has no fixture door and cannot be truncated (0184, 0189)", async () => {
   /*
    * `audit_log` refuses UPDATE and DELETE (drizzle/0184), and /hipaa says the
-   * product cannot rewrite it. The one exception is `app.audit_fixtures`, which
-   * scripts set to tidy the rows their own invented fixtures wrote. If a file
-   * the product runs ever set it, the sentence on /hipaa would be false, so the
-   * walk covers app/, components/ and lib/, and the control proves it reads.
+   * product cannot rewrite it. 0184 left one door, `app.audit_fixtures`, that
+   * any connection could open with a SET. DD-2 B2.7 (0189) removed it and added
+   * a BEFORE TRUNCATE trigger, so nothing in the repository may set it again.
+   * The walk covers every directory with code, and the control proves it reads.
    */
   const { readdirSync, readFileSync, statSync } = await import("node:fs");
   const { join } = await import("node:path");
@@ -369,22 +369,28 @@ test("nothing the product runs can open the audit log's fixture door (0184)", as
     for (const entry of readdirSync(dir)) {
       const path = join(dir, entry);
       if (statSync(path).isDirectory()) walk(path);
-      else if (/\.tsx?$/.test(entry)) {
+      else if (/\.tsx?$/.test(entry) && !path.endsWith(join("tests", "safety.test.ts"))) {
         const text = readFileSync(path, "utf8");
         if (path.endsWith(join("cron", "[job]", "route.ts"))) sawCron = /delete\(auditLog\)/.test(text);
-        if (/app\.audit_fixtures|_audit-fixtures/.test(text)) offenders.push(path);
+        if (/app\.audit_fixtures|_audit-fixtures|auditFixtures/.test(text)) offenders.push(path);
       }
     }
   };
-  walk(join(root, "app"));
-  walk(join(root, "components"));
-  walk(join(root, "lib"));
+  for (const dir of ["app", "components", "lib", "scripts", "tests"]) walk(join(root, dir));
   assert.ok(sawCron, "the walk must reach the retention job, or it proves nothing");
   assert.deepEqual(offenders, []);
-  /* And the trigger the sentence rests on is in a migration the journal lists. */
-  const migration = readFileSync(join(root, "drizzle", "0184_the_audit_log_cannot_be_rewritten.sql"), "utf8");
-  assert.match(migration, /BEFORE UPDATE OR DELETE ON "audit_log"/);
-  assert.match(readFileSync(join(root, "drizzle", "meta", "_journal.json"), "utf8"), /0184_the_audit_log_cannot_be_rewritten/);
+
+  /* The triggers the sentence rests on are in migrations the journal lists, and the newest function has no door. */
+  const journal = readFileSync(join(root, "drizzle", "meta", "_journal.json"), "utf8");
+  const first = readFileSync(join(root, "drizzle", "0184_the_audit_log_cannot_be_rewritten.sql"), "utf8");
+  assert.match(first, /BEFORE UPDATE OR DELETE ON "audit_log"/);
+  assert.match(journal, /0184_the_audit_log_cannot_be_rewritten/);
+  const latest = readFileSync(join(root, "drizzle", "0189_no_side_doors.sql"), "utf8");
+  assert.match(journal, /0189_no_side_doors/);
+  const fn = latest.slice(latest.indexOf('CREATE OR REPLACE FUNCTION "audit_log_append_only"'));
+  assert.ok(fn.length < latest.length, "0189 must redefine the append-only function");
+  assert.doesNotMatch(fn.slice(0, fn.indexOf("$$ LANGUAGE plpgsql")), /current_setting/);
+  assert.match(latest, /BEFORE TRUNCATE ON "audit_log"\s+FOR EACH STATEMENT/);
 });
 
 test("a clinician's sign in lasts what /hipaa says it does (30 minutes idle, 8 hours)", async () => {
@@ -809,11 +815,15 @@ test("🔴 E1 the company overview prints no live total, only the published snap
 
   const sponsors = readFileSync("lib/data/sponsors.ts", "utf8");
   const body = sponsors.slice(sponsors.indexOf("export async function potBalance"));
-  // The spend is the spend of the PUBLISHED count, in both branches.
-  assert.match(body, /potSpentThrough\(sponsorId, sessions\)/);
-  assert.match(body, /potSpentThrough\(sponsorId, pot\.publishedSessions\)/);
-  // Control: the floor that decides when the count moves is still there.
-  assert.match(body, /sessions - pot\.publishedSessions >= floor/);
+  /*
+   * DD-2 B1: the publication is now the people-floored ledger periods. The
+   * totals are those periods' figures, and the balance is the one at the end of
+   * the last of them, so one session never moves any company figure.
+   */
+  assert.match(body, /const view = await publishedLedger\(sponsorId, now\);/);
+  assert.match(body, /spentCents: view\.stats\.spendCents/);
+  // Control: session movement since the last published period is added back.
+  assert.match(body, /sessionMovementSince\(sponsorId, since\)/);
 });
 
 test("🔴 E2 the company's people list carries a name per person and nothing about their use of it", async () => {
@@ -1608,10 +1618,13 @@ test("the crisis message never says a line with office hours answers at any time
   assert.ok(egypt.message.includes("123"), "an always-open number is named");
   assert.deepEqual(Object.keys(egypt).sort(), ["helpline", "message"]);
 
-  // Tuesday 11:00 in Cairo: 105 is likely open, and the emergency number is still there.
+  // Tuesday 11:00 in Cairo: 105's hours are unconfirmed, so it is offered with "check its hours", after 123.
   const tuesdayMorning = new Date("2026-09-22T08:00:00Z");
   const open = patientFacingCrisisMessage("EG", null, tuesdayMorning);
   assert.ok(open.message.includes("105") && open.message.includes("123"), open.message);
+  assert.ok(open.message.indexOf("123") < open.message.indexOf("105"), open.message);
+  assert.match(open.message, /check its hours/);
+  assert.equal(open.helpline, "123");
 
   // 988 answers around the clock, so "at any time" is true there.
   assert.ok(patientFacingCrisisMessage("US").message.includes("at any time"));

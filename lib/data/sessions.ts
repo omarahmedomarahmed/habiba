@@ -21,6 +21,7 @@ import {
 } from "@/lib/db/schema";
 import { ensurePersonForPatient, normalisePhone } from "@/lib/data/people";
 import { log, ref } from "@/lib/logger";
+import { FRESH_CONTENT_EN } from "@/lib/notes/fresh-translation";
 import { capSeconds, clockAnchor, sessionClock, type SessionClock } from "@/lib/session-clock";
 import { getSettings } from "@/lib/settings";
 import { isUuid } from "@/lib/uuid";
@@ -315,9 +316,15 @@ export async function createSession(
      * gets a pay link like an online one, and it cannot start until paid.
      */
     inPersonPaid?: boolean;
+    /**
+     * DD-2 B1: the clinician ticked "18 or over" on the form. Stored on the
+     * session and on a chart that has no confirmation yet, with who and when.
+     */
+    adultConfirmed?: boolean;
   },
 ) {
   let patientId = input.patientId ?? null;
+  const adultAt = input.adultConfirmed ? new Date() : null;
 
   /*
    * 🔴 A patient id from a form is a claim, not a fact. It has to be a chart
@@ -403,6 +410,8 @@ export async function createSession(
          * chart at all and a caseload of zero.
          */
         source: guestPhone ? "therapist" : guestEmail ? "join_link" : "walk_in",
+        adultConfirmedAt: adultAt,
+        adultConfirmedBy: adultAt ? actor.userId : null,
       })
       .returning({ id: patients.id });
     patientId = created?.id ?? null;
@@ -449,8 +458,16 @@ export async function createSession(
        */
       priceCurrency: "usd",
       paymentStatus: price > 0 ? "pending" : "not_required",
+      adultConfirmedAt: adultAt,
+      adultConfirmedBy: adultAt ? actor.userId : null,
     })
     .returning();
+
+  /* DD-2 B1: an existing chart with no confirmation takes this one. */
+  if (adultAt && patientId) {
+    const { confirmAdultForChart } = await import("@/lib/data/adult");
+    await confirmAdultForChart(actor, patientId, adultAt);
+  }
 
   /*
    * 🔴 53.21 — pot first, on this path too.
@@ -1025,12 +1042,13 @@ export async function nextSequence(sessionId: string): Promise<number> {
  */
 export async function getNotes(actor: Actor, sessionId: string) {
   const rows = await db
-    .select({ note: sessionNotes })
+    .select({ note: sessionNotes, contentEn: FRESH_CONTENT_EN })
     .from(sessionNotes)
     .innerJoin(sessions, eq(sessions.id, sessionNotes.sessionId))
     .where(and(scope(actor), eq(sessionNotes.sessionId, sessionId)))
     .orderBy(desc(sessionNotes.isPrimary), asc(sessionNotes.createdAt));
-  return rows.map((row) => row.note);
+  /* DD-2: a translation of words the clinician has since changed is not shown. */
+  return rows.map((row) => ({ ...row.note, contentEn: row.contentEn }));
 }
 
 /**
@@ -1497,4 +1515,42 @@ export async function ensureRoom(session: {
   return winner?.url && winner.name
     ? { ok: true, url: winner.url, name: winner.name }
     : { ok: false, reason: "unreachable" };
+}
+
+/**
+ * 🔴 Due diligence: LIVE RISK DETECTION OFF, AND THE RECORD SAYS SO.
+ *
+ * A patient who paused AI is not transcribed (their choice), and live crisis
+ * detection reads the transcript, so it is off for them too. That used to be
+ * silent. The session now keeps when it was first off for that reason
+ * (`sessions.live_risk_off_at`), and the room and the session page say so.
+ * Written once; a second call changes nothing. Never throws.
+ */
+export async function markLiveRiskOff(sessionId: string): Promise<void> {
+  try {
+    await db
+      .update(sessions)
+      .set({ liveRiskOffAt: new Date() })
+      .where(and(eq(sessions.id, sessionId), isNull(sessions.liveRiskOffAt)));
+  } catch (error) {
+    log.warn("live risk off not recorded", { session: ref(sessionId), reason: error instanceof Error ? error.name : "unknown" });
+  }
+}
+
+/** At the start of a session: record it when this session's patient has paused AI. Never throws. */
+export async function markLiveRiskOffIfPaused(sessionId: string): Promise<boolean> {
+  try {
+    const [row] = await db
+      .select({ patientId: sessions.patientId })
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
+    const { aiPausedForPatient } = await import("@/lib/data/ai-consent");
+    if (!row || !(await aiPausedForPatient(row.patientId))) return false;
+    await markLiveRiskOff(sessionId);
+    return true;
+  } catch (error) {
+    log.warn("live risk check at start failed", { session: ref(sessionId), reason: error instanceof Error ? error.name : "unknown" });
+    return false;
+  }
 }

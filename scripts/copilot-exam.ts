@@ -396,6 +396,9 @@ async function main() {
 
   const { openai, AiUnavailableError } = await import("../lib/ai/client");
   const { askPatientCopilot } = await import("../lib/ai/case-copilot");
+  // The exam measures memory over the whole record, as a granted clinician sees it.
+  const { capabilitiesFor } = await import("../lib/access/state");
+  const capabilities = capabilitiesFor("granted");
 
   try {
     let people = await evidenceFor(db, opts.patient);
@@ -494,6 +497,7 @@ async function main() {
           userId: thread.user_id,
           question: question.ask,
           guidance: null,
+          capabilities,
         });
         const mark = await grade(client, question, answer.answer);
         marks.push({ about: question.about, kind: question.kind, score: mark.score, why: mark.why });
@@ -506,6 +510,7 @@ async function main() {
         userId: thread.user_id,
         question: HANDOVER,
         guidance: null,
+        capabilities,
       });
 
       /*

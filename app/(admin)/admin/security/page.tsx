@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import QRCode from "qrcode";
 
+import { AccountFactorReset } from "@/components/admin/account-factor-reset";
 import { SecondFactorSetup } from "@/components/admin/second-factor-setup";
+import { mayResetAccountFactor } from "@/lib/auth/factor-reset";
 import { requireStaff } from "@/lib/auth/guard";
 import { enrolmentAvailable, pendingEnrolment, secondFactorStatus } from "@/lib/auth/second-factor";
+import { getSessionState } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Sign-in security", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -19,17 +22,23 @@ export const dynamic = "force-dynamic";
 export default async function SecurityPage() {
   const actor = await requireStaff();
   const status = await secondFactorStatus(actor.userId);
-  const pending = status.enrolled || !enrolmentAvailable() ? null : await pendingEnrolment(actor);
+  const session = await getSessionState();
+  const pending =
+    status.enrolled || !enrolmentAvailable() || !session ? null : await pendingEnrolment(actor, session.sessionId);
   const qr = pending
     ? await QRCode.toDataURL(pending.uri, { margin: 1, errorCorrectionLevel: "M", width: 200 })
     : null;
 
   return (
-    <SecondFactorSetup
-      enrolled={status.enrolled}
-      recoveryLeft={status.recoveryLeft}
-      available={enrolmentAvailable()}
-      pending={pending ? { key: pending.key, qr: qr! } : null}
-    />
+    <div className="space-y-4">
+      <SecondFactorSetup
+        enrolled={status.enrolled}
+        recoveryLeft={status.recoveryLeft}
+        available={enrolmentAvailable()}
+        pending={pending ? { key: pending.key, qr: qr! } : null}
+      />
+      {/* Review fix: the support reset of a clinician's, clinic manager's or partner user's app. */}
+      {mayResetAccountFactor(actor.role) ? <AccountFactorReset /> : null}
+    </div>
   );
 }

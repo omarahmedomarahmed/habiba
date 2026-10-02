@@ -176,6 +176,34 @@ export async function investigationGrantHolds(input: {
 }
 
 /**
+ * 🔴 Review: the same grant, for the platform on-call reaching the person
+ * behind a crisis alert (`break_glass.crisis_contact`). This reader's row, for
+ * this alert, inside the window.
+ */
+export async function crisisContactGrantHolds(input: {
+  grantId: string | null | undefined;
+  actorUserId: string;
+  riskId: string;
+}): Promise<boolean> {
+  if (!isUuid(input.grantId)) return false;
+  const { and, eq, gt } = await import("drizzle-orm");
+  const [row] = await db
+    .select({ id: auditLog.id })
+    .from(auditLog)
+    .where(
+      and(
+        eq(auditLog.id, input.grantId),
+        eq(auditLog.action, "break_glass.crisis_contact"),
+        eq(auditLog.actorUserId, input.actorUserId),
+        eq(auditLog.resourceId, input.riskId),
+        gt(auditLog.createdAt, new Date(Date.now() - INVESTIGATION_WINDOW_MINUTES * 60_000)),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
+/**
  * Convenience wrapper for the common case: someone read or wrote clinical data.
  * Called from the data layer, not from a route-matching interceptor — the old
  * regex-on-the-URL approach missed four whole modules and recorded session IDs

@@ -313,10 +313,11 @@ function demoDoc(): string[] {
     "",
     "#### Console accounts ask for a second step",
     "",
-    "After the password, the admin and support accounts ask for a code: from an authenticator",
-    "app once one is added at `/admin/security`, otherwise by email. The support account's",
-    "address is invented, so its email code arrives nowhere. To walk it, add an authenticator",
-    "to it while signed in, or give it an address that receives mail.",
+    "After the password, the admin and support accounts ask for a code from an authenticator",
+    "app; there is no emailed code. An account with no app sets one up on that page at its first",
+    "sign-in (scan the QR code, keep the recovery codes). With `DEMO_TOTP_SECRET` (base32) in",
+    "`.env.local` when seeding, the support account starts enrolled and `npm run -s totp:now`",
+    "prints its current code.",
   ];
 }
 

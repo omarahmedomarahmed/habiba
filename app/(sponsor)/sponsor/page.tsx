@@ -29,9 +29,9 @@ export const dynamic = "force-dynamic";
  *
  * The balance, the total spent and the session count all come from
  * `ledger_entries` rather than from a counter somebody increments. The weekly
- * series comes from `weeklySpend`, which groups by week IN SQL so no daily figure
- * exists anywhere in the pipeline to leak, and then through `applyActivityFloor`
- * before it reaches this file.
+ * series comes from `weeklySpend`, which reads the company's weekly ledger
+ * periods (DD-2 B1: `companyView`, at least `floor` different people, complete
+ * weeks only), so no daily figure exists anywhere in the pipeline to leak.
  *
  * ## 🔴 SPEND, NEVER SESSION COUNTS, NEVER PEOPLE (C228) — with one exception
  *
@@ -90,7 +90,8 @@ export default async function SponsorOverviewPage() {
    * way to not leak a number is to not read it.
    */
   const underFloor = pot.underHeadcount;
-  const weeks = underFloor ? [] : await weeklySpend(actor.sponsorId, floor);
+  /* DD-2 B1: the same people-floored periods as the ledger, complete weeks only. */
+  const weeks = underFloor ? [] : await weeklySpend(actor.sponsorId);
 
   const fmt = (cents: number) => <Money cents={cents} />;
 

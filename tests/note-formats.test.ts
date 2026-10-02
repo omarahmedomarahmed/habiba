@@ -276,7 +276,17 @@ test("board 869 the writer is never left to default an Arabic note to the mascul
   assert.ok(user.includes(PATIENT_GENDER_UNRECORDED), "the context says the gender is not recorded");
 
   const notes = readFileSync("lib/ai/notes.ts", "utf8");
-  assert.match(notes, /PATIENT_GENDER_UNRECORDED,\n\s*\);/, "the session note's context carries the line");
+  assert.match(notes, /patientGenderContext\(row\.addressAs\),\n\s*\);/, "the session note's context carries the line");
+  assert.match(notes, /addressAs: patients\.addressAs/, "read from the patient's record");
+});
+
+test("DD-2 a gender the clinician recorded reaches the writer; none recorded is the unrecorded line", async () => {
+  const { patientGenderContext, PATIENT_GENDER_UNRECORDED } = await writer();
+  assert.match(patientGenderContext("female"), /female/);
+  assert.match(patientGenderContext("female"), /المريضة/);
+  assert.match(patientGenderContext("male"), /المريض\b|"المريض"/);
+  assert.equal(patientGenderContext(null), PATIENT_GENDER_UNRECORDED);
+  assert.equal(patientGenderContext("other"), PATIENT_GENDER_UNRECORDED);
 });
 
 /* ---------------------------------------------------------------- board 722 -- */

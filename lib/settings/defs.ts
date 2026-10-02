@@ -458,9 +458,9 @@ export type PlatformSettings = {
      *
      * `weekly` (the default) publishes a week's entries once the week is over,
      * shuffled, dated by the week: a live entry at a small company is a person
-     * seen booking, and enrolled employees were told "not a date". `live`
-     * shows each entry as soon as it is paid, still dated by its week. An
-     * operator's decision, per the founder's; the safe direction is weekly.
+     * seen booking, and enrolled employees were told "not a date". DD-2 B1:
+     * `live` no longer shows the current week (`lastCompleteWeek`); it is
+     * kept so stored settings still parse, and reads as weekly.
      */
     ledgerPublishing: "weekly" | "live";
   };
@@ -589,6 +589,12 @@ export type RulesSettings = {
     ledgerAdjustments: boolean;
     /** Hours a changed payout destination waits before the next payout. APPLIED. */
     payoutDetailsCooldownHours: number;
+    /**
+     * 0188, APPLIED. Maker and checker from transfer to payout: whoever
+     * confirmed a transfer behind a payout does not approve it, and whoever
+     * approves a payout does not send it. On by default (proposed ruling DD-C2).
+     */
+    payoutSeparation: boolean;
   };
   /**
    * Ruling 12 and 13b, APPLIED. Names only; keys stay in the environment.
@@ -657,6 +663,14 @@ export type RulesSettings = {
   enrolment: {
     listRemovalGraceDays: number;
   };
+  /**
+   * 0188, APPLIED: a clinician's session earnings become withdrawable this many
+   * days after the session ended, so a refund or chargeback has money to come
+   * back from. 0 switches the hold off (proposed ruling DD-C4).
+   */
+  earnings: {
+    holdDays: number;
+  };
 };
 
 export const RULES_DEFAULTS: RulesSettings = {
@@ -676,6 +690,7 @@ export const RULES_DEFAULTS: RulesSettings = {
     transferWithoutProof: true,
     ledgerAdjustments: true,
     payoutDetailsCooldownHours: 24,
+    payoutSeparation: true,
   },
   providers: { cardGateway: "paymob", payouts: "paymob", etaSigner: "external" },
   payments: { patientPaysCardFee: true, cardFeeBps: 275, cardFeeFixedMinor: 300 },
@@ -692,6 +707,7 @@ export const RULES_DEFAULTS: RulesSettings = {
   },
   wallet: { enabled: true, expiryMonths: 0 },
   enrolment: { listRemovalGraceDays: 14 },
+  earnings: { holdDays: 7 },
 };
 
 function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
@@ -718,6 +734,7 @@ function parseRules(value: unknown): RulesSettings {
   const inPerson = record(v.inPerson);
   const wallet = record(v.wallet);
   const enrolment = record(v.enrolment);
+  const earnings = record(v.earnings);
   return {
     tax: {
       sellerModel: oneOf(tax.sellerModel, ["agent", "principal"] as const, d.tax.sellerModel),
@@ -748,6 +765,7 @@ function parseRules(value: unknown): RulesSettings {
         d.approvals.payoutDetailsCooldownHours,
         { min: 0, max: 24 * 14 },
       ),
+      payoutSeparation: bool(approvals.payoutSeparation, d.approvals.payoutSeparation),
     },
     providers: {
       cardGateway: str(providers.cardGateway, d.providers.cardGateway),
@@ -796,6 +814,9 @@ function parseRules(value: unknown): RulesSettings {
         min: 0,
         max: 120,
       }),
+    },
+    earnings: {
+      holdDays: int(earnings.holdDays, d.earnings.holdDays, { min: 0, max: 90 }),
     },
   };
 }

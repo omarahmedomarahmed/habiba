@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { SIGNUP_NOTICE_KEYS } from "@/lib/consent/terms";
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -40,10 +41,9 @@ export function SignupConsent({ audience }: { audience: "patient" | "clinician" 
     <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
       <p className="text-xs font-semibold text-slate-800">{t("signupConsent.lead")}</p>
       <ul className="list-disc space-y-1 ps-4 text-xs leading-relaxed text-slate-600">
-        <li>{t("signupConsent.openai")}</li>
-        <li>{t("signupConsent.daily")}</li>
-        <li>{t("signupConsent.resend")}</li>
-        <li>{t("signupConsent.hosting")}</li>
+        {SIGNUP_NOTICE_KEYS.map((key) => (
+          <li key={key}>{t(key)}</li>
+        ))}
       </ul>
       <p className="text-xs leading-relaxed text-slate-600">{more}</p>
 

@@ -5,42 +5,19 @@
  *
  * It is the static half of `npm run gates`: typecheck, every unit suite that
  * needs no database, the prose ratchet, and every verifier that reads only the
- * repository. The other half (the dev database, a running build, the three
- * environments) still runs locally through `npm run gates` before a deploy,
- * because it needs credentials that do not belong on GitHub.
+ * repository. The database suites run in the second CI job through
+ * `npm run ci:db`, against a throwaway Postgres. The rest (the dev database, a
+ * running build, the three environments) still runs locally through
+ * `npm run gates` before a deploy.
  *
- * Both lists are written down rather than guessed, and checked here: a suite
- * or verifier added later is run by default, so a new database-bound one fails
- * in CI until it is named below, which is the honest outcome.
+ * Both lists live in `scripts/_ci-lists.ts`, written down rather than guessed:
+ * a suite or verifier added later is run here by default, so a new
+ * database-bound one fails in CI until it is named there.
  */
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-/* Unit suites that open a database connection. Run by `npm run gates`. */
-const NEEDS_DATABASE_SUITES = new Set([
-  "test:account-links-db",
-  "test:admin-lists",
-  "test:cms-draft",
-  "test:console-round2-db",
-  "test:db",
-  "test:ledger",
-  "test:partner-console",
-  "test:rail-exceptions-db",
-  "test:sponsor-invoice",
-  "test:support-console",
-  "test:e2e",
-]);
-
-/* Verifiers that read only the repository. Probed with no database on 2026-10-01. */
-const STATIC_VERIFIERS = [
-  "verify:sprint65", "verify:nul", "verify:sprint51", "verify:runbook", "verify:sprint37l2",
-  "verify:sprint37l", "verify:sprint35r", "verify:sprint32", "verify:sprint31", "verify:palette",
-  "verify:contrast", "verify:machines", "verify:traps", "verify:csp", "verify:email-dns",
-  "verify:claims", "verify:reachable", "verify:principals", "verify:sprint59", "verify:sprint60",
-  "verify:sprint61", "verify:boundary", "verify:sprint77", "verify:finance", "verify:plan",
-  "verify:rail", "verify:blobs", "verify:whatsapp", "verify:launch", "verify:qualified",
-  "verify:orb", "verify:money", "verify:notices", "verify:prove",
-];
+import { NEEDS_DATABASE_SUITES, STATIC_VERIFIERS } from "./_ci-lists";
 
 const scripts = (JSON.parse(readFileSync("package.json", "utf8")) as { scripts: Record<string, string> })
   .scripts;

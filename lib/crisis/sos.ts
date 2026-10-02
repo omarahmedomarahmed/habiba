@@ -82,7 +82,9 @@ export function sosLinesFor(input: {
       line,
       open: lineOpenAt(line, now),
     }));
-    return main[0]?.open === false ? [...always, ...support, ...main] : [...main, ...support, ...always];
+    /* Due diligence: a line we cannot say is open (closed, or hours unknown) never leads the always-open numbers. */
+    if (main[0] && main[0].open !== true && always.length > 0) return [...always, ...main, ...support];
+    return [...main, ...support, ...always];
   };
 
   /* Their own number. The verified table first (C184), then what operators configured. */

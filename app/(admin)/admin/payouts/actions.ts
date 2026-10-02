@@ -14,7 +14,7 @@ import {
   rejectPayout,
 } from "@/lib/billing/payouts";
 
-export type QueueState = { error?: string; ok?: boolean };
+export type QueueState = { error?: string; ok?: boolean; note?: string };
 
 /**
  * W2-A01: the four-eyes refusals come back as dictionary keys, so the reader
@@ -192,4 +192,60 @@ export async function didNotArrive(_prev: QueueState, formData: FormData): Promi
   });
   revalidatePath("/admin/payouts");
   return { ok: true };
+}
+
+/**
+ * 🔴 0188: ask the payouts provider again about a send that got no answer.
+ * Nothing moves money here; a `sent` answer books it exactly as the callback
+ * would, a `failed` one lets it be sent again.
+ */
+export async function recheckWithProvider(_prev: QueueState, formData: FormData): Promise<QueueState> {
+  const actor = await requireStaff();
+  const requestId = String(formData.get("requestId") ?? "");
+  const { recheckPayout } = await import("@/lib/billing/payouts");
+  const { state } = await recheckPayout(requestId);
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "payout.provider_rechecked",
+    resourceType: "payout_request",
+    resourceId: requestId,
+    reason: `provider state now ${state}`,
+  });
+  revalidatePath("/admin/payouts");
+  const key: MessageKey =
+    state === "failed"
+      ? "apayout.recheckFailed"
+      : state === "sent"
+        ? "apayout.recheckSent"
+        : state === "sending"
+          ? "apayout.recheckSending"
+          : "apayout.recheckStill";
+  return { ok: true, note: await say(key) };
+}
+
+/**
+ * 🔴 0195: the provider confirms a payout left `unknown` was never sent. It
+ * moves to `failed`, so it can be sent again; a second person, a reason, and
+ * what the provider check found, all on the audit record.
+ */
+export async function confirmNotSent(_prev: QueueState, formData: FormData): Promise<QueueState> {
+  const actor = await requireStaff();
+  const requestId = String(formData.get("requestId") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+  const { confirmPayoutNotSent } = await import("@/lib/billing/payouts");
+  const result = await confirmPayoutNotSent({ requestId, actorUserId: actor.userId, reason });
+  if (result.error) return { error: await say(result.error) };
+
+  await audit({
+    actor,
+    category: "billing",
+    action: "payout.provider_confirmed_not_sent",
+    resourceType: "payout_request",
+    resourceId: requestId,
+    reason: `${reason.trim()} (provider check: ${result.found ?? "none"})`,
+  });
+  revalidatePath("/admin/payouts");
+  return { ok: true, note: await say("apayout.notSentDone") };
 }

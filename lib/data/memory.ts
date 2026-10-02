@@ -2,6 +2,8 @@ import "server-only";
 
 import { asc, eq } from "drizzle-orm";
 
+import { maySeeSharedRecord } from "@/lib/access/state";
+import type { Actor } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { observations, personProfiles, type PersonProfile } from "@/lib/db/schema";
@@ -25,7 +27,7 @@ const db = dbFor(pinnedToDefaultRegion("lib/data/memory.ts", "not routed yet: th
  * somebody wires to a text box, and 9.1 forbids exactly that.
  */
 
-export async function profileFor(personId: string): Promise<PersonProfile | null> {
+async function profileFor(personId: string): Promise<PersonProfile | null> {
   const [row] = await db
     .select()
     .from(personProfiles)
@@ -35,7 +37,7 @@ export async function profileFor(personId: string): Promise<PersonProfile | null
 }
 
 /** The dated timeline, oldest first. 9.2. */
-export async function timelineFor(personId: string) {
+async function timelineFor(personId: string) {
   return db
     .select({
       id: observations.id,
@@ -49,6 +51,34 @@ export async function timelineFor(personId: string) {
     .orderBy(asc(observations.observedAt))
     .limit(200);
 }
+
+export type TimelineEntry = Awaited<ReturnType<typeof timelineFor>>[number];
+
+/**
+ * The standing profile and timeline as one clinician may see them.
+ *
+ * Due diligence (DD-2 B1): the only exported reader. Both are built from every
+ * clinic's sessions and the patient's uploads, so they follow the same grant
+ * as files and journals. A refused, revoked or expired clinician gets nothing,
+ * whichever page asks.
+ */
+export async function sharedProfileForClinician(
+  actor: Actor,
+  patientId: string,
+): Promise<{ profile: PersonProfile | null; timeline: TimelineEntry[] }> {
+  const { accessFor } = await import("@/lib/data/grants");
+  const access = await accessFor(actor, patientId);
+  if (!access.personId || !maySeeSharedRecord(access.state, access.soleChart)) return { profile: null, timeline: [] };
+  const [profile, timeline] = await Promise.all([
+    profileFor(access.personId),
+    timelineFor(access.personId),
+  ]);
+  return { profile, timeline };
+}
+
+/** For `verify:sprint9`, which reads a planted person with no clinician. */
+export const __profileForTest = profileFor;
+export const __timelineForTest = timelineFor;
 
 /**
  * Is the profile behind its sources?

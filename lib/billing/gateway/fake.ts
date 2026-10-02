@@ -173,4 +173,8 @@ export const FAKE_PAYOUTS: PayoutProvider = {
   async fetchStatus(providerRef) {
     return transfers.get(providerRef) ?? { providerRef, reference: "", outcome: "pending", failure: null };
   },
+
+  async fetchByReference(reference) {
+    return [...transfers.values()].find((t) => t.reference === reference) ?? null;
+  },
 };

@@ -1,5 +1,6 @@
 "use client";
 
+import { backgroundFetch } from "@/lib/auth/activity";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, Copy, Link2, Loader2, Mic, MicOff, Square, Video, X } from "lucide-react";
@@ -16,6 +17,7 @@ import {
   goLive,
   setRecordingPaused,
   answerInPersonConsent,
+  confirmAdult,
   setTranscriptLanguage,
 } from "@/app/(app)/sessions/actions";
 import type { CopilotSuggestion } from "@/lib/ai/copilot";
@@ -51,6 +53,12 @@ type RoomProps = {
   patientAlreadyJoined: boolean;
   /** Null for sessions that predate the consent step, or that never used the join form. */
   recordingConsent: "granted" | "declined" | null;
+  /** 🔴 Due diligence: the patient paused AI, so nothing is transcribed and live risk detection is off. */
+  liveRiskOff: boolean;
+  /** DD-2 B1: whether anyone has confirmed the patient is 18 or over. */
+  adultConfirmed: boolean;
+  /** Whether a meeting recorder could join this session; it waits on the 18+ answer. */
+  meetingBot?: boolean;
   /** ISO, so the countdown survives a refresh mid-session. */
   startedAt: string | null;
   /** 🔴 0183: when both people were there and the clock began. Null until then. */
@@ -154,6 +162,10 @@ export function SessionRoom(props: RoomProps) {
    */
   const [now, setNow] = useState(() => props.serverNow);
   const [crisis, setCrisis] = useState(false);
+  /* 🔴 Due diligence: set from the page, or by the first chunk refused because the patient paused AI mid-session. */
+  const [liveRiskOff, setLiveRiskOff] = useState(props.liveRiskOff);
+  /* Review: a chunk refused because nobody confirmed 18 or over is not scanned either. */
+  const [adultRefused, setAdultRefused] = useState(false);
   /* 🔴 F2: the alert the last crisis flag raised, so the banner can acknowledge it. */
   const [alertId, setAlertId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -216,13 +228,21 @@ export function SessionRoom(props: RoomProps) {
       try {
         // Credentials ride on the httpOnly session cookie, so there is no token
         // to read, refresh or accidentally capture in a stale closure.
-        const response = await fetch(`/api/sessions/${props.sessionId}/transcribe`, {
+        const response = await backgroundFetch(`/api/sessions/${props.sessionId}/transcribe`, {
           method: "POST",
           body: form,
           credentials: "same-origin",
         });
 
-        if (!response.ok) return;
+        if (!response.ok) {
+          if (response.status === 409) {
+            const refused = (await response.json().catch(() => null)) as { error?: string } | null;
+            if (refused?.error === "ai_paused") setLiveRiskOff(true);
+            if (refused?.error === "adult_unconfirmed") setAdultRefused(true);
+          }
+          return;
+        }
+        setAdultRefused(false);
 
         const data = (await response.json()) as {
           text?: string;
@@ -426,7 +446,7 @@ export function SessionRoom(props: RoomProps) {
          * rather than only the lines this browser uploaded itself.
          */
         const after = lastSequence(linesRef.current);
-        const response = await fetch(`/api/sessions/${props.sessionId}/state?after=${after}`, {
+        const response = await backgroundFetch(`/api/sessions/${props.sessionId}/state?after=${after}`, {
           credentials: "same-origin",
         });
         if (!response.ok) return;
@@ -524,6 +544,24 @@ export function SessionRoom(props: RoomProps) {
         return;
       }
       router.replace(`/sessions/${props.sessionId}`);
+    });
+  };
+
+  /* DD-2 B1: the clinician's answer to "18 or over?", before anything is recorded. */
+  const [adult, setAdult] = useState<"confirmed" | "unconfirmed" | "under">(
+    props.adultConfirmed ? "confirmed" : "unconfirmed",
+  );
+  const answerAdult = (isAdult: boolean) => {
+    if (!isAdult) {
+      setAdult("under");
+      return;
+    }
+    startTransition(async () => {
+      const result = await confirmAdult(props.sessionId);
+      if (result.ok) {
+        setAdult("confirmed");
+        setAdultRefused(false);
+      }
     });
   };
 
@@ -697,6 +735,57 @@ export function SessionRoom(props: RoomProps) {
         be the most obvious thing on the screen — and needs to know it was the
         patient's decision rather than a bug, or they will simply "fix" it.
       */}
+      {/* 🔴 Due diligence: risk detection off is said where it cannot be missed, with the reason being the patient's choice. */}
+      {liveRiskOff || adultRefused ? (
+        <p
+          role="status"
+          data-live-risk-off
+          className="relative mx-4 mt-3 flex items-start gap-2.5 rounded-2xl bg-amber-400/15 px-4 py-3 text-sm leading-relaxed text-amber-100 ring-1 ring-amber-400/30 sm:mx-6"
+        >
+          <MicOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden />
+          <span>
+            <strong className="font-semibold">{t("troom.liveRiskOff", { name: props.patientLabel })}</strong>{" "}
+            {liveRiskOff ? t("troom.liveRiskOffBody") : t("troom.liveRiskOffAdultBody")}
+          </span>
+        </p>
+      ) : null}
+      {adult !== "confirmed" ? (
+        <div
+          className="relative mx-4 mt-3 rounded-3xl border border-amber-300/40 bg-amber-300/10 p-4 sm:mx-6"
+          data-adult-ask
+        >
+          <p className="flex items-start gap-2.5 text-[15px] font-bold text-white">
+            <MicOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-200" aria-hidden />
+            {adult === "under" ? t("adultCheck.roomRefused") : t("adultCheck.roomAsk", { name: props.patientLabel })}
+          </p>
+          {adult === "unconfirmed" && props.meetingBot ? (
+            <p className="mt-2 text-sm text-amber-100" data-bot-waits>
+              {t("adultCheck.botWaits")}
+            </p>
+          ) : null}
+          {adult === "unconfirmed" ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => answerAdult(true)}
+                disabled={pending}
+                className="tap-target h-12 flex-1 rounded-2xl bg-amber-200 px-4 text-sm font-bold text-navy-700 disabled:opacity-60"
+              >
+                {t("adultCheck.roomYes")}
+              </button>
+              <button
+                type="button"
+                onClick={() => answerAdult(false)}
+                disabled={pending}
+                className="tap-target h-12 flex-1 rounded-2xl border border-white/30 px-4 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {t("adultCheck.roomNo")}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {props.modality === "in_person" && consent === null ? (
         <div
           className="relative mx-4 mt-3 rounded-3xl border border-teal-400/30 bg-teal-400/10 p-4 sm:mx-6"

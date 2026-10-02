@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { checkSponsorPassword } from "@/lib/data/sponsor-admin";
 import { requestSponsorReset, setSponsorPassword } from "@/lib/data/sponsor-users";
 import { getI18n } from "@/lib/i18n/server";
-import { callerKey, consume } from "@/lib/rate-limit";
+import { minutesToWait } from "@/lib/auth/attempts";
+import { accountAttempt, accountSignedIn, callerKey, consume } from "@/lib/rate-limit";
 import { createSponsorSession, revokeSponsorSession } from "@/lib/sponsor-auth/session";
 
 export type SponsorSignInState = { error?: string };
@@ -31,10 +32,18 @@ export async function signInSponsor(
   const throttle = await consume(await callerKey("sponsor-sign-in"), ATTEMPTS, WINDOW_SECONDS);
   if (!throttle.allowed) return { error: "Too many attempts. Try again in a few minutes." };
 
+  /* DD-2 B2.2: per account too, keyed on the address as typed, so an unknown one locks the same way. */
+  const perAccount = await accountAttempt("sponsor-sign-in", email);
+  if (!perAccount.allowed) {
+    const { t } = await getI18n();
+    return { error: t("auth.tooManyForSignIn", { minutes: minutesToWait(perAccount.retryAfter) }) };
+  }
+
   const result = await checkSponsorPassword(email, password);
   if (result.error || !result.sponsorUserId) {
     return { error: result.error ?? "That email address and password do not match." };
   }
+  await accountSignedIn("sponsor-sign-in", email);
 
   await createSponsorSession(result.sponsorUserId);
   redirect("/sponsor");

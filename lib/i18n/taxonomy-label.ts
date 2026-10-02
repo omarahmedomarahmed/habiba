@@ -26,6 +26,12 @@ export function taxonomyKey(kind: "language" | "specialty", code: string): Messa
   return key in ENGLISH ? (key as MessageKey) : null;
 }
 
+/** DD-2: a stored language in the reader's language, or as stored when nobody translated it. */
+export function languageLabel(code: string, t: (key: MessageKey) => string): string {
+  const key = taxonomyKey("language", code);
+  return key ? t(key) : code;
+}
+
 /** A stored specialty in the reader's language, or as stored when nobody translated it. */
 export function specialtyLabel(code: string, t: (key: MessageKey) => string): string {
   const key = taxonomyKey("specialty", code);

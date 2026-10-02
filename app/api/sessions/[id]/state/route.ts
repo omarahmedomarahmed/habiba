@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server";
 import { and, asc, eq, gt } from "drizzle-orm";
 
 import { AuthorizationError, requireUserApi } from "@/lib/auth/guard";
+import { keepSessionAlive } from "@/lib/auth/session";
 import { autoEndSession, readSessionClock } from "@/lib/data/sessions";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
@@ -61,6 +62,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .limit(1);
 
     if (!row) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+    /* DD-2 B2.5: the room keeps its clinician signed in while the session is live, and not after. */
+    if (row.status === "in_progress") await keepSessionAlive();
 
     /*
      * The clock rides on the poll the room is already making.

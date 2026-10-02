@@ -112,7 +112,7 @@ const entry = (over: Partial<Entry>): Entry => ({
 const people = (n: number, over: Partial<Entry> = {}) =>
   Array.from({ length: n }, (_, i) => entry({ personTag: `p${i}`, ...over }));
 
-test("W2-S10 entries are published in weekly batches unless an operator makes it live", async () => {
+test("W2-S10 entries are published in weekly batches, and DD-2 B1: never the current week", async () => {
   const l = await ledgerModule();
   assert.ok(l, "lib/sponsor/ledger.ts does not exist");
   /* Thursday 24 September 2026: this week began Monday the 21st. */
@@ -120,7 +120,7 @@ test("W2-S10 entries are published in weekly batches unless an operator makes it
   assert.equal(l.weekStartOf(now), "2026-09-21");
   assert.equal(l.weekStartOf(new Date("2026-09-27T23:59:00Z")), "2026-09-21", "Sunday is the same week");
   assert.equal(l.lastPublishedWeek("weekly", now), "2026-09-14", "this week is not out until it ends");
-  assert.equal(l.lastPublishedWeek("live", now), "2026-09-21");
+  assert.equal(l.lastPublishedWeek("live", now), "2026-09-14", "DD-2 B1: live no longer opens this week");
 });
 
 test("F7 periods sort and filter as whole periods, never below the floor", async () => {

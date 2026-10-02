@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { readConsentBody } from "@/lib/partner/bodies";
 import { consentHistory, partnerAnswerSource, recordConsent } from "@/lib/partner/consent";
 import { linkedPersonOf, patientConsentUrl } from "@/lib/partner/patient-consent";
 import { openSession, otherEnvironment } from "@/lib/partner/platform";
@@ -83,34 +84,10 @@ export async function POST(request: Request) {
     return fail("Send JSON.", 400);
   }
 
-  const session = body.session;
-  const subject = body.subject;
-  const state = body.state;
-  const answeredAt = body.answered_at;
-  const offset = body.offset_seconds ?? 0;
-
-  if (typeof session !== "string" || typeof subject !== "string") {
-    return fail("Send session and subject.", 400);
-  }
-
-  if (state !== "given" && state !== "withdrawn") {
-    /*
-     * 🔴 TWO STATES, AND "PENDING" IS NOT ONE OF THEM.
-     *
-     * The absence of a row is pending. Accepting a third value would let an
-     * integration write "pending" over a "given" and lose a consent somebody gave,
-     * which is the one direction this log must never move in.
-     */
-    return fail('state must be "given" or "withdrawn".', 400);
-  }
-
-  if (typeof answeredAt !== "string") return fail("Send answered_at as an ISO time.", 400);
-  if (typeof offset !== "number" || !Number.isFinite(offset)) {
-    return fail("offset_seconds must be a number of seconds from the session's start.", 400);
-  }
-
-  const answered = new Date(answeredAt);
-  if (Number.isNaN(answered.getTime())) return fail("answered_at is not a time.", 400);
+  /* DD-2: read by the same function the docs' example is tested against. */
+  const read = readConsentBody(body);
+  if (!read.ok) return fail(read.error, 400);
+  const { session, subject, state, answeredAt: answered, offsetSeconds: offset } = read.value;
 
   /* 🔴 A sandbox key never writes to a live session's consent, or the reverse. */
   if (await otherEnvironment({ partnerId: guard.key.partnerId, externalSessionRef: session, environment: guard.key.environment })) {

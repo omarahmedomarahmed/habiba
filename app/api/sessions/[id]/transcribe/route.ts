@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { generateCopilot, shouldRunCopilot } from "@/lib/ai/copilot";
 import { transcribeChunk } from "@/lib/ai/transcribe";
 import { AuthorizationError, assertSameOrigin, requireUserApi } from "@/lib/auth/guard";
+import { keepSessionAlive } from "@/lib/auth/session";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { sessions } from "@/lib/db/schema";
@@ -14,6 +15,7 @@ import { bearerFrom, ingestDecision } from "@/lib/ingest/token";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 import { mayRecord } from "@/lib/sessions/may-record";
 import { aiPausedForPatient } from "@/lib/data/ai-consent";
+import { markLiveRiskOff } from "@/lib/data/sessions";
 
 /*
  * ⚠️ 30.1 — NOT ROUTED YET, and counted rather than hidden.
@@ -132,6 +134,8 @@ export async function POST(
     if (session.status !== "in_progress") {
       return NextResponse.json({ error: "not_live" }, { status: 409 });
     }
+    /* DD-2 B2.5: audio from a live session keeps the clinician signed in (a no-op without their cookie). */
+    await keepSessionAlive();
 
     /*
      * 🔴 TASK 123 — no recorded yes, or a pause, and the audio is dropped
@@ -143,12 +147,28 @@ export async function POST(
     }
 
     /*
+     * DD-2 B1: and nobody under 18. Until the clinician (or the patient's own
+     * signup) has confirmed 18 or over, the audio is dropped before the model.
+     */
+    const { adultConfirmedForSession } = await import("@/lib/data/adult");
+    if (!(await adultConfirmedForSession(sessionId))) {
+      /* Review: nothing transcribed is nothing scanned, so the record and the room say so. */
+      await markLiveRiskOff(session.id);
+      return NextResponse.json({ error: "adult_unconfirmed", liveRiskOff: true }, { status: 409 });
+    }
+
+    /*
      * 🔴 Due diligence F3: a patient who withdrew consent to processing abroad
      * is not sent to OpenAI in the United States. Checked here, before the audio
      * is read, on every chunk, so a withdrawal mid-session stops the next one.
+     *
+     * 🔴 Due diligence: that also turns off live crisis detection, which reads
+     * the transcript. The patient's choice stands; the session records it and
+     * the room shows it (the client reads `ai_paused`), so it is never silent.
      */
     if (await aiPausedForPatient(session.patientId)) {
-      return NextResponse.json({ error: "ai_paused" }, { status: 409 });
+      await markLiveRiskOff(session.id);
+      return NextResponse.json({ error: "ai_paused", liveRiskOff: true }, { status: 409 });
     }
 
     const form = await request.formData();

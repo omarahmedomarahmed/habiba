@@ -19,7 +19,6 @@
  * read, never sent. Fixtures use example.com and are removed at the end.
  */
 import { sql } from "drizzle-orm";
-import { auditFixtures } from "./_audit-fixtures";
 
 import { reporter, writesTo } from "./_verify";
 import { connect } from "./db";
@@ -363,7 +362,6 @@ async function main() {
       await db.execute(sql`DELETE FROM manual_payments WHERE organization_id = ${orgId}`);
       await db.execute(sql`DELETE FROM session_payments WHERE organization_id = ${orgId}`);
       await db.execute(sql`DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE organization_id = ${orgId})`);
-      await db.execute(sql`DELETE FROM audit_log WHERE ${auditFixtures()} AND organization_id = ${orgId}`);
       await db.execute(sql`DELETE FROM availability_slots WHERE organization_id = ${orgId}`);
       await db.execute(sql`DELETE FROM sessions WHERE organization_id = ${orgId}`);
       /*

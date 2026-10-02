@@ -14,26 +14,26 @@ import { and, eq, isNull, lt, or } from "drizzle-orm";
  * so that every clinical call downstream has it without asking.
  */
 import { controlDb as db } from "@/lib/db";
-import { authSessions, organizations, users } from "@/lib/db/schema";
+import { authSessions, organizations, staffSecondFactors, users } from "@/lib/db/schema";
 import { isRegion, DEFAULT_REGION, type Region } from "@/lib/db/region";
 import type { Role } from "@/lib/db/schema";
 import { env } from "@/lib/env";
-import { needsSecondFactor, secondFactorCurrent } from "./totp";
+import { isUserActivity } from "./activity";
+import { secondFactorCurrent, secondStepOwed } from "./totp";
 
 export const SESSION_COOKIE = "24t_session";
 
 /**
- * Sliding idle window. Touching the app resets it.
+ * Sliding idle window. A person using the app resets it; a page polling does not.
  *
- * 🔴 Thirty minutes, which is what /hipaa says, and it no longer interrupts a
- * session. It was two hours because thirty logged people out *during a
- * session*, between starting the recording and writing up the note. That
- * reason is gone: the room polls `/api/sessions/[id]/state` every five seconds
- * for as long as it is open, and uploads audio every eight while it records,
- * both through `requireUserApi`, which touches `last_seen_at`. A clinician in
- * a session is never idle in this sense. Thirty minutes now only ends a sign
- * in on a screen nobody is touching, the unattended workstation the safeguard
- * is for.
+ * 🔴 Thirty minutes, which is what /hipaa says, and it does not interrupt a
+ * session. DD-2 B2.5: only a person's own requests move `last_seen_at`
+ * (`isUserActivity` in `lib/auth/activity.ts`); polls, keep-alives, prefetches
+ * and self-refreshing pages do not. A session IN PROGRESS keeps the sign in
+ * alive explicitly (`keepSessionAlive`, from the room's state poll and its
+ * audio uploads), and the note editor only while the clinician is typing.
+ * Thirty minutes ends a sign in on a screen nobody is touching, including a
+ * room left open after the session ended.
  */
 const IDLE_MS = 30 * 60 * 1000;
 /** Hard ceiling regardless of activity: eight hours from sign in. */
@@ -166,6 +166,8 @@ export type SessionState = {
   actor: Actor;
   sessionId: string;
   secondFactorAt: Date | null;
+  /** DD-2 B2.4: whether this person has a confirmed authenticator app. */
+  secondFactorEnrolled: boolean;
   pendingSecondFactor: boolean;
 };
 
@@ -194,7 +196,8 @@ export async function getSessionState(): Promise<SessionState | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  return sessionStateForToken(token);
+  /* DD-2 B2.5: a poll or a refresh reads the session without extending it. */
+  return sessionStateForToken(token, { touch: isUserActivity(await headers()) });
 }
 
 /**
@@ -202,7 +205,10 @@ export async function getSessionState(): Promise<SessionState | null> {
  * `scripts/verify-staff-2fa.ts` proves the rule on the dev database through
  * the very function every request runs, rather than through a copy of it.
  */
-export async function sessionStateForToken(token: string): Promise<SessionState | null> {
+export async function sessionStateForToken(
+  token: string,
+  { touch = true }: { touch?: boolean } = {},
+): Promise<SessionState | null> {
   const tokenHash = hashToken(token);
   const now = new Date();
 
@@ -224,9 +230,12 @@ export async function sessionStateForToken(token: string): Promise<SessionState 
       timezone: users.timezone,
       status: users.status,
       deletedAt: users.deletedAt,
+      /* DD-2 B2.4: a clinician who added an app owes the step too. */
+      appConfirmedAt: staffSecondFactors.confirmedAt,
     })
     .from(authSessions)
     .innerJoin(users, eq(users.id, authSessions.userId))
+    .leftJoin(staffSecondFactors, eq(staffSecondFactors.userId, users.id))
     /* 30.1 — the region comes with the session, so nothing downstream asks. */
     .innerJoin(organizations, eq(organizations.id, users.organizationId))
     .where(
@@ -259,7 +268,7 @@ export async function sessionStateForToken(token: string): Promise<SessionState 
 
   if (row.status !== "active" || row.deletedAt) return null;
 
-  if (now.getTime() - row.lastSeenAt.getTime() > TOUCH_THROTTLE_MS) {
+  if (touch && now.getTime() - row.lastSeenAt.getTime() > TOUCH_THROTTLE_MS) {
     await db
       .update(authSessions)
       .set({ lastSeenAt: now })
@@ -285,8 +294,32 @@ export async function sessionStateForToken(token: string): Promise<SessionState 
     actor,
     sessionId: row.sessionId,
     secondFactorAt: row.secondFactorAt,
-    pendingSecondFactor: needsSecondFactor(row.role) && !secondFactorCurrent(row.secondFactorAt, now),
+    secondFactorEnrolled: row.appConfirmedAt !== null,
+    pendingSecondFactor:
+      secondStepOwed(row.role, row.appConfirmedAt !== null) && !secondFactorCurrent(row.secondFactorAt, now),
   };
+}
+
+/**
+ * DD-2 B2.5: count this request as activity although it is a background one.
+ * For a session in progress only: the room's state poll and its audio uploads
+ * call it after checking the session is live, so a clinician in a session is
+ * never signed out, and a room left open afterwards is.
+ */
+export async function keepSessionAlive(): Promise<void> {
+  const store = await cookies();
+  const token = store.get(SESSION_COOKIE)?.value;
+  if (!token) return;
+  await db
+    .update(authSessions)
+    .set({ lastSeenAt: new Date() })
+    .where(
+      and(
+        eq(authSessions.tokenHash, hashToken(token)),
+        isNull(authSessions.revokedAt),
+        lt(authSessions.lastSeenAt, new Date(Date.now() - TOUCH_THROTTLE_MS)),
+      ),
+    );
 }
 
 async function revokeSessionById(id: string) {

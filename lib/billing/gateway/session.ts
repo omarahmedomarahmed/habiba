@@ -10,7 +10,9 @@ import {
   therapistVerifications,
   users,
 } from "@/lib/db/schema";
+import { qualified } from "@/lib/db/qualified";
 import { env } from "@/lib/env";
+import type { LedgerExecutor } from "@/lib/billing/ledger";
 import { log, ref, safeErrorMessage } from "@/lib/logger";
 
 import { collectionGateway, gatewayNamed } from "./index";
@@ -251,66 +253,149 @@ export async function applyGatewayEvent(
   }
   if (!event.transactionId) return { applied: "ignored" };
 
-  const [claimed] = await db
-    .update(gatewayPayments)
-    .set({ state: "paid", providerTxnId: event.transactionId, paidAt: new Date(), updatedAt: new Date() })
-    .where(and(eq(gatewayPayments.id, attempt.id), inArray(gatewayPayments.state, ["created", "failed"])))
-    .returning();
-  if (!claimed) return { applied: "ignored" };
-
-  const [payment] = claimed.sessionPaymentId
-    ? await db.select().from(sessionPayments).where(eq(sessionPayments.id, claimed.sessionPaymentId)).limit(1)
-    : [];
-  const { claimSessionPaid } = await import("@/lib/billing/session-owed");
-
   /*
-   * A session that no longer wants the money (cancelled, refunded, paid another
-   * way while the card page was open) gets it straight back from the gateway.
+   * 🔴 0188: THE CLAIM, THE SESSION AND THE BOOKS ARE ONE TRANSACTION.
+   *
+   * The attempt used to be claimed `paid` first and the session and ledger
+   * written after it, each on its own. A write that failed in between left an
+   * attempt marked paid with nothing on the books, and the gateway's retry found
+   * it claimed and did nothing. Now a failure anywhere rolls the claim back, the
+   * callback answers 500, and the retry does all of it again.
    */
-  const wanted =
-    payment &&
-    (payment.fundingSource === "pot" || payment.status === "pending") &&
-    (await claimSessionPaid(claimed.refId));
-  if (!wanted || !payment) {
-    await returnAttempt(claimed.id, "the session no longer needs paying");
+  const { claimSessionPaid } = await import("@/lib/billing/session-owed");
+  const { postSessionPayment } = await import("@/lib/billing/ledger");
+  const { bookEmployeeShare } = await import("@/lib/billing/employee-share");
+  const outcome = await db.transaction(async (tx) => {
+    const [claimed] = await tx
+      .update(gatewayPayments)
+      .set({ state: "paid", providerTxnId: event.transactionId, paidAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(gatewayPayments.id, attempt.id), inArray(gatewayPayments.state, ["created", "failed"])))
+      .returning();
+    if (!claimed) return { kind: "ignored" as const };
+
+    const [payment] = claimed.sessionPaymentId
+      ? await tx.select().from(sessionPayments).where(eq(sessionPayments.id, claimed.sessionPaymentId)).limit(1)
+      : [];
+
+    /*
+     * A session that no longer wants the money (cancelled, refunded, paid another
+     * way while the card page was open) gets it straight back from the gateway,
+     * after this commits.
+     */
+    const wanted =
+      payment &&
+      (payment.fundingSource === "pot" || payment.status === "pending") &&
+      (await claimSessionPaid(claimed.refId, tx));
+    if (!wanted || !payment) return { kind: "returned" as const, claimed };
+
+    /* What the patient paid in pounds for the session, without the card fee, at the rate charged. */
+    const sessionMinor = claimed.amountMinor - claimed.cardFeeMinor;
+    const rate =
+      payment.fxRateMicro ?? (claimed.usdCents > 0 ? Math.round((sessionMinor * 1_000_000) / claimed.usdCents) : 0);
+    const collected = rate > 0 && sessionMinor > 0 ? { egpMinor: sessionMinor, fxRateMicro: rate } : null;
+
+    if (payment.fundingSource === "pot") {
+      await tx
+        .update(sessionPayments)
+        .set({ vatCents: payment.vatCents + claimed.vatCents })
+        .where(eq(sessionPayments.id, payment.id));
+      await bookEmployeeShare({
+        paymentId: payment.id,
+        capture: "platform",
+        vatCents: claimed.vatCents,
+        executor: tx,
+        postingKey: `gateway_payment:${claimed.id}:session`,
+        collected,
+      });
+    } else {
+      const [paid] = await tx
+        .update(sessionPayments)
+        .set({ status: "paid", paidAt: new Date() })
+        .where(and(eq(sessionPayments.id, payment.id), eq(sessionPayments.status, "pending")))
+        .returning();
+      if (paid) {
+        await postSessionPayment({
+          id: paid.id,
+          organizationId: paid.organizationId,
+          therapistId: paid.therapistId,
+          capture: "platform",
+          grossCents: paid.grossCents,
+          vatCents: paid.vatCents,
+          platformFeeCents: paid.platformFeeCents,
+          settledInvoiceCents: 0,
+          therapistNetCents: paid.therapistNetCents,
+          executor: tx,
+          postingKey: `gateway_payment:${claimed.id}:session`,
+          collected,
+        });
+      }
+    }
+
+    await postCardFee(claimed, payment.organizationId, tx);
+    return { kind: "paid" as const, claimed };
+  });
+
+  if (outcome.kind === "ignored") return { applied: "ignored" };
+  if (outcome.kind === "returned") {
+    await returnAttempt(outcome.claimed.id, "the session no longer needs paying");
     return { applied: "returned" };
   }
 
-  if (payment.fundingSource === "pot") {
-    await db
-      .update(sessionPayments)
-      .set({ vatCents: payment.vatCents + claimed.vatCents })
-      .where(eq(sessionPayments.id, payment.id));
-    const { bookEmployeeShare } = await import("@/lib/billing/employee-share");
-    await bookEmployeeShare({ paymentId: payment.id, capture: "platform", vatCents: claimed.vatCents });
-  } else {
-    const [paid] = await db
-      .update(sessionPayments)
-      .set({ status: "paid", paidAt: new Date() })
-      .where(and(eq(sessionPayments.id, payment.id), eq(sessionPayments.status, "pending")))
-      .returning();
-    if (paid) {
-      const { postSessionPayment } = await import("@/lib/billing/ledger");
-      await postSessionPayment({
-        id: paid.id,
-        organizationId: paid.organizationId,
-        therapistId: paid.therapistId,
-        capture: "platform",
-        grossCents: paid.grossCents,
-        vatCents: paid.vatCents,
-        platformFeeCents: paid.platformFeeCents,
-        settledInvoiceCents: 0,
-        therapistNetCents: paid.therapistNetCents,
-      });
-    }
-  }
-
-  await postCardFee(claimed, payment.organizationId);
-
   const { markInSession } = await import("@/lib/data/radar");
-  await markInSession(claimed.refId);
-  log.info("gateway payment settled", { attempt: ref(claimed.id) });
+  await markInSession(outcome.claimed.refId);
+  log.info("gateway payment settled", { attempt: ref(outcome.claimed.id) });
   return { applied: "paid" };
+}
+
+/**
+ * 🔴 0188: THE SWEEP FOR CARD MONEY THAT ARRIVED AND WAS NEVER BOOKED.
+ *
+ * With the claim and the books in one transaction this should find only what
+ * was left before 0188. It looks for an attempt the gateway paid more than
+ * `graceMinutes` ago that is not being returned and whose session is not paid
+ * or whose session payment has no `session_payment` posting. It does not guess
+ * a repair: each one is raised on /admin/errors (and in the log) for a person
+ * to settle or refund. Hourly, from the `reminders` job.
+ */
+export async function sweepUnbookedGatewayPayments(graceMinutes = 15): Promise<number> {
+  const { ledgerEntries } = await import("@/lib/db/schema");
+  const rows = await db
+    .select({ id: gatewayPayments.id })
+    .from(gatewayPayments)
+    .leftJoin(sessionPayments, eq(sessionPayments.id, gatewayPayments.sessionPaymentId))
+    .leftJoin(sessions, eq(sessions.id, sessionPayments.sessionId))
+    .where(
+      and(
+        eq(gatewayPayments.purpose, "session"),
+        eq(gatewayPayments.state, "paid"),
+        sql`${gatewayPayments.refundingAt} IS NULL`,
+        sql`${gatewayPayments.paidAt} < now() - make_interval(mins => ${graceMinutes})`,
+        sql`(
+          ${sessionPayments.id} IS NULL
+          OR ${sessions.paymentStatus} IS DISTINCT FROM 'paid'
+          OR NOT EXISTS (
+            SELECT 1 FROM ${ledgerEntries}
+             WHERE ${ledgerEntries.refType} = 'session_payment'
+               AND ${ledgerEntries.refId} = ${qualified(sessionPayments.id)}
+               AND ${ledgerEntries.txnKind} = 'session_payment'
+          )
+        )`,
+      ),
+    )
+    .limit(50);
+  if (rows.length === 0) return 0;
+  const { recordError } = await import("@/lib/observability/errors");
+  for (const row of rows) {
+    log.error("card payment taken but not on the books", { attempt: ref(row.id) });
+    await recordError({
+      error: new Error(
+        `A card payment was taken and is not on the books (attempt ${ref(row.id)}). Settle the session or refund the card.`,
+      ),
+      path: "/cron/reminders/unbooked-card-payment",
+      method: "CRON",
+    });
+  }
+  return rows.length;
 }
 
 /** The payer came back: ask the gateway rather than wait for its callback. */
@@ -404,7 +489,11 @@ async function refundAttempt(attemptId: string): Promise<{ ok: true; usdCents: n
  * Its own transaction kind, `card_fee`, so the per-payment sums that reverse a
  * session on a refund (`session_payment`, `session_refund`) never see it.
  */
-async function postCardFee(attempt: { id: string; cardFeeCents: number }, organizationId: string): Promise<void> {
+async function postCardFee(
+  attempt: { id: string; cardFeeCents: number },
+  organizationId: string,
+  executor?: LedgerExecutor,
+): Promise<void> {
   const fee = attempt.cardFeeCents;
   if (fee <= 0) return;
   const { journal } = await import("@/lib/billing/ledger");
@@ -412,6 +501,8 @@ async function postCardFee(attempt: { id: string; cardFeeCents: number }, organi
     kind: "card_fee",
     refType: "gateway_payment",
     refId: attempt.id,
+    executor,
+    postingKey: `gateway_payment:${attempt.id}:card_fee`,
     legs: [
       { account: "cash", amountCents: fee, organizationId, memo: "Card fee paid by the patient on top of the session" },
       { account: "cash", amountCents: -fee, organizationId, memo: "Card fee kept by the gateway before it settles" },
@@ -447,6 +538,7 @@ async function postCardFeeReturned(attempt: {
     kind: "card_fee",
     refType: "gateway_payment",
     refId: attempt.id,
+    postingKey: `gateway_payment:${attempt.id}:card_fee_returned`,
     legs: [
       { account: "cash", amountCents: -fee, organizationId: payment?.organizationId ?? null, memo: "Card fee returned to the patient with their refund" },
       { account: "platform_expense", amountCents: fee, organizationId: payment?.organizationId ?? null, memo: "The gateway keeps its fee on a refunded payment" },

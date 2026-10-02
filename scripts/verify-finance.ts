@@ -14,7 +14,7 @@
  * forecast is the easiest thing in a codebase to be confidently wrong about,
  * because nothing it says can be falsified until eighteen months later.
  */
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 import { readSource, reporter } from "./_verify";
 
@@ -600,6 +600,29 @@ async function main() {
     "🔴 …and neither of them can reach a table that decides what somebody is charged",
     !/invoices|session_payments|platformSettings|platform_settings|stripe/i.test(actions),
     "saving a forecast writes one row to finance_scenarios; measuring writes one to finance_benchmarks",
+  );
+
+  /*
+   * 🔴 0188: EVERY FIGURE ON THESE SCREENS IS A SUM OVER THE LEDGER, so the
+   * ledger's own rules are facts about the database: no UPDATE, each
+   * transaction balanced at commit, one posting per business event. A forecast
+   * built on books that code alone keeps balanced is a forecast of the code.
+   */
+  const books = readFileSync("drizzle/0188_the_books_hold_in_the_database.sql", "utf8");
+  const holds = (sqlText: string) =>
+    /BEFORE UPDATE ON "ledger_entries"/.test(sqlText) &&
+    /CONSTRAINT TRIGGER "ledger_entries_txn_balances"[\s\S]*DEFERRABLE INITIALLY DEFERRED/.test(sqlText) &&
+    /UNIQUE INDEX IF NOT EXISTS "ledger_entries_posting_key_unique"/.test(sqlText) &&
+    !/current_setting/.test(sqlText);
+  check(
+    "🔴 0188 the ledger is append-only, balanced and keyed in the database, with no setting that opens it",
+    holds(books),
+    "the trial balance reads rows the database itself keeps balanced",
+  );
+  check(
+    "🔴 CONTROL a trigger with a session-setting escape is refused",
+    !holds(books + "\ncurrent_setting('app.ledger_fixtures', true)"),
+    "",
   );
 
   finish("sprint 71");

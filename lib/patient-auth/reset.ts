@@ -7,15 +7,26 @@ import { hashPassword, validatePassword } from "@/lib/auth/password";
 import { audit } from "@/lib/audit";
 import { dbFor} from "@/lib/db";
 import { pinnedToDefaultRegion } from "@/lib/db/region";
-import { patientAccounts, patientAuthTokens, RESET_CODE_ATTEMPTS } from "@/lib/db/schema";
+import { patientAccounts, patientAuthTokens } from "@/lib/db/schema";
 import { normaliseEmail } from "@/lib/data/people";
 import { wordsFor } from "@/lib/i18n/message-words";
 import { notify } from "@/lib/notify";
 import { whatsappConfigured } from "@/lib/notify/whatsapp";
 import { toE164 } from "@/lib/phone/e164";
-import { callerKey, consume } from "@/lib/rate-limit";
+import {
+  CODE_ACCOUNT_ATTEMPTS,
+  CODE_ACCOUNT_WINDOW_SECONDS,
+  CODES_SENT_PER_HANDLE,
+  CODES_SENT_WINDOW_SECONDS,
+  minutesToWait,
+  RESET_GUESS_CEILING,
+  sendSubject,
+} from "@/lib/auth/attempts";
+import { accountAttempt, accountSignedIn, callerKey, callerNetwork, consume } from "@/lib/rate-limit";
 import { log, ref } from "@/lib/logger";
 
+import { spendCodeGuess } from "./code-attempts";
+import { handleSubject } from "./handle-subject";
 import { revokeAllPatientSessions } from "./session";
 import { say } from "@/lib/i18n/say";
 
@@ -139,6 +150,21 @@ export async function requestPatientReset(
    */
   const channelDown = !whatsappConfigured();
 
+  /*
+   * DD-2 B2.2, review fix: per network and account, so the owner can always
+   * ask for a reset from their own network whatever a stranger does elsewhere.
+   * An unknown handle counts the same way, so saying so reveals nothing.
+   */
+  const perHandle = await accountAttempt(
+    "patient:reset-send",
+    sendSubject(account?.id ?? handleSubject(handle, country), await callerNetwork()),
+    CODES_SENT_PER_HANDLE,
+    CODES_SENT_WINDOW_SECONDS,
+  );
+  if (!perHandle.allowed) {
+    return { error: await say("perr.tooManyCodesMinutes", { minutes: minutesToWait(perHandle.retryAfter) }) };
+  }
+
   if (account) {
     const code = newCode();
     const channel = account.phone ? "whatsapp" : "email";
@@ -200,59 +226,49 @@ export async function completePatientReset(
 
   const account = await findAccount(handle, country);
   const wrong = { error: await say("perr.codeWrong") };
+
+  /*
+   * DD-2 B2.2: per account too, and an unknown handle is counted the same way.
+   * Review fix: per network and account at the usual limit, so guesses from
+   * elsewhere do not lock the owner out of resetting; and per account alone
+   * at a higher ceiling, which still bounds a six digit code.
+   */
+  const subject = account?.id ?? handleSubject(handle, country);
+  const network = await callerNetwork();
+  const perAccount = await accountAttempt(
+    "patient:reset-confirm",
+    sendSubject(subject, network),
+    CODE_ACCOUNT_ATTEMPTS,
+    CODE_ACCOUNT_WINDOW_SECONDS,
+  );
+  const ceiling = perAccount.allowed
+    ? await accountAttempt("patient:reset-confirm-all", subject, RESET_GUESS_CEILING, CODE_ACCOUNT_WINDOW_SECONDS)
+    : perAccount;
+  if (!perAccount.allowed || !ceiling.allowed) {
+    const wait = Math.max(perAccount.retryAfter, ceiling.retryAfter);
+    return { error: await say("auth.tooManyForSignIn", { minutes: minutesToWait(wait) }) };
+  }
   if (!account) return wrong;
 
-  const [row] = await db
-    .select()
-    .from(patientAuthTokens)
-    .where(
-      and(
-        eq(patientAuthTokens.patientAccountId, account.id),
-        eq(patientAuthTokens.purpose, "password_reset"),
-        isNull(patientAuthTokens.usedAt),
-        gt(patientAuthTokens.expiresAt, new Date()),
-      ),
-    )
-    .orderBy(desc(patientAuthTokens.createdAt))
-    .limit(1);
-
-  if (!row) return wrong;
-
-  if (row.tokenHash !== hash(code)) {
-    /*
-     * A wrong guess costs one of the five the database will allow. When they
-     * run out the UPDATE itself is refused by `patient_auth_tokens_attempts_
-     * bounded`, which is the point of putting the ceiling there: the budget
-     * cannot be spent past its end by a caller who forgot to check.
-     */
-    const spent = row.attempts + 1;
-    if (spent > RESET_CODE_ATTEMPTS) {
-      await db
-        .update(patientAuthTokens)
-        .set({ usedAt: new Date() })
-        .where(eq(patientAuthTokens.id, row.id));
-      return { error: await say("perr.tooManyWrongCodes") };
-    }
-
-    await db
-      .update(patientAuthTokens)
-      .set({ attempts: spent })
-      .where(eq(patientAuthTokens.id, row.id));
-    return wrong;
-  }
-
+  /*
+   * A guess is counted before it is compared, in one UPDATE that the
+   * `patient_auth_tokens_attempts_bounded` CHECK also holds, and a code out of
+   * guesses answers like a wrong one, so it says nothing about the account.
+   */
   const passwordHash = await hashPassword(password);
-
-  await db.transaction(async (tx) => {
-    await tx
-      .update(patientAccounts)
-      .set({ passwordHash })
-      .where(eq(patientAccounts.id, account.id));
-    await tx
-      .update(patientAuthTokens)
-      .set({ usedAt: new Date() })
-      .where(eq(patientAuthTokens.id, row.id));
+  const guess = await spendCodeGuess(db, {
+    accountId: account.id,
+    purpose: "password_reset",
+    matches: (tokenHash) => tokenHash === hash(code),
   });
+  if (guess.outcome !== "match") return wrong;
+  await accountSignedIn("patient:reset-confirm", sendSubject(subject, network));
+  await accountSignedIn("patient:reset-confirm-all", subject);
+  /* Review fix: a new password starts the password counter again too. */
+  await accountSignedIn("patient:signin", account.id);
+  const row = { id: guess.id, channel: guess.channel };
+
+  await db.update(patientAccounts).set({ passwordHash }).where(eq(patientAccounts.id, account.id));
 
   /*
    * Every other session goes. Somebody resetting a password may be doing it

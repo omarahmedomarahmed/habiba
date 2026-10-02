@@ -1,7 +1,7 @@
 /**
  * Seed and reprice the settings tables.
  *
- *   npx tsx scripts/settings.ts seed      idempotent; safe on every deploy
+ *   npx tsx scripts/settings.ts seed      idempotent; a deploy step, never the build
  *   npx tsx scripts/settings.ts reprice   deliberate: overwrites pricing
  *   npx tsx scripts/settings.ts show      print what is actually stored
  *
@@ -24,7 +24,7 @@ import {
 } from "../lib/settings/defs";
 import { connect, schema } from "./db";
 import type { EnvironmentName } from "./_environments";
-import { hostOf, writesTo } from "./_verify";
+import { writesTo } from "./_verify";
 
 const { platformSettings, countrySettings, subscriptions } = schema;
 
@@ -545,6 +545,18 @@ const ALLOWED: Allowance[] = [
       "same number. It is saved through /admin/settings once the new code is live (ruling N5), " +
       "and then this allowance matches nothing and is printed as not in effect.",
   })),
+  ...([["rules.approvals.payoutSeparation", "true"], ["rules.earnings.holdDays", "7"]] as const).map(
+    ([leaf, value]): Allowance => ({
+      leaf,
+      on: "production",
+      is: "(absent)",
+      elsewhere: value,
+      because:
+        "DD-2 money rules (maker-checker to payout, a 7-day hold on earnings) are new on this branch. " +
+        "Production's stored rules row predates them, so the code default applies there, which is the " +
+        "same value; settings:seed or /admin/settings stores it after the deploy.",
+    }),
+  ),
 ];
 
 async function compare(): Promise<number> {
@@ -773,8 +785,14 @@ async function main() {
    * already. Its own header calls it "safe on every deploy" and nothing has
    * ever run it on a deploy, which is H16's defect wearing a different hat: a
    * step safe to automate and not automated is one somebody does by hand at the
-   * worst possible moment. It is `prebuild` now, and it has to be allowed to do
-   * its job where the job is.
+   * worst possible moment.
+   *
+   * It is no longer in `prebuild`: a build must not write to the production
+   * database, and a failure there was swallowed. It is a deploy step instead,
+   * `npm run on:production -- settings:seed` (docs/OPERATIONS.md), and goes
+   * through `writesTo` like every other write. A group with no row reads as
+   * its defaults (`parseGroup`), so a deploy that runs before the seed still
+   * behaves.
    *
    * **`reprice` OVERWRITES**, so it keeps the guard and the deliberate door.
    * **`rails` writes fixtures**, so it keeps it too.
@@ -785,7 +803,7 @@ async function main() {
    * Neither invents a person. 76.52.
    */
   if (verb === "reprice" || verb === "rails") writesTo({ productionIsAllowed: true });
-  else if (verb === "seed") console.log(`seeding ${hostOf()}\n`);
+  else if (verb === "seed") writesTo({ productionIsAllowed: true });
 
   /*
    * 🔴 `compare` OPENS ITS OWN CONNECTIONS, three of them, so it runs before

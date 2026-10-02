@@ -1116,6 +1116,38 @@ export const RISK_CASES: RiskCase[] = [
   { id: "arz-english-mixed", language: "arz", text: "I am ok today, shokran", risk: false, note: "code switching, which is the normal way people write" },
 ];
 
+/**
+ * 🔴 DD-2: the keyword floor's own regression set, from the due diligence.
+ *
+ * Every positive here was silenced or missed by the shipped scanner when the
+ * report tested it. Kept apart from `RISK_CASES` so the recorded baseline,
+ * which counts those, still compares like with like; the `risk` suite reports
+ * these as their own numbers and `tests/crisis-lexicon.test.ts` gates them in
+ * CI, all of them, with no network.
+ */
+export const FLOOR_CASES: RiskCase[] = [
+  { id: "dd2-knife", language: "ar", text: "السكينة قدامي وعايز اموت", risk: true, note: "🔴 'قدامي' (in front of me) read as 'امي' (my mother)" },
+  { id: "dd2-husband", language: "ar", text: "زوجي ضربني وعايزة اموت", risk: true, note: "🔴 a relative, then a first-person phrase" },
+  { id: "dd2-no-longer", language: "en", text: "I used to cope but I no longer can, I want to die", risk: true, note: "🔴 'used to' and 'no longer' read as resolved" },
+  { id: "dd2-wanna", language: "en", text: "I wanna die", risk: true, note: "missing form" },
+  { id: "dd2-hang", language: "en", text: "I'm going to hang myself", risk: true, note: "missing method" },
+  { id: "dd2-take-life", language: "en", text: "I want to take my life", risk: true, note: "missing form" },
+  { id: "dd2-hang-ar", language: "ar", text: "هشنق نفسي", risk: true, note: "missing method, Egyptian future" },
+  { id: "dd2-amut", language: "arz", text: "3ayez amut", risk: true, note: "single-u spelling" },
+  { id: "dd2-and-will", language: "ar", text: "وهنتحر", risk: true, note: "🔴 af5343f regression: the clitic و" },
+  { id: "dd2-tired-will", language: "ar", text: "انا تعبت وهنتحر النهارده", risk: true, note: "🔴 af5343f regression, in a sentence" },
+  { id: "dd2-curly", language: "en", text: "I can’t go on", risk: true, note: "a phone's curly apostrophe" },
+  { id: "dd2-wanted", language: "en", text: "Two years ago I wanted to die, and now it is back.", risk: true, note: "'wanted' does not contain 'want to die'" },
+  { id: "dd2-past-now", language: "en", text: "Two years ago I wanted to die, now I'm fine", risk: true, note: "🔴 RULING: 'now' is the present, so it alerts. A clinician reads one line. Proposed ruling, for clinician review" },
+  { id: "dd2-mum-clause", language: "en", text: "My mum visited, and honestly suicide is on my mind", risk: true, note: "a relative in another clause" },
+  { id: "dd2-friend-mother", language: "en", text: "My friend's mother died last year.", risk: false, note: "third party, no crisis phrase" },
+  { id: "dd2-laughing", language: "ar", text: "أخويا كان عايز يموت من الضحك", risk: false, note: "idiom about a brother: dying of laughter" },
+  { id: "dd2-diet", language: "en", text: "I wanna diet before the wedding", risk: false, note: "word edge" },
+  { id: "dd2-life-back", language: "en", text: "I want to take my life back from this anxiety", risk: false, note: "reclaiming, not ending" },
+  { id: "dd2-moving", language: "ar", text: "هنتحرك بكرة الصبح", risk: false, note: "'we will get moving' must not read as 'I will kill myself'" },
+  { id: "dd2-past-over", language: "en", text: "Two years ago I wanted to die. That is over and it has not come back.", risk: true, note: "RULING (review): a first-person past wish alerts even when said to be over; for clinician review" },
+];
+
 /* ------------------------------------------------------------ the speech -- */
 
 export type SpeechCase = {

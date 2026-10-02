@@ -65,7 +65,7 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "On-demand sessions",
-          ours: "Crisis Radar: a patient books whoever is free right now.",
+          ours: "Radar: a patient sees who is free right now and books them.",
           theirs: "Appointments are scheduled. No on-demand marketplace.",
         },
         {
@@ -141,7 +141,7 @@ const COMPETITORS: ContentBlock = {
         },
         {
           claim: "On-demand sessions",
-          ours: "Crisis Radar, and an employer can fund it.",
+          ours: "Radar: who is free right now, and an employer can fund it.",
           theirs: "No on-demand marketplace.",
         },
         {
@@ -606,8 +606,8 @@ export const DEFAULT_PAGES: DefaultPage[] = [
             demo: "copilot",
           },
           {
-            title: "Crisis language raises a flag",
-            body: "To you and only you. A patient sees a supportive message and a crisis line, never a level.",
+            title: "Some crisis language raises a flag",
+            body: "To you and only you, and it can miss things. A patient sees a supportive message and emergency numbers, never a level.",
             icon: "alert",
             demo: "risk",
           },
@@ -878,18 +878,19 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         heading: "Who you are dealing with",
         items: [
           {
-            title: "24Therapy Inc.",
+            /* DD-2: no company is registered yet, so none is named. */
+            title: "Outside Egypt",
             entity: "us",
-            body: "The international entity, for anything outside Egypt.",
+            body: "For anything outside Egypt. 24Therapy is not yet a registered company; this page will name the legal entity once one is registered.",
             address: "",
             phone: "",
             email: "support@24therapy.app",
             hours: "Sunday to Thursday, 09:00-18:00 UTC",
           },
           {
-            title: "24Therapy Egypt",
+            title: "In Egypt",
             entity: "eg",
-            body: "The Egyptian entity. Payments in Egyptian pounds, and payouts by InstaPay or wallet.",
+            body: "Payments in Egyptian pounds, and payouts by InstaPay or wallet. No Egyptian company is registered yet.",
             address: "",
             phone: "",
             email: "egypt@24therapy.app",
@@ -964,7 +965,13 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "prose",
         heading: "What we send elsewhere",
-        body: "Session audio and transcript text are sent to our AI provider to produce transcription and notes. Patient reports are sent by email through our email provider. Video sessions are carried by our video provider. None of these subprocessors has yet signed a business associate agreement or a data processing agreement with us; the compliance page lists each one and where it stands. Everything is held in the United States, in Oregon, including the records of patients in Egypt.",
+        body: "Session audio and transcript text are sent to our AI provider to produce transcription and notes. Patient reports are sent by email through our email provider. Video sessions are carried by our video provider; a session held on Zoom, Google Meet or Teams is recorded, only with the patient's agreement, by our meeting recorder provider (Recall.ai). Confirmations, reminders and sign-in codes can go by WhatsApp, run by Meta, to a phone number the person gave us. Payments in Egypt go through Paymob, which receives the payer's contact details and the amount. None of these subprocessors has yet signed a business associate agreement or a data processing agreement with us; the compliance page lists each one and where it stands. Everything is held in the United States, in Oregon, including the records of patients in Egypt.",
+      },
+      {
+        /* DD-2: said plainly, as its own section. */
+        type: "prose",
+        heading: "Where your data is held",
+        body: "Your data is hosted in the United States, in Oregon: the application runs on Vercel and the database is Neon. This includes the records of patients in Egypt. Session audio and transcript text are processed by OpenAI in the United States to write transcripts and notes.",
       },
       {
         type: "prose",
@@ -1089,7 +1096,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "prose",
         heading: "The subprocessors, and where each one stands",
-        body: "Vercel, hosting and compute. HIPAA-eligible on their Enterprise plan; BAA available; not yet signed. Neon, the database holding every clinical record. HIPAA-eligible on their Business plan; BAA available; not yet signed. OpenAI, transcription and note generation. Zero-retention and a BAA are available on their enterprise terms; not yet signed. Daily, video. HIPAA-eligible plan with a BAA available; not yet signed. Stripe, payments; a BAA is available and payment data is not PHI in our architecture, since we never see a card. Resend, transactional email; a BAA is available. Every one of these is a company we can sign with, which is why they were chosen; none of them is signed yet, which is why this page says in progress rather than compliant.",
+        body: "Vercel, hosting and compute. HIPAA-eligible on their Enterprise plan; BAA available; not yet signed. Neon, the database holding every clinical record. HIPAA-eligible on their Business plan; BAA available; not yet signed. OpenAI, transcription and note generation. Zero-retention and a BAA are available on their enterprise terms; not yet signed. Daily, video. HIPAA-eligible plan with a BAA available; not yet signed. Stripe, payments; a BAA is available and payment data is not PHI in our architecture, since we never see a card. Resend, transactional email; a BAA is available. Recall.ai, the meeting recorder: when a session is held on Zoom, Google Meet or Teams and the patient agrees to recording, its bot joins the call and receives the call's audio, video and captions, which come back to us as a transcript; held in the United States; not yet signed. Meta, through WhatsApp: session confirmations, reminders, sign-in codes and links go to a phone number the person gave us, so the therapist's name and the session time pass through Meta; no clinical text is sent this way; no agreement signed. Paymob, card and wallet payments in Egypt: it receives the payer's name, email or phone and the amount, and a clinician's payout details when we pay them; no clinical data; no agreement signed. Every one of these is a company we can sign with, which is why they were chosen; none of them is signed yet, which is why this page says in progress rather than compliant.",
       },
       {
         type: "prose",
@@ -1099,7 +1106,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
       {
         type: "prose",
         heading: "What is already built",
-        body: "None of this depends on a signature and all of it can be inspected. Access to any chart requires an authenticated, non-expired session; a clinician's sign in expires after 30 minutes of inactivity and 8 hours absolute, except that a session started near the limit may run up to two hours past it so it is not cut off. Reads and writes of clinical data are recorded in an audit log with actor, patient, resource and timestamp, and the database refuses to edit a row of it or to delete one younger than six years. Passwords are stored as scrypt hashes. Video rooms are private and require a per-participant token. Patients are asked to agree to being recorded before they enter the room, and their answer is stored with a timestamp and the wording they saw. Clinicians cannot delete a patient or a session, and cannot send clinical text to an address they type.",
+        body: "None of this depends on a signature and all of it can be inspected. Access to any chart requires an authenticated, non-expired session; a clinician's sign in expires after 30 minutes of inactivity and 8 hours absolute, except that a session started near the limit may run up to two hours past it so it is not cut off. Reads and writes of clinical data are recorded in an audit log with actor, patient, resource and timestamp. The log is append-only, enforced by a database trigger that refuses to edit a row or to delete one younger than six years, and every access by our staff is logged in it too. Passwords are stored as scrypt hashes. Video rooms are private and require a per-participant token. Patients are asked to agree to being recorded before they enter the room, and their answer is stored with a timestamp and the wording they saw. Clinicians cannot delete a patient or a session, and cannot send clinical text to an address they type.",
       },
       {
         type: "prose",
@@ -1139,7 +1146,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         items: [
           {
             title: "Every read is written down",
-            body: "Opening a chart appends a row to the audit log. The database refuses to edit a row, or to delete one before six years.",
+            body: "Opening a chart appends a row to the audit log, and so does every access by our staff. The log is append-only, enforced by a database trigger.",
             icon: "shield",
           },
           {

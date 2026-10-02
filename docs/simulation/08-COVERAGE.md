@@ -353,7 +353,7 @@ Cron jobs: GET /api/cron/<job> with header Authorization: Bearer <CRON_SECRET>; 
 
 | what | table.column | length | fired by | simulated day it matters |
 |---|---|---|---|---|
-| staff emailed code | staff_email_codes.expires_at | 10 minutes | none, checked on use | every round, each staff sign in |
+| staff emailed code | retired (DD-2 B2.3); the console needs an authenticator app | none | none | never |
 | code email rate, guess rate | rate limit rows staff-2fa-email, staff-2fa-verify | 3 per 10 min, 10 per 15 min | none | every round |
 | second step freshness | auth_sessions.second_factor_at | 12 hours | none | every round (days 1, 3, 7, 14, 21, 28, 30 all need a new code) |
 | session idle and absolute | auth_sessions last seen and created | 2 h idle, 12 h absolute | none; retention cron purges expired | every round |
@@ -499,7 +499,7 @@ Outbox check for every row: `npm run on:production -- sim:inbox -- <address or +
 | ledger adjustment with two people | only one super_admin exists and the team page can only create staff or manager (AE21). Test with the switch off, or do not post |
 | emails to FA | the founder's inbox is real: second step codes, one hand digest, watchdog alerts, payout overdue alerts all reach it |
 | ETA real issuance | needs ETA_MODE, client id, signer; the settings card lists what is missing |
-| authenticator app enrolment | needs a TOTP generator; an enrolled staff member can no longer use emailed codes, and only FA can reset it |
+| authenticator app enrolment | needs a TOTP generator, at the first console sign-in (no emailed code since DD-2 B2.3); only FA can reset it |
 | Total View | needs both keys known to FA |
 | real WhatsApp | only sent when configured; with SIMULATION_RUNNING=1 it goes to sim_outbox |
 | cron by hand from a browser | needs the CRON_SECRET bearer header |

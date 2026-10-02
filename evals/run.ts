@@ -31,7 +31,7 @@ import {
   writeBaseline,
   type Measurement,
 } from "./report";
-import { RISK_CASES, SESSIONS, SPEECH_CASES } from "./cases";
+import { FLOOR_CASES, RISK_CASES, SESSIONS, SPEECH_CASES } from "./cases";
 import { unmeasured } from "./coverage";
 import { attribution } from "./suites/attribution";
 import { grounding } from "./suites/grounding";
@@ -95,6 +95,7 @@ async function main() {
   const shape = {
     sessions: SESSIONS.length,
     riskCases: RISK_CASES.length,
+    floorCases: FLOOR_CASES.length,
     speechCases: SPEECH_CASES.length,
   };
 

@@ -8,8 +8,9 @@ import { BACK_OFFICE_ROLES, type Role } from "@/lib/db/schema";
  * Staff and owners approve payouts, confirm transfers and read records. A
  * password alone was the whole of that, so a password reused from somewhere
  * else was the console. After 0167 a back office session must also pass a
- * second step: a code from an authenticator app (RFC 6238), or, until one is
- * enrolled, six digits emailed to the member's own address.
+ * second step: a code from an authenticator app (RFC 6238). DD-2 B2.3 retired
+ * the emailed code; DD-2 B2.4 lets clinicians, clinic managers and partner
+ * users add the same app, and asks for it once they have.
  *
  * Everything here is pure and has no database, so `tests/staff-2fa.test.ts`
  * runs the RFC's own vectors against it. The half that stores and spends
@@ -31,18 +32,20 @@ export const TOTP_WINDOW = 1;
 /** 🔴 Asked for again after twelve hours, whatever the session's own clock says. */
 export const SECOND_FACTOR_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
-/** How long an emailed code works. */
-export const EMAIL_CODE_MINUTES = 10;
-
 export const RECOVERY_CODE_COUNT = 10;
 
 /* ------------------------------------------------------------------ */
 /*  Who must, and whether they have                                    */
 /* ------------------------------------------------------------------ */
 
-/** Staff, managers and owners. Clinicians, patients, companies and partners never. */
+/** Staff, managers and owners must have one. Everybody else may. */
 export function needsSecondFactor(role: Role | null | undefined): boolean {
   return Boolean(role) && (BACK_OFFICE_ROLES as readonly string[]).includes(role!);
+}
+
+/** DD-2 B2.4: the step is owed by a role that must, and by anybody who enrolled an app. */
+export function secondStepOwed(role: Role | null | undefined, appEnrolled: boolean): boolean {
+  return needsSecondFactor(role) || appEnrolled;
 }
 
 /**
@@ -189,7 +192,7 @@ export function otpauthUri(input: { secret: Uint8Array; account: string; issuer:
 }
 
 /* ------------------------------------------------------------------ */
-/*  Recovery codes and emailed codes                                   */
+/*  Recovery codes                                                     */
 /* ------------------------------------------------------------------ */
 
 const RECOVERY_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
@@ -239,11 +242,38 @@ export function redeemRecoveryCode<T extends { codeHash: string; usedAt: Date | 
   return { ok: true, codes: codes.map((code, i) => (i === index ? { ...code, usedAt: now } : code)) };
 }
 
-/** Six digits for the email fallback, from a CSPRNG. */
-export function newEmailCode(): string {
-  return String(randomInt(0, 1_000_000)).padStart(6, "0");
+/* ------------------------------------------------------------------ */
+/*  Proving the person before an app is enrolled                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A back office member's FIRST app is enrolled only after six digits emailed
+ * to their own address, so a stolen password alone cannot plant an app. The
+ * code lives ten minutes; the proof it gives lasts thirty, for this session.
+ */
+export const ENROL_CODE_MINUTES = 10;
+export const ENROL_PROOF_MINUTES = 30;
+/** A pending app not confirmed within this long has to be started again. */
+export const PENDING_ENROLMENT_MINUTES = 15;
+
+export function newEnrolCode(): string {
+  return String(randomInt(1_000_000)).padStart(6, "0");
 }
 
-export function hashEmailCode(code: string): string {
-  return createHash("sha256").update(`staff-email:${code.replace(/\D/g, "")}`).digest("hex");
+export function hashEnrolCode(code: string): string {
+  return createHash("sha256").update(`staff-enrol:${code.replace(/\D/g, "")}`).digest("hex");
+}
+
+/** Whether a proof spent at `usedAt` still opens enrolment. A future time fails closed. */
+export function enrolProofCurrent(usedAt: Date | null | undefined, now: Date = new Date()): boolean {
+  if (!usedAt) return false;
+  const age = now.getTime() - usedAt.getTime();
+  return age >= 0 && age <= ENROL_PROOF_MINUTES * 60_000;
+}
+
+/** Whether a pending (unconfirmed) app was started recently enough to be shown or confirmed. */
+export function pendingEnrolmentCurrent(startedAt: Date | null | undefined, now: Date = new Date()): boolean {
+  if (!startedAt) return false;
+  const age = now.getTime() - startedAt.getTime();
+  return age >= 0 && age <= PENDING_ENROLMENT_MINUTES * 60_000;
 }

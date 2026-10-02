@@ -11,7 +11,8 @@ import { normaliseEmail } from "@/lib/data/people";
 import { e164Problem, toE164 } from "@/lib/phone/e164";
 import { usable } from "@/lib/scheduling/tz";
 import { log } from "@/lib/logger";
-import { callerKey, consume } from "@/lib/rate-limit";
+import { minutesToWait } from "@/lib/auth/attempts";
+import { accountAttempt, accountSignedIn, callerKey, consume } from "@/lib/rate-limit";
 import { patientLanding } from "@/lib/routing";
 import { getI18n } from "@/lib/i18n/server";
 import { localiseShared, minutesFrom } from "@/lib/i18n/errors";
@@ -314,6 +315,17 @@ export async function patientSignIn(
    * for. Saying "that account has no password" here would answer, to anybody
    * holding a phone number, whether that number belongs to a guest.
    */
+  /*
+   * DD-2 B2.2: per account as well as per network, counted before the password
+   * is checked. Keyed on the account when there is one and on the handle as
+   * typed when there is not, so an unknown handle locks the same way.
+   */
+  const subject = account?.id ?? asEmail ?? (asPhone.ok ? asPhone.e164 : handle);
+  const perAccount = await accountAttempt("patient:signin", subject);
+  if (!perAccount.allowed) {
+    return { error: t("auth.tooManyForSignIn", { minutes: minutesToWait(perAccount.retryAfter) }) };
+  }
+
   const INVALID = "$2b$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali";
   const ok = account?.passwordHash
     ? await verifyPassword(password, account.passwordHash)
@@ -321,6 +333,7 @@ export async function patientSignIn(
 
   if (!account || !ok) return { error: t("perr.noMatch") };
 
+  await accountSignedIn("patient:signin", subject);
   await createPatientSession(account.id);
   /* 🔴 W2-P02: back to the invite, the benefit code or the room they came from. */
   redirect(patientLanding(formData.get("next")));

@@ -287,7 +287,7 @@ export function PageEditor({
               >
                 <option value="none">Nothing</option>
                 <option value="session-room">Live session room</option>
-                <option value="radar">Crisis Radar</option>
+                <option value="radar">Radar</option>
               </select>
             </Field>
           ) : null}

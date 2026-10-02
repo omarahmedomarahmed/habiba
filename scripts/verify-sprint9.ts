@@ -277,7 +277,7 @@ async function main() {
       }
       check("🔴 9.1 a second profile for the same person is refused by the database", second);
 
-      const { profileFor, isStale } = await import("../lib/data/memory");
+      const { __profileForTest: profileFor, isStale } = await import("../lib/data/memory");
       const stored = await profileFor(personId);
       check(
         "9.1 the profile reads back with its citations",
@@ -308,7 +308,7 @@ async function main() {
         },
       ]);
 
-      const { timelineFor } = await import("../lib/data/memory");
+      const { __timelineForTest: timelineFor } = await import("../lib/data/memory");
       const timeline = await timelineFor(personId);
       check(
         "9.2 the timeline is ordered by when things HAPPENED",

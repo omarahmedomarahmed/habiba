@@ -581,15 +581,17 @@ async function main() {
 
   /*
    * 🔴 Board 503: production had no published instrument, so no questionnaire
-   * could be sent. The settings seed (prebuild, and `settings:seed` by hand)
-   * seeds and publishes the shipped free English instruments now.
+   * could be sent. The settings seed seeds and publishes the shipped free
+   * English instruments. It is a deploy step on the allow-list, never the
+   * build: a build must not write to the production database (DD-2).
    */
   const settingsSource = stripComments(readSource("scripts/settings.ts"));
   const seedBody = settingsSource.slice(settingsSource.indexOf("async function seed("));
   check(
-    "🔴 Board 503 the settings seed, which prebuild runs on every deploy, seeds and publishes the shipped questionnaires",
+    "🔴 Board 503 the settings seed, a deploy step on the production allow-list and never the build, seeds and publishes the shipped questionnaires",
     /await seedShippedInstruments\(db\)/.test(seedBody.slice(0, seedBody.indexOf("\n}"))) &&
-      /settings\.ts seed/.test(readSource("package.json").match(/"prebuild": "[^"]+"/)?.[0] ?? ""),
+      !/settings\.ts seed/.test(readSource("package.json").match(/"(?:pre)?build": "[^"]+"/g)?.join(" ") ?? "") &&
+      /"settings:seed": \{\s*writes: true/.test(readSource("scripts/on-production.ts")),
     "they were only ever made by the capture seed, which never runs on production",
   );
   check(

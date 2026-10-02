@@ -50,3 +50,40 @@ export function fourEyesProblem(input: {
   }
   return null;
 }
+
+/**
+ * 🔴 0188: MAKER AND CHECKER FROM THE TRANSFER TO THE PAYOUT.
+ *
+ * One person could confirm a bank transfer, approve the payout it funded and
+ * send it. With `separate` on (`rules.approvals.payoutSeparation`):
+ *
+ *   approve  not by anyone who confirmed a transfer behind this payout
+ *   send     not by the person who approved it
+ *   confirm_not_sent  not by the person who pressed Send for a payout the
+ *            provider gave no answer on (it moves `unknown` to `failed`, which
+ *            lets the money be sent again)
+ *
+ * Pure, like the rules above, so each refusal is proved without a database.
+ */
+export type SeparationProblem = "confirmed_transfer" | "approved_it" | "sent_it";
+
+export function payoutSeparationProblem(input: {
+  act: "approve" | "send" | "confirm_not_sent";
+  actorUserId: string;
+  /** Who confirmed the transfers that paid for the money in this payout. */
+  transferConfirmers: readonly (string | null)[];
+  approvedByUserId: string | null;
+  /** Who pressed Send through the provider, for `confirm_not_sent`. */
+  sentByUserId?: string | null;
+  separate: boolean;
+}): SeparationProblem | null {
+  if (!input.separate) return null;
+  if (input.act === "confirm_not_sent") {
+    return input.sentByUserId && input.sentByUserId === input.actorUserId ? "sent_it" : null;
+  }
+  if (input.act === "approve" && input.transferConfirmers.includes(input.actorUserId)) return "confirmed_transfer";
+  if (input.act === "send" && input.approvedByUserId && input.approvedByUserId === input.actorUserId) {
+    return "approved_it";
+  }
+  return null;
+}

@@ -6,11 +6,8 @@ import { controlDb } from "@/lib/db";
 import { sponsorMoneyEntries } from "@/lib/db/schema";
 import { getSettings } from "@/lib/settings";
 import {
-  lastPublishedWeek,
-  ledgerAnalytics,
-  ledgerPeriods,
-  monthsFromWeeks,
-  privacyFloor,
+  companyView,
+  lastCompleteWeek,
   type HeldBack,
   type LedgerAnalytics,
   type LedgerPeriod,
@@ -44,8 +41,16 @@ export type PublishedLedger = {
   through: string;
   publishing: "weekly" | "live";
   floor: number;
+  /** DD-2 B1: the last week of the last published period, or null. */
+  publishedThrough: string | null;
+  /** DD-2 B1: the overview chart, from the same periods. */
+  series: { weekStart: string; spendCents: number | null }[];
 };
 
+/**
+ * DD-2 B1: the one reader behind every company surface (overview chart and
+ * totals, balance, ledger page, CSV). The rules live in `companyView`.
+ */
 export async function publishedLedger(
   sponsorId: string,
   now = new Date(),
@@ -55,9 +60,7 @@ export async function publishedLedger(
   },
 ): Promise<PublishedLedger> {
   const settings = await getSettings();
-  const publishing = settings.sponsor.ledgerPublishing;
-  const through = lastPublishedWeek(publishing, now);
-  const floor = privacyFloor(settings.sponsor.activityFloor);
+  const through = lastCompleteWeek(now);
 
   const rows = await controlDb
     .select({
@@ -74,15 +77,22 @@ export async function publishedLedger(
     )
     .limit(20_000);
 
-  const weekly = ledgerPeriods(rows, floor, "week");
+  const view = companyView({
+    entries: rows,
+    floor: settings.sponsor.activityFloor,
+    now,
+    balanceCents: context.balanceCents,
+    topUps: context.topUps,
+  });
   return {
-    weeks: weekly.periods,
-    /* Review fix: months are the published weeks summed, never merged on their own. */
-    months: monthsFromWeeks(weekly.periods),
-    heldBack: weekly.heldBack,
-    stats: ledgerAnalytics({ entries: rows, floor, ...context }),
-    through,
-    publishing,
-    floor,
+    weeks: view.weeks,
+    months: view.months,
+    heldBack: view.heldBack,
+    stats: view.stats,
+    through: view.through,
+    publishing: settings.sponsor.ledgerPublishing,
+    floor: view.floor,
+    publishedThrough: view.publishedThrough,
+    series: view.series,
   };
 }

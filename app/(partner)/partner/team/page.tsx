@@ -5,6 +5,13 @@ import { TeamList } from "@/components/partner/team-list";
 import { getI18n } from "@/lib/i18n/server";
 import { requirePartner } from "@/lib/partner-auth/guard";
 import { teamFor } from "@/lib/partner/team";
+import { AuthenticatorCard } from "@/components/auth/authenticator-card";
+import { authenticatorView } from "@/lib/auth/authenticator-view";
+import {
+  finishPartnerAuthenticator,
+  removePartnerAuthenticator,
+  startPartnerAuthenticator,
+} from "./authenticator-actions";
 
 /** W3: the tab title in the reader's language. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -42,6 +49,15 @@ export default async function PartnerTeamPage() {
         }))}
         canEdit={actor.role === "admin"}
       />
+      {/* DD-2 B2.4: this person's own optional authenticator app. */}
+      <div className="mt-6">
+        <AuthenticatorCard
+          {...(await authenticatorView({ kind: "partner", id: actor.partnerUserId }, actor.email))}
+          start={startPartnerAuthenticator}
+          finish={finishPartnerAuthenticator}
+          remove={removePartnerAuthenticator}
+        />
+      </div>
       </div>
     </div>
   );

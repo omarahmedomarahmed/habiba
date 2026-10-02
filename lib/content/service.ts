@@ -16,7 +16,9 @@ import { contentPages, type ContentBlock } from "@/lib/db/schema";
 import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import { DICTIONARIES } from "@/lib/i18n/messages";
 import { log } from "@/lib/logger";
+import { guardedPage, type ClaimHit } from "./claims";
 import { DEFAULT_PAGES, findDefaultPage } from "./defaults";
+import { defaultsFor } from "./registry";
 
 /**
  * One tag for the whole public site.
@@ -79,8 +81,10 @@ export const CMS_TAG = "cms";
  *   v4 — 2026-09-07, C92: the entries that outlived both of those.
  *   v5, 2026-09-25, B32: a page says which language it was served in, and
  *        the Arabic crisis sentences were corrected in the rows.
+ *   v6, 2026-10-01, DD-2: rows with false claims are re-synced by content:sync,
+ *        and a row that still carries one is replaced by the default.
  */
-export const CACHE_VERSION = "v5";
+export const CACHE_VERSION = "v6";
 
 /**
  * Long enough that the database is out of the request path, short enough that
@@ -210,13 +214,26 @@ async function readPage(
       ) ?? rows.find((candidate) => candidate.locale === "en");
 
     if (row && row.status === "published") {
+      /*
+       * DD-2: a row carrying a claim that is false today (lib/content/claims.ts),
+       * in its title, description or blocks, is not served as written. The code
+       * default for its language is; a CMS-only page has none, so it is served
+       * without the offending blocks. Either way the row goes on the errors board
+       * so somebody corrects it.
+       */
+      const ownDefault = defaultsFor(row.locale).find((page) => page.slug === slug);
+      const fallback = ownDefault ?? findDefaultPage(slug);
+      const guarded = guardedPage(
+        `${row.slug}[${row.locale}]`,
+        { slug: row.slug, title: row.title, description: row.description, layout: row.layout, blocks: row.blocks },
+        fallback
+          ? { slug: fallback.slug, title: fallback.title, description: fallback.description, layout: fallback.layout, blocks: fallback.blocks }
+          : null,
+      );
+      if (guarded.served !== "row") await reportStaleRow(row.slug, row.locale, guarded.hits, guarded.served);
       return {
-        slug: row.slug,
-        title: row.title,
-        description: row.description,
-        layout: row.layout,
-        blocks: row.blocks,
-        locale: row.locale,
+        ...guarded.page,
+        locale: guarded.served === "default" && !ownDefault ? DEFAULT_LOCALE : row.locale,
       };
     }
     if (row) return null; // exists but is a draft
@@ -235,6 +252,32 @@ async function readPage(
     blocks: fallback.blocks,
     locale: DEFAULT_LOCALE,
   };
+}
+
+/** DD-2: a published row with a false claim, logged and put on the errors board. */
+async function reportStaleRow(
+  slug: string,
+  locale: string,
+  hits: ClaimHit[],
+  served: "default" | "trimmed",
+): Promise<void> {
+  const rules = [...new Set(hits.map((hit) => hit.rule))].join(", ");
+  const instead = served === "default" ? "serving the code default" : "serving it without the offending blocks";
+  log.error(`CMS row carries a forbidden claim, ${instead}`, { slug, locale, rules });
+  try {
+    const { recordError } = await import("@/lib/observability/errors");
+    await recordError({
+      error: new Error(
+        served === "default"
+          ? `content_pages ${slug}[${locale}] carries forbidden claims (${rules}); re-sync it from defaults`
+          : `content_pages ${slug}[${locale}] carries forbidden claims (${rules}) and has no code default; the offending blocks are hidden until it is corrected in the content console`,
+      ),
+      path: `/${slug}`,
+      kind: "server",
+    });
+  } catch {
+    /* The page is still served; the log line above is the floor. */
+  }
 }
 
 /**

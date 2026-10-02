@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
-import { draftNoteInFormat, generateAndStoreNote } from "@/lib/ai/notes";
+import { draftNoteInFormat, generateAndStoreNote, refreshSessionTranslations } from "@/lib/ai/notes";
 import { emptyContent } from "@/lib/notes/formats";
 import { audit, auditPhi } from "@/lib/audit";
 import { requireUser, requireVerified } from "@/lib/auth/guard";
@@ -118,6 +118,14 @@ export async function startNewSession(
   if (!patientId && !guestName) {
     return { error: "Enter a first name so the session has somewhere to go." };
   }
+
+  /*
+   * DD-2 B1: the clinician confirms the patient is 18 or over before a session
+   * that can be recorded and sent to the AI provider. Under 18 is refused here,
+   * before anything is written.
+   */
+  const { adultTicked } = await import("@/lib/consent/adult");
+  if (!adultTicked(formData)) return { error: (await getI18n()).t("adultCheck.refused") };
 
   /*
    * 🔴 RULINGS 5 AND 5b: IN PERSON, TWO WAYS TO BE PAID.
@@ -235,6 +243,7 @@ export async function startNewSession(
       guestPhone: guestPhone || undefined,
       priceCents,
       inPersonPaid,
+      adultConfirmed: true,
     });
     if (!session) return { error: "That patient is not in your practice." };
     sessionId = session.id;
@@ -420,6 +429,11 @@ export async function goLive(sessionId: string): Promise<SessionActionState> {
       resourceType: "session",
       resourceId: sessionId,
     });
+    /* 🔴 Due diligence: a patient who paused AI has no live risk detection; the record says so from the start. */
+    if (startedNow) {
+      const { markLiveRiskOffIfPaused } = await import("@/lib/data/sessions");
+      await markLiveRiskOffIfPaused(sessionId);
+    }
     /*
      * 🔴 A sign in near its eight hour ceiling is not cut off mid session: the
      * ceiling moves to two hours after this start (`lib/auth/session.ts`).
@@ -771,6 +785,8 @@ export async function approveNote(
   /* 🔴 W2-F01: the note named, in this session, or the session's own. */
   const result = await signNote(actor, sessionId, noteId);
   if (!result.ok) return { error: await refusalText(result.reason, "clinical") };
+  /* DD-2: the English copy follows the words that were signed. */
+  after(() => refreshSessionTranslations(sessionId));
 
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath("/notes");
@@ -820,6 +836,7 @@ export async function approvePatientNote(sessionId: string): Promise<SessionActi
   const result = await releasePatientCopy(actor, sessionId);
   if (!result.ok) return { error: await refusalText(result.reason, "patient") };
 
+  after(() => refreshSessionTranslations(sessionId));
   after(async () => {
     try {
       const sent = await releaseBrief(sessionId);
@@ -920,6 +937,18 @@ export async function answerInPersonConsent(
     )
     .limit(1);
   return { ok: Boolean(landed), consent: row?.consent ?? null };
+}
+
+/**
+ * DD-2 B1: the clinician confirms, in the room, that the patient is 18 or over.
+ * Stored with who and when, on the session and on a chart that has none. An
+ * answer of "under 18" stores nothing: without a confirmation the doors that
+ * transcribe refuse the audio, so nothing is recorded or sent to the model.
+ */
+export async function confirmAdult(sessionId: string): Promise<{ ok: boolean }> {
+  const actor = await requireUser();
+  const { confirmAdultForSession } = await import("@/lib/data/adult");
+  return { ok: await confirmAdultForSession(actor, sessionId) };
 }
 
 /**

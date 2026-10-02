@@ -25,7 +25,7 @@ export default async function NotYoursPage() {
   return (
     <Card className="mx-auto mt-6 max-w-md p-5 text-sm text-slate-700">
       <p>{t("aaccess.notYours")}</p>
-      <Link href={landingFor(actor.role)} className="mt-3 inline-block font-semibold text-brand-600 hover:underline">
+      <Link href={landingFor(actor.role)} className="mt-3 inline-block font-semibold text-brand-700 hover:underline">
         {t("aaccess.back")}
       </Link>
     </Card>

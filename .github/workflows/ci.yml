@@ -10,6 +10,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   checks:
     name: Static checks (typecheck, unit suites, prose, verifiers)
@@ -17,6 +20,9 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          # verify:journal compares the migration journal with where this branch left main.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -27,3 +33,56 @@ jobs:
       - name: Chromium for the browser suites (alarm)
         run: npx playwright install --with-deps chromium
       - run: npm run ci
+
+  database:
+    # A throwaway Postgres, migrated from empty. No secret: nothing here reaches Neon.
+    name: Database checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        # Neon runs Postgres 18.
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      # The app's driver speaks WebSocket, so Neon's proxy sits in front of Postgres.
+      wsproxy:
+        image: ghcr.io/neondatabase/wsproxy:latest
+        env:
+          APPEND_PORT: postgres:5432
+          ALLOW_ADDR_REGEX: ".*"
+          LOG_TRAFFIC: "true"
+        ports:
+          - 5488:80
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/ci
+      DATABASE_WS_PROXY: localhost:5488
+      SEED_ADMIN_EMAIL: ci-admin@example.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      - name: Migrate an empty database
+        run: npm run db:migrate
+      - name: Migrate again, which must apply nothing
+        run: npm run db:migrate && npm run db:status
+      - name: Settings defaults
+        run: npm run settings:seed
+      - name: The base seed (an organisation, an admin, the public pages)
+        run: SEED_ADMIN_PASSWORD="ci-$(openssl rand -hex 16)" npm run db:seed
+      - name: Every database suite
+        run: npm run ci:db

@@ -5,6 +5,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   bigint,
   boolean,
+  check,
   date,
   index,
   integer,
@@ -12,6 +13,7 @@ import {
   pgTable,
   primaryKey,
   real,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -459,6 +461,7 @@ export const authSessions = pgTable(
 
 /**
  * 🔴 0167: a back office member's authenticator app. One per person.
+ * DD-2 B2.4: and a clinician's, when they choose to add one.
  *
  * The secret is sealed with `lib/crypto/secretbox.ts`: it must be used again
  * to check every code, so it cannot be hashed, and a table of plain secrets
@@ -496,6 +499,9 @@ export const staffRecoveryCodes = pgTable(
 /**
  * 🔴 0167: the fallback until an app is enrolled: six digits by email, bound
  * to the one session that asked, ten minutes, used once.
+ *
+ * DD-2 B2.3: retired. Nothing writes or reads it since the console requires
+ * an authenticator; kept so the rows already there stay readable.
  */
 export const staffEmailCodes = pgTable(
   "staff_email_codes",
@@ -743,6 +749,12 @@ export const patients = pgTable(
      * always wins (`recipientLocale`). Null: nobody said.
      */
     locale: text("locale"),
+    /**
+     * DD-2 (0191): how the clinician says to refer to them in a gendered
+     * language such as Arabic: 'female', 'male', or null for not said. The
+     * note writer is told it; null leaves it to the transcript.
+     */
+    addressAs: text("address_as").$type<"female" | "male" | null>(),
 
     /**
      * The person this file is about, once there is one (5.1).
@@ -781,6 +793,13 @@ export const patients = pgTable(
      * somebody who was in the room, which is a different claim and gets a different source.
      */
     source: text("source").$type<"therapist" | "join_link" | "walk_in">().notNull().default("therapist"),
+    /**
+     * 0190 / DD-2 B1: when a clinician confirmed this person is 18 or over, and
+     * who. Null means nobody has; recording and transcription then wait for a
+     * confirmation on the session or the patient's own account.
+     */
+    adultConfirmedAt: timestamp("adult_confirmed_at", { withTimezone: true }),
+    adultConfirmedBy: uuid("adult_confirmed_by").references(() => users.id, { onDelete: "set null" }),
 
     /**
      * 🔴 63.12 / C327 / C354 — WHEN WE TOLD THEM WHAT THE CLINIC CAN SEE.
@@ -999,6 +1018,9 @@ export const sessions = pgTable(
     recordingConsentAt: timestamp("recording_consent_at", { withTimezone: true }),
     /** Consent is to particular words, and the words will be edited. */
     recordingConsentVersion: text("recording_consent_version"),
+    /** 0190 / DD-2 B1: the clinician who confirmed, for this session, that the patient is 18 or over. */
+    adultConfirmedAt: timestamp("adult_confirmed_at", { withTimezone: true }),
+    adultConfirmedBy: uuid("adult_confirmed_by").references(() => users.id, { onDelete: "set null" }),
 
     /**
      * When the microphone actually started. PLAN.md 7.8.
@@ -1069,6 +1091,8 @@ export const sessions = pgTable(
      * result. Null when it ran, or never applied.
      */
     riskCheckFailedAt: timestamp("risk_check_failed_at", { withTimezone: true }),
+    /** 🔴 0192: when transcription, and with it live crisis detection, was refused because the patient paused AI. */
+    liveRiskOffAt: timestamp("live_risk_off_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     durationMinutes: integer("duration_minutes"),
 
@@ -1395,6 +1419,12 @@ export const sessionNotes = pgTable(
      */
     contentEn: jsonb("content_en").$type<NoteContent | null>(),
     /**
+     * DD-2 (0191): md5 of `content::text` at the moment `content_en` was
+     * written. Once the clinician edits the note the two differ, and the
+     * translation is stale: read it through `FRESH_CONTENT_EN` only.
+     */
+    contentEnSource: text("content_en_source"),
+    /**
      * The clinical record's signature. This is the one that makes the note a
      * document rather than a draft, and it is the one an auditor asks about.
      */
@@ -1560,16 +1590,24 @@ export const riskAssessments = pgTable(
   "risk_assessments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    sessionId: uuid("session_id")
-      .notNull()
-      .references(() => sessions.id, { onDelete: "cascade" }),
-    organizationId: uuid("organization_id")
-      .notNull()
-      .references(() => organizations.id, { onDelete: "restrict" }),
-    therapistId: uuid("therapist_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
+    /**
+     * 🔴 0192: a session's alert, or a journal's. Every row names one of the two
+     * (`risk_assessments_session_or_journal_chk`, 0194 and 0196). A journal alert with nobody holding a
+     * grant has no clinician and no practice, and goes straight to the platform.
+     */
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "restrict" }),
+    therapistId: uuid("therapist_id").references(() => users.id, { onDelete: "restrict" }),
     patientId: uuid("patient_id").references(() => patients.id, { onDelete: "restrict" }),
+    /*
+     * 🔴 0194: SET NULL, not CASCADE. Deleting a journal or a person deleted the
+     * alert while it was escalating. `journal_ref` keeps which journal raised
+     * it, with no foreign key, so the row always names its subject
+     * (`risk_assessments_session_or_journal_chk`).
+     */
+    journalId: uuid("journal_id").references((): AnyPgColumn => journals.id, { onDelete: "set null" }),
+    personId: uuid("person_id").references((): AnyPgColumn => people.id, { onDelete: "set null" }),
+    journalRef: uuid("journal_ref"),
 
     level: text("level").$type<RiskLevel>().notNull(),
     source: text("source").$type<"keyword" | "model">().notNull(),
@@ -1638,6 +1676,11 @@ export const riskAssessments = pgTable(
     index("risk_assessments_escalate_idx").on(t.escalateAt).where(sql`acknowledged_at IS NULL`),
     index("risk_assessments_alert_status_idx").on(t.alertStatus, t.createdAt),
     index("risk_assessments_therapist_idx").on(t.therapistId, t.createdAt),
+    index("risk_assessments_person_idx").on(t.personId, t.createdAt).where(sql`journal_id IS NOT NULL`),
+    check(
+      "risk_assessments_session_or_journal_chk",
+      sql`${t.sessionId} IS NOT NULL OR ${t.journalRef} IS NOT NULL`,
+    ),
   ],
 );
 
@@ -1726,7 +1769,13 @@ export const copilotMessages = pgTable(
 
 // ------------------------------------------------------------ data access ---
 
-export const EXPORT_TTL_HOURS = 72;
+/*
+ * DD-2 B1: a record link lives 24 hours (was 72), and the first time it is
+ * opened starts a short window to read and download it, after which it is
+ * spent. A forwarded or scanned email then reaches nothing.
+ */
+export const EXPORT_TTL_HOURS = 24;
+export const EXPORT_OPEN_WINDOW_MINUTES = 15;
 
 /**
  * A patient asking for their own record.
@@ -2943,6 +2992,12 @@ export type LedgerTxnKind = (typeof LEDGER_TXN_KINDS)[number];
  *
  * Nothing here is ever updated or deleted. A mistake is corrected by posting
  * the reversing transaction, which is also what leaves the mistake visible.
+ *
+ * 0188: the database holds it too. UPDATE is refused except a foreign key
+ * emptying an account column, each `txn_id` must sum to zero at commit (a
+ * deferred constraint trigger), and `posting_key` with `leg` is unique, so one
+ * business event cannot be posted twice. DELETE is left to fixtures and the
+ * demo reset; no product code deletes a leg (tests/safety.test.ts).
  */
 export const ledgerEntries = pgTable(
   "ledger_entries",
@@ -2978,9 +3033,26 @@ export const ledgerEntries = pgTable(
     /** Set only when a human caused it — an admin adjustment or write-off. */
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
 
+    /**
+     * 0188: the business event this leg belongs to, and its place in that
+     * posting. Unique together, so the same event posted twice fails.
+     */
+    postingKey: text("posting_key"),
+    leg: smallint("leg"),
+    /**
+     * 0188: the pounds this leg stands for and the rate actually charged, on
+     * patient payments and payouts. Same sign as `amountCents`. A clinician's
+     * EGP balance is read from these, never re-converted at a later rate.
+     */
+    egpMinor: integer("egp_minor"),
+    fxRateMicro: integer("fx_rate_micro"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
+    uniqueIndex("ledger_entries_posting_key_unique")
+      .on(t.postingKey, t.leg)
+      .where(sql`posting_key IS NOT NULL`),
     index("ledger_txn_idx").on(t.txnId),
     index("ledger_account_idx").on(t.account, t.createdAt),
     index("ledger_user_idx").on(t.userId, t.account),
@@ -5842,11 +5914,21 @@ export const payoutRequests = pgTable(
      */
     provider: text("provider"),
     providerRef: text("provider_ref"),
-    providerState: text("provider_state").$type<"sending" | "sent" | "failed">(),
+    /**
+     * 0188: `unknown` when the send got no answer (a timeout). Nothing may send
+     * it again or mark it sent by hand until a re-query says `failed` or `sent`.
+     */
+    providerState: text("provider_state").$type<PayoutProviderState>(),
     providerError: text("provider_error"),
     providerSenderUserId: uuid("provider_sender_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    /**
+     * 0195: when re-checks of an `unknown` payout started finding nothing (no
+     * record, or a provider that cannot be asked). Past 72 hours the errors
+     * board hears of it; a record clears it.
+     */
+    providerNoRecordSince: timestamp("provider_no_record_since", { withTimezone: true }),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -5865,6 +5947,7 @@ export const payoutRequests = pgTable(
 );
 
 export type PayoutRequest = typeof payoutRequests.$inferSelect;
+export type PayoutProviderState = "sending" | "sent" | "failed" | "unknown";
 
 /**
  * Every transition, attributable to a person. 16.2.
@@ -8714,6 +8797,45 @@ export const partnerAuthSessions = pgTable(
 );
 
 /**
+ * DD-2 B2.4 (0189): an authenticator app for a clinic manager or a partner
+ * user, the same construction as `staff_second_factors` (sealed secret,
+ * confirmed by the first code, `last_step` against replay). Exactly one owner
+ * column is set. Clinicians use `staff_second_factors`, being `users` rows.
+ */
+export const portalSecondFactors = pgTable(
+  "portal_second_factors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clinicManagerId: uuid("clinic_manager_id").references(() => clinicManagers.id, { onDelete: "cascade" }),
+    partnerUserId: uuid("partner_user_id").references(() => partnerUsers.id, { onDelete: "cascade" }),
+    secretSealed: text("secret_sealed").notNull(),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    lastStep: integer("last_step"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("portal_second_factors_clinic_unique").on(t.clinicManagerId),
+    uniqueIndex("portal_second_factors_partner_unique").on(t.partnerUserId),
+  ],
+);
+
+/** DD-2 B2.4 (0189): ten recovery codes per portal enrolment, hashed, spent by one UPDATE. */
+export const portalRecoveryCodes = pgTable(
+  "portal_recovery_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    factorId: uuid("factor_id")
+      .notNull()
+      .references(() => portalSecondFactors.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("portal_recovery_codes_hash_unique").on(t.factorId, t.codeHash)],
+);
+
+/**
  * 🔴 42.1 / 55.2 / C265 — THE KEY, AND EVERY COLUMN ON IT IS A CONSTRAINT.
  *
  * *Keys (hashed, scoped, rotatable)*, and C265 adds the fourth thing: scoped to
@@ -10075,6 +10197,13 @@ export const manualPayments = pgTable(
 
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     decidedBy: uuid("decided_by").references(() => users.id, { onDelete: "set null" }),
+    /**
+     * 0188: the amount staff read off the bank statement when they confirmed,
+     * in the same minor units as `amountCents`. The database refuses one that
+     * differs. NULL means the check was the payer's declaration against our own
+     * record only (book against book).
+     */
+    statementAmountMinor: integer("statement_amount_minor"),
     /** 🔴 A rejection carries its reason. The CHECK in 0102 enforces it. */
     rejectReason: text("reject_reason"),
 

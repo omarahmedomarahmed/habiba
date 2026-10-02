@@ -6,6 +6,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { and, eq, lt, sql } from "drizzle-orm";
 
+import { ACCOUNT_ATTEMPTS, ACCOUNT_WINDOW_SECONDS, accountSubject } from "@/lib/auth/attempts";
 import { controlDb as db} from "@/lib/db";
 import { rateLimits } from "@/lib/db/schema";
 import { SIMULATION_RUNNING } from "@/lib/env";
@@ -295,9 +296,43 @@ export function networkOf(ip: string): string {
  * shares a limit — annoying, and much better than the limiter quietly doing
  * nothing.
  */
+export async function callerNetwork(): Promise<string> {
+  const ip = await clientIp();
+  return ip ? networkOf(ip) : "unknown";
+}
+
 export async function callerKey(scope: string): Promise<string> {
   const ip = await clientIp();
   return subjectKey(scope, ip ? networkOf(ip) : "unknown");
+}
+
+/* ------------------------------------------------------------- accounts -- */
+
+/**
+ * DD-2 B2.2: a limit per account, beside the one per network.
+ *
+ * The per-network limit needs only many networks to get round. This one is
+ * keyed on the account identifier as typed (normalised), counted BEFORE the
+ * password or code is checked, in the same atomic UPSERT as `consume`, so
+ * parallel guesses each take a unit. A successful sign-in clears it. Unknown
+ * identifiers are counted the same way, so the refusal reveals nothing.
+ */
+export function accountKey(scope: string, identifier: string): string {
+  return subjectKey(`account:${scope}`, accountSubject(identifier));
+}
+
+export async function accountAttempt(
+  scope: string,
+  identifier: string,
+  limit: number = ACCOUNT_ATTEMPTS,
+  windowSeconds: number = ACCOUNT_WINDOW_SECONDS,
+): Promise<Verdict> {
+  return consume(accountKey(scope, identifier), limit, windowSeconds);
+}
+
+/** The right password or code: the account's count starts again. */
+export async function accountSignedIn(scope: string, identifier: string): Promise<void> {
+  await releaseHold(accountKey(scope, identifier));
 }
 
 /** Sweeper for the cron. Rows are self-invalidating; this just stops growth. */

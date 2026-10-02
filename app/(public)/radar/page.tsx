@@ -8,11 +8,16 @@ import { getI18n } from "@/lib/i18n/server";
 import { crisisCountryFor } from "@/lib/crisis/line";
 import { SosOrbServer } from "@/components/patient/sos-orb-server";
 
-export const metadata: Metadata = {
-  title: "Crisis Radar, talk to a therapist now",
-  description:
-    "See which licensed therapists are available this minute, what languages they speak and what they charge. No account, no waiting list.",
-};
+/*
+ * 🔴 Due diligence (claim 23): "Crisis Radar, talk to a therapist now" implied a
+ * staffed crisis service with a guaranteed answer. The radar shows who is free;
+ * nobody is on shift by duty. The title says that, and the description points
+ * a person in danger to the emergency numbers.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("radar.pageTitle"), description: t("radar.metaDescription") };
+}
 
 /**
  * Rendered per request, never cached.

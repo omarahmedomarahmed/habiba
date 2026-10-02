@@ -320,6 +320,8 @@ async function main() {
           /every claim on this page|كل ما نقوله هنا شاشة/i,
         ],
         ["`minutes rather than weeks`", /minutes rather than weeks|دقائق بدل أسابيع/i],
+        /* Due diligence (claim 23): "Crisis" implied a staffed crisis service. Red until the published rows are edited too. */
+        ["`Crisis Radar`, a crisis service nobody staffs", /Crisis Radar|رادار الأزمات/i],
       ];
 
       for (const [what, pattern] of BANNED) {
@@ -338,7 +340,7 @@ async function main() {
        */
       check(
         "🔴 CONTROL the same search finds a sentence that IS published",
-        /Crisis Radar|رادار الأزمات/i.test(published),
+        /radar|الرادار/i.test(published),
         "the absence checks above are searching real content",
       );
 
@@ -480,6 +482,19 @@ async function main() {
      * Dry run unless `--apply`.
      */
     "scripts/migrate-private-blobs.ts",
+    /*
+     * DD-2, THE NINTH DOOR: one exact phrase in published block text, for copy with no
+     * code default to sync from ("Crisis Radar" in a hand-written hero). String values
+     * only; it refuses a row whose block types or keys would change. Dry with `--dry`.
+     */
+    "scripts/content-rename.ts",
+    /*
+     * Review fix, THE TENTH DOOR: the break glass for a sole super_admin who lost
+     * the phone and the recovery codes (Team never resets your own). One back
+     * office member's app, codes and emailed codes, plus an audit row. Behind
+     * the typed production confirmation; `--dry` writes nothing.
+     */
+    "scripts/reset-second-factor.ts",
   ];
 
   check(

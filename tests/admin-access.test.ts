@@ -106,7 +106,9 @@ test("a staff sign-in lands on a page staff can open", async () => {
   }
 
   const signIn = read("lib/auth/actions.ts");
-  assert.match(signIn, /landingFor\(/, "sign-in still sends every back office account to /admin");
+  /* DD-2 B2.1: through staffDestination, which falls back to landingFor. */
+  assert.match(signIn, /staffDestination\(/, "sign-in still sends every back office account to /admin");
+  assert.match(read("lib/admin/access.ts"), /export function staffDestination[\s\S]*?landingFor\(role\)/);
   assert.match(read("app/(admin)/layout.tsx"), /landingFor\(actor\.role\)/, "the logo still links to /admin");
 });
 

@@ -60,6 +60,7 @@ npm run dev
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Safety and due diligence unit suites (no database) |
 | `npm run ci` | What GitHub runs on every pull request: typecheck, unit suites without a database, the prose ratchet, static verifiers |
+| `npm run ci:db` | The database suites against a local throwaway Postgres (CI's second job; `docs/TESTING.md`) |
 | `npm run gates` | The full local pass, database included. Slow; run before a deploy |
 | `npm run verify:<name>` | One verifier. `docs/TESTING.md` says which to run for what |
 | `npm run db:migrate` | Apply migrations to `DATABASE_URL` |
@@ -76,10 +77,12 @@ npm run dev
 `CLAUDE.md` is the rule. In short:
 
 1. Work on a branch and open a pull request into `main`.
-2. GitHub Actions runs `npm run ci` (`.github/workflows/ci.yml`). Red blocks the merge.
+2. GitHub Actions runs `npm run ci` and the database suites (`.github/workflows/ci.yml`). Red blocks the merge.
 3. An AI code review of the diff is recorded on the pull request, labelled as AI.
 4. Before a merge that deploys: `npm run gates` locally, then
-   `npm run on:production -- db:migrate` (production migrations go first).
+   `npm run on:production -- db:status` and, if it lists any, `npm run on:production -- db:migrate`
+   (production migrations go first), and `npm run on:production -- settings:seed` when the release
+   adds settings; `docs/OPERATIONS.md` has the deploy steps.
 5. Merge with a merge commit. Only `main` deploys (`vercel.json`).
 
 ## Documentation
@@ -88,8 +91,8 @@ npm run dev
 | --- | --- |
 | `CLAUDE.md` | How changes reach production |
 | `docs/ARCHITECTURE.md` | Route groups, auth, data model, AI, money, crisis, privacy, jobs, observability |
-| `docs/OPERATIONS.md` | Environments, variables, migrations, the production allow-list, content, demo, blobs, costs, backups, known hazards |
-| `docs/TESTING.md` | `npm run ci`, `npm run gates`, verifier families, traps in checks |
+| `docs/OPERATIONS.md` | Environments, variables, credentials and their rotation, migrations, deploy steps, the production allow-list, content, demo, blobs, monitoring, costs, backups, known hazards |
+| `docs/TESTING.md` | `npm run ci`, `npm run ci:db`, `npm run gates`, verifier families, the crisis keyword floor, traps in checks |
 | `docs/PRODUCT.md` | What each user can do today, and what is switched off or not built |
 | `docs/SECURITY-AND-PRIVACY.md` | Threat model, controls as built, what is not done, the video host audit |
 | `docs/DECISIONS.md` | Product, clinical, legal and money decisions in force, and what needs the founder |

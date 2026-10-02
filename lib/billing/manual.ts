@@ -533,6 +533,20 @@ export type Decision = {
  * rolling the confirmation back because a grant failed, loses the record that
  * the transfer was checked by a person.
  */
+/** 0188: the bank statement figure staff typed is not this transfer's amount. A dictionary key. */
+export const STATEMENT_DIFFERS = "atransfer.statementDiffers";
+
+/** Whether the statement figure staff typed is not the row's declared amount. */
+async function statementDiffersFromRow(paymentId: string, statementMinor: number | null | undefined): Promise<boolean> {
+  if (statementMinor == null) return false;
+  const [current] = await db
+    .select({ amountCents: manualPayments.amountCents })
+    .from(manualPayments)
+    .where(eq(manualPayments.id, paymentId))
+    .limit(1);
+  return Boolean(current && current.amountCents !== statementMinor);
+}
+
 export async function confirmPayment(input: {
   paymentId: string;
   byUserId: string;
@@ -543,7 +557,22 @@ export async function confirmPayment(input: {
    * what the operator matched against the bank line.
    */
   expected?: { amountCents: number; settlesCents: number };
+  /**
+   * 🔴 0188: the amount staff read off the bank statement, in the payment's own
+   * minor units. When given it must equal what the payer declared, and it is
+   * stored; when absent the record says the check was book against book.
+   */
+  statementMinor?: number | null;
 }): Promise<Decision> {
+  if (input.statementMinor != null && input.expected && input.statementMinor !== input.expected.amountCents) {
+    return { error: STATEMENT_DIFFERS };
+  }
+  /*
+   * 🔴 Against the row too, before the update: without `expected` the guarded
+   * UPDATE below matched nothing and the operator read "not waiting for a
+   * decision" instead of "the statement says a different amount".
+   */
+  if (await statementDiffersFromRow(input.paymentId, input.statementMinor)) return { error: STATEMENT_DIFFERS };
   /*
    * 🔴 78.6 — `decided_at` IS THE DATABASE'S CLOCK, NOT THIS PROCESS'S, AND A
    * COMPANY'S TRANSFER WENT MISSING BECAUSE IT WAS NOT.
@@ -576,11 +605,17 @@ export async function confirmPayment(input: {
    */
   const decided = await db
     .update(manualPayments)
-    .set({ state: "confirmed", decidedAt: sql`now()`, decidedBy: input.byUserId })
+    .set({
+      state: "confirmed",
+      decidedAt: sql`now()`,
+      decidedBy: input.byUserId,
+      statementAmountMinor: input.statementMinor ?? null,
+    })
     .where(
       and(
         eq(manualPayments.id, input.paymentId),
         eq(manualPayments.state, "submitted"),
+        input.statementMinor != null ? eq(manualPayments.amountCents, input.statementMinor) : undefined,
         input.expected ? eq(manualPayments.amountCents, input.expected.amountCents) : undefined,
         input.expected ? eq(manualPayments.settlesCents, input.expected.settlesCents) : undefined,
       ),

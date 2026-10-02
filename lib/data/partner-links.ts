@@ -71,9 +71,10 @@ export async function linkedPartners(personId: string) {
  * `personId` comes from the signed-in session and goes into the WHERE clause, so
  * a borrowed subject id unlinks nobody. Checking afterwards would be a window.
  *
- * 🔴 Effective immediately and everywhere, because `resolveSubject` in
- * `lib/partner/api.ts` filters on `revoked_at` and is the one place an external
- * reference becomes a person. Nothing else has to be told.
+ * Effective immediately: `resolveSubject` in `lib/partner/api.ts` filters on
+ * `revoked_at`, and DD-2 B1 added the same filter to the paths that start from
+ * a session rather than a reference (`deliverableNote`, and `mayAnswer` in
+ * `lib/partner/platform.ts`).
  */
 export async function unlinkPartner(input: {
   personId: string;

@@ -62,9 +62,15 @@ export const REGULATORS: Record<string, string[]> = {
   KW: ["Kuwait Ministry of Health, Licensing Department"],
   BH: ["National Health Regulatory Authority (NHRA)"],
   OM: ["Oman Medical Specialty Board", "Ministry of Health, Directorate of Licensing"],
+  /*
+   * DD-2: نقابة المهن الاجتماعية is the Social Professions Syndicate (social
+   * workers and sociologists), not a syndicate of psychologists; Egypt has no
+   * psychologists' syndicate. The ministry's body is the General Secretariat
+   * of Mental Health and Addiction Treatment.
+   */
   EG: [
-    "Egyptian Syndicate of Psychologists and Sociologists (نقابة المهن الاجتماعية)",
-    "Ministry of Health and Population, Mental Health Secretariat",
+    "Social Professions Syndicate (نقابة المهن الاجتماعية)",
+    "Ministry of Health and Population, General Secretariat of Mental Health and Addiction Treatment",
     "Egyptian Medical Syndicate (نقابة الأطباء)",
   ],
   JO: ["Jordanian Nursing and Allied Health Council", "Ministry of Health, Licensing"],
@@ -134,7 +140,9 @@ export const REGULATORS: Record<string, string[]> = {
  */
 export const REGULATOR_NAMES_AR: Record<string, string> = {
   "Egyptian Ministry of Health and Population": "وزارة الصحة والسكان المصرية",
-  "Ministry of Health and Population, Mental Health Secretariat": "الأمانة العامة للصحة النفسية بوزارة الصحة والسكان",
+  "Ministry of Health and Population, Mental Health Secretariat": "الأمانة العامة للصحة النفسية وعلاج الإدمان بوزارة الصحة والسكان",
+  "Ministry of Health and Population, General Secretariat of Mental Health and Addiction Treatment":
+    "الأمانة العامة للصحة النفسية وعلاج الإدمان بوزارة الصحة والسكان",
   "Dubai Health Authority (DHA)": "هيئة الصحة بدبي",
   "Ministry of Health and Prevention (MOHAP)": "وزارة الصحة ووقاية المجتمع",
   "Saudi Commission for Health Specialties (SCFHS)": "الهيئة السعودية للتخصصات الصحية",
@@ -149,13 +157,25 @@ export const REGULATOR_NAMES_AR: Record<string, string> = {
  * to say the plain line, which claims the licence check without naming a body,
  * rather than put an English name in an Arabic sentence.
  */
+/**
+ * DD-2: names we used to suggest, as they should read. A licence saved with
+ * one keeps its stored text; the reader sees the corrected name.
+ */
+export const REGULATOR_RENAMED: Record<string, string> = {
+  "Egyptian Syndicate of Psychologists and Sociologists (نقابة المهن الاجتماعية)":
+    "Social Professions Syndicate (نقابة المهن الاجتماعية)",
+  "Ministry of Health and Population, Mental Health Secretariat":
+    "Ministry of Health and Population, General Secretariat of Mental Health and Addiction Treatment",
+};
+
 export function regulatorNameFor(
-  name: string,
+  stored: string,
   locale: string,
   operatorNames: Record<string, string> = {},
 ): string | null {
+  const name = REGULATOR_RENAMED[stored] ?? stored;
   if (locale !== "ar") return name;
-  const known = operatorNames[name]?.trim() || REGULATOR_NAMES_AR[name];
+  const known = operatorNames[name]?.trim() || operatorNames[stored]?.trim() || REGULATOR_NAMES_AR[name];
   if (known) return known;
   const bracketed = name.match(/\(([^()]*[؀-ۿ][^()]*)\)/);
   if (bracketed?.[1]) return bracketed[1].trim();

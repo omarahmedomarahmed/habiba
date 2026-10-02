@@ -408,6 +408,27 @@ async function main() {
               'Africa/Cairo')`);
 
     /*
+     * DD-2 B2.3: the console requires an authenticator app, and the emailed
+     * code is gone, so an invented address is no longer a dead end but would
+     * still have to enrol by QR. With DEMO_TOTP_SECRET (base32, in the
+     * operator's .env.local, never committed) the support account starts with
+     * that secret enrolled, and `npm run -s totp:now` prints its current code
+     * for a person or a walker. The founder's own login is never given a known
+     * secret: it enrols its own app at the first sign-in.
+     */
+    const demoTotp = process.env.DEMO_TOTP_SECRET?.trim();
+    if (demoTotp) {
+      const { encryptSecret } = await import("../lib/crypto/secretbox");
+      const { base32Decode } = await import("../lib/auth/totp");
+      const sealed = encryptSecret(base32Decode(demoTotp).toString("base64"));
+      await db.execute(sql`
+        INSERT INTO staff_second_factors (user_id, secret_sealed, confirmed_at)
+        SELECT id, ${sealed}, now() FROM users WHERE email = 'staff.demo@example.com'
+        ON CONFLICT (user_id) DO UPDATE SET secret_sealed = EXCLUDED.secret_sealed, confirmed_at = now(), last_step = NULL`);
+      console.log("  staff.demo@example.com: authenticator enrolled from DEMO_TOTP_SECRET (npm run -s totp:now)");
+    }
+
+    /*
      * 🔴 THE EVENT CAST TAKES OVER HERE, with the console and the support
      * account already written on the private password, exactly as above. The
      * third private login, the company `habiba@24therapy.app`, belongs to the

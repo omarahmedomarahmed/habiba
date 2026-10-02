@@ -13,6 +13,7 @@ import {
 } from "@/lib/integrations/registry";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { getI18n } from "@/lib/i18n/server";
+import { PARTNER_DOC_EXAMPLES, exampleJson } from "@/lib/partner/bodies";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
@@ -264,45 +265,39 @@ Content-Type: application/json`}</Code>
           {/* ─────────────────────────────────────────────────────── payloads ── */}
           <Section id="payloads" title={title("payloads")}>
             <p className="text-sm font-semibold text-slate-900">Ask for consent</p>
+            {/* DD-2: the bodies are the ones `tests/partner-docs.test.ts` reads through the route's own parser. */}
             <Code>{`POST /api/partner/v1/consent
-{
-  "subjectRef": "your-own-id-for-this-person",
-  "scope": "history",
-  "askedBy": "dr-nour",
-  "channel": "sms"
-}
+${exampleJson(PARTNER_DOC_EXAMPLES.consent)}
 
-202 Accepted
-{ "status": "asked", "askedAt": "2026-03-12T09:04:11Z" }`}</Code>
+200 OK
+{ "recording_from_seconds": null,
+  "patient_consent_url": "https://.../patient/partner-consent/..." }`}</Code>
 
             <p className="mt-6 text-sm font-semibold text-slate-900">Open a session</p>
             <Code>{`POST /api/partner/v1/sessions
-{
-  "subjectRef": "your-own-id-for-this-person",
-  "clinicianRef": "dr-nour",
-  "modality": "in_person",
-  "startedAt": "2026-03-12T09:05:00Z"
-}
+${exampleJson(PARTNER_DOC_EXAMPLES.session)}
 
 201 Created
-{ "ref": "ses_7Kq2", "recording": "awaiting_consent" }`}</Code>
+{ "sessionId": "..." }`}</Code>
 
             <p className="mt-6 text-sm font-semibold text-slate-900">Read the draft note</p>
-            <Code>{`GET /api/partner/v1/sessions/ses_7Kq2/note
+            <Code>{`GET /api/partner/v1/sessions/S-1024/note
 
 200 OK
 {
-  "status": "draft",
-  "approvedBy": null,
-  "soap": { "subjective": "…", "objective": "…", "assessment": "…", "plan": "…" },
-  "patientSummary": "…"
+  "session": "S-1024",
+  "draft": "Subjective: ...",
+  "approved": null,
+  "approved_by": null,
+  "approved_at": null,
+  "coverage": "This session was recorded from the start."
 }`}</Code>
 
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
               <b>Refusals look like this, and they are the normal case.</b> A call about somebody
               who has not said yes returns <code className="font-mono text-[12px]">403</code> with{" "}
-              <code className="font-mono text-[12px]">{`{ "error": "no_consent" }`}</code>, not an
-              empty object. Nothing partial comes back.
+              <code className="font-mono text-[12px]">{`{ "error": "..." }`}</code>, a sentence saying
+              why, not an empty object. Nothing partial comes back.
             </p>
           </Section>
 

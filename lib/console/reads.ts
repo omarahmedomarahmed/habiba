@@ -184,7 +184,8 @@ export async function timeline(opts: { sinceHours?: number; limit?: number } = {
              concat('Risk ', r.level),
              r.session_id::text
         FROM risk_assessments r
-        JOIN users u ON u.id = r.therapist_id
+        -- Review: LEFT, so an alert with no clinician (a journal nobody holds a grant to) is in the feed.
+        LEFT JOIN users u ON u.id = r.therapist_id
        WHERE r.created_at >= ${since} AND r.level <> 'none'
 
       UNION ALL

@@ -12,11 +12,8 @@ import { pinnedToDefaultRegion } from "@/lib/db/region";
 import { users } from "@/lib/db/schema";
 import {
   getRadarProfile,
-  heartbeat,
-  pendingBooking,
   saveRadarProfile,
   setOnline,
-  type RadarAttention,
 } from "@/lib/data/radar";
 import { validateSelections } from "@/lib/data/taxonomy";
 
@@ -102,43 +99,11 @@ export async function toggleRadar(online: boolean): Promise<RadarState> {
   return { ok: true };
 }
 
-/**
- * Called by the console every half-minute while the clinician is online, and
- * polled for an incoming booking at the same time.
- *
- * One round trip does both jobs on purpose: a heartbeat that can succeed while
- * the booking check fails would leave someone advertised as available and deaf
- * to the alarm.
+/*
+ * The radar ping (heartbeat, booking check and own status in one request) is
+ * `app/api/radar/ping/route.ts`: a route, so it can be sent as background and
+ * never keep an unattended portal signed in.
  */
-/**
- * One request: stay on the radar, and find out who is knocking.
- *
- * It also returns the clinician's own live status, because they should be able
- * to see what patients see without reloading anything. "Am I actually on?" is
- * the question the whole feature depends on, and the answer used to require a
- * page refresh.
- */
-export async function radarPing(): Promise<{
-  attention: RadarAttention | null;
-  status: "offline" | "online" | "pending" | "in_session";
-  suspendedUntil: string | null;
-  suspendedReason: string | null;
-}> {
-  const actor = await requireUser();
-  await heartbeat(actor.userId);
-
-  const [attention, profile] = await Promise.all([
-    pendingBooking(actor.userId),
-    getRadarProfile(actor.userId),
-  ]);
-
-  return {
-    attention,
-    status: (profile?.status ?? "offline") as "offline" | "online" | "pending" | "in_session",
-    suspendedUntil: profile?.suspendedUntil?.toISOString() ?? null,
-    suspendedReason: profile?.suspendedReason ?? null,
-  };
-}
 
 /**
  * Which radar events ring.
