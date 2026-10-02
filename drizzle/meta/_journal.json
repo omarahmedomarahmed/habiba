@@ -1261,6 +1261,13 @@
       "when": 1789966157000,
       "tag": "0195_payout_no_record_clock_and_translation_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 195,
+      "version": "7",
+      "when": 1789966158000,
+      "tag": "0196_an_alert_keeps_its_session_or_journal",
+      "breakpoints": true
     }
   ]
 }

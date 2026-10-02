@@ -1592,7 +1592,7 @@ export const riskAssessments = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     /**
      * 🔴 0192: a session's alert, or a journal's. Every row names one of the two
-     * (`risk_assessments_subject_kept_chk`, 0194). A journal alert with nobody holding a
+     * (`risk_assessments_session_or_journal_chk`, 0194 and 0196). A journal alert with nobody holding a
      * grant has no clinician and no practice, and goes straight to the platform.
      */
     sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "cascade" }),
@@ -1603,7 +1603,7 @@ export const riskAssessments = pgTable(
      * 🔴 0194: SET NULL, not CASCADE. Deleting a journal or a person deleted the
      * alert while it was escalating. `journal_ref` keeps which journal raised
      * it, with no foreign key, so the row always names its subject
-     * (`risk_assessments_subject_kept_chk`).
+     * (`risk_assessments_session_or_journal_chk`).
      */
     journalId: uuid("journal_id").references((): AnyPgColumn => journals.id, { onDelete: "set null" }),
     personId: uuid("person_id").references((): AnyPgColumn => people.id, { onDelete: "set null" }),
@@ -1678,8 +1678,8 @@ export const riskAssessments = pgTable(
     index("risk_assessments_therapist_idx").on(t.therapistId, t.createdAt),
     index("risk_assessments_person_idx").on(t.personId, t.createdAt).where(sql`journal_id IS NOT NULL`),
     check(
-      "risk_assessments_subject_kept_chk",
-      sql`${t.sessionId} IS NOT NULL OR ${t.personId} IS NOT NULL OR ${t.journalRef} IS NOT NULL`,
+      "risk_assessments_session_or_journal_chk",
+      sql`${t.sessionId} IS NOT NULL OR ${t.journalRef} IS NOT NULL`,
     ),
   ],
 );
