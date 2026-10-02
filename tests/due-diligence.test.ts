@@ -276,7 +276,9 @@ test("🔴 F6 the patient's consent link names one session and cannot be altered
   const [body, mac] = token.split(".") as [string, string];
   const forged = Buffer.from(JSON.stringify({ p: "p-1", s: "S-9999", j: "P-77", o: 0, e: 9_999_999_999 })).toString("base64url");
   assert.equal(p.readPatientConsentToken(`${forged}.${mac}`), null);
-  assert.equal(p.readPatientConsentToken(`${body}.x${mac.slice(1)}`), null);
+  /* Always a different first character: replacing it with a fixed "x" was a no-op one time in 64. */
+  const tampered = `${mac[0] === "x" ? "y" : "x"}${mac.slice(1)}`;
+  assert.equal(p.readPatientConsentToken(`${body}.${tampered}`), null);
   const expired = p.patientConsentToken({
     partnerId: "p-1",
     externalSessionRef: "S",
