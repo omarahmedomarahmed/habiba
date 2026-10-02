@@ -178,8 +178,6 @@ Open items as of 2026-10-01, most urgent first.
 | FC3, P | Paymob confirms that `client_reference_id` makes Send idempotent and can look a payout up (`PAYMOB-CONFIRM` in `lib/billing/gateway/paymob.ts`); Paymob keys for cards and payouts; ETA registration with an e-seal and signer | Only Paymob and the company can |
 | FC1 and the proposed rulings | Accept, change or reverse: DC1 to DC6, FC4, B1-1 to B1-6, B2.2 to B2.5, CR10 to CR17, FB1, FB2 (in B1-3), FB5, F-MFA, F-2FA-STAFF, F-ROLE | Product, money and clinical rules are yours |
 | F-CR3, FD1 | Dial 08008880700, 0220816831, 105 and the Child Helpline 16000 once; confirm 105's days and hours, including Sunday | A number nobody has dialled is a risk |
-| F-CR6 | Run `content:rename` on production for "Crisis Radar" and "رادار الأزمات" in the published home and for-patients rows (`docs/OPERATIONS.md`, Content); `verify:sprint57` is red until then | A typed production confirmation |
-| FB3 | In the content console, make the live `/hipaa` and `/privacy` pages name Recall.ai, WhatsApp (Meta) and Paymob as the code's copy does | Console login |
 | F10, FB4 | BAAs and DPAs with Vercel, Neon, OpenAI, Daily, Resend, Recall.ai, Meta and Paymob (needs the US entity) | Contracts and money |
 | F2, F-CR2 | Meta approval of the WhatsApp templates, including `crisis_alert` and `crisis_escalated`; then list them in `WHATSAPP_APPROVED_TEMPLATES` | Your Meta account |
 | F8 | Name a clinical reviewer to sign the Arabic PHQ-9 and GAD-7 | A qualified person only |
@@ -192,4 +190,6 @@ Done:
 | ID | What | When |
 | --- | --- | --- |
 | F-CRED | The database owner password that sat in public git history: rotated on `main` and dev, Vercel `DATABASE_URL` and `DATABASE_URL_UNPOOLED` updated, the old password refused on production and dev (`docs/OPERATIONS.md`) | 2026-10-01 |
+| F-CR6 | "Crisis Radar" and "رادار الأزمات" renamed in the published rows on production (`content:rename`, 8 phrases in 6 rows; a dry run now finds none) | 2026-10-02 |
+| FB3 | `/hipaa`, `/privacy`, `/contact` and `/security` re-synced from the code on production (`content:sync`): Recall.ai, WhatsApp and Paymob named, data location stated, no unregistered company; `verify:cms-claims` passes on production | 2026-10-02 |
 | F6 | `TOKEN_ENCRYPTION_KEY` set on Vercel production and preview; the only copy belongs in the founder's password manager | 2026-10-01 |
