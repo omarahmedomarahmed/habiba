@@ -60,6 +60,9 @@ const DRY = process.argv.includes("--dry");
 /** See the `--order` block below. Reordering is a visible edit, so it is asked for. */
 const ORDER = process.argv.includes("--order");
 
+/* --meta also takes the page's title and description from the shipped defaults (the browser tab and search snippet). */
+const META = process.argv.includes("--meta");
+
 /**
  * 🔴 `--drop=hero,showcase` — the block types to REMOVE. Task 137.
  *
@@ -132,6 +135,8 @@ async function main() {
         "\n" +
         "--drop names types to REMOVE, for a page whose shape changed. Everything\n" +
         "not named, of either kind, must still come out byte-identical.\n" +
+        "\n" +
+        "--meta also replaces the page's title and description from the defaults.\n" +
         "\n" +
         "--order puts the row in the defaults' order, for a page whose sections\n" +
         "have drifted out of it. Reordering moves no bytes, so say it out loud.",
@@ -297,11 +302,19 @@ async function main() {
         ` -> ${String(next.length)} blocks (${String(sizeAfter)} bytes)` +
         ` · untouched ${String(a.length)} bytes, unchanged`,
     );
+    if (META) {
+      console.log(`${locale}: title "${row.title}" -> "${shipped.title}"`);
+      console.log(`${locale}: description ${row.description === shipped.description ? "unchanged" : "replaced"}`);
+    }
 
     if (!DRY) {
       await db
         .update(contentPages)
-        .set({ blocks: next, updatedAt: new Date() })
+        .set({
+          blocks: next,
+          ...(META ? { title: shipped.title, description: shipped.description } : {}),
+          updatedAt: new Date(),
+        })
         .where(eq(contentPages.id, row.id));
       written += 1;
     }

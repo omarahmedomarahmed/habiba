@@ -242,7 +242,9 @@ async function readPage(
     log.warn("CMS unavailable, serving built-in content", { slug });
   }
 
-  const fallback = findDefaultPage(slug);
+  /* The reader's own default first, so a page with no row yet (about) is Arabic on /ar. */
+  const own = defaultsFor(locale).find((page) => page.slug === slug);
+  const fallback = own ?? findDefaultPage(slug);
   if (!fallback) return null;
   return {
     slug: fallback.slug,
@@ -250,7 +252,7 @@ async function readPage(
     description: fallback.description,
     layout: fallback.layout,
     blocks: fallback.blocks,
-    locale: DEFAULT_LOCALE,
+    locale: own ? locale : DEFAULT_LOCALE,
   };
 }
 
@@ -441,10 +443,17 @@ export async function publishedSlugs(): Promise<
      * twice.
      */
     const rows = await db
-      .select({ slug: contentPages.slug, updatedAt: contentPages.updatedAt })
+      .select({ slug: contentPages.slug, status: contentPages.status, updatedAt: contentPages.updatedAt })
       .from(contentPages)
-      .where(and(eq(contentPages.status, "published"), eq(contentPages.locale, DEFAULT_LOCALE)));
-    if (rows.length > 0) return rows;
+      .where(eq(contentPages.locale, DEFAULT_LOCALE));
+    if (rows.length > 0) {
+      /* A default with no row at all (a new page, before content:sync) is served, so it is listed. */
+      const known = new Set(rows.map((row) => row.slug));
+      return [
+        ...rows.filter((row) => row.status === "published").map(({ slug, updatedAt }) => ({ slug, updatedAt })),
+        ...DEFAULT_PAGES.filter((page) => !known.has(page.slug)).map((page) => ({ slug: page.slug, updatedAt: new Date() })),
+      ];
+    }
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
   }

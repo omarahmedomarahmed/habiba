@@ -116,7 +116,8 @@ async function writePending(owner: FactorOwner, sealed: string): Promise<void> {
   if (owner.kind === "user") {
     await db
       .insert(staffSecondFactors)
-      .values({ userId: owner.id, secretSealed: sealed })
+      /* Stamped by this clock, the one pendingEnrolmentCurrent compares against. */
+      .values({ userId: owner.id, secretSealed: sealed, updatedAt: new Date() })
       .onConflictDoUpdate({
         target: staffSecondFactors.userId,
         set: { secretSealed: sealed, confirmedAt: null, lastStep: null, updatedAt: new Date() },
@@ -139,6 +140,7 @@ async function writePending(owner: FactorOwner, sealed: string): Promise<void> {
       secretSealed: sealed,
       clinicManagerId: owner.kind === "clinic" ? owner.id : null,
       partnerUserId: owner.kind === "partner" ? owner.id : null,
+      updatedAt: new Date(),
     })
     .onConflictDoNothing();
 }

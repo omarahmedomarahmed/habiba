@@ -175,6 +175,8 @@ export function AudienceRotator({
   const everyone = React.useMemo(() => [...(entries ?? []), ...offline], [entries, offline]);
   const shownLive = React.useMemo(() => (entries ?? []).filter((e) => matches(e, filter)), [entries, filter]);
   const shownOffline = React.useMemo(() => offline.filter((e) => matches(e, filter)), [offline, filter]);
+  /* A search that leaves nobody on the globe says so over it, not as an empty planet. */
+  const noMatch = Boolean(filter.query?.trim()) && entries !== null && shownLive.length + shownOffline.length === 0;
   const liveText = live
     ? count === null
       ? live.checking
@@ -395,16 +397,20 @@ export function AudienceRotator({
           */}
           <div className="relative mx-auto w-full max-w-[420px] min-w-0 sm:max-w-[560px] lg:-me-4 lg:max-w-[640px]">
           {/*
-            The radar's chips, above the globe: languages and what somebody
-            needs help with, drawn from the clinicians on it, and they filter
-            the markers and dots. The box under them says what the globe is
-            pointing at.
+            The radar's search and chips, above the globe: a name, a language
+            or what somebody needs help with, drawn from the clinicians on it,
+            and they filter the markers and dots.
           */}
-          <div className="relative z-10 space-y-2">
+          <div className="relative z-10">
             <RadarChips entries={everyone} value={filter} onChange={setFilter} />
-            <GlobeInfo info={info} legend={offline.length > 0} />
           </div>
-          <div className="relative aspect-square w-full">
+          {/*
+            The globe's box is square and sized by the column alone. Everything
+            that comes and goes over it (the box saying what is pointed at, the
+            offline card, the empty search) is an overlay in its top corner, so
+            the planet never moves, grows or shrinks when one appears.
+          */}
+          <div className="relative mt-2 aspect-square w-full" data-globe-frame="">
             <Globe
               entries={shownLive}
               offline={shownOffline}
@@ -419,11 +425,26 @@ export function AudienceRotator({
               showInfo={false}
               className="h-full w-full"
             />
+            <div className="pointer-events-none absolute start-0 top-0 z-20 flex w-[min(20rem,calc(100%-1rem))] flex-col items-start">
+              {offlineSelected && !selected ? (
+                <OfflineCard anchored entry={offlineSelected} onClose={() => setPickedOffline(null)} />
+              ) : noMatch ? (
+                <p
+                  role="status"
+                  data-radar-empty=""
+                  className="rounded-xl border border-white/10 bg-[#04101f]/85 px-3 py-2 text-sm text-white backdrop-blur"
+                >
+                  {t("radar.searchEmpty", { query: filter.query?.trim() ?? "" })}
+                </p>
+              ) : (
+                <GlobeInfo info={info} legend={offline.length > 0} />
+              )}
+            </div>
             {first ? (
               <button
                 type="button"
                 onClick={() => setPicked(first.userId)}
-                className="absolute start-0 top-[12%] z-10 hidden max-w-[16rem] animate-[fade-rise_0.6s_ease-out_both] items-center gap-3 rounded-2xl bg-white/95 p-3 pe-5 text-start shadow-2xl backdrop-blur sm:flex"
+                className="absolute start-0 bottom-[6%] z-10 hidden max-w-[16rem] animate-[fade-rise_0.6s_ease-out_both] items-center gap-3 rounded-2xl bg-white/95 p-3 pe-5 text-start shadow-2xl backdrop-blur sm:flex"
               >
                 <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-navy-600 to-brand-700 text-[14px] font-bold text-white">
                   {first.firstName.slice(0, 1)}
@@ -621,9 +642,6 @@ export function AudienceRotator({
       </section>
 
       {selected ? <BookingSheet entry={selected} onClose={() => setPicked(null)} /> : null}
-      {offlineSelected && !selected ? (
-        <OfflineCard entry={offlineSelected} onClose={() => setPickedOffline(null)} />
-      ) : null}
     </>
   );
 }

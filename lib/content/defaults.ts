@@ -234,9 +234,9 @@ const COMPETITORS: ContentBlock = {
 export const DEFAULT_PAGES: DefaultPage[] = [
   {
     slug: "home",
-    title: "24Therapy: your session notes, written for you",
+    title: "The AI memory for therapy, owned by the patient",
     description:
-      "Record a session and walk away with a SOAP note, insights and a report for your patient.",
+      "Sessions are transcribed and the note is drafted for the therapist. A living profile and a copilot that answers only from the patient's own record, with sources. The patient decides who sees it.",
     layout: "marketing",
     navLabel: null,
     navOrder: null,
@@ -266,35 +266,37 @@ export const DEFAULT_PAGES: DefaultPage[] = [
        *
        * ## The stem
        *
-       * "24Therapy is the record layer" never changes. It is what tells the
+       * "The AI memory for therapy," never changes. It is what tells the
        * eye it is still inside the same sentence while the clause after it
        * swaps, which is the whole difference between this and a carousel.
+       * Every clause and body here must be true in the code today: no call
+       * joining, no white label, no other specialty.
        */
       {
         type: "audiences",
-        stem: "24Therapy is the record layer",
+        stem: "The AI memory for therapy,",
         ctaLabel: "Open the radar",
         ctaHref: "/radar",
         panels: [
           {
             label: "Patients",
-            clause: "for the person who owns it",
-            body: "Every bright dot on the radar is a verified clinician who says they are free right now. Pick one, say what to call you, and pay; in Egypt that is a bank transfer our staff confirm. No account, no waiting list, no form about your insurance.",
+            clause: "owned by the patient.",
+            body: "Sessions are transcribed with the patient's consent and the note is drafted for the therapist. A living profile updates after each session, and the copilot answers questions about a patient only from that patient's own record, with sources. The patient decides who sees it.",
             href: "/for-patients",
             hrefLabel: "How it works for patients",
             demo: "patient-app",
           },
           {
             label: "Therapists",
-            clause: "that writes itself while you work",
-            body: "Start a session on your phone. It is transcribed live and the note is drafted by the time you stand up. You read it, change what is wrong, and sign it.",
+            clause: "that drafts your notes and answers from the record.",
+            body: "Run the session in our video room or in person. It is transcribed live, in Arabic or English, and the note is drafted by the time it ends; you edit it and sign it. Ask the copilot about a patient and it answers from their record with sources, or says the record does not cover it.",
             href: "/for-therapists",
             hrefLabel: "How it works for therapists",
             demo: "session-room",
           },
           {
             label: "Clinics",
-            clause: "your practice keeps its books on",
+            clause: "for every clinician in your practice.",
             body: "A seat per clinician, prorated the day they join or leave, and one bill for the practice. A clinic sees schedules and money. It never sees a note.",
             href: "/for-clinics",
             hrefLabel: "How it works for clinics",
@@ -302,7 +304,7 @@ export const DEFAULT_PAGES: DefaultPage[] = [
           },
           {
             label: "Companies",
-            clause: "your people are covered by",
+            clause: "your people keep when they leave.",
             body: "Fund a pot and watch it spend. You see what you paid, what is left, and who joined. Never who attended, when or with whom, and attendance cannot be required through us.",
             href: "/for-companies",
             hrefLabel: "How it works for companies",
@@ -1187,6 +1189,58 @@ export const DEFAULT_PAGES: DefaultPage[] = [
         type: "prose",
         heading: "Reporting a vulnerability",
         body: "Email security@24therapy.app. We will acknowledge within two business days.",
+      },
+    ],
+  },
+  /*
+   * Who is building this, and why. No navLabel: the footer links it from
+   * code (site-chrome.tsx), so the link works before any CMS row exists.
+   * First names only, and no photographs, because none have been given.
+   */
+  {
+    slug: "about",
+    title: "About us",
+    description: "Who is building 24Therapy, and why.",
+    layout: "marketing",
+    navLabel: null,
+    navOrder: null,
+    blocks: [
+      {
+        type: "hero",
+        eyebrow: "About us",
+        heading: "Your story should follow you",
+        body: "24Therapy is the AI memory for therapy, owned by the patient. This is who is building it, and why.",
+        demo: "none",
+        icon: "heart",
+        backgroundImage: "/backgrounds/contours.svg",
+      },
+      {
+        type: "prose",
+        heading: "Why we built it",
+        body: "Anyone who has changed therapist knows the first sessions go on telling the story again. And a therapist who is writing notes is not fully with the person in front of them. 24Therapy keeps the record with the patient, so their story follows them, and drafts the note, so the session is spent with the person and not with the paperwork.",
+      },
+      {
+        type: "features",
+        heading: "Who we are",
+        items: [
+          {
+            title: "Habiba, founder",
+            body: "The idea is hers. She studies psychology, has been through therapy herself, and has worked as a mental health guide for teenagers and students. She started 24Therapy so that a person's story follows them, and their therapist spends the session with them, not with notes.",
+            icon: "heart",
+          },
+          {
+            title: "Omar, co-founder, product and design",
+            body: "Omar leads product and design, and built the product end to end with AI coding agents.",
+            icon: "sparkles",
+          },
+        ],
+      },
+      {
+        type: "cta",
+        heading: "We are hiring co-founders",
+        body: "We are looking for two more co-founders: a technical lead who will own the engineering, and a clinical lead who will own the clinical side, from the wording of a note to the safety rules. If that is you, write to us.",
+        ctaLabel: "Write to us",
+        ctaHref: "/contact",
       },
     ],
   }

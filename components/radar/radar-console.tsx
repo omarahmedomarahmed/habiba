@@ -149,35 +149,54 @@ export function RadarConsole({
   const everyone = useMemo(() => [...entries, ...offline], [entries, offline]);
   const offlinePicked = offline.find((entry) => entry.userId === offlineId) ?? null;
   const filtersOn = activeCount(filter);
+  /* The search, not a chip, is what left nobody: say so in its own words. */
+  const searchedOut = Boolean(filter.query?.trim()) && visible.length === 0 && visibleOffline.length === 0;
 
-  const listContent =
-    onlineCount === 0 ? (
-      <FirstHours hours={firstHours} />
-    ) : visible.length === 0 ? (
-      <div className="rounded-2xl bg-white/5 p-4 text-center">
-        <p className="text-sm font-semibold text-white">{t("radar.nobodyMatchingTitle")}</p>
-        <p className="mt-1 text-xs leading-relaxed text-white/85">
-          {onlineCount === 1
-            ? t("radar.othersAvailableOne")
-            : t("radar.othersAvailableMany", { count: onlineCount })}
-        </p>
-        <button
-          type="button"
-          onClick={() => setFilter(NO_FILTER)}
-          className="mt-3 text-xs font-semibold text-teal-300 hover:text-teal-200"
-        >
-          {t("radar.showEveryone")}
-        </button>
-      </div>
-    ) : (
-      <ul className="space-y-2">
-        {visible.map((entry) => (
-          <li key={entry.userId} className="min-w-0">
-            <TherapistCard entry={entry} tone="dark" onSelect={() => setSelectedId(entry.userId)} />
-          </li>
-        ))}
-      </ul>
-    );
+  /* Ahead of "nobody on shift": a search that found nobody is the answer to what was asked. */
+  const searchEmpty = (
+    <div className="rounded-2xl bg-white/5 p-4 text-center" data-radar-empty="">
+      <p className="text-sm font-semibold text-white">
+        {t("radar.searchEmpty", { query: filter.query?.trim() ?? "" })}
+      </p>
+      <button
+        type="button"
+        onClick={() => setFilter(NO_FILTER)}
+        className="mt-3 text-xs font-semibold text-teal-300 hover:text-teal-200"
+      >
+        {t("radar.showEveryone")}
+      </button>
+    </div>
+  );
+
+  const listContent = searchedOut ? (
+    searchEmpty
+  ) : onlineCount === 0 ? (
+    <FirstHours hours={firstHours} />
+  ) : visible.length === 0 ? (
+    <div className="rounded-2xl bg-white/5 p-4 text-center">
+      <p className="text-sm font-semibold text-white">{t("radar.nobodyMatchingTitle")}</p>
+      <p className="mt-1 text-xs leading-relaxed text-white/85">
+        {onlineCount === 1
+          ? t("radar.othersAvailableOne")
+          : t("radar.othersAvailableMany", { count: onlineCount })}
+      </p>
+      <button
+        type="button"
+        onClick={() => setFilter(NO_FILTER)}
+        className="mt-3 text-xs font-semibold text-teal-300 hover:text-teal-200"
+      >
+        {t("radar.showEveryone")}
+      </button>
+    </div>
+  ) : (
+    <ul className="space-y-2">
+      {visible.map((entry) => (
+        <li key={entry.userId} className="min-w-0">
+          <TherapistCard entry={entry} tone="dark" onSelect={() => setSelectedId(entry.userId)} />
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <div className="relative h-[calc(100dvh-3.5rem)] min-h-[560px] w-full overflow-hidden bg-[#04101f]">
@@ -204,13 +223,15 @@ export function RadarConsole({
             showInfo={false}
             backButton={false}
             className={cn(
-              "h-full w-full pt-[8.5rem] pb-[34dvh] sm:pt-24 sm:pb-2",
+              "h-full w-full pt-[13rem] pb-[34dvh] sm:pt-52 sm:pb-2",
               rightOpen ? "sm:pe-[25rem]" : "sm:pe-0",
             )}
           />
         ) : (
-          <div className="h-full overflow-y-auto px-3 pt-36 pb-6 sm:px-4 sm:pt-40">
-            {onlineCount === 0 ? (
+          <div className="h-full overflow-y-auto px-3 pt-56 pb-6 sm:px-4 sm:pt-56">
+            {searchedOut ? (
+              <div className="mx-auto max-w-md">{searchEmpty}</div>
+            ) : onlineCount === 0 ? (
               <div className="mx-auto max-w-md">
                 <FirstHours hours={firstHours} />
               </div>

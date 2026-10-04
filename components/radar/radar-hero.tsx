@@ -32,6 +32,7 @@ const Globe = dynamic(
 import type { RadarEntry, RadarOfflineEntry } from "@/components/radar/types";
 import { Money } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 import { viewerId } from "@/lib/viewer";
 
 /**
@@ -102,6 +103,7 @@ export function RadarHero({
   const [viewer] = useState(() => viewerId());
   const [filter, setFilter] = useState<RadarFilter>(NO_FILTER);
   const [info, setInfo] = useState<GlobeHover | null>(null);
+  const t = useT();
 
   useEffect(() => {
     let cancelled = false;
@@ -273,50 +275,67 @@ export function RadarHero({
             background, so they sit at the top of the board over it, where the
             copy never covers them.
           */}
-          <div className="space-y-2 px-1 pb-2">
+          <div className="px-1 pb-2">
             <RadarChips entries={everyone} value={filter} onChange={setFilter} />
-            <GlobeInfo info={info} legend={offline.length > 0} />
           </div>
 
-          <div className="max-h-[22rem] space-y-2 overflow-y-auto pe-0.5">
-            {entries === null ? (
-              <div className="flex h-32 items-center justify-center gap-2 text-sm text-white/85">
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                {strings.finding}
-              </div>
-            ) : visible.length === 0 ? (
-              <div className="px-3 py-8 text-center">
-                <p className="text-sm font-semibold text-white">
-                  {all.length === 0 ? strings.nobody : strings.nobodyMatching}
-                </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-white/85">
-                  {all.length === 0
-                    ? strings.appearWhenOnline
-                    : strings.othersAvailable.replace(
-                        "{count}",
-                        String(online.length),
-                      )}
-                </p>
-                {all.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setFilter(NO_FILTER)}
-                    className="mt-3 text-sm font-semibold text-teal-300"
-                  >
-                    {strings.showEveryone}
-                  </button>
-                ) : null}
-              </div>
-            ) : (
-              visible.map((entry) => (
-                <TherapistCard
-                  key={entry.userId}
-                  entry={entry}
-                  tone="dark"
-                  onSelect={() => setSelectedId(entry.userId)}
-                />
-              ))
-            )}
+          {/*
+            A fixed height, and the box and offline card float over its top
+            corner instead of sitting above it, so nothing that comes and goes
+            changes the board's height and the globe behind never moves.
+          */}
+          <div className="relative h-[22rem]">
+            <div className="pointer-events-none absolute start-1 top-1 z-10 flex w-[min(20rem,calc(100%-1rem))] flex-col items-start">
+              {offlinePicked && !selected ? (
+                <OfflineCard anchored entry={offlinePicked} onClose={() => setOfflineId(null)} />
+              ) : (
+                <GlobeInfo info={info} legend={false} />
+              )}
+            </div>
+            <div className="h-full space-y-2 overflow-y-auto pe-0.5" data-radar-results="">
+              {entries === null ? (
+                <div className="flex h-32 items-center justify-center gap-2 text-sm text-white/85">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  {strings.finding}
+                </div>
+              ) : visible.length === 0 ? (
+                <div className="px-3 py-8 text-center" data-radar-empty="">
+                  <p className="text-sm font-semibold text-white">
+                    {all.length === 0
+                      ? strings.nobody
+                      : filter.query?.trim() && visibleOffline.length === 0
+                        ? t("radar.searchEmpty", { query: filter.query.trim() })
+                        : strings.nobodyMatching}
+                  </p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-white/85">
+                    {all.length === 0
+                      ? strings.appearWhenOnline
+                      : strings.othersAvailable.replace(
+                          "{count}",
+                          String(online.length),
+                        )}
+                  </p>
+                  {all.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setFilter(NO_FILTER)}
+                      className="mt-3 text-sm font-semibold text-teal-300"
+                    >
+                      {strings.showEveryone}
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                visible.map((entry) => (
+                  <TherapistCard
+                    key={entry.userId}
+                    entry={entry}
+                    tone="dark"
+                    onSelect={() => setSelectedId(entry.userId)}
+                  />
+                ))
+              )}
+            </div>
           </div>
 
           <p className="px-3 pt-2 pb-1 text-[11px] leading-relaxed text-white/85">
@@ -327,9 +346,6 @@ export function RadarHero({
 
       {selected ? (
         <BookingSheet entry={selected} onClose={() => setSelectedId(null)} />
-      ) : null}
-      {offlinePicked && !selected ? (
-        <OfflineCard entry={offlinePicked} onClose={() => setOfflineId(null)} />
       ) : null}
     </section>
   );

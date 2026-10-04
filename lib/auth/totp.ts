@@ -264,16 +264,23 @@ export function hashEnrolCode(code: string): string {
   return createHash("sha256").update(`staff-enrol:${code.replace(/\D/g, "")}`).digest("hex");
 }
 
-/** Whether a proof spent at `usedAt` still opens enrolment. A future time fails closed. */
+/**
+ * How far the database clock may run ahead of the app's. A row stamped by the
+ * database `now()` read by the app can look a fraction of a second "in the
+ * future" (176 ms measured on 4 Oct), which read as expired the moment it was made.
+ */
+export const CLOCK_SKEW_MS = 60_000;
+
+/** Whether a proof spent at `usedAt` still opens enrolment. A time further ahead than clock skew fails closed. */
 export function enrolProofCurrent(usedAt: Date | null | undefined, now: Date = new Date()): boolean {
   if (!usedAt) return false;
   const age = now.getTime() - usedAt.getTime();
-  return age >= 0 && age <= ENROL_PROOF_MINUTES * 60_000;
+  return age >= -CLOCK_SKEW_MS && age <= ENROL_PROOF_MINUTES * 60_000;
 }
 
 /** Whether a pending (unconfirmed) app was started recently enough to be shown or confirmed. */
 export function pendingEnrolmentCurrent(startedAt: Date | null | undefined, now: Date = new Date()): boolean {
   if (!startedAt) return false;
   const age = now.getTime() - startedAt.getTime();
-  return age >= 0 && age <= PENDING_ENROLMENT_MINUTES * 60_000;
+  return age >= -CLOCK_SKEW_MS && age <= PENDING_ENROLMENT_MINUTES * 60_000;
 }
