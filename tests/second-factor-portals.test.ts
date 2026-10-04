@@ -120,6 +120,9 @@ test("the emailed enrolment proof and a pending app both run out, and a future t
   assert.equal(enrolProofCurrent(ago(-5), now), false);
   assert.equal(pendingEnrolmentCurrent(ago(PENDING_ENROLMENT_MINUTES - 1), now), true);
   assert.equal(pendingEnrolmentCurrent(ago(PENDING_ENROLMENT_MINUTES + 1), now), false);
+  /* A database clock a moment ahead of the app's is still a current enrolment; far ahead is not. */
+  assert.equal(pendingEnrolmentCurrent(new Date(now.getTime() + 500), now), true);
+  assert.equal(pendingEnrolmentCurrent(new Date(now.getTime() + 10 * 60_000), now), false);
   assert.match(newEnrolCode(), /^\d{6}$/);
   assert.equal(hashEnrolCode("123 456"), hashEnrolCode("123456"));
   assert.notEqual(hashEnrolCode("123456"), hashEnrolCode("123457"));
