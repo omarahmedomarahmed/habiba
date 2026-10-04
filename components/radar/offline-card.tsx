@@ -8,7 +8,7 @@ import type { RadarOfflineEntry } from "@/components/radar/types";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { DEFAULT_READER_ZONE, formatWhen, resolveZone } from "@/lib/scheduling/tz";
 import { useReaderZone } from "@/lib/scheduling/use-reader-zone";
-import { fullName } from "@/lib/utils";
+import { cn, fullName } from "@/lib/utils";
 
 /**
  * 🔴 WHAT A TAP ON AN OFFLINE DOT OPENS: "Offline, book a time", and their
@@ -23,16 +23,25 @@ import { fullName } from "@/lib/utils";
  * same on the radar page, the home page globe and the patient app, and never
  * sits under a phone's bottom sheet. Below the booking sheet's layer and far
  * below the SOS orb's.
+ *
+ * `anchored` is for a globe inside a page that scrolls (the home page hero):
+ * the host places the card absolutely in its overlay, top-left of the globe,
+ * and it scrolls away with the globe rather than following the viewport.
  */
 export function OfflineCard({
   entry,
   onClose,
   profileBase = "/t",
+  anchored = false,
+  className,
 }: {
   entry: RadarOfflineEntry;
   onClose: () => void;
   /** `/patient/t` inside the patient app, so a patient stays in their chrome. */
   profileBase?: string;
+  /** Placed by the host inside its globe overlay, not fixed to the screen. */
+  anchored?: boolean;
+  className?: string;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -44,7 +53,12 @@ export function OfflineCard({
     <div
       role="dialog"
       aria-label={name}
-      className="fixed inset-x-3 top-20 z-[90] mx-auto max-w-sm rounded-2xl border border-white/10 bg-[#071a2e]/95 p-3 text-white shadow-2xl backdrop-blur-md"
+      data-offline-card=""
+      className={cn(
+        "rounded-2xl border border-white/10 bg-[#071a2e]/95 p-3 text-white shadow-2xl backdrop-blur-md",
+        anchored ? "pointer-events-auto w-full" : "fixed inset-x-3 top-20 z-[90] mx-auto max-w-sm",
+        className,
+      )}
     >
       <div className="flex items-start gap-3">
         <span className="opacity-80">
