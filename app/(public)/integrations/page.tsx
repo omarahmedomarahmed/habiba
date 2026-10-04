@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DocsNav } from "@/components/public/docs-nav";
+import { PartnerPitch } from "@/components/public/partner-pitch";
 import { DarkBand, Glow } from "@/components/public/site-ui";
 import { Card } from "@/components/ui";
 import { StateDot } from "@/components/marketing/state-dot";
@@ -113,6 +114,11 @@ export default async function IntegrationsPage() {
           ) : null}
         </div>
       </DarkBand>
+
+    {/* The partner offer, above the vendor lists. */}
+    <div className="mx-auto max-w-6xl px-5 pt-10 sm:px-6 sm:pt-14">
+      <PartnerPitch />
+    </div>
 
     <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 sm:py-14">
       <div className="lg:grid lg:grid-cols-[13rem_1fr] lg:gap-12">

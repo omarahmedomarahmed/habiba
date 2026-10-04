@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PartnerDemo } from "@/components/public/audience-demos";
+import { PartnerPitch } from "@/components/public/partner-pitch";
 import { DarkBand, Glow, btn } from "@/components/public/site-ui";
 import { Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -13,7 +14,7 @@ import { PARTNER_APPLY, PARTNER_SIGN_IN } from "@/lib/routing";
 export const metadata: Metadata = {
   title: "Developers",
   description:
-    "What you can do with the 24Therapy API, each one a flow with a screen at one end, and what there is no endpoint for.",
+    "Add AI memory and a copilot to your telehealth platform: consent, sessions, audio in, note out, patient memory, copilot and a launch link, through a REST API.",
 };
 
 /**
@@ -83,6 +84,9 @@ export default async function DevelopersPage() {
       </DarkBand>
 
       <div className="mx-auto max-w-3xl px-5 py-14 sm:px-6 sm:py-20">
+
+      {/* The offer first: what a partner can add, all live routes, and where to apply. */}
+      <PartnerPitch heading={false} />
 
       <div className="mt-10 space-y-8">
         {/*

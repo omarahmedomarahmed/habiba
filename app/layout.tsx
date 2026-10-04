@@ -8,11 +8,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(env.appUrl),
   title: {
-    default: "24Therapy, your session notes, written for you",
+    default: "24Therapy, the AI memory for therapy, owned by the patient",
     template: "%s · 24Therapy",
   },
   description:
-    "Record a therapy session on your phone and walk away with a SOAP note, clinical insights and a report you can send to your patient.",
+    "Sessions are transcribed and the note is drafted for the therapist. A living profile and a copilot that answers only from the patient's own record, with sources. The patient decides who sees it.",
   openGraph: {
     type: "website",
     siteName: "24Therapy",

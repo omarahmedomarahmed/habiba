@@ -225,6 +225,8 @@ export async function SiteFooter() {
                 {t(item.key)}
               </FooterLink>
             ))}
+            {/* A CMS page with no navLabel, linked here so it shows before any row exists. */}
+            <FooterLink href={href("/about")}>{t("nav.about")}</FooterLink>
           </FooterColumn>
 
           <FooterColumn title={t("footer.legal")}>
