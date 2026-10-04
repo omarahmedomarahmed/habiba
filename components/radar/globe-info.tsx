@@ -45,6 +45,7 @@ export function GlobeInfo({
         className,
       )}
       aria-live="polite"
+      data-globe-info=""
     >
       {!info ? (
         <div className="flex flex-col gap-1 text-[11px] text-white/85">
