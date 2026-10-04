@@ -120,6 +120,8 @@ const PUBLIC_PREFIXES = [
    * English one. Four audience pages, four entries, no asymmetry left to find.
    */
   "/for-therapists",
+  /* The About page has Arabic copy (lib/content/defaults-ar.ts), so /ar/about serves it. */
+  "/about",
   "/developers",
   "/verify",
   "/t",
