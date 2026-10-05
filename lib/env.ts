@@ -431,6 +431,11 @@ export const env = {
   emailFrom: process.env.EMAIL_FROM || "24Therapy <noreply@24therapy.app>",
 
   cronSecret: process.env.CRON_SECRET || "",
+  /*
+   * The legacy showcase deployment. Every scheduled job answers before any
+   * query, so the database sleeps unless a visitor opens a page.
+   */
+  showcaseMode: process.env.SHOWCASE_MODE === "1",
 
   /*
    * 🔴 41.3 / 41.6 — the meeting bot's three secrets.

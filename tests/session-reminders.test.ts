@@ -363,3 +363,13 @@ test("only main deploys: every other branch would make the Neon integration a da
   const vercel = JSON.parse(readFileSync("vercel.json", "utf8")) as { git?: { deploymentEnabled?: Record<string, boolean> } };
   assert.deepEqual(vercel.git?.deploymentEnabled, { main: true, "*": false, "**": false });
 });
+
+test("the legacy showcase runs no job: the switch answers after the secret and before any query", () => {
+  const route = readFileSync("app/api/cron/[job]/route.ts", "utf8");
+  const handler = route.slice(route.indexOf("export async function GET"));
+  const guard = handler.indexOf("if (env.showcaseMode)");
+  assert.ok(guard > handler.indexOf("bearerMatches(request, env.cronSecret)"), "the secret is still checked first");
+  assert.ok(guard < handler.indexOf("recordHeartbeat"), "no heartbeat query in showcase");
+  assert.ok(guard < handler.indexOf("JOBS[job as JobName]()"), "no job runs in showcase");
+  assert.match(readFileSync("lib/env.ts", "utf8"), /showcaseMode: process\.env\.SHOWCASE_MODE === "1"/);
+});

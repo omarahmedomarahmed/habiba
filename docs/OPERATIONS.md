@@ -32,7 +32,7 @@ the production endpoint, and runs one allowed command with it.
 | ETA e-invoicing (waiting for registration) | `ETA_MODE`, `ETA_CLIENT_ID`, `ETA_CLIENT_SECRET`, `ETA_SIGNER`, `ETA_SIGNER_URL`, `ETA_SIGNER_TOKEN` |
 | Integrations | `RECALL_API_KEY`, `RECALL_BASE_URL`, `EHR_CLIENT_ID`, `EHR_CLIENT_SECRET` |
 | Stripe (off, ruling 17) | `STRIPE_ENABLED`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (required only when enabled) |
-| Switches | `CSP_ENFORCE` (`0` means report-only), `SIMULATION_RUNNING` (outbox for `@example.com`, robots disallow, wider limits), `SIMULATION_BANNER` (`0` hides the strip), `ALLOW_LOCAL_UPLOADS`, `OPENAI_BASE_URL` |
+| Switches | `CSP_ENFORCE` (`0` means report-only), `SIMULATION_RUNNING` (outbox for `@example.com`, robots disallow, wider limits), `SIMULATION_BANNER` (`0` hides the strip), `SHOWCASE_MODE` (`1` makes every scheduled job answer before any query, so the legacy showcase never wakes the database), `ALLOW_LOCAL_UPLOADS`, `OPENAI_BASE_URL` |
 | Database extras | `DATABASE_URL_DIRECT`, `DATABASE_SSL`, `DATABASE_URL_EG` (a future Egyptian region; none is open), `DATABASE_URL_UNPOOLED` (on Vercel; no code reads it, but it carries the password, so it is rotated with `DATABASE_URL`) |
 | CI only | `DATABASE_WS_PROXY` (a local WebSocket proxy in front of a throwaway Postgres; `docs/TESTING.md`) |
 | Local only, never in Vercel | `DATABASE_URL_PRODUCTION`, `DATABASE_URL_DEV`, `DATABASE_URL_SIMULATION`, `DEMO_PRIVATE_PASSWORD`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_TEST_EMAIL`, `SEED_TEST_PASSWORD`, `E2E_CHROMIUM` |

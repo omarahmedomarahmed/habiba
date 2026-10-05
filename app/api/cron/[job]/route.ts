@@ -936,6 +936,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ job:
     return NextResponse.json({ error: "unknown_job" }, { status: 404 });
   }
 
+  /* The legacy showcase: no job runs and no heartbeat is written, so nothing wakes the database. */
+  if (env.showcaseMode) {
+    return NextResponse.json({ job, skipped: true, gate: "showcase" });
+  }
+
   /*
    * 🔴 0165: every run leaves a heartbeat, clean or not, and the hourly
    * watchdog emails the super admins when a scheduled job's last CLEAN run is
