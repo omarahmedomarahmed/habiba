@@ -230,11 +230,10 @@ values from the provider dashboards, never from a document.
 
 ## Monitoring
 
-A stopgap only. `.github/workflows/uptime.yml` (a scheduled GitHub Actions workflow) fetches `https://24therapy.app/` and
-`/api/health` every 15 minutes and fails if either is not a 200 within 10 seconds; GitHub emails
-the repository owner about a failed scheduled run. Neither URL wakes the database. GitHub can
-delay scheduled runs and pauses them after 60 days without repository activity. A real uptime
-service and an error tracker are founder item F-MON in `docs/DECISIONS.md`.
+None in this repository. The stopgap `.github/workflows/uptime.yml` was removed on 2026-10-11:
+`24therapy.app` now serves the new product and redirects to www with a 308, so the check failed
+every 15 minutes and emailed the owner. This repository is the legacy showcase. A real uptime
+service and an error tracker remain founder item F-MON in `docs/DECISIONS.md`.
 
 ## Costs that matter
 

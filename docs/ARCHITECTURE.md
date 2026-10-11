@@ -255,7 +255,7 @@ host so previews cannot overwrite production's marker (rulings N34, CR4).
 | Operations alerts | `ops_alerts`, the admin board |
 | AI usage and cost | `ai_request_logs`, `/admin/usage` |
 | Logs | `lib/logger.ts`: ids are hashed with `ref()`, error messages pass through `safeErrorMessage` |
-| Outside check | `.github/workflows/uptime.yml` fetches `/` and `/api/health` (no database) every 15 minutes (`docs/OPERATIONS.md`) |
+| Outside check | None: the old `.github/workflows/uptime.yml` was removed 2026-10-11: `24therapy.app` now serves the new product (www.24therapy.app), so this repository's showcase has no uptime check |
 | Sentry | Not installed |
 
 ## CI database seam
