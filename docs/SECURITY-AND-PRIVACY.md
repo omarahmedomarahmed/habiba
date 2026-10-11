@@ -91,7 +91,7 @@ Written from the code on 2026-10-01. The repository is public, so nothing here i
 | False claims in stored CMS rows | `lib/content/claims.ts` guard and verifiers |
 | No age check on clinician-made charts and sessions | Clinician's 18+ confirmation (0190) |
 | Record links reusable for 3 days | 24 hours, one open |
-| Restore history 1 day; no outside uptime check | 7 days; `uptime.yml` |
+| Restore history 1 day; no outside uptime check | 7 days; no outside uptime check (`uptime.yml` removed 2026-10-11) |
 | No database suite in CI | "Database checks" job with `test:tenancy` |
 
 ## Video room hosts (audited)
